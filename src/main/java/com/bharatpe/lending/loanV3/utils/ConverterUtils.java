@@ -37,6 +37,20 @@ public class ConverterUtils {
         return "";
     }
 
+    public static String convertXmlToString(String xml) {
+        try {
+            if (!ObjectUtils.isEmpty(xml) && "\n".equalsIgnoreCase(xml.substring(xml.length() -1))) {
+                System.out.println("removed last slash n");
+                xml = xml.substring(0,xml.length() -1);
+            }
+            xml = xml.replaceAll("\\n","\n");
+            return xml;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
     public static String convertToBase64String(String data) {
         try {
             return Base64.encodeBase64String(data.getBytes(StandardCharsets.UTF_8));

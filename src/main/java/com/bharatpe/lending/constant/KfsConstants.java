@@ -56,5 +56,10 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_ABFL = "Ms. Rachana Padval";
     String LENDER_CONTACT_EMAIL_ABFL = "grievance.finance@adityabirlacapital.com";
     String LENDER_CONTACT_NUMBER_ABFL = "080-45860196";
+    String LENDER_CORPORATE_NAME_PIRAMAL = "Piramal Capital Housing Finance Limited";
+    String LENDER_BUSINESS_ADDRESS_PIRAMAL = "6th floor, Amiti Building, Agastya Corporate Park, Kamani Junction Opp Fire Station, LBS Marg, Kurla (W), Mumbai, MH – 400070";
+    String LENDER_CONTACT_NAME_PIRAMAL = "Mr. Kishore Dalwani";
+    String LENDER_CONTACT_EMAIL_PIRAMAL = "nodal.officer@piramal.com";
+    String LENDER_CONTACT_NUMBER_PIRAMAL = "022-69181439";
     String LENDER_GRIEVANCE_TIME_ABFL = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
 }

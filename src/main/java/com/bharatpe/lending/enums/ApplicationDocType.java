@@ -1,5 +1,7 @@
 package com.bharatpe.lending.enums;
 
+import static com.bharatpe.lending.enums.Lender.*;
+
 public enum ApplicationDocType {
     KEY_FACTS_STATEMENT_DETAILS,
     KEY_FACTS_STATEMENT_DOC,
@@ -8,6 +10,17 @@ public enum ApplicationDocType {
     ABFL_LETTERHEAD_FOOTER,
     WELCOME_LETTER_DOC,
     HINDON_LETTERHEAD_HEADER,
-    HINDON_LETTERHEAD_FOOTER
+    HINDON_LETTERHEAD_FOOTER,
+    PIRAMAL_LETTERHEAD_FOOTER;
+
+    public static ApplicationDocType getFooterMapping(Lender lender) {
+        switch (lender) {
+            case ABFL:
+                return ABFL_LETTERHEAD_FOOTER;
+            case PIRAMAL:
+                return PIRAMAL_LETTERHEAD_FOOTER;
+        }
+        return null;
+    }
 
 }

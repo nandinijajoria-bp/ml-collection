@@ -292,6 +292,10 @@ public class APIGatewayService {
         logger.info("In Create pg transaction for merchant id {}", merchantId);
         InternalClientSlave internalClient = internalClientDaoSlave.findByClientName(CLIENT);
         LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
+//        if (loanUtil.isInternalMerchant(merchantId) && Lender.PIRAMAL.equals(pgCreateTransactionRequestDTO.getLender())) {
+//            pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "INACTIVE");
+//        }
+
         logger.info("pg config related to mid: {}", pgMidConfig);
         try {
             Map requestParams = new HashMap<>();

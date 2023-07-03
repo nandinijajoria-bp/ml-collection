@@ -17,4 +17,6 @@ public class CreateApplicationRequest {
     private String latitude;
     private String longitude;
     private String businessName;
+    private Boolean currentAddressSameAsPermanentAddress;
+    private String ip;
 }

@@ -34,9 +34,19 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
+import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
+import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
+import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
+import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
+import com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustmentModesPiramal;
+import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.util.LoanUtil;
+
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -55,6 +65,7 @@ import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.bharatpe.lending.util.PaymentLinkUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -87,6 +98,9 @@ public class PaymentService {
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
+    NbfcLenderGateway nbfcLenderGateway;
 
     @Autowired
     LoyaltyService loyaltyService;
@@ -158,6 +172,9 @@ public class PaymentService {
     LendingCollectionAuditService lendingCollectionAuditService;
 
     @Autowired
+    LendingCollectionAuditDao lendingCollectionAuditDao;
+
+    @Autowired
     LiquiloansService liquiloansService;
 
     @Autowired
@@ -180,6 +197,12 @@ public class PaymentService {
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
     int loanPaymentOrderPendingTransactionTimeWindow;
+
+    @Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
+    String nbfcBaseUrl;
+
+    @Value("${nbfc.baseurl.v3.foreclosure:api/v3/lender/foreclosure}")
+    String nbfcURI;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -1069,6 +1092,8 @@ public class PaymentService {
         notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
         if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) && !ObjectUtils.isEmpty(lendingLedger)) {
                 sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+        }else if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()) && !ObjectUtils.isEmpty(lendingLedger)){
+            postForeclosureReceiptPiramal(activeLoan,lendingLedger);
         }
 
 //		if(isLoanClosed) {
@@ -1094,6 +1119,62 @@ public class PaymentService {
 //				}
 //			});
 //		}
+    }
+    public NbfcResponseDto postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
+        try {
+            logger.info("inside the post foreclosure");
+
+            LoanReceiptRequestDTO loanReceiptRequestDTO = new LoanReceiptRequestDTO();
+
+            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(activeLoan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+
+            String adjustmentMode = PaymentAdjustmentModesPiramal.valueOf(lendingLedger.getAdjustmentMode()).getAdjustedModeEquivalent();
+
+            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+
+            LoanReceiptRequestDTO.PaymentReceiptData paymentReceiptData = new LoanReceiptRequestDTO.PaymentReceiptData();
+            paymentReceiptData.setTransactionReference(txnId);
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+            paymentReceiptData.setReceivedDate(simpleDateFormat.format(lendingLedger.getDate()));
+            paymentReceiptData.setRemarks(lendingLedger.getAdjustmentMode());
+
+
+            List<LoanReceiptRequestDTO.AllocationDetail> allocationDetails = new ArrayList<>();
+            allocationDetails.add(LoanReceiptRequestDTO.AllocationDetail.builder().allocationItem("P").paidAmount(lendingLedger.getPrinciple()).build());
+            allocationDetails.add(LoanReceiptRequestDTO.AllocationDetail.builder().allocationItem("I").paidAmount(lendingLedger.getInterest()).build());
+
+            loanReceiptRequestDTO.setLoanAccountNumber(lendingApplicationLenderDetails.getLan());
+
+            BigDecimal amount = BigDecimal.valueOf(lendingLedger.getAmount());
+            loanReceiptRequestDTO.setPaymentAmount(amount);
+            loanReceiptRequestDTO.setLedgerId(lendingLedger.getId());
+            loanReceiptRequestDTO.setPaymentMode(PaymentMode.valueOf(adjustmentMode));
+            loanReceiptRequestDTO.setPaymentType(PaymentTypePiramal.FORECLOSURE_PAYMENT);
+            loanReceiptRequestDTO.setPaymentRequestType(PaymentRequestType.POST);
+            loanReceiptRequestDTO.setPaymentReceiptData(paymentReceiptData);
+            loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
+
+            NbfcRequestDto<LoanReceiptRequestDTO> dtoNbfcRequestDto = new NbfcRequestDto<>();
+            dtoNbfcRequestDto.setLender("PIRAMAL");
+            dtoNbfcRequestDto.setApplicationId(activeLoan.getApplicationId());
+            dtoNbfcRequestDto.setProductName("LENDING");
+            dtoNbfcRequestDto.setPayload(loanReceiptRequestDTO);
+            logger.info("resquest dto {}",dtoNbfcRequestDto);
+            LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+            lendingCollectionAudit.setStatus("SUCCESS");
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            try {
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(dtoNbfcRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI);
+                logger.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
+                return nbfcResponseDto;
+            } catch (JsonProcessingException e) {
+                logger.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",dtoNbfcRequestDto, e);
+            }
+        } catch (Exception e){
+            logger.error("Exception {} while posting the foreclosure receipt for application id {}",e.getMessage(),activeLoan.getApplicationId());
+        }
+        return null;
     }
 
     private boolean adjustAdvanceEdi(LendingPaymentSchedule activeLoan, double balance, boolean advanceEdi) {
@@ -1644,6 +1725,8 @@ public class PaymentService {
 
         if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) && !ObjectUtils.isEmpty(lendingLedger)) {
             sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+        }else if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()) && !ObjectUtils.isEmpty(lendingLedger)){
+            postForeclosureReceiptPiramal(activeLoan,lendingLedger);
         }
 
         if (remainingBalance > 0.05) {

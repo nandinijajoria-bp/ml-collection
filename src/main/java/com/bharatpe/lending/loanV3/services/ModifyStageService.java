@@ -16,6 +16,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 @Slf4j
@@ -40,7 +41,7 @@ public class ModifyStageService {
         }
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
                 .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name());
-        if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) || !Lender.ABFL.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLender())) {
+        if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) || !Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name()).contains(existingLendingApplicationLenderDetails.getLender())) {
             log.info("no existingLendingApplicationLenderDetails exists for {}", modifyLenderDto.getId());
             return;
         }

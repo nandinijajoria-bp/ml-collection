@@ -86,7 +86,7 @@ public class KycRequestKafka {
                 log.info("no application found for id {}", kycRequest.get("application_id"));
             }
             KycRequestApiDto kycRequestDto = createPayload(Long.valueOf(kycRequest.get("application_id")));
-            lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(kycRequestDto.getApplicationId(),Status.ACTIVE.name());
+            lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(kycRequestDto.getApplicationId(),Status.ACTIVE.name(), Lender.ABFL.name());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                     (!kycRequestDto.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) ||
                     !LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
@@ -104,7 +104,7 @@ public class KycRequestKafka {
                 df.setRoundingMode(RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
-                                LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek()))));
+                                LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
             }
             lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
             lendingApplicationLenderDetails.setTxnId(kycRequestDto.getPayload().getTransactionId());
@@ -147,7 +147,7 @@ public class KycRequestKafka {
             }
 //            KafkaAudit kafkaAudit = new KafkaAudit(AUDIT_POD, AUDIT_SERVICE,"bre_callback_request", breRequest);
             existingLendingApplicationLenderDetails =
-                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(),Status.ACTIVE.name());
+                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(),Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) ||
                     !kycCallbackResponseDto.getLender().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLender())
                     || !ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycCompletionTimestamp())) {
@@ -184,7 +184,7 @@ public class KycRequestKafka {
                 log.error("application not found !! {}", applicationId);
             }
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId,Status.ACTIVE.name());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId,Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("lending application lender details not found for {}", applicationId);
                 throw new RuntimeException("unable to generate kyc payload" + applicationId);

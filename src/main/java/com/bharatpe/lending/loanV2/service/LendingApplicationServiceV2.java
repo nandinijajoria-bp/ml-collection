@@ -37,6 +37,8 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -211,6 +213,12 @@ public class LendingApplicationServiceV2 {
 
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
+
+    @Autowired
+    NbfcUtils nbfcUtils;
+
+    @Value("${force.set.piramal:false}")
+    private Boolean forceSetPiramal;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -576,6 +584,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
         lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
         lendingApplication.setEdiFreeDays(eligibleLoan.getEdiCount() % 30 == 0 ? 0 : 1);
+        lendingApplication.setIp(Optional.ofNullable(lendingApplication.getIp()).orElse(lendingApplicationRequest.getIp()));
         lendingApplication = lendingApplicationDao.save(lendingApplication);
 
         if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || (eligibleLoan.getEdiCount() % 30 == 0)) {
@@ -594,11 +603,13 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+        if (forceSetPiramal) {
+            lendingApplication.setLender("PIRAMAL");
+            lendingApplication = lendingApplicationDao.save(lendingApplication);
+        } else {
+            lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+        }
 
-//        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
-//        lendingApplication.setLender("ABFL");
-//        lendingApplication = lendingApplicationDao.save(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
@@ -683,16 +694,57 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setEmail(!StringUtils.isEmpty(additionalDetails.getEmail()) ? additionalDetails.getEmail() : lendingApplication.getEmail());
                 lendingApplication.setAlternateMobile(!StringUtils.isEmpty(additionalDetails.getAlternateContact()) ? additionalDetails.getAlternateContact() : lendingApplication.getAlternateMobile());
             }
+            LendingGstDetail lendingGstDetail = null;
             if (applicationRequest.getProfessionalDetails() != null) {
-                saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
+                lendingGstDetail = saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
             }
             saveAddressQltyDetails(lendingApplication,addressValidationDto);
             lendingApplication.setBusinessName(!StringUtils.isEmpty(applicationRequest.getBusinessName()) ? applicationRequest.getBusinessName() : lendingApplication.getBusinessName());
             lendingApplicationDao.save(lendingApplication);
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(applicationRequest.getCurrentAddressSameAsPermanentAddress());
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            // invoke bre for piramal
+            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
+                invokeBreForPiramal(lendingGstDetail, lendingApplication);
+            }
+
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
+
+    private void invokeBreForPiramal(LendingGstDetail lendingGstDetail, LendingApplication lendingApplication) {
+
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
+        if (!ObjectUtils.isEmpty(lendingGstDetail) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
+                !ObjectUtils.isEmpty(lendingGstDetail.getShopType())
+                && lendingApplicationLenderDetails.getStage().equals(LenderAssociationStages.KYC.name())
+                && lendingApplicationLenderDetails.getKycStatus().equals(LenderAssociationStatus.SELFIE_UPLOAD_SUCCESS.name())
+                && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus())
+                && Boolean.TRUE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())
+        ) {
+            log.info("criteria met to invoke bre for piramal for {}", lendingApplication.getId());
+
+            String currStage =  lendingApplicationLenderDetails.getStage();
+            LenderAssociationStages nextStage =
+                    LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()),
+                            LenderAssociationStages.valueOf(lendingApplicationLenderDetails.getStage()));
+            lendingApplicationLenderDetails.setStage(nextStage.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+            nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(),
+                    lendingApplication.getLender(),
+                    currStage,
+                    Boolean.TRUE
+            );
+        } else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
+            log.info("lender changed as current address not same as permanent address for {}", lendingApplication.getId());
+            nbfcUtils.modifyLender(lendingApplication,lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
+        }
+    }
+
     public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
         try {
             return !(!ObjectUtils.isEmpty(applicationRequest.getAddressDetails()) &&
@@ -727,7 +779,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    private void saveGstDetails(LendingApplication lendingApplication, ProfessionalDetails professionalDetails) {
+    private LendingGstDetail saveGstDetails(LendingApplication lendingApplication, ProfessionalDetails professionalDetails) {
         try {
             LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
             if (lendingGstDetail == null) {
@@ -746,9 +798,11 @@ public class LendingApplicationServiceV2 {
             lendingGstDetail.setAddressType(!StringUtils.isEmpty(professionalDetails.getAddressType()) ? professionalDetails.getAddressType() : lendingGstDetail.getAddressType());
             lendingGstDetail.setCurrentAddress(!StringUtils.isEmpty(professionalDetails.getCurrentAddress()) ? professionalDetails.getCurrentAddress() : lendingGstDetail.getCurrentAddress());
             lendingGstDao.save(lendingGstDetail);
+            return lendingGstDetail;
         } catch (Exception e) {
             log.error("Exception in saveGstDetails for application:{}", lendingApplication.getId(), e);
         }
+        return null;
     }
 
     private String baseChecks(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
@@ -1907,6 +1961,13 @@ public class LendingApplicationServiceV2 {
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_ABFL;
                 lenderGrievanceTime = KfsConstants.LENDER_GRIEVANCE_TIME_ABFL;
             }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_PIRAMAL;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_PIRAMAL;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_PIRAMAL;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_PIRAMAL;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_PIRAMAL;
+            }
             else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
@@ -1971,7 +2032,7 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setApplicationId(lendingApplication.getId());
         lendingKfs.setMerchantId(merchant.getId());
         lendingKfs.setLender(lendingApplication.getLender());
-        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek());
+        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
@@ -2006,9 +2067,10 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
             if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
-                if (Lender.ABFL.name().equalsIgnoreCase(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.ABFL_LETTERHEAD_FOOTER));
+                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
+                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
                     Header headerHandler = new Header(headerImageData);
                     pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
                     Footer footerHandler = new Footer(footerImageData);
@@ -2038,7 +2100,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public Double getApr(Long merchantId, Long applicationId, Double amountToCalculateAprOn, Integer ediModel){
+    public Double getApr(Long merchantId, Long applicationId, Double amountToCalculateAprOn, Integer ediModel, String lender){
         try{
             log.info("calculating APR for applicationId : {}", applicationId);
             Double guess = 0.01;
@@ -2070,7 +2132,7 @@ public class LendingApplicationServiceV2 {
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = (ediModel == 7) ? 360 : 365;
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name()).contains(lender)) ? 360 : 365;
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
@@ -2096,9 +2158,10 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream);
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                if (Lender.ABFL.name().equalsIgnoreCase(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
-                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.ABFL_LETTERHEAD_FOOTER));
+                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
+                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
                     Header headerHandler = new Header(headerImageData);
                     pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
                     Footer footerHandler = new Footer(footerImageData);
@@ -2148,6 +2211,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
+                filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + ".html";
             }
             else filePath = "/templates/" + "KFS_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2186,6 +2251,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
+            } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL.html";
             }
             else filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2246,8 +2313,10 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_disbursed", kfsDto.getDisbursalAmount());
         data.put("loan_amount_disbursed_in_words", getAmountInWords(kfsDto.getDisbursalAmount().toString()));
         data.put("interest_equal_daily", kfsDto.getEdiAmount());
+        data.put("edi_amount", kfsDto.getEdiAmount());
         data.put("interest_equal_daily_in_words", getAmountInWords(kfsDto.getEdiAmount().toString()));
         data.put("no_of_edis", kfsDto.getEdiCount());
+        data.put("repayment_frequency", Arrays.asList(Lender.PIRAMAL.name()).contains(kfsDto.getLender()) ? "Daily" : "");
         data.put("edi_off_day",kfsDto.getEdiOffData());
         data.put("default_rate_of_interest", "N/A");
         data.put("default_rate_of_interest_on_monthly_or_daily_basis", "N/A");
@@ -2329,12 +2398,20 @@ public class LendingApplicationServiceV2 {
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding_1.png";
         }
+        else if(lender.equalsIgnoreCase(Lender.PIRAMAL.toString()) && applicationDocType.equals(ApplicationDocType.PIRAMAL_LETTERHEAD_FOOTER)){
+//            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_letter_footer.jpg";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_footer.png";
+        }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.WELCOME_LETTER_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-welcome.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString())){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead.png";
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-compressed_1.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
+//            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/piramal-logo.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_logo_header.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";

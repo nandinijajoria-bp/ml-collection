@@ -174,6 +174,9 @@ public class LoanUtil {
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
+	@Value("${update.ifsc.piramal:false}")
+	boolean updateIfscForPiramal;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
@@ -962,6 +965,10 @@ public class LoanUtil {
 			merchantBankDetail = bankDetailsDtoOptional.get();
 		if (merchantBankDetail == null) return null;
 		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
+		if (updateIfscForPiramal && isInternalMerchant(merchantId)) {
+			logger.info("setting ifsc as BCBM for {}", merchantId);
+			lendingNachBank = enachHandler.findByIfsc("BCBM");
+		}
 		logger.info("lendingNachBank for {} : {}", merchantId, lendingNachBank);
 		if(!ObjectUtils.isEmpty(lendingNachBank))return lendingNachBank.getMode();
 		return null;
@@ -1207,6 +1214,9 @@ public class LoanUtil {
 		}
 		if (lender.equals("ABFL")) {
 			finalLender = Lender.ABFL.name();
+		}
+		if (lender.equals("PIRAMAL")) {
+			finalLender = Lender.PIRAMAL.name();
 		}
 		return finalLender;
 	}

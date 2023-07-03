@@ -8,6 +8,7 @@ import com.bharatpe.lending.loanV3.dto.ModifyLenderDto;
 import com.bharatpe.lending.loanV3.dto.PushApplicationNextStageDto;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.ModifyStageService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ public class LendingApplicationControllerV3 {
     private LendingApplicationServiceV3Base lendingApplicationServiceV3;
     private ModifyStageService modifyStageService;
     private NbfcUtils nbfcUtils;
+
+    @Autowired
+    PiramalGetLoanDetails piramalGetLoanDetails;
 
     @Autowired
     public LendingApplicationControllerV3(@Qualifier("lendingApplicationServiceV3Impl") LendingApplicationServiceV3Base lendingApplicationServiceV3,
@@ -48,13 +52,16 @@ public class LendingApplicationControllerV3 {
         log.info("invoke lender association request for application {} of merchant:{}", invokeLenderAssociationRequest.getApplicationId(), merchant.getId());
         invokeLenderAssociationRequest.setForceEnable(ObjectUtils.isEmpty(invokeLenderAssociationRequest.getForceEnable()) ? false : invokeLenderAssociationRequest.getForceEnable());
         lendingApplicationServiceV3.initLenderAssociation(invokeLenderAssociationRequest);
-        return ResponseEntity.ok(null);
+        return ResponseEntity.ok(new ApiResponse<>(true,"next stage invoked for lender"));
     }
 
     //
     @PostMapping("/modify/application")
     public ResponseEntity<ApiResponse<?>> invokeLenderAssociation(@RequestBody ModifyAppRequest modifyRequest) {
         log.info("modify app request {}", modifyRequest);
+        if ("2".equalsIgnoreCase(modifyRequest.getVersion())) {
+            return ResponseEntity.ok(lendingApplicationServiceV3.modifyAppDetailsV2(modifyRequest));
+        }
         return ResponseEntity.ok(lendingApplicationServiceV3.modifyAppDetails(modifyRequest));
     }
 
@@ -70,6 +77,13 @@ public class LendingApplicationControllerV3 {
         log.info("initiated the push to next stage request {}", pushApplicationNextStageDto);
         modifyStageService.pushToNextStageAsync(pushApplicationNextStageDto);
         return ResponseEntity.ok().body(pushApplicationNextStageDto);
+    }
+
+    @GetMapping("/loan/details")
+    public ResponseEntity<ApiResponse<?>> getLoanDetails(@RequestParam Long applicationId) {
+        log.info("fetch loan details request for {}", applicationId);
+        ApiResponse<?> response = new ApiResponse<>(piramalGetLoanDetails.getLoanDetails(applicationId));
+        return ResponseEntity.ok(response);
     }
 
 }

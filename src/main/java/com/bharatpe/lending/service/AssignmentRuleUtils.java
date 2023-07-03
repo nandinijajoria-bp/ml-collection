@@ -30,7 +30,6 @@ public class AssignmentRuleUtils {
 
     @Autowired
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
-
     @Value("${edi.assignment.model:false}")
     Boolean assignEdiModelFromModelAssignmentEngine;
 

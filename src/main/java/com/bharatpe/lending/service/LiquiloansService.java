@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.dto.KafkaAudit;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
@@ -742,7 +743,7 @@ public class LiquiloansService {
             executorService.execute(() -> sendSms(finalLendingApplication, finalLendingPaymentSchedule));
         } else{
             LendingApplication finalLendingApplication1 = lendingApplication;
-            executorService.execute(() -> liquiloansService.sendWPAndSMSNotification(finalLendingApplication1));
+            executorService.execute(() -> liquiloansService.sendWPAndSMSNotification(finalLendingApplication1,true));
                 executorService.execute(() -> {
                     try {
                         liquiloansAsyncService.generateWelcomeDocAndNotify(finalLendingApplication, finalBasicDetailDto, lendingKfs);
@@ -1513,11 +1514,17 @@ public class LiquiloansService {
                 } else {
                     Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * paymentSchedule.getLoanAmount()));
                     double interest = round(paymentSchedule.getEdiAmount().intValue() - principal);
+
+                    if (Lender.PIRAMAL.name().equalsIgnoreCase(paymentSchedule.getNbfc())) {
+                        interest = roundToWhole(interest);
+                        principal = paymentSchedule.getEdiAmount().intValue() - interest;
+                    }
+
                     if (normalEdIinstallmentNo == ediCount) {
                         if (!paymentSchedule.getLoanAmount().equals(totalPrincipal + principal)) {
                             double diff = paymentSchedule.getLoanAmount() - (totalPrincipal + principal);
                             principal = round(paymentSchedule.getLoanAmount() - totalPrincipal);
-                            interest = round(interest - diff);
+                            interest = round(interest - diff < 0 ? 0 : interest - diff);
                         }
                     }
                     totalPrincipal = totalPrincipal + principal;
@@ -1531,7 +1538,7 @@ public class LiquiloansService {
                     currentSchedule.setInterest(interest);
                     currentSchedule.setPrinciple(principal);
                     currentSchedule.setProcessingFee(0D);
-                    currentSchedule.setTotalEdi(paymentSchedule.getEdiAmount().intValue());
+                    currentSchedule.setTotalEdi((int) (principal + interest));
                     currentSchedule.setOtherCharges(0D);
                     currentSchedule.setMerchantId(paymentSchedule.getMerchantId());
                     currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
@@ -1592,6 +1599,12 @@ public class LiquiloansService {
         return bd.doubleValue();
     }
 
+    private static double roundToWhole(double value) {
+        BigDecimal bd = BigDecimal.valueOf(value);
+        bd = bd.setScale(0, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
     private String getBeneficiaryName(String beneficiaryName) {
         if (beneficiaryName.length() > 25) {
             beneficiaryName = beneficiaryName.substring(0, 25);
@@ -1599,7 +1612,11 @@ public class LiquiloansService {
         return beneficiaryName;
     }
 
-    public void sendWPAndSMSNotification(LendingApplication lendingApplication) {
+    public void sendWPAndSMSNotification(LendingApplication lendingApplication, Boolean autoNotify) {
+        if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender()) && autoNotify) {
+            logger.info("skipped communication for Piramal for application {}", lendingApplication.getId());
+            return;
+        }
         logger.info("notification send request received for SMS and WhatsApp for application->{}", lendingApplication.getId());
         String shortUrl = null;
         try {
@@ -1632,8 +1649,8 @@ public class LiquiloansService {
             String identifierSMS = env.getProperty("kfs.sms.notification");
             String message = env.getProperty("kfs.template.notification");
 
-            String loanAgreementName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingKfs.getApplicationId();
-            String kfsName = KFS_S3_KEY_PREFIX + lendingKfs.getApplicationId();
+            String loanAgreementName = Optional.ofNullable(lendingKfs.getSanctionLoanAgreementDocFile()).orElse(SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingKfs.getApplicationId());
+            String kfsName = Optional.ofNullable(lendingKfs.getKfsDocFile()).orElse(KFS_S3_KEY_PREFIX + lendingKfs.getApplicationId());
 
             String loanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(loanAgreementName, "loan-document");
             String kfsDocUrl = s3BucketHandler.getPreSignedPublicURL(kfsName, "loan-document");
@@ -1685,7 +1702,7 @@ public class LiquiloansService {
     public String testNotification(Long applicationId){
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(lendingApplication.isPresent()){
-            liquiloansService.sendWPAndSMSNotification(lendingApplication.get());
+            liquiloansService.sendWPAndSMSNotification(lendingApplication.get(), true);
             return "SUCCESS";
         }
         return "FAILED";
@@ -1725,7 +1742,7 @@ public class LiquiloansService {
 
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lender);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name(), lender);
 
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             logger.info("lendingApplicationLenderDetails not found for applicationId : {} and lender : {}", applicationId, lender);

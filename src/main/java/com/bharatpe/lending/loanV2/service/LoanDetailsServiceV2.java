@@ -244,7 +244,6 @@ public class LoanDetailsServiceV2 {
     @Value(("${bankstatement.enabled:false}"))
     boolean bankStatementEnabled;
 
-
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {

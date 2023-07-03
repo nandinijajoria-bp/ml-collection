@@ -7,13 +7,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
 
@@ -45,16 +44,50 @@ public class NbfcLenderGateway extends APIGatewayService {
             headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
             headers.set("Hash", hash);
             headers.set("Client-Name", super.CLIENT);
+            log.info("request body {}", requestObject);
             HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
-            log.info("request body for abfl {} request hash {} :  {}", requestUrl,hash, request);
+            log.info("request body for nbfc {} request hash {} :  {}", requestUrl,hash, request);
             ResponseEntity<String> responseEntity = restTemplate.postForEntity( requestUrl, request, String.class);
             log.info("response for {} invokation {}", requestUrl, responseEntity);
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.hasBody()) {
                 V response = objectMapper.readValue(responseEntity.getBody(),responseType);
                 return response;
             }
-        } catch (Exception e) {
-            log.error("exception occurred while processing {} api call to nbfc svc {}",requestUrl, e.getMessage());
+        } catch (HttpStatusCodeException httpStatusCodeException) {
+            log.error("status code {} | headers {} | body {}", httpStatusCodeException.getRawStatusCode(), httpStatusCodeException.getResponseHeaders(),
+                    httpStatusCodeException.getResponseBodyAsString());
+        }
+        catch (Exception e) {
+            log.error("exception occurred while processing {} api call to nbfc svc {}",e, requestUrl, e.getMessage());
+        }
+        return null;
+    }
+    public <V> V invokeWithParams(String requestObject, Class<V> responseType, String requestUrl, HttpMethod httpMethod) {
+        try {
+            Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
+            });
+            String hash = lendingHmacCalculator
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.set("Hash", hash);
+            headers.set("Client-Name", super.CLIENT);
+            log.info("request body {}", requestObject);
+            HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
+            log.info("request body for nbfc {} request hash {} :  {}", requestUrl,hash, request);
+            ResponseEntity<String> responseEntity = restTemplate.exchange( requestUrl , httpMethod, request, String.class);
+            log.info("response for {} invokation {}", requestUrl, responseEntity);
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.hasBody()) {
+                V response = objectMapper.readValue(responseEntity.getBody(),responseType);
+                return response;
+            }
+        } catch (HttpStatusCodeException httpStatusCodeException) {
+            log.error("status code {} | headers {} | body {}", httpStatusCodeException.getRawStatusCode(), httpStatusCodeException.getResponseHeaders(),
+                    httpStatusCodeException.getResponseBodyAsString());
+        }
+        catch (Exception e) {
+            log.error("exception occurred while processing {} api call to nbfc svc {}",e, requestUrl, e.getMessage());
         }
         return null;
     }

@@ -1,6 +1,5 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.entity.LenderAssignmentRules;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;

@@ -31,6 +31,7 @@ import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ResponseDTO;
@@ -46,6 +47,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -185,6 +187,9 @@ public class VerifyOTPService {
 
     @Autowired
     LendingCollectionAuditService lendingCollectionAuditService;
+
+    @Autowired
+    PiramalAdditionalDocUploadService piramalAdditionalDocUploadService;
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -416,7 +421,7 @@ public class VerifyOTPService {
 
             // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
-            if (Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
@@ -448,7 +453,14 @@ public class VerifyOTPService {
                 FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
 
         try{
+            Date docUpdateStartTime = new Date();
             lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchantBasicDetailsDto);
+            logger.info("regenerate doc time {}", (new Date().getTime() - docUpdateStartTime.getTime()));
+            if ("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
+                nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                        LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+            }
         }
         catch(Exception e){
             logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
