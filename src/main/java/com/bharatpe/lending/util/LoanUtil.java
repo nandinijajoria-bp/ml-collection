@@ -11,8 +11,10 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RiskSegment;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -31,6 +33,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
@@ -71,6 +74,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingPennydropDao lendingPennydropDao;
+
+	@Autowired
+	PennyDropService pennyDropService;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -168,9 +174,14 @@ public class LoanUtil {
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
+	@Value("${update.ifsc.piramal:false}")
+	boolean updateIfscForPiramal;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
+
+	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -562,6 +573,51 @@ public class LoanUtil {
 		return false;
 	}
 
+	public boolean checkPennyDropV2(Long merchantId) {
+		try {
+			logger.info("Checking penny drop for merchant:{}", merchantId);
+			Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+			if (ObjectUtils.isEmpty(basicDetailsDto)) {
+				return false;
+			}
+			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+			BankDetailsDto merchantBankDetail = null;
+			if (bankDetailsDtoOptional.isPresent())
+				merchantBankDetail = bankDetailsDtoOptional.get();
+
+			if (ObjectUtils.isEmpty(merchantBankDetail)) {
+				return false;
+			}
+
+			final LendingPennydrop pennydropInLast15Days = lendingPennydropDao.findByMerchantIdAndAccountNumberInLast15Days(merchantId,
+			merchantBankDetail.getAccountNumber());
+
+			if (!ObjectUtils.isEmpty(pennydropInLast15Days)) {
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("SUCCESS")) {
+					logger.info("Penny drop success for merchant:{}", merchantId);
+					return true;
+				}
+
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("PENDING")) {
+					logger.info("Penny drop is pending for merchant:{} and pennydropId : {}", merchantId, pennydropInLast15Days.getId());
+					return false;
+				}
+
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("FAILED")) {
+					logger.info("Penny drop failed for merchant:{}", merchantId);
+					return false;
+				}
+			}
+
+			// if no entry in last 15 days then initiatePennyDrop
+			pennyDropService.initiateNewPennyDrop(merchantBankDetail, merchantId, null);
+		} catch (Exception e) {
+			logger.error("Exception in penny drop for merchant:{}", merchantId, e);
+		}
+		return false;
+	}
+
+
 	public static int calculateDPD(Double ediAmount, Double dueAmount) {
 		if (dueAmount < ediAmount) return 0;
 		return (int) Math.round(dueAmount / ediAmount);
@@ -703,6 +759,9 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setDpd60Count(lendingRiskVariables.getDpd60Count());
 				lendingRiskVariablesSnapshot.setGstOffer(lendingRiskVariables.getGstOffer());
 				lendingRiskVariablesSnapshot.setGstAffectedOffer(lendingRiskVariables.getGstAffectedOffer());
+				lendingRiskVariablesSnapshot.setInferredPincodeOffer(lendingRiskVariables.getInferredPincodeOffer());
+				lendingRiskVariablesSnapshot.setBankBasedOffer(lendingRiskVariables.getBankBasedOffer());
+				lendingRiskVariablesSnapshot.setGst3bBasedOffer(lendingRiskVariables.getGst3bBasedOffer());
 
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
@@ -906,6 +965,10 @@ public class LoanUtil {
 			merchantBankDetail = bankDetailsDtoOptional.get();
 		if (merchantBankDetail == null) return null;
 		LendingNachBankResponseDTO lendingNachBank = enachHandler.findByIfsc(merchantBankDetail.getIfsc().substring(0, 4));
+		if (updateIfscForPiramal && isInternalMerchant(merchantId)) {
+			logger.info("setting ifsc as BCBM for {}", merchantId);
+			lendingNachBank = enachHandler.findByIfsc("BCBM");
+		}
 		logger.info("lendingNachBank for {} : {}", merchantId, lendingNachBank);
 		if(!ObjectUtils.isEmpty(lendingNachBank))return lendingNachBank.getMode();
 		return null;
@@ -1151,6 +1214,9 @@ public class LoanUtil {
 		}
 		if (lender.equals("ABFL")) {
 			finalLender = Lender.ABFL.name();
+		}
+		if (lender.equals("PIRAMAL")) {
+			finalLender = Lender.PIRAMAL.name();
 		}
 		return finalLender;
 	}
@@ -1428,6 +1494,44 @@ public class LoanUtil {
 			logger.info("exception while reading derog csv file: {} {}", e, e.getMessage());
 		}
 		return merchantList;
+	}
+
+	public List<Long> bankStatementEligibleMerchants() {
+		if (!ObjectUtils.isEmpty(bankStatementEligibleMerchants)) {
+			return bankStatementEligibleMerchants;
+		}
+		bankStatementEligibleMerchants = readBankStatementMerchantsCsvFile();
+		return bankStatementEligibleMerchants;
+	}
+
+	private List<Long> readBankStatementMerchantsCsvFile() {
+		List<Long> merchantList = new ArrayList<>();
+		try {
+
+			String filePath = "/MerchantList/bank_statement_merchants";
+			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+			Scanner sc = new Scanner(inputStream);
+			sc.useDelimiter(",");
+			while (sc.hasNext())
+			{
+				String value = sc.next();
+				merchantList.add(Long.parseLong(value));
+			}
+			sc.close();  //closes the scanner
+		} catch (Exception e) {
+			logger.info("exception while reading bankStatement csv file: {} {}", e, e.getMessage());
+		}
+		return merchantList;
+	}
+
+	public static EdiModel getEdiModal(LendingApplication lendingApplication) {
+		return lendingApplication.getPayableDays() % 30 == 0 ?
+				EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL;
+	}
+
+	public static EdiModel getEdiModal(LendingApplicationSlave lendingApplication) {
+		return lendingApplication.getPayableDays() % 30 == 0 ?
+				EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL;
 	}
 
 }

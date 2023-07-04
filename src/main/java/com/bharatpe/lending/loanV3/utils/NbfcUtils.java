@@ -14,12 +14,15 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -54,7 +57,7 @@ public class NbfcUtils {
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             lendingApplicationDetails = new LendingApplicationDetails();
             lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-            lendingApplicationDetails.setEdiModel(LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().name());
+            lendingApplicationDetails.setEdiModel(LoanUtil.getEdiModal(lendingApplication).name());
             lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
         }
         log.info("changing lender for the application {}", lendingApplication.getId());
@@ -117,9 +120,11 @@ public class NbfcUtils {
         if (autoInvoke) {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(nextStage.name()).getLenderAssociationService(lender);
-            iLenderAssociationService.invoke(applicationId,null);
+            Map<String, Object> args = new HashMap<String, Object>() {{
+                put("requestId", MDC.get("requestId"));
+            }};
+            iLenderAssociationService.invoke(applicationId,args);
             log.info("application {} successfully pushed to the next stage {}", applicationId, nextStage.name());
-
             }
         }
 }

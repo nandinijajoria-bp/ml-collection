@@ -79,6 +79,9 @@ public interface LendingConstants {
 
 	String REJECTION_REASON_2 = "not_enough_references_de";
 
+	String TOPUP_PILOT_IDENTIFIER = "TOPUP_V3";
+	String SIX_DAY_MODEL_OFF_DAY = "SUNDAY";
+
 }
 
 

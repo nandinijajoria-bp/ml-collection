@@ -220,11 +220,12 @@ public class LoanEligibleService {
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
         // todo final fix this later
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         if (loanUtil.isInternalMerchant(merchantId)) {
             body.setEdiDays( body.getEdiDays() == null ? body.getTenure() * 30 : body.getEdiDays());
+//            dateWindow = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -5);
         }
         try {
-        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         logger.info("EligibleLoan Query values merchantId : {}, amount : {}, tenure : {}, dateWindow : {}", merchantId, body.getAmount(), body.getTenure(), dateWindow);
         EligibleLoan eligibleLoan = null;
         if (body.getEdiDays() == null) {

@@ -85,7 +85,7 @@ public class BreRequestKafka {
                 log.info("no application found for id {}", breRequestString.get("application_id"));
             }
             BreApiRequestDto breRequest = createPayload(Long.valueOf(breRequestString.get("application_id")));
-            lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(breRequest.getApplicationId(),Status.ACTIVE.name());
+            lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(breRequest.getApplicationId(),Status.ACTIVE.name(), Lender.ABFL.name());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                     (!breRequest.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender()) ||
                             !LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))) {
@@ -103,17 +103,22 @@ public class BreRequestKafka {
                 df.setRoundingMode(RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
-                                LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek()))));
+                                LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
             }
             lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_PENDING.name());
             lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+            if (lendingApplicationLenderDetails.getAnnualRoi() > 50) {
+                log.info("pre rejecting, changing lender as roi > 50, for {}", request);
+                nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
+                return;
+            }
             INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(breRequest.getLender());
             BreApiResponseDto breApiResponseDto = apiGatewayV3.invokeBre(breRequest);
             if (ObjectUtils.isEmpty(breApiResponseDto) ||
                     !breApiResponseDto.getSuccess() ||
                     ObjectUtils.isEmpty(breApiResponseDto.getData()) ||
                     !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(breApiResponseDto.getData().getResponseStatus())
-                    || lendingApplicationLenderDetails.getAnnualRoi() > 50) {
+            ) {
                 log.info("request resulted in bre failure, modifying lender for {}", request);
                 nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
             }
@@ -144,7 +149,7 @@ public class BreRequestKafka {
                 log.info("no application found for id {}", breCallbackResponseDto.getData());
                 return;
             }
-            existingLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(),Status.ACTIVE.name());
+            existingLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(),Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) ||
                     !breCallbackResponseDto.getLender().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLender()) ||
                     // TODO: 10/11/22  todo final change this to account id

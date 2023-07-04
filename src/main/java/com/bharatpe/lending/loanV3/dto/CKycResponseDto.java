@@ -27,4 +27,6 @@ public class CKycResponseDto {
     String middleName;
     String lastName;
     String email;
+    String poaString;
+    String selfieString;
 }

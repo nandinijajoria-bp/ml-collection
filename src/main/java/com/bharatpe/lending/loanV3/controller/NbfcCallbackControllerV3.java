@@ -6,6 +6,12 @@ import com.bharatpe.lending.loanV3.dto.BreCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.DrawdownCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.KycCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.SanctionCallbackResponseDto;
+import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.ESignDocService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalLoanCallbackService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.RiskDecisionAsyncService;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +45,15 @@ public class NbfcCallbackControllerV3 {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    PiramalLoanCallbackService createLoanCallbackService;
+
+    @Autowired
+    RiskDecisionAsyncService riskDecisionAsyncService;
+
+    @Autowired
+    ESignDocService eSignDocService;
 
 
     @PostMapping("bre")
@@ -81,5 +96,38 @@ public class NbfcCallbackControllerV3 {
             log.error("error in parsing request for  {}", applicationId, e);
         }
         return ResponseEntity.ok().body("Data upload request has been initiated");
+    }
+
+    @PostMapping("loan-decision")
+    public ResponseEntity<ApiResponse<?>> postLoanDecision(@RequestBody NbfcResponseDto nbfcResponseDto) throws JsonProcessingException {
+        log.info("loan creation callback received via controller {}", nbfcResponseDto);
+        ApiResponse response = createLoanCallbackService.createLoanCallback(nbfcResponseDto);
+        return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
+
+    }
+
+    @PostMapping("disbursal-decision")
+    public ResponseEntity<ApiResponse<?>> postDisbursalDecision(@RequestBody NbfcResponseDto nbfcResponseDto) throws JsonProcessingException {
+        log.info("disbursal creation callback received via controller {}", nbfcResponseDto);
+        ApiResponse response = createLoanCallbackService.disbursalCallback(nbfcResponseDto);
+        return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
+
+    }
+
+
+    @PostMapping("risk-decision")
+    public ResponseEntity<ApiResponse<?>> riskAsyncCallback(@RequestBody NbfcResponseDto nbfcResponseDto) throws JsonProcessingException {
+        log.info("risk async callback received via controller {}", nbfcResponseDto);
+        riskDecisionAsyncService.invokeRiskDecision(nbfcResponseDto);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"risk async callback handled!"));
+
+    }
+
+    @PostMapping("estamp-doc")
+    public ResponseEntity<ApiResponse<?>> getEStampDoc(@RequestBody NbfcResponseDto nbfcResponseDto) throws JsonProcessingException {
+        log.info("estamp doc callback received via controller {}", nbfcResponseDto);
+        ApiResponse<?> response = eSignDocService.persistAndSendCommunicationForESignDoc(nbfcResponseDto);
+        return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
+
     }
 }

@@ -43,8 +43,9 @@ public class LendingApplicationControllerV2 {
     }
 
     @PostMapping(value = "/createApplication/v2")
-    public ResponseEntity<ApiResponse<?>> createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestBody CreateApplicationRequest applicationRequest) {
+    public ResponseEntity<ApiResponse<?>> createApplication(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, @RequestBody CreateApplicationRequest applicationRequest) {
         log.info("create application request:{} for merchant:{}", applicationRequest, merchant.getId());
+        applicationRequest.setIp(clientIp);
         ApiResponse<?> response = lendingApplicationServiceV2.createApplication(merchant, applicationRequest);
         log.info("create application response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);

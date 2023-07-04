@@ -18,11 +18,14 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.util.ObjectUtils;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -45,6 +48,9 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    KafkaTemplate kafkaTemplate;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -156,6 +162,12 @@ public abstract class LendingApplicationServiceV3Base {
                 lendingApplicationLenderDetails.get().setLan(!ObjectUtils.isEmpty(modifyAppRequest.getLan()) ? modifyAppRequest.getLan() : lendingApplicationLenderDetails.get().getLan());
                 lendingApplicationLenderDetails.get().setAccountId(!ObjectUtils.isEmpty(modifyAppRequest.getExternalLoanId()) ? modifyAppRequest.getExternalLoanId() : lendingApplicationLenderDetails.get().getAccountId());
                 lendingApplicationLenderDetails.get().setUtrNo((modifyAppRequest.getUtr() != null) ? modifyAppRequest.getUtr() : lendingApplicationLenderDetails.get().getUtrNo());
+                lendingApplicationLenderDetails.get().setLeadId((modifyAppRequest.getLeadId() != null) ? modifyAppRequest.getLeadId() : lendingApplicationLenderDetails.get().getLeadId());
+                lendingApplicationLenderDetails.get().setLender((modifyAppRequest.getLaldLender() != null) ? modifyAppRequest.getLaldLender() : lendingApplicationLenderDetails.get().getLender());
+                if (modifyAppRequest.getDocStatusUpdate()) {
+                    lendingApplicationLenderDetails.get().setDocUploadStatus(modifyAppRequest.getDocUploadStatus());
+                    lendingApplicationLenderDetails.get().setFailedUpload(modifyAppRequest.getFailedUpload());
+                }
                 if (modifyAppRequest.getUpdateApr()) {
                     lendingApplicationLenderDetails.get().setAnnualRoi(null);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails.get());
@@ -163,7 +175,7 @@ public abstract class LendingApplicationServiceV3Base {
                     df.setRoundingMode(RoundingMode.DOWN);
                     lendingApplicationLenderDetails.get().setAnnualRoi(Double.valueOf(df.format(
                             lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
-                                    LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek()))));
+                                    LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
                 }
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails.get());
                 log.info("successfully updated lending lender details for {}", modifyAppRequest.getApplicationId());
@@ -200,4 +212,16 @@ public abstract class LendingApplicationServiceV3Base {
         }
         return new ApiResponse<>(true,"successfully updated application details");
     }
-}
+
+    public  ApiResponse<?> modifyAppDetailsV2(ModifyAppRequest modifyAppRequest) {
+        for (String apps : modifyAppRequest.getApplicationList().split(";")) {
+            Map<String, String> request = new HashMap() {{
+                put("application_id", apps);
+                put("documents", modifyAppRequest.getDocs());
+                put("systemManagedState", false);
+            }};
+            kafkaTemplate.send("invoke_data_upload", request);
+        }
+        return new ApiResponse<>(true,"success");
+    }
+    }

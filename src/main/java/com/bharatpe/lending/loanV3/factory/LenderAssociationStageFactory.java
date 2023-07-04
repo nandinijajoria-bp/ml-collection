@@ -30,6 +30,9 @@ public class LenderAssociationStageFactory {
     @Autowired
     ReceiptStageSvcFactory receiptStageSvcFactory;
 
+    @Autowired
+    PushAuditSvcFactory pushAuditSvcFactory;
+
     public LenderAssociationServiceFactory getStageAssociatedLenderService(String stage) {
         if (LenderAssociationStages.KYC.name().equalsIgnoreCase(stage)) {
             return  kycStageAssociationSvcFactory;
@@ -43,6 +46,8 @@ public class LenderAssociationStageFactory {
             return foreClosureAmtStageSvcFactory;
         } else if (LenderAssociationStages.RECEIPT.name().equalsIgnoreCase(stage)) {
             return receiptStageSvcFactory;
+        } else if (LenderAssociationStages.PUSH_AUDIT.name().equalsIgnoreCase(stage)) {
+            return pushAuditSvcFactory;
         }
         return oldModelAssociationSvcFactory;
     }
@@ -66,6 +71,23 @@ public class LenderAssociationStageFactory {
                     default:
                         return LenderAssociationStages.BRE;
                 }
+                case PIRAMAL:
+                switch (stage) {
+                    case INIT:
+                        return LenderAssociationStages.KYC;
+                    case BRE:
+                        return LenderAssociationStages.ASSC_COMPLETED;
+                    case KYC:
+                        return LenderAssociationStages.BRE;
+                    case ASSC_COMPLETED:
+                        return LenderAssociationStages.PUSH_AUDIT;
+                    case PUSH_AUDIT:
+                        return LenderAssociationStages.DRAWDOWN;
+                    case DRAWDOWN:
+                        return LenderAssociationStages.COMPLETED;
+                    default:
+                        return LenderAssociationStages.KYC;
+                }
             default:
                 return LenderAssociationStages.OLD_MODEL;
         }
@@ -84,6 +106,25 @@ public class LenderAssociationStageFactory {
                     case ASSC_COMPLETED:
                         return Boolean.TRUE;
                     case SANCTION_WRAPPER:
+                        return Boolean.FALSE;
+                    case DRAWDOWN:
+                        return Boolean.FALSE;
+                    case DATA_UPLOAD:
+                        return Boolean.FALSE;
+                    default:
+                        return Boolean.FALSE;
+                }
+            case PIRAMAL:
+                switch (stage) {
+                    case INIT:
+                        return Boolean.TRUE;
+                    case BRE:
+                        return Boolean.FALSE;
+                    case KYC:
+                        return Boolean.TRUE;
+                    case ASSC_COMPLETED:
+                        return Boolean.TRUE;
+                    case PUSH_AUDIT:
                         return Boolean.FALSE;
                     case DRAWDOWN:
                         return Boolean.FALSE;

@@ -109,13 +109,25 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                 }
                 return;
             }
-            if ("WELCOME".equalsIgnoreCase(stage)) {
+            if ("DOC_REGEN".equalsIgnoreCase(stage)) {
                 LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
                 try {
                     Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
-                    lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), null);
-                    lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, null);
-                    lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, null);
+                    switch (invokeLenderAssociationRequest.getSubStage()) {
+                        case "WELCOME":
+                            lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), null);
+                            break;
+                        case "SANCTION":
+                            lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, null);
+                            break;
+                        case "KFS":
+                            lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, null);
+                            break;
+                        default:
+                            lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), null);
+                            lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, null);
+                            lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, null);
+                    }
                     lendingKfsDao.save(lendingKfs);
                 } catch (Exception e) {
                     log.info("exception occurred {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -150,12 +162,29 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                     if (invokeLenderAssociationRequest.getRegenerateDoc()) {
                         LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
                         Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
+//                        lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
+                        lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
+//                        lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
+                        lendingKfsDao.save(lendingKfs);
+                    }
+                    abflDataUploadServiceUtil.uploadDocuments(lendingApplication.get().getId(), Arrays.asList("SANCTION_AGREEMENT"), false);
+//                    kafkaTemplate.send("invoke_data_upload", payload);
+                } catch (Exception e) {
+                    log.error("something went wrong for {}", lendingApplication.get().getId(), e);
+                }
+                return;
+            }
+            if ("DOC_UPLOAD_TEST".equalsIgnoreCase(stage)){
+                try {
+                    if (invokeLenderAssociationRequest.getRegenerateDoc()) {
+                        LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
+                        Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), merchant.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
                         lendingApplicationServiceV2.generateWelcomeDocument(lendingApplication.get(),lendingKfs,merchant.get(), lendingKfs.getKfsSignedAt());
                         lendingKfsDao.save(lendingKfs);
                     }
-                    kafkaTemplate.send("invoke_data_upload", payload);
+                    abflDataUploadServiceUtil.uploadDocuments(lendingApplication.get().getId(), Arrays.asList("KFS_SANCTION_AGREEMENT"), true);
                 } catch (Exception e) {
                     log.error("something went wrong for {}", lendingApplication.get().getId(), e);
                 }

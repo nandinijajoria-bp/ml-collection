@@ -48,4 +48,19 @@ public class ModifyAppRequest {
     Double processingFee;
     Double disbursalAmt;
     String utr;
+
+    String applicationList;
+
+    String docs;
+
+    String version;
+    String leadId;
+
+    String failedUpload;
+
+    String docUploadStatus;
+
+    Boolean docStatusUpdate = Boolean.FALSE;
+
+    String laldLender;
 }

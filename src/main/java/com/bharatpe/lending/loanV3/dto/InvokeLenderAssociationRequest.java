@@ -23,4 +23,6 @@ public class InvokeLenderAssociationRequest {
     String payload;
     Long ledgerId;
     Boolean regenerateDoc;
+
+    String subStage;
 }

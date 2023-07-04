@@ -20,6 +20,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -89,6 +90,9 @@ public class ENachService {
 
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
+
+    @Autowired
+    PiramalAdditionalDocUploadService piramalAdditionalDocUploadService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(50);
     @Autowired
@@ -197,7 +201,7 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
                     lendingApplicationLenderDetailsDao.
                             findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                     (lendingApplication.getId(), Status.ACTIVE.name());
@@ -205,14 +209,14 @@ public class ENachService {
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                     LenderAssociationStages.ASSC_COMPLETED.name()
                             .equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
-            {
+                {
                 nbfcUtils.pushApplicationToNextStage
                         (lendingApplication.getId(), lendingApplication.getLender(),
                                 LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactory
                                 .autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),
                                         LenderAssociationStages.ASSC_COMPLETED));
-                logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
+                logger.info("invoked sanction workflow for application {}", lendingApplication.getId());}
             }
 //            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //            if (lendingPennydrop == null) {
@@ -256,6 +260,7 @@ public class ENachService {
         }
         if(!ObjectUtils.isEmpty(lendingApplicationDetails))lendingApplicationDetailsDao.save(lendingApplicationDetails);
         lendingApplicationDao.save(lendingApplication);
+
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
         }

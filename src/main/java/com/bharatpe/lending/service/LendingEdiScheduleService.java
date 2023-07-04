@@ -2,12 +2,13 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.EdiScheduleDTO;
 import com.bharatpe.lending.dto.EdiScheduleV2DTO;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.util.Finance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,11 +74,17 @@ public class LendingEdiScheduleService {
             while (normalEdIinstallmentNo <= ediCount) {
                 Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
                 double interest = round(lendingApplication.getEdi().intValue() - principal);
+
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    interest = roundToWhole(interest);
+                    principal = lendingApplication.getEdi().intValue() - interest;
+                }
+
                 if(normalEdIinstallmentNo == ediCount) {
                     if(!lendingApplication.getLoanAmount().equals(totalPrincipal + principal)) {
                         double diff = lendingApplication.getLoanAmount() - (totalPrincipal + principal);
                         principal = round(lendingApplication.getLoanAmount() - totalPrincipal);
-                        interest = round(interest - diff);
+                        interest = round(interest - diff < 0 ? 0 : interest - diff);
                     }
                 }
                 totalPrincipal = totalPrincipal + principal;
@@ -86,7 +93,7 @@ public class LendingEdiScheduleService {
                 currentSchedule.setSerialNumber(installmentNo);
                 currentSchedule.setInterest(interest);
                 currentSchedule.setPrincipal(principal);
-                currentSchedule.setEdiAmount(lendingApplication.getEdi().intValue());
+                currentSchedule.setEdiAmount((int) (principal + interest));
                 ediSchedules.add(currentSchedule);
                 openingBalance = openingBalance - principal;
                 installmentNo++;
@@ -112,6 +119,12 @@ public class LendingEdiScheduleService {
     private static double round(double value) {
         BigDecimal bd = BigDecimal.valueOf(value);
         bd = bd.setScale(2, RoundingMode.HALF_UP);
+        return bd.doubleValue();
+    }
+
+    private static double roundToWhole(double value) {
+        BigDecimal bd = BigDecimal.valueOf(value);
+        bd = bd.setScale(0, RoundingMode.HALF_UP);
         return bd.doubleValue();
     }
 
@@ -143,12 +156,16 @@ public class LendingEdiScheduleService {
                     cal.setTime(lendingPaymentSchedule.getInterestOnlyStartDate());
                 }
                 while(ioInstallmentNo <= lendingApplication.getIoPayableDays()) {
-                    if(cal.get(Calendar.DAY_OF_WEEK) ==
-                            liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay()))
+                    // skip for sunday for six day modal
+                    if (lendingApplication.getPayableDays() % 30 != 0) {
+                        if (cal.get(Calendar.DAY_OF_WEEK) ==
+                            liquiloansService.getOffDayNumber(LendingConstants.SIX_DAY_MODEL_OFF_DAY))
                     {
-                        cal.add(Calendar.DAY_OF_MONTH, 1);
-                        continue;
+                            cal.add(Calendar.DAY_OF_MONTH, 1);
+                            continue;
+                        }
                     }
+
                     EdiScheduleV2DTO currentSchedule = new EdiScheduleV2DTO();
                     currentSchedule.setSerialNumber(installmentNo);
                     currentSchedule.setInterest(lendingApplication.getIoEdi());
@@ -171,17 +188,26 @@ public class LendingEdiScheduleService {
                     Finance.rate(ediCount, lendingApplication.getEdi().intValue(), lendingApplication.getLoanAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
-                if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay())) {
-                    cal.add(Calendar.DAY_OF_MONTH, 1);
-                    continue;
+                // skip for sunday for six day modal
+                if (lendingApplication.getPayableDays() % 30 != 0) {
+                    if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LendingConstants.SIX_DAY_MODEL_OFF_DAY)) {
+                        cal.add(Calendar.DAY_OF_MONTH, 1);
+                        continue;
+                    }
                 }
                 Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
                 double interest = round(lendingApplication.getEdi().intValue() - principal);
+
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    interest = roundToWhole(interest);
+                    principal = lendingApplication.getEdi().intValue() - interest;
+                }
+
                 if(normalEdIinstallmentNo == ediCount) {
                     if(!lendingApplication.getLoanAmount().equals(totalPrincipal + principal)) {
                         double diff = lendingApplication.getLoanAmount() - (totalPrincipal + principal);
                         principal = round(lendingApplication.getLoanAmount() - totalPrincipal);
-                        interest = round(interest - diff);
+                        interest = round(interest - diff < 0 ? 0 : interest - diff);
                     }
                 }
                 totalPrincipal = totalPrincipal + principal;
@@ -190,7 +216,7 @@ public class LendingEdiScheduleService {
                 currentSchedule.setSerialNumber(installmentNo);
                 currentSchedule.setInterest(interest);
                 currentSchedule.setPrincipal(principal);
-                currentSchedule.setEdiAmount(lendingApplication.getEdi().intValue());
+                currentSchedule.setEdiAmount((int) (principal + interest));
                 currentSchedule.setDate(cal.getTime());
                 currentSchedule.setBalance(round(openingBalance));
                 ediSchedules.add(currentSchedule);
