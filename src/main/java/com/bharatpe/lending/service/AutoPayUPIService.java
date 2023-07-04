@@ -228,7 +228,7 @@ public class AutoPayUPIService {
                 Date tenMinsFromNow = currentTimeNow.getTime();
                 long epochMandateStartDate = tenMinsFromNow.getTime();
                 registerPgRequest.setMandateStartDate(epochMandateStartDate);
-                registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard-dev&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
+                registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
 
                 if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
                         easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
