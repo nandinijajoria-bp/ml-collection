@@ -19,6 +19,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
 import com.bharatpe.lending.dto.EnachInitiateRequestDTO;
+import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -106,7 +107,7 @@ public class BPEnachService {
                 return responseDTO;
             }
 
-            Double nachAmount = ("ADHAAR".equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D)
+            Double nachAmount = (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D)
                     ? 100000D : lendingApplication.getLoanAmount();
             String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
             String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";

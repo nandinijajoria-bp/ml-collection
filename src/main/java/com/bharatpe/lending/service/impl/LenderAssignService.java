@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.*;
+import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
@@ -256,6 +257,19 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
+
+        // exclude disrbusal failed cases to not assign on abfl
+        if (Lender.ABFL.name().equals(decidedLender) && loanUtil.abflExcludedMerchants().contains(merchantDetails.getId())) {
+            decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
+            saveLenderChangeAudit(application, decidedLender);
+        }
+
+        // change lender if it is LDC and nachMode is adhaar
+        if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(merchantDetails.getId()))) {
+            decidedLender = Lender.LIQUILOANS_NBFC.name();
+            saveLenderChangeAudit(application, decidedLender);
+        }
+
         if(additionalChecksFailed(application, Lender.valueOf(decidedLender), merchantDetails)){
             decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
             saveLenderChangeAudit(application, decidedLender);

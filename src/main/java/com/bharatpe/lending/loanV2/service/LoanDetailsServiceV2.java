@@ -881,15 +881,15 @@ public class LoanDetailsServiceV2 {
                     String lender = openApplication.getLender();
                     if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
                             Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
-                        applicationDetails.setEnachMode("NB_DC");
+                        applicationDetails.setEnachMode(EnachMode.NB_DC.name());
                     }
                     else{
                         String enachMode = loanUtil.getEnachBankMode(openApplication.getMerchantId());
-                        if("BOTH".equalsIgnoreCase(enachMode))
-                            applicationDetails.setEnachMode("NB_DC");
-                        else if ("NB_DC".equalsIgnoreCase(enachMode))
-                            applicationDetails.setEnachMode("NB_DC");
-                        else if("ADHAAR".equalsIgnoreCase(enachMode))applicationDetails.setEnachMode("ADHAAR");
+                        if(EnachMode.BOTH.name().equalsIgnoreCase(enachMode))
+                            applicationDetails.setEnachMode(EnachMode.NB_DC.name());
+                        else if (EnachMode.NB_DC.name().equalsIgnoreCase(enachMode))
+                            applicationDetails.setEnachMode(EnachMode.NB_DC.name());
+                        else if(EnachMode.ADHAAR.name().equalsIgnoreCase(enachMode))applicationDetails.setEnachMode(EnachMode.ADHAAR.name());
                     }
                     BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
                     if(ObjectUtils.isEmpty(bharatPeEnach)){

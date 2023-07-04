@@ -17,6 +17,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -131,7 +132,7 @@ public class ENachService {
             }
         }
         Double nachAmount = lendingApplication.getLoanAmount();
-        if("ADHAAR".equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D) nachAmount = 100000D;
+        if(EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D) nachAmount = 100000D;
 
         String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
         String providerName = deep_link.equals("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
@@ -172,7 +173,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
 //            lendingApplication.setNachLender("BHARATPE");
-            if("ADHAAR".equalsIgnoreCase(bharatPeEnach.getMode()))lendingApplication.setNachStatus("PENDING_VERIFICATION");
+            if(EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()))lendingApplication.setNachStatus("PENDING_VERIFICATION");
             else lendingApplication.setNachStatus("APPROVED");
             logger.info("nach status for {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getNachStatus());
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());

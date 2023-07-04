@@ -183,6 +183,8 @@ public class LoanUtil {
 
 	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
 
+	List<Long> abflExcludedMerchants = new ArrayList<>();
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -1523,6 +1525,35 @@ public class LoanUtil {
 		}
 		return merchantList;
 	}
+
+	private List<Long> readabflExcludedMerchantsCsvFile() {
+		List<Long> merchantList = new ArrayList<>();
+		try {
+
+			String filePath = "/MerchantList/abfl_excluded_merchants";
+			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+			Scanner sc = new Scanner(inputStream);
+			sc.useDelimiter(",");
+			while (sc.hasNext())
+			{
+				String value = sc.next();
+				merchantList.add(Long.parseLong(value));
+			}
+			sc.close();  //closes the scanner
+		} catch (Exception e) {
+			logger.info("exception while reading abfl_excluded_merchants csv file: {} {}", e, e.getMessage());
+		}
+		return merchantList;
+	}
+
+
+	public List<Long> abflExcludedMerchants() {
+		if (!ObjectUtils.isEmpty(abflExcludedMerchants)) {
+			return abflExcludedMerchants;
+		}
+		abflExcludedMerchants = readabflExcludedMerchantsCsvFile();
+		return abflExcludedMerchants;
+  }
 
 	public static EdiModel getEdiModal(LendingApplication lendingApplication) {
 		return lendingApplication.getPayableDays() % 30 == 0 ?
