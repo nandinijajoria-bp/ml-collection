@@ -112,7 +112,7 @@ public class ENachService {
             return responseDTO;
         }
 
-        if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())){
+        if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Nach can be skipped");
             logger.info("nach can be skipped for application:{}", lendingApplication.getId());
@@ -202,13 +202,22 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
-                if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
-                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED));
-                    logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
-                }
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    lendingApplicationLenderDetailsDao.
+                            findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
+                                    (lendingApplication.getId(), Status.ACTIVE.name());
+
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
+                    LenderAssociationStages.ASSC_COMPLETED.name()
+                            .equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
+                {
+                nbfcUtils.pushApplicationToNextStage
+                        (lendingApplication.getId(), lendingApplication.getLender(),
+                                LenderAssociationStages.ASSC_COMPLETED.name(),
+                        LenderAssociationStageFactory
+                                .autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),
+                                        LenderAssociationStages.ASSC_COMPLETED));
+                logger.info("invoked sanction workflow for application {}", lendingApplication.getId());}
             }
 //            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //            if (lendingPennydrop == null) {

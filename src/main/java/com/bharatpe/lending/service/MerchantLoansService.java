@@ -13,8 +13,10 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -26,6 +28,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import lombok.extern.slf4j.Slf4j;
 import com.mysql.cj.x.protobuf.MysqlxExpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,11 +40,14 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigInteger;
 import java.text.DecimalFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import static com.bharatpe.lending.constant.LendingConstants.*;
 
 @Service
+@Slf4j
 public class MerchantLoansService {
 
     private Logger logger = LoggerFactory.getLogger(MerchantLoansService.class);
@@ -51,6 +57,10 @@ public class MerchantLoansService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
@@ -147,6 +157,9 @@ public class MerchantLoansService {
 
     @Autowired
     LmsFieldValuesDao lmsFieldValuesDao;
+
+    @Autowired
+    LendingPullPaymentDao pullPaymentDao;
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -286,6 +299,38 @@ public class MerchantLoansService {
     }
 
 
+    public long calculateTimeDiff(Date createdMandateDate) {
+        log.info("createdMandateDate is {}", createdMandateDate);
+        SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
+        long diffMinutes=0l;
+        Date date = new Date();
+        log.info("date is {}", date);
+        format.format(date);
+        String currentDateTime = format.format(date);
+
+        Date d1 = null;
+        try {
+            d1 = format.parse((currentDateTime));
+
+            log.info("d1 {}", d1);
+            long diff;
+            diff = createdMandateDate.getTime() - d1.getTime();
+            if (diff<0)
+            {
+                diff = Math.abs(diff);
+            }
+            log.info("diff is {}", diff);
+            diffMinutes = diff / (60 * 1000);
+            log.info("diff minutes is {}", diffMinutes);
+            return diffMinutes;
+
+        }
+        catch (ParseException e) {
+            log.error("e is {}", e);
+        }
+        return diffMinutes;
+    }
+
     public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
@@ -316,6 +361,46 @@ public class MerchantLoansService {
                 loan.setPaidAmount((ObjectUtils.isEmpty(loan.getPaidAmount()) ? 0 : loan.getPaidAmount()) + advanceEdiAmount);
                 loan.setPendingAmount((ObjectUtils.isEmpty(loan.getPendingAmount()) ? 0 : loan.getPendingAmount()) - advanceEdiAmount);
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
+
+                if (loan.getStatus().equals("ACTIVE")) {
+                    LendingPullPayment pullPayment = pullPaymentDao.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
+                    if (pullPayment != null) {
+                        Double amount = pullPayment.getDeductedAmount();
+                        String status = pullPayment.getStatus();
+                        Long id = loan.getLoanId();
+                        logger.info("loan id is {}",id);
+                        loan.setPresentmentStatus(status);
+                        loan.setPresentmentAmount(amount);
+                        log.info("lending pull payment Updated Date is {}", pullPayment.getUpdatedAt());
+                        loan.setPresentmentDate(pullPayment.getUpdatedAt());
+                    }
+
+                    log.info("loan application id is loan.getApplicationId{}", loan.getApplicationId());
+                    Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, loan.getApplicationId());
+                    if (autoPayUPI.isPresent()) {
+                        log.info("autoPay UPI is present {}",autoPayUPI);
+                        if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING))
+                        {
+                            Date createdMandateDate = autoPayUPI.get().getCreatedAt();
+                            long diffMinutes = calculateTimeDiff(createdMandateDate);
+                            log.info("diffMinutes is {}", diffMinutes);
+                            if (diffMinutes >= 30L) {
+                                autoPayUPI.get().setStatus(AutoPayStatusEnum.FAILED);
+                                autoPayUPIDao.save(autoPayUPI.get());
+                                log.info("status for mandate register marked as failed for merchant id {} application id {}",
+                                        autoPayUPI.get().getMerchantId(), autoPayUPI.get().getApplicationId());
+                            }
+                        }
+                        loan.setAutoPayMandateStatus(String.valueOf(autoPayUPI.get().getStatus()));
+                        loan.setMandateRegisterId(autoPayUPI.get().getOrderId());
+                    }
+
+                    Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
+                    if (loanDpd.isPresent() && loanDpd.get().getDpd()<3)
+                        loan.setAutoPayEligibility(true);
+                    else
+                        loan.setAutoPayEligibility(Boolean.FALSE);
+                }
             }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             if (lendingPaymentSchedule != null) {

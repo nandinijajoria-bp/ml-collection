@@ -607,7 +607,8 @@ public class LendingApplicationServiceV2 {
             lendingApplication.setLender("PIRAMAL");
             lendingApplication = lendingApplicationDao.save(lendingApplication);
         } else {
-            lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+            lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
+                EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);

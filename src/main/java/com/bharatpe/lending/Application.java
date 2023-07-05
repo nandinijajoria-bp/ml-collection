@@ -23,6 +23,7 @@ import java.util.TimeZone;
 @SpringBootApplication
 @ComponentScan(basePackages =  "com.bharatpe.*")
 @EntityScan(basePackages = "com.bharatpe.*")
+
 @PropertySources({
 		@PropertySource("file:/etc/bharatpe/key.properties"),
 		@PropertySource("file:/etc/bharatpe/production.properties")

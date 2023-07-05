@@ -24,6 +24,7 @@ import org.springframework.util.ObjectUtils;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@Data
 public class LendingMerchantLoansResponseDTO {
 
     private List<Loan> loans;
@@ -116,8 +117,12 @@ public class LendingMerchantLoansResponseDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 
-    public class Loan {
+    @Data
+    public static class Loan {
 
+        private String presentmentStatus;
+        private Double presentmentAmount;
+        private Long applicationId;
         private Long loanId;
         private Double loanAmount;
         private Double ediAmount;
@@ -132,6 +137,10 @@ public class LendingMerchantLoansResponseDTO {
         private String endDate;
         private String loanType;
         private String status;
+        private Boolean autoPayEligibility;
+        private String autoPayMandateStatus;
+        private String mandateRegisterId;
+        private Date presentmentDate;
         private Double paidAmount;
         private Double lastEdiPaid;
         private Double repaymentAmount;
@@ -147,9 +156,11 @@ public class LendingMerchantLoansResponseDTO {
         public Loan() {
         }
 
-        public Loan(Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
+        public Loan(Long applicationId,Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
-                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,Integer ediCount, String lender, String settlementStatus) {
+                String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,
+                    Integer ediCount, String lender, String settlementStatus) {
+            this.applicationId = applicationId;
             this.loanId = loanId;
             this.loanAmount = loanAmount;
             this.ediAmount = ediAmount;
@@ -543,8 +554,9 @@ public class LendingMerchantLoansResponseDTO {
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
         String lender = lendingPaymentSchedule.getNbfc();
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
-        return new Loan(lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),lendingPaymentSchedule.getTotalPayableAmount(),lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
+        Long applicationId = lendingPaymentSchedule.getApplicationId();
+        return new Loan(applicationId, lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
     }
 
     public boolean getSuccess() {

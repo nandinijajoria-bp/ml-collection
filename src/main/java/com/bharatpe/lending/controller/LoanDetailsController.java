@@ -34,7 +34,7 @@ import java.util.Optional;
 @RequestMapping("lending")
 public class LoanDetailsController {
 	Logger logger = LoggerFactory.getLogger(LoanDetailsController.class);
-	
+
 	@Autowired
 	LoanDetailsService loanDetailsService;
 
@@ -49,7 +49,7 @@ public class LoanDetailsController {
 
 	@Autowired
 	MerchantLoansService merchantLoansService;
-	
+
 	@Autowired
 	VerifyDocService verifyDocService;
 
@@ -66,8 +66,8 @@ public class LoanDetailsController {
 	MerchantService merchantService;
 
 //	 for testing - to be removed in future
-	@Value("${lending.edi.model:7}")
-	Integer lendingEdiModel;
+@Value("${lending.edi.model:7}")
+Integer lendingEdiModel;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestAttribute(required = false) String clientIp
@@ -223,7 +223,7 @@ public class LoanDetailsController {
 		}
 		return new ResponseEntity<>(responseDTO, HttpStatus.BAD_REQUEST);
 	}
-	
+
 	@RequestMapping(value = "/derog_application", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ApplicationDerogResponseDTO> derogMerchantExperian(@RequestParam(name = "merchant_id") Long merchantId,
 	@RequestParam(name = "application_id") Long applicationId) {
@@ -232,7 +232,10 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
-	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestParam(required = false) Long merchantId) {
+	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(
+			@RequestAttribute(required = false) BasicDetailsDto merchant,
+			@RequestParam(required = false) Long merchantId
+	) {
 		if (!ObjectUtils.isEmpty(merchant)){
 			merchantId = merchant.getId();
 		}
