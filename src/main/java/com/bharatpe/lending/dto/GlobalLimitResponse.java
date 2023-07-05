@@ -47,6 +47,7 @@ public class GlobalLimitResponse {
     @ToString
     public static class OfferDetail {
         private Double interestRate;
+        private Double initialRoi;
         private Double maxLoanAmount;
         private Double loanAmount;
         private Double bureauLimit;
