@@ -4,10 +4,12 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.Data;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@Data
 public class PaymentCallbackRequestDTO {
 
 	private Double amount;
@@ -20,6 +22,8 @@ public class PaymentCallbackRequestDTO {
     private String status;
     private String customerName;
     private String transactionMessage;
+
+	private String terminalOrderId;
 
 	public Double getAmount() {
 		return amount;

@@ -541,7 +541,7 @@ public class PaymentService {
                 return "OK";
             }
             adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
-                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getBankReferenceNumber());
+                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getTerminalOrderId());
             order.setBankRefNo(request.getBankReferenceNumber());
             order.setStatus("SUCCESS");
             loanPaymentOrderDao.save(order);
