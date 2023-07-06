@@ -2,7 +2,7 @@ package com.bharatpe.lending.constant;
 
 public class EligibilityIframeConstants {
 
-    public static final String ALERT_ICON = "https://d30gqtvesfc1d5.cloudfront.net/hubble/info-strip-icon-1684140032834.svg";
+    public static final String ALERT_ICON = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/alert-icon-1688472503509.png";
     public static final String ALERT_TEXT = "Instant Disbursal | Low Interest | Paperless Process";
     public static final String DEEPLINK = "bharatpe://homev2/loans?wroute=easy-loan";
 
