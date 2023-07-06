@@ -15,6 +15,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.PropertySources;
 import org.springframework.core.env.Environment;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 import javax.annotation.PostConstruct;
 import java.text.SimpleDateFormat;
@@ -28,6 +29,7 @@ import java.util.TimeZone;
 		@PropertySource("file:/etc/bharatpe/key.properties"),
 		@PropertySource("file:/etc/bharatpe/production.properties")
 })
+@EnableMongoRepositories(basePackages = "com.bharatpe.lending.common.dao.mongo")
 public class Application
 {
 

@@ -19,6 +19,7 @@ import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
+import com.bharatpe.lending.common.service.LendingGlobalAPICacheService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.enums.FunnelEnums;
@@ -29,6 +30,7 @@ import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.common.util.MapperUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -238,6 +240,15 @@ public class APIGatewayService {
 
     @Autowired
     Request3PAuditService request3PAuditService;
+
+    @Value("${lending.global.api.caching.rollout.percent:10}")
+    Integer lendingGlobalAPICachingRolloutPercent;
+
+    @Autowired
+    LendingGlobalAPICacheService globalAPICacheService;
+
+    @Autowired
+    MapperUtil mapperUtil;
 
     @PostConstruct
     public void init() {
@@ -1480,14 +1491,27 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true, null);
     }
 
     //    @Async
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                               String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
-                                              Boolean skipMaskedMobileException, String sessionId, String offerType, LoanDetailsResponse loanDetailsResponse) throws BureauCallMaskedApiException  {
+                                              Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
+
+        if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+            try {
+                Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId);
+                if(!ObjectUtils.isEmpty(response)) {
+                    GlobalLimitResponse globalLimitResponse = mapper.convertValue(response, GlobalLimitResponse.class);
+                    return globalLimitResponse;
+                }
+            } catch (Exception e) {
+                logger.error("Error occurred while getting global limit response from cache for merchant:{} {} {}", merchantId, e.getMessage(), e);
+            }
+        }
+
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
             put("source", source);
@@ -1555,6 +1579,9 @@ public class APIGatewayService {
             throw new BureauCallMaskedApiException("Call Experian Masked Mobile API", loanDetailsResponse);
         }
         if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
+            if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+                globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
+            }
             return responseEntity.getBody();
         }
         } catch (BureauCallMaskedApiException e) {
@@ -1569,7 +1596,7 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, null);
+        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, true, null);
     }
 
     public boolean globalLimitTxn(Long merchantId, String mode, Double amount) {
@@ -2835,6 +2862,6 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String orderId, String type) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false, null);
     }
 }
