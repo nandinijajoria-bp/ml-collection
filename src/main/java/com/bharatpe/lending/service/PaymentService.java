@@ -541,7 +541,7 @@ public class PaymentService {
                 return "OK";
             }
             adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
-                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getBankReferenceNumber());
+                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getTerminalOrderId());
             order.setBankRefNo(request.getBankReferenceNumber());
             order.setStatus("SUCCESS");
             loanPaymentOrderDao.save(order);
@@ -553,19 +553,19 @@ public class PaymentService {
 
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
-        if (request.getEvent().equalsIgnoreCase("MANDATE") && request.getMandate() != null) {
-            logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
-            return autoPayUPIService.handleMandatePgCallback(request);
-        }
-        else if (request.getEvent().equalsIgnoreCase("transaction")
-                && request.getMandate() != null ) {
-          log.info("mandate presentment transaction {}",request.getMandate().getOrderId());
-            return "OK" ;
+        if (request.getEvent() != null && request.getMandate() !=null) {
+            if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
+                logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
+                return autoPayUPIService.handleMandatePgCallback(request);
+            } else if ("transaction".equalsIgnoreCase(request.getEvent())) {
+                log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
+                return "OK";
+            }
         }
 
         else {
             logger.info("Received payment callback request for order ID {} : {}", request.getOrderId(), request);
-            if (Objects.nonNull(request) && Objects.isNull(request.getPayments())) {
+            if (Objects.isNull(request.getPayments())) {
                 logger.info("null payments object in pg callback for request: {}", request);
                 return "OK";
             }
