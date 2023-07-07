@@ -553,14 +553,15 @@ public class PaymentService {
 
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
-        if (request.getEvent().equalsIgnoreCase("MANDATE") && request.getMandate() != null) {
-            logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
-            return autoPayUPIService.handleMandatePgCallback(request);
-        }
-        else if (request.getEvent().equalsIgnoreCase("transaction")
-                && request.getMandate() != null ) {
-          log.info("mandate presentment transaction {}",request.getMandate().getOrderId());
-            return "OK" ;
+        if (request.getEvent() != null) {
+            if (request.getEvent().equalsIgnoreCase("MANDATE") && request.getMandate() != null) {
+                logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
+                return autoPayUPIService.handleMandatePgCallback(request);
+            } else if (request.getEvent().equalsIgnoreCase("transaction")
+                    && request.getMandate() != null) {
+                log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
+                return "OK";
+            }
         }
 
         else {
