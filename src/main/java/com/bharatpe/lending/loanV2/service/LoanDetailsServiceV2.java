@@ -244,6 +244,13 @@ public class LoanDetailsServiceV2 {
     @Value(("${bankstatement.enabled:false}"))
     boolean bankStatementEnabled;
 
+    @Value("${gst3b.session.tat:3}")
+    Integer gst3bSessionTat;
+
+    @Value("${gst3b.rollout.percent:10}")
+    Integer gst3bRolloutPercent;
+
+
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
@@ -1799,9 +1806,26 @@ public class LoanDetailsServiceV2 {
                     .gst3b(new UnderwritingDocEligibilityDTO.GST3b())
                     .bankStatement(new UnderwritingDocEligibilityDTO.BankStatement())
                     .build();
-
-            underwritingDocEligibilityDTO = checkBankStatementAndGst3bEligibility(merchantId, underwritingDocEligibilityDTO);
+            underwritingDocEligibilityDTO = checkUnderwritingRiskEligibility(merchantId, underwritingDocEligibilityDTO);
             if(!underwritingDocEligibilityDTO.getBankStatement().getActive() && !underwritingDocEligibilityDTO.getGst3b().getActive()) {
+                return new ApiResponse<>(underwritingDocEligibilityDTO);
+            }
+            underwritingDocEligibilityDTO = checkBankStatementEligibility(merchantId, underwritingDocEligibilityDTO, statusCheck, docType);
+            underwritingDocEligibilityDTO = checkGst3bEligibility(merchantId, underwritingDocEligibilityDTO, statusCheck, docType);
+            if(!underwritingDocEligibilityDTO.getBankStatement().getActive() && !underwritingDocEligibilityDTO.getGst3b().getActive()) {
+                return new ApiResponse<>(underwritingDocEligibilityDTO);
+            }
+
+            BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantId);
+            if (ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+                log.error("No BankStatement session found for given merchantId : {}", merchantId);
+            }
+            Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantId);
+            if (ObjectUtils.isEmpty(gst3bSessionDetails)) {
+                log.error("No Gst3b session found for given merchantId : {}", merchantId);
+            }
+
+            if(ObjectUtils.isEmpty(bankStatementSessionDetails) && ObjectUtils.isEmpty(gst3bSessionDetails)) {
                 return new ApiResponse<>(underwritingDocEligibilityDTO);
             }
 
@@ -1812,23 +1836,10 @@ public class LoanDetailsServiceV2 {
             Date latestGst3bSessionTime = null;
             String gst3bRejectReason = null;
             String bsRejectReason = null;
-            Calendar calendar = Calendar.getInstance();
-            BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantId);
-            if (ObjectUtils.isEmpty(bankStatementSessionDetails)) {
-                log.error("No BankStatement session found for given merchantId : {}", merchantId);
-            }
+            String bsOrderId = null;
+            String gstOrderId = null;
             if (!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
                 log.info("Latest bankStatement session for merchantId : {},  {}", merchantId, bankStatementSessionDetails);
-                calendar.setTime(bankStatementSessionDetails.getCreatedAt());
-                calendar.add(Calendar.MONTH, 1);
-                Boolean statusFlag = ObjectUtils.isEmpty(statusCheck) ? false : "BANK_STATEMENT".equalsIgnoreCase(docType) ? statusCheck : false;
-                if (new Date().compareTo(calendar.getTime()) < 0
-                        && (BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())
-                        || (BankStatementSessionStatus.FAILED.equals(bankStatementSessionDetails.getStatus())
-                        && BankStatementRejectReason.OFFER_SAME.name().equals(bankStatementSessionDetails.getRejectReason())))
-                        && !statusFlag) {
-                    underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
-                }
                 Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - bankStatementSessionDetails.getCreatedAt().getTime()) / 60000;
                 if(minutes >= 5 && (bankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.SUBMITTED) || bankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.INPROCESS) || bankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.PENDING))) {
                     bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
@@ -1845,13 +1856,19 @@ public class LoanDetailsServiceV2 {
                 latestBsSessionTime = bankStatementSessionDetails.getUpdatedAt();
                 latestBsSessionStatus = bankStatementSessionDetails.getStatus().name();
                 bsRejectReason = bankStatementSessionDetails.getRejectReason();
-            }
-            Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantId);
-            if (ObjectUtils.isEmpty(gst3bSessionDetails)) {
-                log.error("No Gst3b session found for given merchantId : {}", merchantId);
+                bsOrderId = bankStatementSessionDetails.getOrderId();
             }
             if (!ObjectUtils.isEmpty(gst3bSessionDetails)) {
                 log.info("Latest Gst3b session for merchantId : {},  {}", merchantId, gst3bSessionDetails);
+                Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - gst3bSessionDetails.getCreatedAt().getTime()) / 60000;
+                if(minutes > gst3bSessionTat && (gst3bSessionDetails.getStatus().equals(Gst3bSessionStatus.SUBMITTED)
+                        || gst3bSessionDetails.getStatus().equals(Gst3bSessionStatus.INPROCESS)
+                        || gst3bSessionDetails.getStatus().equals(Gst3bSessionStatus.PENDING)
+                        || gst3bSessionDetails.getStatus().equals(Gst3bSessionStatus.OTP_INIT))) {
+                    gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
+                    gst3bSessionDetails.setRejectReason(Gst3bRejectReason.BEYOND_TAT.name());
+                    gst3bSessionDetailsDao.save(gst3bSessionDetails);
+                }
                 underwritingDocEligibilityDTO.getGst3b().setStatus(gst3bSessionDetails.getStatus());
                 if (docType.equalsIgnoreCase("GST3B")) {
                     underwritingDocEligibilityDTO.setActivityStartTime(gst3bSessionDetails.getUpdatedAt());
@@ -1862,25 +1879,30 @@ public class LoanDetailsServiceV2 {
                 latestGst3bSessionStatus = gst3bSessionDetails.getStatus().name();
                 latestGst3bSessionTime = gst3bSessionDetails.getUpdatedAt();
                 gst3bRejectReason = gst3bSessionDetails.getRejectReason();
+                gstOrderId = gst3bSessionDetails.getOrderId();
             }
             if (docType.equalsIgnoreCase("BOTH")) {
                 if (ObjectUtils.isEmpty(latestBsSessionStatus)) {
                     underwritingDocEligibilityDTO.setActivityStatus(latestGst3bSessionStatus);
                     underwritingDocEligibilityDTO.setActivityStartTime(latestGst3bSessionTime);
                     underwritingDocEligibilityDTO.setActivityFailedError(gst3bRejectReason);
+                    orderId = gstOrderId;
                 } else if (ObjectUtils.isEmpty(latestGst3bSessionStatus)) {
                     underwritingDocEligibilityDTO.setActivityStartTime(latestBsSessionTime);
                     underwritingDocEligibilityDTO.setActivityStatus(latestBsSessionStatus);
                     underwritingDocEligibilityDTO.setActivityFailedError(bsRejectReason);
+                    orderId = bsOrderId;
                 } else if (!ObjectUtils.isEmpty(latestBsSessionStatus) && !ObjectUtils.isEmpty(latestGst3bSessionStatus)) {
                     if (latestBsSessionTime.compareTo(latestGst3bSessionTime) > 0) {
                         underwritingDocEligibilityDTO.setActivityStartTime(latestBsSessionTime);
                         underwritingDocEligibilityDTO.setActivityStatus(latestBsSessionStatus);
                         underwritingDocEligibilityDTO.setActivityFailedError(bsRejectReason);
+                        orderId = bsOrderId;
                     } else {
                         underwritingDocEligibilityDTO.setActivityStatus(latestGst3bSessionStatus);
                         underwritingDocEligibilityDTO.setActivityStartTime(latestGst3bSessionTime);
                         underwritingDocEligibilityDTO.setActivityFailedError(gst3bRejectReason);
+                        orderId = gstOrderId;
                     }
                 }
             }
@@ -1904,11 +1926,8 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private UnderwritingDocEligibilityDTO checkBankStatementAndGst3bEligibility(Long merchantId, UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO) {
-        if(!loanUtil.isInternalMerchant(merchantId) && !bankStatementEnabled) {
-            underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
-            return underwritingDocEligibilityDTO;
-        }
+    private UnderwritingDocEligibilityDTO checkUnderwritingRiskEligibility(Long merchantId, UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO) {
+        log.info("Checking underwriting risk checks for bankStatement and gst3b eligibility");
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
         if (!ObjectUtils.isEmpty(lendingRiskVariables)) {
             List<PincodeColor> pincodeColors = Arrays.asList(PincodeColor.DARK_GREEN, PincodeColor.GREEN, PincodeColor.YELLOW, PincodeColor.LIGHT_GREEN);
@@ -1916,6 +1935,7 @@ public class LoanDetailsServiceV2 {
             if (!ObjectUtils.isEmpty(lendingRiskVariables.getPincodeColor()) && !pincodeColors.contains(lendingRiskVariables.getPincodeColor())) {
                 log.info("pincode color not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskColor(), merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
             if (!ObjectUtils.isEmpty(lendingRiskVariables.getRiskSegment())
@@ -1925,6 +1945,7 @@ public class LoanDetailsServiceV2 {
                     || RiskSegment.REGULAR_NTC.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment())))) {
                 log.info("risk segment not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskSegment(), merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
             if (!ObjectUtils.isEmpty(lendingRiskVariables.getRiskSegment()) && !ObjectUtils.isEmpty(lendingRiskVariables.getRiskGroup())
@@ -1932,6 +1953,7 @@ public class LoanDetailsServiceV2 {
                     && riskGroups.contains(RiskGroup.valueOf(lendingRiskVariables.getRiskGroup()))) {
                 log.info("risk group not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskGroup(), merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
             if (!ObjectUtils.isEmpty(lendingRiskVariables.getRiskSegment()) && !ObjectUtils.isEmpty(lendingRiskVariables.getRiskGroup())
@@ -1941,16 +1963,19 @@ public class LoanDetailsServiceV2 {
                     || RiskGroup.R3.equals(RiskGroup.valueOf(lendingRiskVariables.getRiskGroup())))) {
                 log.info("risk group not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskGroup(), merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
             if (!ObjectUtils.isEmpty(lendingRiskVariables.getBbs()) && lendingRiskVariables.getBbs() < 650) {
                 log.info("bbs score is less for banking based offer: {} {}", lendingRiskVariables.getBbs(), merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
             if (!ObjectUtils.isEmpty(lendingRiskVariables.getDrsScore()) && lendingRiskVariables.getDrsScore() <= 10) {
                 log.info("drs score is less for banking based offer: {} {}", lendingRiskVariables.getDrsScore(), merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
         }
@@ -1965,9 +1990,21 @@ public class LoanDetailsServiceV2 {
                 if (!"PERMANENT".equalsIgnoreCase(shopType)) {
                     log.info("shop type is not permanent for banking based offer: {} {}", shopType, merchantId);
                     underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                    underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
                     return underwritingDocEligibilityDTO;
                 }
             }
+        }
+        underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.TRUE);
+        underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.TRUE);
+        return underwritingDocEligibilityDTO;
+    }
+
+    private UnderwritingDocEligibilityDTO checkBankStatementEligibility(Long merchantId, UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO, boolean statusCheck, String docType) {
+        log.info("Checking bankStatement eligibility for merchantId : {}", merchantId);
+        if(!loanUtil.isInternalMerchant(merchantId) && !bankStatementEnabled) {
+            underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+            return underwritingDocEligibilityDTO;
         }
         final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId).orElse(null);
         if (!ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
@@ -1982,10 +2019,12 @@ public class LoanDetailsServiceV2 {
              }
              **/
             if (ObjectUtils.isEmpty(bankStatementWhitelistedBanks)) {
+                log.info("bank is not in bankStatement whitelisted banks : {}, {}", bankStatementWhitelistedBanks, merchantId);
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
         } else {
+            log.info("bank details are not found for merchantId : {}", merchantId);
             underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
             return underwritingDocEligibilityDTO;
         }
@@ -2000,11 +2039,67 @@ public class LoanDetailsServiceV2 {
         List<BankStatementSessionDetails> bankStatementSessionDetailsList = bankStatementSessionDetailsDao.findAllByMerchantIdAndCreatedAtGreaterThanEqual(merchantId, currentDate, pageable);
         if (bankStatementSessionDetailsList.size() >= 2) {
             if (bankStatementSessionDetailsList.get(0).getStatus().equals(BankStatementSessionStatus.FAILED) && bankStatementSessionDetailsList.get(1).getStatus().equals(BankStatementSessionStatus.FAILED) && !loanUtil.isInternalMerchant(merchantId)) {
+                log.info("Two failed bankStatement session for the day : {}, {}", currentDate, merchantId);
+                underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
+                return underwritingDocEligibilityDTO;
+            }
+        }
+        BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantId);
+        if(!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+            calendar.setTime(bankStatementSessionDetails.getCreatedAt());
+            calendar.add(Calendar.MONTH, 1);
+            boolean statusFlag = !ObjectUtils.isEmpty(statusCheck) && ("BANK_STATEMENT".equalsIgnoreCase(docType) && statusCheck);
+            if (new Date().compareTo(calendar.getTime()) < 0
+                    && (BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())
+                    || (BankStatementSessionStatus.FAILED.equals(bankStatementSessionDetails.getStatus())
+                    && BankStatementRejectReason.OFFER_SAME.name().equals(bankStatementSessionDetails.getRejectReason())))
+                    && !statusFlag) {
                 underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.FALSE);
                 return underwritingDocEligibilityDTO;
             }
         }
         underwritingDocEligibilityDTO.getBankStatement().setActive(Boolean.TRUE);
+        return underwritingDocEligibilityDTO;
+    }
+
+    private UnderwritingDocEligibilityDTO checkGst3bEligibility(Long merchantId, UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO, boolean statusCheck, String docType) {
+        log.info("Checking gst3b eligibility for merchantId : {}", merchantId);
+        if(!easyLoanUtil.percentScaleUp(merchantId, gst3bRolloutPercent) && !loanUtil.isInternalMerchant(merchantId)) {
+            underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
+            return underwritingDocEligibilityDTO;
+        }
+        Pageable pageable = PageRequest.of(0, 2, Sort.by("Id").descending());
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        Date currentDate = calendar.getTime();
+        List<Gst3bSessionDetails> gst3bSessionDetailsList = gst3bSessionDetailsDao.findAllByMerchantIdAndCreatedAtGreaterThanEqual(merchantId, currentDate, pageable);
+        if(gst3bSessionDetailsList.size() >= 2) {
+            if(gst3bSessionDetailsList.get(0).getStatus().equals(Gst3bSessionStatus.FAILED) && gst3bSessionDetailsList.get(1).getStatus().equals(Gst3bSessionStatus.FAILED) && !loanUtil.isInternalMerchant(merchantId)) {
+                log.info("Two failed gst3b session for the day : {}, {}", currentDate, merchantId);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
+                return underwritingDocEligibilityDTO;
+            }
+        }
+        Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantId);
+        if(!ObjectUtils.isEmpty(gst3bSessionDetails)) {
+            calendar.setTime(gst3bSessionDetails.getCreatedAt());
+            calendar.add(Calendar.MONTH, 1);
+            boolean statusFlag = !ObjectUtils.isEmpty(statusCheck) && ("GST3B".equalsIgnoreCase(docType) && statusCheck);
+            if (new Date().compareTo(calendar.getTime()) < 0
+                    && (Gst3bSessionStatus.SUCCESS.equals(gst3bSessionDetails.getStatus())
+                    || (Gst3bSessionStatus.FAILED.equals(gst3bSessionDetails.getStatus())
+                    && BankStatementRejectReason.OFFER_SAME.name().equals(gst3bSessionDetails.getRejectReason())))
+                    && !statusFlag) {
+                log.info("Offer already evaluated on gst3b details less than 1 month ago for merchantId");
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
+                return underwritingDocEligibilityDTO;
+            }
+        }
+        underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.TRUE);
         return underwritingDocEligibilityDTO;
     }
 
@@ -2015,9 +2110,10 @@ public class LoanDetailsServiceV2 {
             if(!ObjectUtils.isEmpty(lendingRiskVariables)) {
                 currentLimit = lendingRiskVariables.getFinalOffer();
             }
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, orderId, docType);
+            String type = "BANK_STATEMENT".equalsIgnoreCase(docType) ? "BANK_STATEMENT" : "GST";
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, orderId, type);
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-                if (globalLimitResponse.getData().getBankAffectedOffer()) {
+                if (globalLimitResponse.getData().getBankAffectedOffer() || globalLimitResponse.getData().getGst3bAffectedOffer()) {
                     if (globalLimitResponse.getData().getGlobalLimit() > currentLimit) {
                         Double eligibleAmount = 0D;
                         log.info("Global limit for merchant:{} is {}", bankStatementSessionDetails.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
@@ -2039,7 +2135,7 @@ public class LoanDetailsServiceV2 {
                             bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.OFFER_SAME.name());
                             bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
                         } else if (docType.equalsIgnoreCase("GST3B")) {
-                            gst3bSessionDetails.setRejectReason(BankStatementRejectReason.OFFER_SAME.name());
+                            gst3bSessionDetails.setRejectReason(Gst3bRejectReason.OFFER_SAME.name());
                             gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                         }
                     }
@@ -2049,7 +2145,7 @@ public class LoanDetailsServiceV2 {
                         bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.OFFER_SAME.name());
                         bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
                     } else if (docType.equalsIgnoreCase("GST3B")) {
-                        gst3bSessionDetails.setRejectReason(BankStatementRejectReason.OFFER_SAME.name());
+                        gst3bSessionDetails.setRejectReason(Gst3bRejectReason.OFFER_SAME.name());
                         gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                     }
                 }
@@ -2060,7 +2156,7 @@ public class LoanDetailsServiceV2 {
                     bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.GLOBAL_LIMIT_FAILED.name());
                 } else if (docType.equalsIgnoreCase("GST3B")) {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
-                    gst3bSessionDetails.setRejectReason(BankStatementRejectReason.GLOBAL_LIMIT_FAILED.name());
+                    gst3bSessionDetails.setRejectReason(Gst3bRejectReason.GLOBAL_LIMIT_FAILED.name());
                 }
             }
         } catch (Exception e) {

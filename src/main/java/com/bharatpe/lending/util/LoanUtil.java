@@ -185,6 +185,8 @@ public class LoanUtil {
 
 	List<Long> abflExcludedMerchants = new ArrayList<>();
 
+	List<Long> gst3bEligibleMerchants = new ArrayList<>();
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -1504,15 +1506,21 @@ public class LoanUtil {
 		if (!ObjectUtils.isEmpty(bankStatementEligibleMerchants)) {
 			return bankStatementEligibleMerchants;
 		}
-		bankStatementEligibleMerchants = readBankStatementMerchantsCsvFile();
+		bankStatementEligibleMerchants = readUnderWritingEligibleMerchantsCsvFile("/MerchantList/bank_statement_merchants");
 		return bankStatementEligibleMerchants;
 	}
 
-	private List<Long> readBankStatementMerchantsCsvFile() {
+	public List<Long> gst3bEligibleMerchants() {
+		if (!ObjectUtils.isEmpty(gst3bEligibleMerchants)) {
+			return gst3bEligibleMerchants;
+		}
+		gst3bEligibleMerchants = readUnderWritingEligibleMerchantsCsvFile("/MerchantList/gst3b_merchants");
+		return gst3bEligibleMerchants;
+	}
+
+	private List<Long> readUnderWritingEligibleMerchantsCsvFile(String filePath) {
 		List<Long> merchantList = new ArrayList<>();
 		try {
-
-			String filePath = "/MerchantList/bank_statement_merchants";
 			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
 			Scanner sc = new Scanner(inputStream);
 			sc.useDelimiter(",");
@@ -1523,7 +1531,7 @@ public class LoanUtil {
 			}
 			sc.close();  //closes the scanner
 		} catch (Exception e) {
-			logger.info("exception while reading bankStatement csv file: {} {}", e, e.getMessage());
+			logger.info("exception while reading underwriting eligible merchant csv file: {} {}", e, e.getMessage());
 		}
 		return merchantList;
 	}

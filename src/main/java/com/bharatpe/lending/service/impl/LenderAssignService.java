@@ -3,9 +3,11 @@ package com.bharatpe.lending.service.impl;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.BankStatementSessionDetailsDao;
+import com.bharatpe.lending.common.dao.Gst3bSessionDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.BankStatementSessionDetails;
+import com.bharatpe.lending.common.entity.Gst3bSessionDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.*;
@@ -121,6 +123,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
 
+    @Autowired
+    Gst3bSessionDetailsDao gst3bSessionDetailsDao;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -220,14 +225,23 @@ public class LenderAssignService implements ILenderAssignService {
             decidedLender =  defaultAssignAbfl ? Lender.ABFL.name() : defaultAssignLender;
         } else {
             decidedLender = lenderAssignmentHandler(application, ediModel);
-            if(Lender.ABFL.name().equals(decidedLender)) {
+            if (Lender.ABFL.name().equals(decidedLender)) {
                 BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
                 Calendar calendar = Calendar.getInstance();
-                if(!ObjectUtils.isEmpty(bankStatementSessionDetails) && BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())) {
+                if (!ObjectUtils.isEmpty(bankStatementSessionDetails) && BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())) {
                     calendar.setTime(bankStatementSessionDetails.getCreatedAt());
                     calendar.add(Calendar.MONTH, 1);
-                    if(new Date().compareTo(calendar.getTime()) < 0) {
+                    if (new Date().compareTo(calendar.getTime()) < 0) {
                         decidedLender = assignFallackLender(application, ediModel);
+                    }
+                } else {
+                    Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
+                    if (!ObjectUtils.isEmpty(gst3bSessionDetails) && Gst3bSessionStatus.SUCCESS.equals(gst3bSessionDetails.getStatus())) {
+                        calendar.setTime(gst3bSessionDetails.getCreatedAt());
+                        calendar.add(Calendar.MONTH, 1);
+                        if (new Date().compareTo(calendar.getTime()) < 0) {
+                            decidedLender = assignFallackLender(application, ediModel);
+                        }
                     }
                 }
             }
@@ -247,6 +261,15 @@ public class LenderAssignService implements ILenderAssignService {
                     calendar.add(Calendar.MONTH, 1);
                     if (new Date().compareTo(calendar.getTime()) < 0) {
                         decidedLender = assignFallackLender(application, ediModel);
+                    }
+                } else {
+                    Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
+                    if (!ObjectUtils.isEmpty(gst3bSessionDetails) && Gst3bSessionStatus.SUCCESS.equals(gst3bSessionDetails.getStatus())) {
+                        calendar.setTime(gst3bSessionDetails.getCreatedAt());
+                        calendar.add(Calendar.MONTH, 1);
+                        if (new Date().compareTo(calendar.getTime()) < 0) {
+                            decidedLender = assignFallackLender(application, ediModel);
+                        }
                     }
                 }
             }
