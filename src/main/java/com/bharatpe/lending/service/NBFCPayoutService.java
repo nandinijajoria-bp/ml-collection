@@ -117,10 +117,6 @@ public class NBFCPayoutService {
             log.error("No NBFC payout found for payout status callback: {}", payoutStatus);
             return;
         }
-        if (TransactionStatus.PENDING.name().equals(payout.getStatus())) {
-            updatePayoutByStatusData(payout, payoutStatus);
-        } else {
-            log.error("Payout: {} status is {} so not processing ahead with callback : {}", payout.getId(), payout.getStatus(), payoutStatus);
-        }
+        updatePayoutByStatusData(payout, payoutStatus);
     }
 }
