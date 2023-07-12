@@ -521,7 +521,8 @@ public class LenderAssignService implements ILenderAssignService {
                     log.info("lender change workflow, skip {} for {}", lender, merchantId);
                     continue;
                 }
-                if (ageCheckLenderList.contains(rule.getLender()) && (age < 21 || age > 65)){
+                if (ageCheckLenderList.contains(rule.getLender()) && !ObjectUtils.isEmpty(age) && age != 0
+                        && (age < 21 || age > 65)) {
                     log.info("age checks failed for {}", merchantId);
                     continue;
                 }
