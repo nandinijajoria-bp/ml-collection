@@ -1915,11 +1915,11 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Unable to create KFS details");
             }
             Double apr = null;
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
-                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getAnnualRoi())) {
-                apr = lendingApplicationLenderDetails.getAnnualRoi();
-            }
+//            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+//                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
+//            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getAnnualRoi())) {
+//                apr = lendingApplicationLenderDetails.getAnnualRoi();
+//            }
 
             String lenderCorporateName = "";
             String lenderBusinessAddress = "";
