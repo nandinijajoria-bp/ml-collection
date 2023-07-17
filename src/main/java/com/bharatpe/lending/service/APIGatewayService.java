@@ -250,6 +250,9 @@ public class APIGatewayService {
     @Autowired
     MapperUtil mapperUtil;
 
+    @Value("${global.api.cache.ttl:2}")
+    Integer globalApiCacheTtl;
+
     @PostConstruct
     public void init() {
         try {
@@ -1502,7 +1505,7 @@ public class APIGatewayService {
 
         if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
             try {
-                Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId);
+                Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
                 if(!ObjectUtils.isEmpty(response)) {
                     GlobalLimitResponse globalLimitResponse = mapper.convertValue(response, GlobalLimitResponse.class);
                     return globalLimitResponse;
