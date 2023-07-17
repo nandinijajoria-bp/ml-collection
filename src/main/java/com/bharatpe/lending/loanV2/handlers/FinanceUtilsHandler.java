@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -58,6 +59,9 @@ public class FinanceUtilsHandler {
     public String GST3b_VERIFY_OTP_API_URL = "/api/gst3b/verify-otp";
 
     public String GST3b_UPLOAD_API_URL = "/api/gst3b/upload";
+
+    @Value("${verifyOtp.api.readTimeout.value:30000}")
+    Integer readTimeoutValue;
 
     public Gst3bSessionResponseDTO sendGst3bOtp(String gstIn, String userName, String orderId, Long merchantId) {
         try {
@@ -108,6 +112,9 @@ public class FinanceUtilsHandler {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             String url = FINANCE_UTILS_BASE_URL + GST3b_VERIFY_OTP_API_URL;
             log.info("gst3b verify otp api url: {} request: {}", url, request);
+            HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
+            clientHttpRequestFactory.setReadTimeout(readTimeoutValue);
+            restTemplate = new RestTemplate(clientHttpRequestFactory);
             ResponseEntity<Gst3bSessionResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, request, Gst3bSessionResponseDTO.class);
             if (ObjectUtils.isEmpty(response.getBody())) {
                 return null;
