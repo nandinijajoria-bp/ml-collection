@@ -197,8 +197,15 @@ public class FinanceUtilsHandler {
             log.info("uploadBankingStatement api response url: {} response: {}", url, response.getBody());
             return response.getBody();
         } catch (HttpServerErrorException
-                 | HttpClientErrorException
-                 | ResourceAccessException exception) {
+                 | HttpClientErrorException exception) {
+            log.error("exception in uploading bank statement file :{} {}", exception.getMessage(), exception);
+            try {
+                JsonNode jsonNode = new ObjectMapper().readValue(exception.getResponseBodyAsString(), JsonNode.class);
+                return new ObjectMapper().convertValue(jsonNode, BankStatementUploadResponseDto.class);
+            } catch (IOException | IllegalArgumentException e) {
+                log.error("Exception in parsing responseBody string : {} {} ", exception.getMessage(), exception);
+            }
+        } catch (Exception exception) {
             log.error("exception in uploading bank statement file :{} {}", exception.getMessage(), exception);
         }
         return null;

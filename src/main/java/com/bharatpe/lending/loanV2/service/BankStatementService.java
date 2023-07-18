@@ -77,17 +77,27 @@ public class BankStatementService {
             BankStatementUploadResponseDto apiResponse = financeUtilsHandler.uploadFile(fileName, password, base64, bankName, orderId, merchantId);
             if (ObjectUtils.isEmpty(apiResponse)) {
                 bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.UPLOAD_API_FAILED.name());
                 bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
                 funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.REJECT, "upload_bank_statement_reject");
                 return new ApiResponse<>(false, "Error in uploading bank statement file");
             }
             if (!apiResponse.getSuccess()) {
-                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
-                bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.UPLOAD_API_REJECT.name());
-                bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
-                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-                funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.REJECT, "upload_bank_statement_reject");
-                return new ApiResponse<>(false, "Error in uploading bank statement file");
+                if(apiResponse.getMessage().equalsIgnoreCase("REJECTED")) {
+                    bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                    bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.REJECT_AT_PARTNER.name());
+                    bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
+                    bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                    funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.REJECT, "upload_bank_statement_reject");
+                    return new ApiResponse<>(false, "Error in uploading bank statement file");
+                } else {
+                    bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                    bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.UPLOAD_API_FAILED.name());
+                    bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
+                    bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                    funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.REJECT, "upload_bank_statement_reject");
+                    return new ApiResponse<>(false, "Error in uploading bank statement file");
+                }
             }
             bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
             bankStatementSessionDetails.setStatus(BankStatementSessionStatus.SUBMITTED);

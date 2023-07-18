@@ -1843,7 +1843,7 @@ public class LoanDetailsServiceV2 {
                 Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - bankStatementSessionDetails.getCreatedAt().getTime()) / 60000;
                 if(minutes >= 5 && (bankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.SUBMITTED) || bankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.INPROCESS) || bankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.PENDING))) {
                     bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
-                    bankStatementSessionDetails.setRejectReason("INTERNAL_ERROR");
+                    bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.BEYOND_TAT.name());
                     bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
                 }
                 underwritingDocEligibilityDTO.getBankStatement().setStatus(bankStatementSessionDetails.getStatus());
