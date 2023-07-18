@@ -250,8 +250,8 @@ public class APIGatewayService {
     @Autowired
     MapperUtil mapperUtil;
 
-    @Value("${global.api.cache.ttl:2}")
-    Integer globalApiCacheTtl;
+    @Value("${global.api.cache.ttl:48}")
+    Long globalApiCacheTtl;
 
     @PostConstruct
     public void init() {
