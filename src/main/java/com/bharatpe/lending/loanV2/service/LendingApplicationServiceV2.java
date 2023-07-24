@@ -220,6 +220,9 @@ public class LendingApplicationServiceV2 {
     @Value("${force.set.piramal:false}")
     private Boolean forceSetPiramal;
 
+    @Autowired
+    BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
+
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -611,6 +614,23 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
+        BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdAndTypeAndStatusOrderByIdDesc(merchantBasicDetails.getId(), "ACCOUNT_AGGREGATOR", BankStatementSessionStatus.SUCCESS);
+        if(!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(bankStatementSessionDetails.getCreatedAt());
+            calendar.add(Calendar.MONTH, 1);
+            if(new Date().compareTo(calendar.getTime()) < 0) {
+                lendingApplication.setLender(bankStatementSessionDetails.getLender().name());
+                lendingApplicationDao.save(lendingApplication);
+            } else {
+                lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+            }
+        } else {
+            lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+        }
+//        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
+//        lendingApplication.setLender("ABFL");
+//        lendingApplication = lendingApplicationDao.save(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);

@@ -31,5 +31,7 @@ public class UnderwritingDocEligibilityDTO {
     public static class BankStatement {
         private Boolean active = Boolean.FALSE;
         private BankStatementSessionStatus status;
+        private Boolean accountAggregatorActive = Boolean.FALSE;
+        private Boolean uploadActive = Boolean.FALSE;
     }
 }

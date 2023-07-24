@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV2.handlers;
 
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
@@ -8,6 +9,7 @@ import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BankStatementUploadRequestDto;
 import com.bharatpe.lending.loanV2.dto.BankStatementUploadResponseDto;
 import com.bharatpe.lending.loanV2.dto.Gst3bSessionResponseDTO;
+import com.bharatpe.lending.loanV2.dto.AccountAggregatorInitiateResponseDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +24,6 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -62,6 +63,10 @@ public class FinanceUtilsHandler {
 
     @Value("${verifyOtp.api.readTimeout.value:30000}")
     Integer readTimeoutValue;
+
+    public String ACCOUNT_AGGREGATOR_INITIATE_API_URL = "/api/account-aggregator/initiate";
+
+    public String AA_BANK_LIST_API = "/api/account-aggregator/fetch/metaData";
 
     public Gst3bSessionResponseDTO sendGst3bOtp(String gstIn, String userName, String orderId, Long merchantId) {
         try {
@@ -237,5 +242,67 @@ public class FinanceUtilsHandler {
             }
         }
         return clientSecret;
+    }
+
+    public AccountAggregatorInitiateResponseDTO AAInitiate(String orderId, Long merchantId, String phoneNumber, String bankAccount, LendingEnum.LENDER lender, String redirectUrl, String accNoLast4Digit) {
+        try {
+            log.info("In financeUtils handler");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Client-Name", CLIENT);
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("merchantId", merchantId);
+            requestBody.put("orderId", orderId);
+            requestBody.put("phoneNumber", phoneNumber);
+            requestBody.put("bankAccount", bankAccount);
+            requestBody.put("lender", lender);
+            requestBody.put("source", "MERCHANT");
+            requestBody.put("webUrl", redirectUrl);
+            requestBody.put("accountNumber", accNoLast4Digit);
+            headers.set("hash", lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            String url = FINANCE_UTILS_BASE_URL + ACCOUNT_AGGREGATOR_INITIATE_API_URL;
+            log.info("Account Aggregator initiate api request url: {} request: {}", url, request);
+            ResponseEntity<AccountAggregatorInitiateResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, request, AccountAggregatorInitiateResponseDTO.class);
+            if (ObjectUtils.isEmpty(response.getBody())) {
+                return null;
+            }
+            log.info("Account Aggregator initiate api response url: {} response: {}", url, response.getBody());
+            return response.getBody();
+        } catch (HttpServerErrorException
+                 | HttpClientErrorException
+                 | ResourceAccessException exception) {
+            log.error("exception in account Aggregator initiation :{} {}", exception.getMessage(), exception);
+        }
+        return null;
+    }
+
+    public ApiResponse<?> getAABankList(String bankName) {
+        try {
+            log.info("In financeUtils handler");
+            Map<String, Object> requestParams = new HashMap<>();
+            requestParams.put("bankName", bankName);
+            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+            StringBuilder queryParams = new StringBuilder("?bankName=").append(bankName);
+            String url = FINANCE_UTILS_BASE_URL + AA_BANK_LIST_API + queryParams;
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("hash", hash);
+            headers.set("Client-Name", CLIENT);
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(headers);
+            log.info("fetchMetaData request url : {}", url);
+            ResponseEntity<ApiResponse> response = restTemplate.exchange(url, HttpMethod.GET, request, ApiResponse.class);
+            log.info("fetchMetaData response : {}", response);
+            if (ObjectUtils.isEmpty(response.getBody())) {
+                return new ApiResponse<>(false, "");
+            }
+            return response.getBody();
+        } catch (HttpServerErrorException
+                 | HttpClientErrorException
+                 | ResourceAccessException exception) {
+            log.error("exception in exception fetching bank list :{} {}", exception.getMessage(), exception);
+        }
+        return null;
     }
 }

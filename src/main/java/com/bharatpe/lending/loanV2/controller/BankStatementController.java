@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.loanV2.dto.AAInitiateRequestDTO;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BankStatementSessionCallbackDto;
 import com.bharatpe.lending.loanV2.dto.BankStatementUploadRequestDto;
@@ -54,5 +55,17 @@ public class BankStatementController {
         log.info("Callback received for sessionId : {}, {}", bankStatementSessionCallbackDto.getSessionId(), bankStatementSessionCallbackDto);
         bankStatementService.updateBankStatementSession(bankStatementSessionCallbackDto);
         return ResponseEntity.ok("Successfully updated bankStatement session status");
+    }
+
+    @PostMapping(value = "/bank-statement/AA/initiate")
+    public ResponseEntity<?> initiateAAForBankStatement(
+            @RequestBody AAInitiateRequestDTO aaInitiateRequestDTO,
+            @RequestAttribute(name = "merchant", required = false) BasicDetailsDto merchant
+    ) {
+        ApiResponse apiResponse = bankStatementService.initiateAccountAggregator(aaInitiateRequestDTO, merchant);
+        if (!apiResponse.isSuccess()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(apiResponse);
+        }
+        return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
     }
 }

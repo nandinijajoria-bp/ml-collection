@@ -7,18 +7,20 @@ import com.bharatpe.lending.common.entity.BankStatementSessionDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.BankStatementSessionStatus;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.enums.BankStatementRejectReason;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV2.dto.BankStatementSessionCallbackDto;
-import com.bharatpe.lending.loanV2.dto.BankStatementUploadResponseDto;
+import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -52,6 +54,14 @@ public class BankStatementService {
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
 
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Value("${account-aggregator.lender.traffic.percent:10}")
+    Integer[] accountAggregatorTrafficPercent;
+
+    @Value("${default.AA.lender:LDC}")
+    String defaultAALender;
 
     public ApiResponse<?> uploadBankStatementFile(Long merchantId, String fileName, String password, String bankName, String base64) {
         try {
@@ -161,31 +171,42 @@ public class BankStatementService {
                 } else {
                     bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.FAILED_CALLBACK_STATUS.name());
                 }
-                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
-            } else if (sessionCallbackDto.getStatus().equals(BankStatementSessionStatus.SUCCESS)) {
-                final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(bankStatementSessionDetails.getMerchantId()).orElse(null);
-                if (!ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
-                    String accountNo = null;
-                    if (!ObjectUtils.isEmpty(bankDetailsDtoOptional.getAccountNumber())) {
-                        accountNo = bankDetailsDtoOptional.getAccountNumber().replaceAll("^0+(?!$)", "");
-                    }
-                    log.info("AccountNo : {}", accountNo);
-                    if (!sessionCallbackDto.getAccountNo().equals(accountNo)) {
-                        bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.ACCOUNT_NO_MISMATCH.name());
-                        bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
-                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
-                    } else if (sessionCallbackDto.getPeriod() < 6) {
-                        bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.BANK_STATEMENT_NOT_IN_6_MONTH_PERIOD.name());
-                        bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
-                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
-                    } else {
-                        bankStatementSessionDetails.setStatus(BankStatementSessionStatus.INPROCESS);
-                        bankStatementSessionDetails = underWritingAnalysis(bankStatementSessionDetails);
-                    }
-                } else {
-                    bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
-                    bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.BANK_DETAILS_MISSING.name());
+                if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
                     funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                } else {
+                    funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.FAILED, "account_aggregator_failed_response_home");
+                }
+            } else if (sessionCallbackDto.getStatus().equals(BankStatementSessionStatus.SUCCESS)) {
+                if (("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                    final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(bankStatementSessionDetails.getMerchantId()).orElse(null);
+                    if (!ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
+                        String accountNo = null;
+                        if (!ObjectUtils.isEmpty(bankDetailsDtoOptional.getAccountNumber())) {
+                            accountNo = bankDetailsDtoOptional.getAccountNumber().replaceAll("^0+(?!$)", "");
+                        }
+                        log.info("AccountNo : {}", accountNo);
+                        if (!sessionCallbackDto.getAccountNo().equals(accountNo)) {
+                            bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.ACCOUNT_NO_MISMATCH.name());
+                            bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                        } else if (sessionCallbackDto.getPeriod() < 6) {
+                            bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.BANK_STATEMENT_NOT_IN_6_MONTH_PERIOD.name());
+                            bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                        } else {
+                            bankStatementSessionDetails.setStatus(BankStatementSessionStatus.INPROCESS);
+                            bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                            bankStatementSessionDetails = underWritingAnalysis(bankStatementSessionDetails);
+                        }
+                    } else {
+                        bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                        bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.BANK_DETAILS_MISSING.name());
+                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                    }
+                } else if(("ACCOUNT_AGGREGATOR").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                    bankStatementSessionDetails.setStatus(BankStatementSessionStatus.INPROCESS);
+                    bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                    bankStatementSessionDetails = underWritingAnalysis(bankStatementSessionDetails);
                 }
             }
             bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
@@ -206,7 +227,8 @@ public class BankStatementService {
             if(!ObjectUtils.isEmpty(lendingRiskVariables)) {
                 currentLimit = lendingRiskVariables.getFinalOffer();
             }
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(bankStatementSessionDetails.getMerchantId(), bankStatementSessionDetails.getOrderId(), "BANK_STATEMENT");
+            String type = "BANK_STATEMENT".equalsIgnoreCase(bankStatementSessionDetails.getType()) ? bankStatementSessionDetails.getType() : "AA";
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(bankStatementSessionDetails.getMerchantId(), bankStatementSessionDetails.getOrderId(),type);
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getBankAffectedOffer() != null) {
                 if (globalLimitResponse.getData().getBankAffectedOffer()) {
                     if(globalLimitResponse.getData().getGlobalLimit() > currentLimit) {
@@ -219,27 +241,47 @@ public class BankStatementService {
                             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, bankStatementSessionDetails.getMerchantId());
                             evictLoanDetailV2Cache(bankStatementSessionDetails.getMerchantId());
                         }
-                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.SUCCESS, "statement_success_response_home");
+                        if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.SUCCESS, "statement_success_response_home");
+                        } else {
+                            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.SUCCESS, "account_aggregator_success_response_home");
+                        }
                     } else {
                         bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
                         bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.OFFER_SAME.name());
-                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                        if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                        } else {
+                            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.FAILED, "account_aggregator_failed_response_home");
+                        }
                     }
                 } else {
                     bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
                     bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.OFFER_SAME.name());
-                    funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                    if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                    } else {
+                        funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.FAILED, "account_aggregator_failed_response_home");
+                    }
                 }
             } else {
                 bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.GLOBAL_LIMIT_FAILED.name());
                 bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
-                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                    funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+                } else {
+                    funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.FAILED, "account_aggregator_failed_response_home");
+                }
             }
         } catch (Exception e) {
             log.error("Exception in getting global limit for merchantId : {}", bankStatementSessionDetails.getMerchantId());
             bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
             bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.GLOBAL_LIMIT_EXCEPTION.name());
-            funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+            if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
+            } else {
+                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.FAILED, "account_aggregator_failed_response_home");
+            }
         }
         bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
         return bankStatementSessionDetails;
@@ -253,5 +295,83 @@ public class BankStatementService {
         } else {
             log.info("no key exists!");
         }
+    }
+
+    public ApiResponse<?> initiateAccountAggregator(AAInitiateRequestDTO aaInitiateRequestDTO, BasicDetailsDto merchant) {
+        try {
+            BankStatementSessionDetails prevBankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdAndTypeOrderByIdDesc(merchant.getId(), "ACCOUNT_AGGREGATOR");
+            String orderId = UUID.randomUUID().toString();
+            final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId()).orElse(null);
+            if (ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
+                return new ApiResponse<>(false, "Merchant bankDetails not found");
+            }
+            String bankAccount = bankDetailsDtoOptional.getBankName();
+            String accountNumber = bankDetailsDtoOptional.getAccountNumber().replaceAll("^0+(?!$)", "");
+            String accountNoLast4Digit = accountNumber.substring(accountNumber.length() - 4);
+            String mobile = merchant.getMobile().length() > 10 ? merchant.getMobile().substring(2) : merchant.getMobile();
+            LendingEnum.LENDER lender = assignLender(merchant.getId());
+            BankStatementSessionDetails bankStatementSessionDetails = BankStatementSessionDetails.builder()
+                    .orderId(orderId)
+                    .merchantId(merchant.getId())
+                    .type("ACCOUNT_AGGREGATOR")
+                    .status(BankStatementSessionStatus.PENDING)
+                    .method("INITIATE")
+                    .lender(lender)
+                    .build();
+            bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+            AccountAggregatorInitiateResponseDTO apiResponse = financeUtilsHandler.AAInitiate(orderId, merchant.getId(), mobile, bankAccount, lender, aaInitiateRequestDTO.getRedirectUrl(), accountNoLast4Digit);
+            if (ObjectUtils.isEmpty(prevBankStatementSessionDetails)) {
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.INITIATED, "account_aggregator_initiate_offer_page");
+            } else if (prevBankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.FAILED)) {
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.RE_INITIATED, "account_aggregator_re-initiate_offer_page");
+            }
+            if (ObjectUtils.isEmpty(apiResponse)) {
+                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.INITIATE_API_FAILED.name());
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                return new ApiResponse<>(false, "Error in initiating account aggregator session");
+            }
+            if(!apiResponse.getSuccess() && "Bank Not Enabled".equalsIgnoreCase(apiResponse.getMessage())) {
+                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.BANK_NOT_ENABLED_FOR_AA.name());
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                return new ApiResponse<>(false, "Error in initiating account aggregator session");
+            }
+            if (!apiResponse.getSuccess() || ("FAILED").equalsIgnoreCase(apiResponse.getData().getStatus()) || ("REJECTED").equalsIgnoreCase(apiResponse.getData().getStatus())) {
+                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.INITIATE_API_FAILED.name());
+                bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                return new ApiResponse<>(false, "Error in initiating account aggregator session");
+            }
+            bankStatementSessionDetails.setRequestId(apiResponse.getData().getTrackingId());
+            bankStatementSessionDetails.setStatus(BankStatementSessionStatus.SUBMITTED);
+            bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+            if (ObjectUtils.isEmpty(prevBankStatementSessionDetails)) {
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.SUBMITTED, "account_aggregator_initiate_success_response_offer_page");
+            } else if (prevBankStatementSessionDetails.getStatus().equals(BankStatementSessionStatus.FAILED)) {
+                funnelService.submitEvent(merchant.getId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.SUBMITTED, "account_aggregator_re-initiate_success_home");
+            }
+            return new ApiResponse<>(apiResponse.getData());
+        } catch (Exception e) {
+            log.error("Exception initiating account aggregator session for merchantId : {},  ", merchant.getId(), e);
+            return new ApiResponse<>(false, e.getMessage());
+        }
+    }
+
+    public LendingEnum.LENDER assignLender(Long merchantId) {
+        LendingEnum.LENDER defaultLender = LendingEnum.LENDER.valueOf(defaultAALender);
+        Integer[] percentages = accountAggregatorTrafficPercent;
+        if(4 != percentages.length || 100 != percentages[3]) {
+            return defaultLender;
+        }
+        LendingEnum.LENDER lender =  loanUtil.percentLenderTrafficForAA(merchantId, percentages);
+        if(ObjectUtils.isEmpty(lender)) {
+            return defaultLender;
+        }
+        return lender;
     }
 }

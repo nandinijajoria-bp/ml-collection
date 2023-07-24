@@ -299,6 +299,7 @@ public class Gst3bService {
                     }
                 } else {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.INPROCESS);
+                    gst3bSessionDetailsDao.save(gst3bSessionDetails);
                     if (gst3bSessionDetails.getMethod().equalsIgnoreCase("OTP")) {
                         funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.SUBMITTED, "gst3b_page_with_otp_submitted");
                     } else {

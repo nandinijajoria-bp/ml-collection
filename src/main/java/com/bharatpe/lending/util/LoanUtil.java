@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RiskSegment;
@@ -31,10 +32,12 @@ import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import com.bharatpe.lending.loanV2.dto.UnderwritingDocEligibilityDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -186,6 +189,8 @@ public class LoanUtil {
 	List<Long> abflExcludedMerchants = new ArrayList<>();
 
 	List<Long> gst3bEligibleMerchants = new ArrayList<>();
+
+	List<Long> accountAggregatorEligibleMerchants = new ArrayList<>();
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1518,6 +1523,14 @@ public class LoanUtil {
 		return gst3bEligibleMerchants;
 	}
 
+	public List<Long> accountAggregatorEligibleMerchants() {
+		if (!ObjectUtils.isEmpty(accountAggregatorEligibleMerchants)) {
+			return accountAggregatorEligibleMerchants;
+		}
+		accountAggregatorEligibleMerchants = readUnderWritingEligibleMerchantsCsvFile("/MerchantList/account_aggregator_merchants");
+		return accountAggregatorEligibleMerchants;
+	}
+
 	private List<Long> readUnderWritingEligibleMerchantsCsvFile(String filePath) {
 		List<Long> merchantList = new ArrayList<>();
 		try {
@@ -1573,6 +1586,23 @@ public class LoanUtil {
 	public static EdiModel getEdiModal(LendingApplicationSlave lendingApplication) {
 		return lendingApplication.getPayableDays() % 30 == 0 ?
 				EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL;
+	}
+
+	public LendingEnum.LENDER percentLenderTrafficForAA(Long merchantId, Integer[] percentages) {
+		try {
+			logger.info("checking lender assignment for merchant: {} with lender traffic percentages : {}", merchantId, percentages);
+			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.LIQUILOANS_NBFC);
+			Double maxNumber = 50000000D;
+
+			Integer percentage = (int) Math.ceil((merchantId / maxNumber) * percentages[3]);
+			Integer index = Arrays.binarySearch(percentages, percentage);
+			logger.info("index for merchantId : {} with percentage : {} is : {}", merchantId, percentage, index);
+			index = index < 0 ? (Math.abs(index) - 1) : index;
+			return lenders.get(index);
+		} catch (Exception e) {
+			logger.error("Exception in assigning lender for AA for merchantId : {}", merchantId);
+			return null;
+		}
 	}
 
 }
