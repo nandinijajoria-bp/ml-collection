@@ -56,6 +56,7 @@ public interface SupportConstants {
     String TASK_ID = "task_id";
     String MERCHANT_ID = "merchant_id";
     String STATUS = "status";
+    String SOURCE_LMS = "LMS";
     String CLIENT_NAME = "clientName";
     String HASH = "hash";
     String ALREADY_REFUNDED = "Processing fee Already refunded";

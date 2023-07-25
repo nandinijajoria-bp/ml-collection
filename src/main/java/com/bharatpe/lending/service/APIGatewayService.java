@@ -42,6 +42,7 @@ import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.Source;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -1494,7 +1495,7 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true, null);
+        return getGlobalLimit(merchantId, Source.EASY_LOAN.name(), null, clubV2, null, null, null, null, false, null, null, true, null);
     }
 
     //    @Async
@@ -1503,7 +1504,7 @@ public class APIGatewayService {
                                               Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
 
-        if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+        if(useCache && !SupportConstants.SOURCE_LMS.equalsIgnoreCase(source) &&  easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
             try {
                 Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
                 if(!ObjectUtils.isEmpty(response)) {
@@ -1583,7 +1584,7 @@ public class APIGatewayService {
         }
         if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
             if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
-                globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
+                globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()), source);
             }
             return responseEntity.getBody();
         }
@@ -2865,6 +2866,6 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String orderId, String type) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false, null);
+        return getGlobalLimit(merchantId, Source.EASY_LOAN.name(), null, clubV2, null, null, null, null, false, orderId, type, false, null);
     }
 }

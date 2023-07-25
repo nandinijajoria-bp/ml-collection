@@ -31,6 +31,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.constant.EligibilityIframeConstants;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
@@ -726,7 +727,7 @@ public class LoanDetailsServiceV2 {
             log.info("after the date window for merchant: {}", merchant.getId());
         }
         MutableBoolean isDerog = new MutableBoolean(false);
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null,
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), Source.EASY_LOAN.name(),
                 request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
                 request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse);
         Double eligibleAmount = 0D;
@@ -747,6 +748,22 @@ public class LoanDetailsServiceV2 {
         log.info("Eligibility not found for merchant:{}", merchant.getId());
         loanDetailsResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse));
         loanDetailsResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
+    }
+
+    public void computeEligibility(LoanDetailsRequest request, BasicDetailsDto merchant) throws BureauCallMaskedApiException {
+        Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), Source.LMS.name(),
+                request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
+                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, null);
+        Double eligibleAmount = 0D;
+        if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+            log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
+            eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+        }
+        if (eligibleAmount > 0D) {
+            log.info("Eligibility found for merchant:{}", merchant.getId());
+            recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
+        }
     }
 
 
