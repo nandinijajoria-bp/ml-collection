@@ -265,6 +265,9 @@ public class LoanDetailsServiceV2 {
     FinanceUtilsHandler financeUtilsHandler;
 
 
+    @Autowired
+    ExcessNachService excessNachService;
+
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
@@ -330,6 +333,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchant.getId()));
             loanDetailsResponse.setAccountDetails(loanUtil.getAccountDetails(merchant.getId()));
             populateBusinessDetails(merchant.getId(), loanDetailsResponse);
+            loanDetailsResponse.setExcessNachAmount(excessNachService.getExcessNachAmount(merchant.getId()));
             if (loanUtil.hasActiveLoan(merchant)) {
                 log.info("active loan merchant:{}", merchant.getId());
                 LendingApplication topupApplication = lendingApplicationDao.findOpenTopUpApplication(merchant.getId(), "TOPUP");

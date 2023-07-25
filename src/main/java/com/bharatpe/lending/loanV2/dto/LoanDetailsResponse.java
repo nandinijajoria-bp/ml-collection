@@ -49,4 +49,5 @@ public class LoanDetailsResponse {
     private Integer ediDaysModel;
     private Long merchantId;
     private Boolean showLoanUpgradeOffer = Boolean.FALSE;
+    private Double excessNachAmount;
 }
