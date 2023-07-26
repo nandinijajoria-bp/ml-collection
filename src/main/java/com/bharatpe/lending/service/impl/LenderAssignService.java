@@ -224,7 +224,7 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("internal merchant lender assignment, skipping all rules {}", application.getMerchantId());
             decidedLender =  defaultAssignAbfl ? Lender.ABFL.name() : defaultAssignLender;
         } else {
-            BankStatementSessionDetails aaSession = bankStatementSessionDetailsDao.findFirstByMerchantIdAndTypeAndStatusOrderByIdDesc(merchantDetails.getId(), "ACCOUNT_AGGREGATOR", BankStatementSessionStatus.SUCCESS);
+            BankStatementSessionDetails aaSession = bankStatementSessionDetailsDao.findFirstByMerchantIdAndTypeAndStatusOrderByIdDesc(application.getMerchantId(), "ACCOUNT_AGGREGATOR", BankStatementSessionStatus.SUCCESS);
             if(!ObjectUtils.isEmpty(aaSession)) {
                 Calendar calendar = Calendar.getInstance();
                 calendar.setTime(aaSession.getCreatedAt());
@@ -241,7 +241,7 @@ public class LenderAssignService implements ILenderAssignService {
             }
             decidedLender = lenderAssignmentHandler(application, ediModel);
             if (Lender.ABFL.name().equals(decidedLender)) {
-                decidedLender = updateLenderForGstAndBS(application, ediModel, merchantDetails, decidedLender);
+                decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
             }
         }
         if(!ObjectUtils.isEmpty(decidedLender)){
@@ -252,7 +252,7 @@ public class LenderAssignService implements ILenderAssignService {
             // ModifyEdiModel
             decidedLender = lenderAssignmentHandler(application, modifiedEdiModel);
             if(Lender.ABFL.name().equals(decidedLender)) {
-                decidedLender = updateLenderForGstAndBS(application, ediModel, merchantDetails, decidedLender);
+                decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
             }
             if(ObjectUtils.isEmpty(decidedLender)){
                 decidedLender = assignFallackLender(application, ediModel);
@@ -263,13 +263,13 @@ public class LenderAssignService implements ILenderAssignService {
         }
 
         // exclude disrbusal failed cases to not assign on abfl
-        if (Lender.ABFL.name().equals(decidedLender) && loanUtil.abflExcludedMerchants().contains(merchantDetails.getId())) {
+        if (Lender.ABFL.name().equals(decidedLender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
             decidedLender = assignFallackLender(application, LenderOffDays.valueOf(decidedLender).getEdiModel());
             saveLenderChangeAudit(application, decidedLender);
         }
 
         // change lender if it is LDC and nachMode is adhaar
-        if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(merchantDetails.getId()))) {
+        if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(application.getMerchantId()))) {
             decidedLender = Lender.LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
         }
@@ -675,8 +675,8 @@ public class LenderAssignService implements ILenderAssignService {
         return flag;
     }
 
-    private String updateLenderForGstAndBS(LendingApplication application, EdiModel ediModel, BasicDetailsDto merchantDetails, String decidedLender) {
-        BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
+    private String updateLenderForGstAndBS(LendingApplication application, EdiModel ediModel, String decidedLender) {
+        BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(application.getMerchantId());
         Calendar calendar = Calendar.getInstance();
         if (!ObjectUtils.isEmpty(bankStatementSessionDetails) && BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())) {
             calendar.setTime(bankStatementSessionDetails.getCreatedAt());
@@ -685,7 +685,7 @@ public class LenderAssignService implements ILenderAssignService {
                 decidedLender = assignFallackLender(application, ediModel);
             }
         } else {
-            Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(merchantDetails.getId());
+            Gst3bSessionDetails gst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdOrderByIdDesc(application.getMerchantId());
             if (!ObjectUtils.isEmpty(gst3bSessionDetails) && Gst3bSessionStatus.SUCCESS.equals(gst3bSessionDetails.getStatus())) {
                 calendar.setTime(gst3bSessionDetails.getCreatedAt());
                 calendar.add(Calendar.MONTH, 1);
