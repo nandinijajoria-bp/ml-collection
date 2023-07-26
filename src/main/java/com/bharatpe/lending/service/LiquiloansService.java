@@ -717,6 +717,8 @@ public class LiquiloansService {
         }
         if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
+            lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
+            lendingApplication = lendingApplicationDao.save(lendingApplication);
             logger.info("adjusting LPS as this is a backdated disbursal loan {}", lendingPaymentSchedule.getId());
             updateBackdatedLPS(lendingPaymentSchedule, postPayoutRequestDto.getDisbursalDate(), lendingApplication);
         }

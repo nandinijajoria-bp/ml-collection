@@ -16,6 +16,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Optional;
@@ -64,10 +65,21 @@ public class DrawdownRequestKafka {
                 log.info("drawdown callback resulted in failure for  {}", lendingApplication.get().getId());
                 return;
             }
+            Date disbursalDate = Calendar.getInstance().getTime();
+
+            if(!ObjectUtils.isEmpty(drawdownCallbackResponseDto.getData().getData().getDisbursalDate())) {
+                try {
+                    disbursalDate = new SimpleDateFormat("yyyy-MM-dd").parse(drawdownCallbackResponseDto.getData().getData().getDisbursalDate());
+                } catch (Exception e) {
+                    log.error("Exception in parsing disbursal date : {}", e.getMessage());
+                    disbursalDate = Calendar.getInstance().getTime();
+                }
+            }
+
             DrawdownCallbackResponseDto.Data data = drawdownCallbackResponseDto.getData().getData();
             existingLendingApplicationLenderDetails.setUtrNo(data.getUtrNo());
             existingLendingApplicationLenderDetails.setLan(data.getLan());
-            existingLendingApplicationLenderDetails.setLoanCreationTimestamp(new Date());
+            existingLendingApplicationLenderDetails.setLoanCreationTimestamp(disbursalDate);
             existingLendingApplicationLenderDetails.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_COMPLETED.name());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
 
@@ -86,7 +98,7 @@ public class DrawdownRequestKafka {
             liquiloansService.populatePostPayoutSchedule(
                 PostPayoutRequestDto.builder()
                         .applicationId(String.valueOf(lendingApplication.get().getExternalLoanId()))
-                        .disbursalDate(new Date())
+                        .disbursalDate(disbursalDate)
                         .lender(drawdownCallbackResponseDto.getLender())
                         .loanDisbursalStatus("DISBURSED")
                         .nbfcId(lendingApplication.get().getNbfcId())

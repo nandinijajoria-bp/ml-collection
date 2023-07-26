@@ -32,6 +32,8 @@ public class DrawdownCallbackResponseDto {
         String lan;
         @JsonProperty("Amount")
         Double amount;
+        @JsonProperty("DisbursalDate")
+        String disbursalDate;
     }
 
     @lombok.Data
