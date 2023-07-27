@@ -82,6 +82,8 @@ public interface LendingConstants {
 	String TOPUP_PILOT_IDENTIFIER = "TOPUP_V3";
 	String SIX_DAY_MODEL_OFF_DAY = "SUNDAY";
 
+	String PENNYDROP_LOCK_PREFIX = "LENDING_PENNYDROP_";
+
 }
 
 

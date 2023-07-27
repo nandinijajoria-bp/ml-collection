@@ -32,12 +32,10 @@ import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
-import com.bharatpe.lending.loanV2.dto.UnderwritingDocEligibilityDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -55,6 +53,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 
 
 @Component
@@ -585,6 +585,7 @@ public class LoanUtil {
 	public boolean checkPennyDropV2(Long merchantId) {
 		try {
 			logger.info("Checking penny drop for merchant:{}", merchantId);
+
 			Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
 			if (ObjectUtils.isEmpty(basicDetailsDto)) {
 				return false;
@@ -618,8 +619,21 @@ public class LoanUtil {
 				}
 			}
 
+			String lockRedisKey = PENNYDROP_LOCK_PREFIX  + merchantId;
+
+			// take lock for pennydrop to avoid parallel pennydrop calls
+			if (!lendingCache.acquireLock(lockRedisKey)) {
+				logger.info("Unable to take lock on pennydrop key " + lockRedisKey);
+				return false;
+			}
+
 			// if no entry in last 15 days then initiatePennyDrop
 			pennyDropService.initiateNewPennyDrop(merchantBankDetail, merchantId, null);
+
+
+			logger.info("Releasing lock for penndrop key " + lockRedisKey);
+			lendingCache.releaseLock(lockRedisKey);
+
 		} catch (Exception e) {
 			logger.error("Exception in penny drop for merchant:{}", merchantId, e);
 		}
