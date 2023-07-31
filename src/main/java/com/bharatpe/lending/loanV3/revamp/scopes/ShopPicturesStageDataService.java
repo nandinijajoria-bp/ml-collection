@@ -1,0 +1,80 @@
+package com.bharatpe.lending.loanV3.revamp.scopes;
+
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
+import com.bharatpe.lending.loanV3.revamp.dto.*;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
+import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
+import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
+
+import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
+
+@Component
+@Slf4j
+public class ShopPicturesStageDataService implements IStageDataService<ShopPicturesStateDTO>{
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    LendingApplicationServiceV3 lendingApplicationServiceV3;
+
+    @Autowired
+    private LoanDetailsV3Service loanDetailsV3Service;
+
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Override
+    public LendingStateDTO<ShopPicturesStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
+        LendingStateDTO<ShopPicturesStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
+        if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request().getResubmitReason())){
+            lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_PICTURES_PAGE);
+        }
+        else lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+        if(!lendingStateDTO.getData().getResubmitState()){
+            loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.SHOP_PICTURES_PAGE);
+        }
+        return lendingStateDTO;
+    }
+
+    @Override
+    public LendingStateDTO<ShopPicturesStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
+        ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
+        try {
+            LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
+            }
+            if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()))shopPicturesStateDTO.setDummyMerchant(true);
+            scopeDataArgs.setApplicationId(lendingApplication.getId());
+            shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
+
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(lendingApplication.getId());
+            if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
+                shopPicturesStateDTO.setResubmitState(true);
+            }
+            return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.SHOP_PICTURES_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
+        } catch (Exception e) {
+            log.info("Error while fetching KFS stage data for {}, {}, {}", scopeDataArgs.getMerchant().getMobile(),
+                    e.getMessage(), Arrays.asList(e.getStackTrace()));
+            throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(),LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
+        }
+    }
+}

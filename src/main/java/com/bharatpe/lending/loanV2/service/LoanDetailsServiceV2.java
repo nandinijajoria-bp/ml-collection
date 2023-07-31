@@ -47,6 +47,8 @@ import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.loanV2.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
@@ -205,6 +207,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     CleverTapEventService cleverTapEventService;
+
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
 
     @Value("${abfl.rollout.percent:10}")
     Integer rolloutAbflPercent;
@@ -431,6 +436,7 @@ public class LoanDetailsServiceV2 {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
                     loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 }
+                //kyc checks can be removed from here...
                 boolean isIOS = request != null && request.isIOS();
                 List<LendingMerchantReferences> referencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(),openApplication.getId());
                 log.info("ReferenceList: {}",Arrays.toString(referencesList.toArray()));
@@ -732,7 +738,7 @@ public class LoanDetailsServiceV2 {
         MutableBoolean isDerog = new MutableBoolean(false);
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null,
                 request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
-                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse);
+                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse,null);
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
@@ -798,7 +804,7 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
+    public String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
             if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
@@ -834,7 +840,7 @@ public class LoanDetailsServiceV2 {
 //        return null;
 //    }
 
-    private Eligibility createEligibility(Long merchantId) {
+    public Eligibility createEligibility(Long merchantId) {
         try {
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchantId);
             if (ObjectUtils.isEmpty(eligibleLoan)) {
@@ -1550,6 +1556,7 @@ public class LoanDetailsServiceV2 {
                 log.info("Successfully saved all references of merchantId: {}", merchantId);
                 funnelService.submitEvent(merchant.getId(), null, applicationId,
                         FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+                loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, LendingViewStates.AGREEMENT_PAGE);
                 return new ApiResponse<>(true, "Successfully updated merchant References!");
             }
 

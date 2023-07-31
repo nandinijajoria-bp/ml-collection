@@ -1,0 +1,14 @@
+package com.bharatpe.lending.loanV3.revamp.dto;
+
+import lombok.*;
+
+@Data
+@ToString
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+public class ShopPicturesStateDTO {
+    private boolean isDummyMerchant;
+    private Long applicationId;
+    private Boolean resubmitState = false;
+}
