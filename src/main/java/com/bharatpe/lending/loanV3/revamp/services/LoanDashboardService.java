@@ -212,7 +212,7 @@ public class LoanDashboardService {
         // set business details
         populateBusinessDetails(merchantDetails.getId(),loanDetailsResponse);
         //set bpClubMember
-        setBpClubMember(merchantDetails.getId(),loanDetailsResponse);
+//        setBpClubMember(merchantDetails.getId(),loanDetailsResponse);
         // to check if user have repeat loan
         loanDetailsResponse.setRepeatLoan(loanUtil.isRepeatLoan(merchantDetails.getId()));
         //if user has inactive loan, return
