@@ -785,6 +785,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setInferredPincodeOffer(lendingRiskVariables.getInferredPincodeOffer());
 				lendingRiskVariablesSnapshot.setBankBasedOffer(lendingRiskVariables.getBankBasedOffer());
 				lendingRiskVariablesSnapshot.setGst3bBasedOffer(lendingRiskVariables.getGst3bBasedOffer());
+				lendingRiskVariablesSnapshot.setComputeSource(lendingRiskVariables.getComputeSource());
 
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
