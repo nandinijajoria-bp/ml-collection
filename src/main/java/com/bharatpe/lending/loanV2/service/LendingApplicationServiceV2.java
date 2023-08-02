@@ -39,9 +39,6 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.bharatpe.lending.loanV2.handlers.BureauHandler;
-import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
-import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -90,8 +87,6 @@ import static com.bharatpe.lending.constant.KfsConstants.*;
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
-    @Autowired
-    private LendingRiskVariablesDao lendingRiskVariablesDao;
     @Autowired
     private LmsStageHistoryDao lmsStageHistoryDao;
 
@@ -215,12 +210,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
-
-    @Autowired
-    private LoanDashboardService loanDashboardService;
-
-    @Autowired(required = false)
-    BureauHandler bureauHandler;
 
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
@@ -630,7 +619,6 @@ public class LendingApplicationServiceV2 {
 //        lendingApplication = lendingApplicationDao.save(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication);
-        saveGstDetailsV3(merchantBasicDetails, lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
         executorService.execute(() -> {
@@ -691,20 +679,6 @@ public class LendingApplicationServiceV2 {
             }
         } catch (Exception e) {
             log.error("Exception in replicateApplicationData for application:{}", lendingApplication.getId(), e);
-        }
-    }
-
-    private void saveGstDetailsV3(BasicDetailsDto merchant, LendingApplication lendingApplication){
-        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant);
-        if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
-            if(ObjectUtils.isEmpty(lendingGstDetail)){
-                LendingGstDetail lendingGstDetail1 = new LendingGstDetail();
-                lendingGstDetail1.setApplicationId(lendingApplication.getId());
-                lendingGstDetail1.setMerchantId(lendingApplication.getMerchantId());
-                lendingGstDetail1.setEntityType("Business");
-                lendingGstDao.save(lendingGstDetail1);
-            }
         }
     }
 
@@ -927,8 +901,6 @@ public class LendingApplicationServiceV2 {
             if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus()) || ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 return new ApiResponse<>(false, "Application not in pending state");
             }
-            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantBasicDetailsDto);
-
             ApplicationStatusResponseDTO applicationStatusResponseDTO = new ApplicationStatusResponseDTO();
             applicationStatusResponseDTO.setBpClubMember(apiGatewayService.eligibleForProcessingFee(merchantBasicDetailsDto.getId()));
             LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
@@ -978,8 +950,7 @@ public class LendingApplicationServiceV2 {
             if ("1".equals(String.valueOf(lendingApplication.getAgreement()))) {
                 ApplicationDTO applicationDTO1 = new ApplicationDTO();
                 applicationDTO1.setStatus("APPROVED");
-                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion()))applicationDTO1.setText("App Submitted");
-                else applicationDTO1.setText("Application Submitted");
+                applicationDTO1.setText("Application Submitted");
                 ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
                 dateDTO.setDay(lendingApplication.getAgreementAt().toString());
                 dateDTO.setTime(lendingApplication.getAgreementAt().toString());
@@ -997,7 +968,7 @@ public class LendingApplicationServiceV2 {
                 dateDTO.setDay(lendingApplication.getAgreementAt().toString());
                 dateDTO.setTime(lendingApplication.getAgreementAt().toString());
                 applicationDTO2.setDateDTO(dateDTO);
-//                applicationDTO.add(applicationDTO2);
+                applicationDTO.add(applicationDTO2);
             } else if (successEnach != null || "APPROVED".equals(lendingApplication.getNachStatus())) {
                 applicationDTO2.setStatus(!ObjectUtils.isEmpty(successEnach) ? successEnach.getStatus() : lendingApplication.getNachStatus());
                 applicationDTO2.setText("e-NACH Done");
@@ -1007,14 +978,14 @@ public class LendingApplicationServiceV2 {
                 dateDTO.setDay(getDateInFormat(ObjectUtils.isEmpty(successEnach)?lendingApplication.getCreatedAt():successEnach.getCreatedAt()));
                 dateDTO.setTime(getDateInFormat(ObjectUtils.isEmpty(successEnach)?lendingApplication.getCreatedAt():successEnach.getCreatedAt()));
                 applicationDTO2.setDateDTO(dateDTO);
-//                applicationDTO.add(applicationDTO2);
+                applicationDTO.add(applicationDTO2);
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && loanUtil.isEnachBank(merchantBasicDetailsDto.getId())) {
                 if("PENDING_VERIFICATION".equalsIgnoreCase(lendingApplication.getNachStatus())){
                     applicationDTO2.setStatus("PENDING_VERIFICATION");
                     applicationDTO2.setText("e-NACH Verification Pending");
                     applicationDTO2.setButtonContextDTO(null);
                     applicationDTO2.setDisabled(("rejected".equalsIgnoreCase(lendingApplication.getStatus())));
-//                    applicationDTO.add(applicationDTO2);
+                    applicationDTO.add(applicationDTO2);
                 }
                 else{
                     applicationDTO2.setStatus("PENDING");
@@ -1029,7 +1000,7 @@ public class LendingApplicationServiceV2 {
                         buttonContextDTO.setDeeplink(apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchantBasicDetailsDto.getId()));
                     }
                     applicationDTO2.setButtonContextDTO(buttonContextDTO);
-//                    applicationDTO.add(applicationDTO2);
+                    applicationDTO.add(applicationDTO2);
                 }
             }
             boolean enachMandatory = true; //TODO when enach skip is true then uncomment below code
@@ -1065,11 +1036,9 @@ public class LendingApplicationServiceV2 {
                 kycDTO.setDateDTO(new ApplicationDTO.DateDTO(lendingApplication.getCkycDate()));
             }
             applicationDTO.add(kycDTO);
-            applicationDTO.add(applicationDTO2);
 
             ApplicationDTO applicationDTO3 = new ApplicationDTO();
-            if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion()))applicationDTO3.setText("Doc Verification");
-            else applicationDTO3.setText("Document Verification");
+            applicationDTO3.setText("Document Verification");
             applicationDTO3.setDisabled(enachMandatory);
             applicationDTO3.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
             if (kycStatus.equalsIgnoreCase("APPROVED") || kycStatus.equalsIgnoreCase("REJECTED")) {
@@ -1123,8 +1092,7 @@ public class LendingApplicationServiceV2 {
             if (("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())) && (!"rejected".equalsIgnoreCase(lendingApplication.getStatus()) || lendingDisbursalStage != null)) {
                 ApplicationDTO applicationDTO5 = new ApplicationDTO();
                 applicationDTO5.setDisabled(!"approved".equalsIgnoreCase(lendingApplication.getStatus()));
-                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion()))applicationDTO5.setText("Verification Call");
-                else applicationDTO5.setText("Disbursal Review & Calling");
+                applicationDTO5.setText("Disbursal Review & Calling");
                 ApplicationDTO.DateDTO dateDTO = null;
                 if (lendingDisbursalStage != null) {
                     if ("YES".equalsIgnoreCase(lendingDisbursalStage.getCallStage())) {
@@ -1175,8 +1143,7 @@ public class LendingApplicationServiceV2 {
             if (!"rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
                 ApplicationDTO applicationDTO6 = new ApplicationDTO();
                 applicationDTO6.setDisabled(!applicationStatus.equalsIgnoreCase("approved"));
-                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())) applicationDTO6.setText("Bank Transfer");
-                else applicationDTO6.setText("Disbursal!");
+                applicationDTO6.setText("Disbursal!");
                 applicationDTO.add(applicationDTO6);
                 if (!applicationDTO6.isDisabled()) {
                     applicationDTO6.setStatus("PENDING");
@@ -1837,15 +1804,11 @@ public class LendingApplicationServiceV2 {
             } else {
                 log.info("merchant id not found in add business details");
             }
-            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant);
-
             LendingMerchantDetails lendingMerchantDetails = new LendingMerchantDetails();
             lendingMerchantDetails.setMerchantId(merchant.getId());
             lendingMerchantDetails.setBusinessName(businessDetailsDTO.getBusinessName());
-            if("v1".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                lendingMerchantDetails.setBusinessSubCategory(businessDetailsDTO.getBusinessSubCategory());
-                lendingMerchantDetails.setBusinessCategory(businessDetailsDTO.getBusinessCategory());
-            }
+            lendingMerchantDetails.setBusinessSubCategory(businessDetailsDTO.getBusinessSubCategory());
+            lendingMerchantDetails.setBusinessCategory(businessDetailsDTO.getBusinessCategory());
             lendingMerchantDetailsDao.save(lendingMerchantDetails);
             return new ApiResponse<>(true, "Business Details Added Successfully");
         } catch (Exception ex) {
@@ -2658,7 +2621,6 @@ public class LendingApplicationServiceV2 {
                         lendingGstDetail.setState(kycDoc.getState());
                         lendingGstDetail.setAddress2(null);
                         lendingGstDetail.setLandmark(null);
-                        lendingGstDetail.setAddressType("Same");
                     }
                 }
                 log.info("Updating current address details as aadhaar address of applicationId {} and merchantId {}", applicationId, merchant.getId());
@@ -2670,7 +2632,6 @@ public class LendingApplicationServiceV2 {
                 lendingGstDetail.setPincode(addressDetails.getPincode());
                 lendingGstDetail.setLandmark(addressDetails.getLandmark());
                 lendingGstDetail.setState(addressDetails.getState());
-                lendingGstDetail.setAddressType("Different");
                 log.info("Updating current address details as address provided by merchant of applicationId {} and merchantId {}", applicationId, merchant.getId());
             }
             lendingGstDao.save(lendingGstDetail);

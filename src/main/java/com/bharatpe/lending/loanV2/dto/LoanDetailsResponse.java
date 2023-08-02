@@ -26,7 +26,6 @@ public class LoanDetailsResponse {
     private String pincode;
     private boolean bpClubMember = false;
     private String ineligible;
-
     private boolean changeBankAccount;
     private String errorString;
     private String stageOneHitId;

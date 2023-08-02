@@ -15,6 +15,6 @@ public class LendingGlobalExceptionHandler {
 
     @ExceptionHandler(value = BureauCallMaskedApiException.class)
     public ResponseEntity<ApiResponse<?>> exception(BureauCallMaskedApiException exception) {
-        return new ResponseEntity<>(new ApiResponse<>(true, "Call Masked Mobile Api", "Call Masked Mobile Api"), HttpStatus.OK);
+        return new ResponseEntity<>(new ApiResponse<>(true, "Call Masked Mobile Api", exception.getLoanDetailsResponse()), HttpStatus.OK);
     }
 }

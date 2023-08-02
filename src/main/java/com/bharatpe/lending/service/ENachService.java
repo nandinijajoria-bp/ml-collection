@@ -22,11 +22,6 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
-import com.bharatpe.lending.loanV3.revamp.controller.LoanDashboardController;
-import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
-import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
-import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
-import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -35,7 +30,6 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -108,15 +102,6 @@ public class ENachService {
     @Autowired
     private LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
-    @Autowired
-    private LoanDashboardService loanDashboardService;
-
-    @Autowired
-    LoanDetailsV3Service loanDetailsV3Service;
-
-    @Value("${v3.easyloan.deeplink}")
-    public String v3EasyloanDeeplink;
-
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider, String nachMode){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -173,15 +158,10 @@ public class ENachService {
             responseDTO.setMessage("Enach not initiated");
             return responseDTO;
         }
-        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant);
         if (requestDTO.getStatus()) {
             logger.info("Enach success for merchant:{}", merchant.getId());
             if(Objects.nonNull(lendingApplication) && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
                 responseDTO.getData().setDeep_link("bharatpe://dynamic?key=easy-loans&wroute=enachSuccess");
-                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                    String deeplink = v3EasyloanDeeplink + "&applicationId=" + lendingApplication.getId();
-                    responseDTO.getData().setDeep_link(deeplink);
-                }
             } else {
                 responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
             }
@@ -195,7 +175,6 @@ public class ENachService {
 //            lendingApplication.setNachLender("BHARATPE");
             if(EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()))lendingApplication.setNachStatus("PENDING_VERIFICATION");
             else lendingApplication.setNachStatus("APPROVED");
-            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
             logger.info("nach status for {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getNachStatus());
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
 //            lendingApplicationDao.save(lendingApplication);
@@ -215,29 +194,6 @@ public class ENachService {
                 }
             }
 
-            if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){
-                lendingApplication.setLmsStage("PENDING_DISBURSAL");
-                lendingApplication.setStatus(ApplicationStatus.APPROVED.name().toLowerCase());
-
-                LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-                lendingAuditTrial.setApplicationId(lendingApplication.getId());
-                lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-                lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
-                lendingAuditTrial.setUserId(Long.parseLong("0"));
-                lendingAuditTrial.setOldStatus(ApplicationStatus.PENDING_VERIFICATION.name().toLowerCase());
-                lendingAuditTrial.setNewStatus(ApplicationStatus.APPROVED.name().toLowerCase());
-                lendingAuditTrial.setType("APP_STATUS");
-                LendingAuditTrial lendingAuditTrial1 = new LendingAuditTrial();
-                lendingAuditTrial1.setApplicationId(lendingApplication.getId());
-                lendingAuditTrial1.setMerchantId(lendingApplication.getMerchantId());
-                lendingAuditTrial1.setLoanId(lendingApplication.getExternalLoanId());
-                lendingAuditTrial1.setUserId(Long.parseLong("0"));
-                lendingAuditTrial1.setOldStatus("RESIGN_RENACH");
-                lendingAuditTrial1.setNewStatus("PENDING_DISBURSAL");
-                lendingAuditTrial1.setType("LMS_STAGE");
-                lendingAuditTrialDao.save(lendingAuditTrial);
-                lendingAuditTrialDao.save(lendingAuditTrial1);
-            }
 
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
@@ -280,7 +236,29 @@ public class ENachService {
             }
         }
         responseDTO.setMessage(ObjectUtils.isEmpty(eNachIntitiationResponseDTO) ? null : eNachIntitiationResponseDTO.getMessage());
+        if("RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage())){
+            lendingApplication.setLmsStage("PENDING_DISBURSAL");
+            lendingApplication.setStatus(ApplicationStatus.APPROVED.name().toLowerCase());
 
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial.setUserId(Long.parseLong("0"));
+            lendingAuditTrial.setOldStatus(ApplicationStatus.PENDING_VERIFICATION.name().toLowerCase());
+            lendingAuditTrial.setNewStatus(ApplicationStatus.APPROVED.name().toLowerCase());
+            lendingAuditTrial.setType("APP_STATUS");
+            LendingAuditTrial lendingAuditTrial1 = new LendingAuditTrial();
+            lendingAuditTrial1.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial1.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial1.setLoanId(lendingApplication.getExternalLoanId());
+            lendingAuditTrial1.setUserId(Long.parseLong("0"));
+            lendingAuditTrial1.setOldStatus("RESIGN_RENACH");
+            lendingAuditTrial1.setNewStatus("PENDING_DISBURSAL");
+            lendingAuditTrial1.setType("LMS_STAGE");
+            lendingAuditTrialDao.save(lendingAuditTrial);
+            lendingAuditTrialDao.save(lendingAuditTrial1);
+        }
         if(!ObjectUtils.isEmpty(lendingApplicationDetails))lendingApplicationDetailsDao.save(lendingApplicationDetails);
         lendingApplicationDao.save(lendingApplication);
 
@@ -288,11 +266,7 @@ public class ENachService {
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
         }
         if (!requestDTO.getStatus() && lendingApplication != null && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
-            if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                String deeplink = v3EasyloanDeeplink + "&applicationId=" + lendingApplication.getId();
-                responseDTO.getData().setDeep_link(deeplink);
-            }
-            else responseDTO.getData().setDeep_link(env.getProperty("new.loan.deeplink"));
+            responseDTO.getData().setDeep_link(env.getProperty("new.loan.deeplink"));
         }
         return responseDTO;
     }

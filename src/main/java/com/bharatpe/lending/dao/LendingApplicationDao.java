@@ -120,7 +120,4 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	LendingApplication findTopByMerchantIdAndLoanTypeAndLoanDisbursalStatusNullOrderByIdDesc(Long merchantId, String loanType);
 
-	@Query(value = "SELECT * FROM lending_application WHERE  merchant_id = :merchantId AND status IN ('draft','pending_verification') ORDER BY id DESC", nativeQuery = true)
-	LendingApplication findInProgressLoanApplication(Long merchantId);
-
 }

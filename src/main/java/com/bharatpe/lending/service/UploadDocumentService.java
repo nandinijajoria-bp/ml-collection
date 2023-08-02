@@ -244,7 +244,6 @@ public class UploadDocumentService {
 						if (!ObjectUtils.isEmpty(shopFrontStructure)) {
 							LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
 							if (!ObjectUtils.isEmpty(lendingGstDetail)) {
-								if(Objects.isNull(lendingGstDetail.getShopType()) && !ObjectUtils.isEmpty(shopFrontStructure.getDsClass()))lendingGstDetail.setShopType(shopFrontStructure.getDsClass());
 								lendingGstDetail.setComputedShopType(shopFrontStructure.getDsClass());
 								lendingGstDetail.setConfidence(shopFrontStructure.getConfidence());
 								lendingGstDao.save(lendingGstDetail);
