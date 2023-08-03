@@ -244,6 +244,9 @@ public class APIGatewayService {
     @Value("${lending.global.api.caching.rollout.percent:10}")
     Integer lendingGlobalAPICachingRolloutPercent;
 
+    @Value("${scenaptic.rollout.percent:1}")
+    Integer scenapticRolloutPercent;
+
     @Autowired
     LendingGlobalAPICacheService globalAPICacheService;
 
@@ -252,6 +255,12 @@ public class APIGatewayService {
 
     @Value("${global.api.cache.ttl:48}")
     Long globalApiCacheTtl;
+
+    @Value("${underwriting.service.base.url}")
+    public String underwritingServiceBaseUrl;
+
+    @Value("${x.api.key.underwriting.service}")
+    public String xApiKeyUnderwritingService;
 
     @PostConstruct
     public void init() {
@@ -1515,6 +1524,10 @@ public class APIGatewayService {
             }
         }
 
+        if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent)) {
+            return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache);
+        }
+
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
             put("source", source);
@@ -1596,6 +1609,66 @@ public class APIGatewayService {
         }
         return null;
     }
+
+    public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache) {
+        logger.info("Get scenaptic limit for merchant:{}", merchantId);
+
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+            put("merchantId", merchantId);
+            put("source", source);
+            put("appVersion", appVersion);
+            put("clubV2", clubV2);
+        }};
+        StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
+        if (!ObjectUtils.isEmpty(source)) {
+            queryParams.append("&source=").append(source);
+        }
+        if (!ObjectUtils.isEmpty(appVersion)) {
+            queryParams.append("&appVersion=").append(appVersion);
+        }
+        if (!ObjectUtils.isEmpty(clubV2)) {
+            queryParams.append("&clubV2=").append(clubV2);
+        }
+        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/eligibility" + queryParams;
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        headers.set("X-API-KEY", xApiKeyUnderwritingService);
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(new HashMap<>(), headers);
+        logger.info("Get Scenaptic Limit request: {} for merchant : {}, Url :{}", request, merchantId, url);
+        try {
+            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+
+            logger.info("Get Scenaptic Limit string response: {} for merchant : {}", responseEntity.getBody(), merchantId);
+
+            // due to date format mismatch using a customer objectMapper
+            ObjectMapper objectMapper = new ObjectMapper();
+            DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            objectMapper.setDateFormat(df);
+
+            String responseString = responseEntity.getBody();
+            JsonNode actualObj = objectMapper.readTree(responseString);
+
+            GlobalLimitResponse globalLimitResponse = objectMapper.treeToValue(actualObj, GlobalLimitResponse.class);
+            logger.info("Get Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && globalLimitResponse.isSuccess()) {
+                if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+                    globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
+                }
+                return globalLimitResponse;
+            }
+        } catch (ResourceAccessException ex) {
+            logger.info("Scenaptic Limit Api timed out for merchantId:{} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        } catch (Exception e) {
+            logger.error("Error occurred while getting Scenaptic limit for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         Boolean clubV2 = checkClubV2(merchantId);
