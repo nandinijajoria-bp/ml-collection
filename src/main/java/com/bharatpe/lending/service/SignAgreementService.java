@@ -13,6 +13,8 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
+import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -117,6 +119,9 @@ public class SignAgreementService {
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
+
+	@Autowired
+	LendingLedgerSlaveDao lendingLedgerSlaveDao;
 
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -777,7 +782,7 @@ public class SignAgreementService {
 			response.put("application_id", newApplication.getId());
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
-		LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
+		LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
 		LendingApplication finalNewApplication = newApplication;
 		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));

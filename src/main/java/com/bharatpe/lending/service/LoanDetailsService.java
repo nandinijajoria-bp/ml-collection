@@ -21,6 +21,8 @@ import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
+import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -159,6 +161,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LoanPaymentOrderDao loanPaymentOrderDao;
+
+	@Autowired
+	LoanPaymentOrderSlaveDao loanPaymentOrderSlaveDao;
 
 	@Autowired
 	PartnersApiHandler partnersApiHandler;
@@ -1347,10 +1352,10 @@ public class LoanDetailsService {
 
 
 		try {
-			List<LoanPaymentOrder> loanPaymentOrders = loanPaymentOrderDao.findByOwnerIdAndMerchantId(lendingPaymentScheduleId, merchant.getId());
+			List<LoanPaymentOrderSlave> loanPaymentOrders = loanPaymentOrderSlaveDao.findByOwnerIdAndMerchantId(lendingPaymentScheduleId, merchant.getId());
 			if(Objects.nonNull(loanPaymentOrders)){
 				List<Map<String, Object>> repaymentHistoryList = new ArrayList<>();
-				for(LoanPaymentOrder loanPaymentOrder: loanPaymentOrders){
+				for(LoanPaymentOrderSlave loanPaymentOrder: loanPaymentOrders){
 					Map<String, Object> repaymentHistory = new HashMap<>();
 					repaymentHistory.put("amount",loanPaymentOrder.getAmount());
 					repaymentHistory.put("mode",LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"));

@@ -9,6 +9,8 @@ import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
+import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
@@ -64,6 +66,9 @@ public class MerchantLoansService {
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
+    LendingLedgerSlaveDao lendingLedgerSlaveDao;
 
     @Autowired
     ExperianDao experianDao;
@@ -345,7 +350,7 @@ public class MerchantLoansService {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
-                LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
+                LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
                 loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount()));
                 if (lendingLedger != null) {
                     loan.setLastEdiPaid(lendingLedger.getAmount());
