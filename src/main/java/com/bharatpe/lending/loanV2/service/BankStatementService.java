@@ -180,12 +180,7 @@ public class BankStatementService {
                 if (("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {
                     final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(bankStatementSessionDetails.getMerchantId()).orElse(null);
                     if (!ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
-                        String accountNo = null;
-                        if (!ObjectUtils.isEmpty(bankDetailsDtoOptional.getAccountNumber())) {
-                            accountNo = bankDetailsDtoOptional.getAccountNumber().replaceAll("^0+(?!$)", "");
-                        }
-                        log.info("AccountNo : {}", accountNo);
-                        if (!sessionCallbackDto.getAccountNo().equals(accountNo)) {
+                        if(isAccountMismatch(sessionCallbackDto, bankDetailsDtoOptional)) {
                             bankStatementSessionDetails.setRejectReason(BankStatementRejectReason.ACCOUNT_NO_MISMATCH.name());
                             bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
                             funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.BANK_STATEMENT, FunnelEnums.StageEvent.FAILED, "statement_failed_response_home");
@@ -374,4 +369,31 @@ public class BankStatementService {
         }
         return lender;
     }
+
+    public Boolean isAccountMismatch(BankStatementSessionCallbackDto sessionCallbackDto,  BankDetailsDto bankDetailsDto) {
+        try {
+            String accountNo = null;
+            String ifscCode = null;
+            if (!ObjectUtils.isEmpty(bankDetailsDto.getAccountNumber())) {
+                accountNo = bankDetailsDto.getAccountNumber().replaceAll("^0+(?!$)", "");
+            }
+            if (!ObjectUtils.isEmpty(bankDetailsDto.getIfsc())) {
+                ifscCode = bankDetailsDto.getIfsc();
+            }
+            log.info("accountNo : {}, ifscCode : {} for orderId : {} in linked bankDetails of merchant", accountNo, ifscCode, sessionCallbackDto.getSessionId());
+            if (!sessionCallbackDto.getAccountNo().equals(accountNo)) {
+                log.info("Exact match on accountNo failed for orderId {} with actual a/c no : {} and passed a/c no : {}", sessionCallbackDto.getSessionId(), accountNo, sessionCallbackDto.getAccountNo());
+                if (!sessionCallbackDto.getAccountNo().substring(sessionCallbackDto.getAccountNo().length() - 4).equalsIgnoreCase(accountNo.substring(accountNo.length() - 4))
+                        || !ifscCode.equalsIgnoreCase(sessionCallbackDto.getIfscCode())) {
+                    log.info("accountNo and ifscCode mismatch for orderId : {}", sessionCallbackDto.getSessionId());
+                    return true;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.error("Exception in matching account no for sessionId : {}, {}", sessionCallbackDto.getSessionId(), e.getMessage());
+            return true;
+        }
+    }
+
 }

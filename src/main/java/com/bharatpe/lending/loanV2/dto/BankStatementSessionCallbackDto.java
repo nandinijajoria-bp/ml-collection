@@ -18,4 +18,5 @@ public class BankStatementSessionCallbackDto {
     String accountType;
     Long period;
     String message;
+    String ifscCode;
 }
