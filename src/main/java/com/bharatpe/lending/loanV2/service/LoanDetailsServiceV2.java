@@ -271,7 +271,8 @@ public class LoanDetailsServiceV2 {
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
         try {
-            if (Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
+            if (Objects.nonNull(request) &&
+                    Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
                 if (Objects.nonNull(merchant.getId())) {
                     String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
                     log.info("deleting cached key of loan details where pan, pin is not null for merchant: {}", merchant.getId());
@@ -341,6 +342,7 @@ public class LoanDetailsServiceV2 {
                     boolean isIOS = request != null && request.isIOS();
                     LoanApplicationDetails topupApplicationDetails = setApplicationDetails(loanDetailsResponse, topupApplication, token, isIOS, experian, merchant);
                     loanDetailsResponse.setTopupLoanApplication(topupApplicationDetails);
+                    loanDetailsResponse.setShowReferencePage(false);
                 }
                 loanDetailsResponse.setActiveLoan(true);
                 return new ApiResponse<>(loanDetailsResponse);
@@ -361,8 +363,9 @@ public class LoanDetailsServiceV2 {
             }
             LendingApplication draftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(),"draft");
             String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchant.getId();
-            if(draftApplication != null) {
-                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty() && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
+            if(draftApplication != null && !"TOPUP".equalsIgnoreCase(draftApplication.getLoanType())) {
+                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty()
+                        && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
                     executorService.submit(() -> {
                         log.info("Again caching MerchantReferences from de of merchantId : {} inside",merchant.getId());
                         loanUtil.callingDeForReferences(merchant.getId(),draftApplication);
@@ -1409,6 +1412,12 @@ public class LoanDetailsServiceV2 {
                 log.info("No applicationId found of merchantId: {}", merchantId);
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
+
+            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
+            {
+                log.info("lending application loan Type is {} ",lendingApplication.getLoanType());
+                return new ApiResponse<>(false,"Application type is Topup");
+            }
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
             Long referencesLimit = getReferenceLimit(lendingApplication);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
@@ -1420,6 +1429,7 @@ public class LoanDetailsServiceV2 {
                 responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
                 return new ApiResponse<>(responseDto);
             }
+
             Integer totalContacts = deResponse.getTotalContacts();
             List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
 
@@ -1457,7 +1467,8 @@ public class LoanDetailsServiceV2 {
                     }
                 }
                 log.info("Successfully fetched references of merchantId: {}", merchantId);
-                responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
+                responseDto = MerchantReferencesResponseDto.builder().
+                        references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
 
             }
             return new ApiResponse<>(responseDto);
