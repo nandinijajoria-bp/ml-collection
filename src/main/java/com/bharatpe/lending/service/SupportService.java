@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -137,6 +138,9 @@ public class SupportService {
 
     @Autowired
     LoanDpdDao loanDpdDao;
+
+    @Autowired
+    LoanDpdDaoSlave loanDpdDaoSlave;
 
     @Autowired
     EnachHandler enachHandler;
@@ -1105,7 +1109,7 @@ public class SupportService {
         if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null &&
                 lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D &&
                 (isClubV2 || lendingPaymentSchedule.getLoanApplication().getAgreementAt().before(compareToDate))) {
-            BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
+            BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
             long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
             LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
             Long loanId = lendingLedgerDao.getLedgerByAdjustmentModes(lendingPaymentSchedule.getId());
