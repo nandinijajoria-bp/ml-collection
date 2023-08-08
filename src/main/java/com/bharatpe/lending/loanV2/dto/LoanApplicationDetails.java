@@ -8,7 +8,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Data
 @ToString
@@ -22,6 +24,7 @@ public class LoanApplicationDetails {
     private Double loanAmount;
     private String applicationStatus;
     private String rejectReason;
+    private String rejectionMessage;
     private String enachDeeplink;
     private boolean shopPhotoRequired = false;
     private String reapply;
@@ -33,6 +36,7 @@ public class LoanApplicationDetails {
     private EnachErrorMessageDTO enachErrorResponse;
     private boolean skipEnach;
     private String resubmitReason;
+    private String completedResubmitReason;
     private Long reapplyTime;
     private Long reapplyTimeEpoch;
     private Boolean lenderAssc;
@@ -41,4 +45,8 @@ public class LoanApplicationDetails {
     private String nachSessionStatus;
     private String nachSessionMode;
     private Long nachStartedAt;
+    private String lender;
+
+    private List<LoanApplicationStage> loanApplicationStageList=new ArrayList<>();
+
 }

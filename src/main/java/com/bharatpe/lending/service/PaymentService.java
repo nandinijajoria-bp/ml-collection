@@ -42,6 +42,9 @@ import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustmentModesPiramal;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.util.LoanUtil;
@@ -196,7 +199,8 @@ public class PaymentService {
     @Autowired
     private FunnelService funnelService;
 
-
+    @Autowired
+    private LoanDashboardService loanDashboardService;
 
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
@@ -1782,6 +1786,10 @@ public class PaymentService {
                         .eventSubmissionTime(LocalDateTime.now().withNano(0))
                         .source(FunnelEnums.Source.BACKEND)
                         .build();
+                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    funnelEventDto.setVersion(LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                }
                 notificationExecutor.execute(() -> funnelService.submitEvent(funnelEventDto));
             }
             catch (Exception e){
@@ -1898,6 +1906,10 @@ public class PaymentService {
                         .orderId(orderId)
                         .source(FunnelEnums.Source.BACKEND)
                         .build();
+                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    funnelEventDto.setVersion(LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                }
                 notificationExecutor.execute(() -> funnelService.submitEvent(funnelEventDto));
             }
             catch (Exception e){

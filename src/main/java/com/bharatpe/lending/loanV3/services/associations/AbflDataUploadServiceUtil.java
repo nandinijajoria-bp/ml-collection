@@ -22,6 +22,8 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -122,6 +124,9 @@ public class AbflDataUploadServiceUtil {
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
+    @Autowired
+    private LoanDashboardService loanDashboardService;
+
     private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public void uploadRegulatoryData(Long applicationId) {
@@ -160,8 +165,10 @@ public class AbflDataUploadServiceUtil {
                 log.info("merchant details not found for {}", lendingApplicationOptional.get().getMerchantId());
                 return null;
             }
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantDetailsDto.getMerchantDetail().getId());
             LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplicationOptional.get().getId());
             LendingMerchantPermissions lendingMerchantPermissions = lendingMerchantPermissionsDao.findByMerchantId(lendingApplicationOptional.get().getMerchantId());
+            Boolean locationPermissionActive = "v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion()) ? Boolean.TRUE : lendingMerchantPermissions.getLocationPermissionActive();
             List<LendingMerchantReferences> lendingMerchantReferences = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(lendingApplicationOptional.get().getMerchantId(), lendingApplicationOptional.get().getId());
             LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplicationOptional.get().getMerchantId());
             RegulatoryApiRequestDto regulatoryApiRequestDto = RegulatoryApiRequestDto.builder()
@@ -175,7 +182,7 @@ public class AbflDataUploadServiceUtil {
                                             .address(merchantDetailsDto.getAddressDetail().get(0).getAddress())
                                             .businessCategory(lendingMerchantDetails.getBusinessCategory())
                                             .businessSubCategory(lendingMerchantDetails.getBusinessSubCategory())
-                                            .customerConsent(lendingMerchantPermissions.getLocationPermissionActive())
+                                            .customerConsent(locationPermissionActive)
                                             .latitude(lendingApplicationOptional.get().getLatitude())
                                             .longitude(lendingApplicationOptional.get().getLongitude())
                                             .professionalDeclaration(lendingGstDetail.getEntityType())

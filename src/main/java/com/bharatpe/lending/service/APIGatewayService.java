@@ -47,6 +47,10 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsResponse;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -252,6 +256,9 @@ public class APIGatewayService {
 
     @Autowired
     MapperUtil mapperUtil;
+
+    @Autowired
+    private LoanDashboardService loanDashboardService;
 
     @Value("${global.api.cache.ttl:48}")
     Long globalApiCacheTtl;
@@ -1278,8 +1285,15 @@ public class APIGatewayService {
 
     public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
 
-        funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
-                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(requestDTO.getMerchantId());
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+        }
 
         logger.info("Enach initiate request:{} for merchant:{}", requestDTO, requestDTO.getMerchantId());
         HttpHeaders headers = new HttpHeaders();
@@ -1287,8 +1301,14 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
 
-        funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
-                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
+        }
 
         Map<String, Object> body = new HashMap<String, Object>() {{
             put("application_id", requestDTO.getApplicationId());
@@ -1347,12 +1367,27 @@ public class APIGatewayService {
                 String responseString = response.getBody();
                 JsonNode actualObj = mapper.readTree(responseString);
                 ENachIntitiationResponseDTO newJsonNode = mapper.treeToValue(actualObj, ENachIntitiationResponseDTO.class);
+                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
                 if(!newJsonNode.getMessage().equalsIgnoreCase("success")){
-                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
-                            FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
+                    if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                        funnelService.submitEventV3(merchantId, null, requestDTO.getApplicationId(),
+                                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                    }
+                    else{
+                        funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
+                    }
+
                 }
-                funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
-                        FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    funnelService.submitEventV3(merchantId, null, requestDTO.getApplicationId(),
+                            FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                }
+                else{
+                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                            FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                }
+
                 logger.info("responseDTO:{}", newJsonNode);
                 return newJsonNode;
             }
@@ -1503,13 +1538,17 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null);
+    }
+
+    public GlobalLimitResponse getGlobalLimit(Long merchantId, Boolean clubV2) throws BureauCallMaskedApiException {
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null);
     }
 
     //    @Async
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                               String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
-                                              Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse) throws BureauCallMaskedApiException  {
+                                              Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
 
         if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
@@ -1589,17 +1628,19 @@ public class APIGatewayService {
             GlobalLimitResponse.Data globalLimitResponse = responseEntity.getBody().getData();
             if(!ObjectUtils.isEmpty(loanDetailsResponse) && globalLimitResponse != null) {
                 loanDetailsResponse.setErrorString(globalLimitResponse.getErrorString());
+                eligibilityStateDTO.setErrorString(globalLimitResponse.getErrorString());
                 loanDetailsResponse.setStageOneHitId(globalLimitResponse.getStageOneId_());
+                eligibilityStateDTO.setStageOneHitId(globalLimitResponse.getStageOneId_());
                 loanDetailsResponse.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
+                eligibilityStateDTO.setStageTwoHitId(globalLimitResponse.getStageTwoId_());
             }
             throw new BureauCallMaskedApiException("Call Experian Masked Mobile API", loanDetailsResponse);
         }
-        if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
-            if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
-                globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
+                if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+                    globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
+                }return responseEntity.getBody();
             }
-            return responseEntity.getBody();
-        }
         } catch (BureauCallMaskedApiException e) {
             throw (e);
         }catch (ResourceAccessException ex) {
@@ -1668,11 +1709,9 @@ public class APIGatewayService {
         return null;
     }
 
-
-
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, true, null);
+        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, true,null,null);
     }
 
     public boolean globalLimitTxn(Long merchantId, String mode, Double amount) {
@@ -2938,6 +2977,6 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String orderId, String type) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false,null, null);
     }
 }

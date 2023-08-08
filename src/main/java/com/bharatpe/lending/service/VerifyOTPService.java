@@ -47,7 +47,12 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -194,6 +199,11 @@ public class VerifyOTPService {
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
+
+    private LoanDashboardService loanDashboardService;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -204,6 +214,8 @@ public class VerifyOTPService {
         } else {
             logger.info("merchant id not found in verifyOtp flow");
         }
+        loanDashboardService.deleteLoanDashboardCache(merchant.getId());
+
         Map<String, Object> finalResponse = new LinkedHashMap<>();
         finalResponse.put("success", false);
         finalResponse.put("agreement_verified", false);
@@ -263,6 +275,7 @@ public class VerifyOTPService {
                 }
                 lendingApplicationDao.save(lendingApplication);
 
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
 
                 // updating ready timestamp on downgrade
                 if (LendingConstants.PENDING_DISBURSAL.equalsIgnoreCase(lendingApplication.getLmsStage())) {
@@ -296,6 +309,8 @@ public class VerifyOTPService {
 
                 lendingApplication.setAgreementAt(new Date());
                 lendingApplicationDao.save(lendingApplication);
+
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
 
                 if (!"RESIGN_RENACH".equalsIgnoreCase(lendingApplication.getLmsStage()))updateLeadAcceptanceTime(lendingApplication);
 
@@ -418,6 +433,7 @@ public class VerifyOTPService {
             }
             lendingApplication.setNachReferenceNumber(ObjectUtils.isEmpty(enachSuccess)?null:enachSuccess.getReferenceNumber());
             lendingApplication.setNachStatus("APPROVED");
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
 
             // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
@@ -449,8 +465,15 @@ public class VerifyOTPService {
         }
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
-        funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantBasicDetailsDto.getId(), lendingApplication);
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+        }
 
         try{
             Date docUpdateStartTime = new Date();
@@ -486,6 +509,7 @@ public class VerifyOTPService {
             lendingApplication.setCkycStatus("APPROVED");
             lendingApplication.setCkycDate(new Date());
             lendingApplicationDao.save(lendingApplication);
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
         }
         redisNotificationService.sendPendingEnachNotification(merchantBasicDetailsDto, lendingApplication);
         notificationExecutor.submit(() -> sendNotification(merchantBasicDetailsDto, lendingApplication));
@@ -510,6 +534,8 @@ public class VerifyOTPService {
 //			if (lendingApplication.getLoanAmount() <= 200000)
 //				sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
 //		}
+
+        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
 
         finalResponse.put("success", true);
         finalResponse.put("agreement_verified", true);

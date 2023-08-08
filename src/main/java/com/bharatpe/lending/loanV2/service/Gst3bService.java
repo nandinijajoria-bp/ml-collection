@@ -19,6 +19,9 @@ import com.bharatpe.lending.loanV2.dto.Gst3bSessionCallbackDto;
 import com.bharatpe.lending.loanV2.dto.Gst3bSessionRequestDTO;
 import com.bharatpe.lending.loanV2.dto.Gst3bSessionResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -59,6 +62,9 @@ public class Gst3bService {
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
 
+    @Autowired
+    private LoanDashboardService loanDashboardService;
+
     public static final String CUSTOMISED_MESSAGE_FOR_OTP_FAILURE = "An internal error occured. Please try after sometime";
 
     public ApiResponse<?> sendOtpGst3b(Gst3bSessionRequestDTO gst3bSessionRequestDTO, Long merchantId) {
@@ -72,7 +78,9 @@ public class Gst3bService {
             if (!verifyPanWithGst(merchantId, gst3bSessionRequestDTO.getGstin()) && !loanUtil.isInternalMerchant(merchantId)) {
                 return new ApiResponse<>(false, "Gstin and Pan number mismatched");
             }
-            funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.INITIATED, "gst3b_page_with_otp_initiated");
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+
+            sendFunnelEvent(merchantId, FunnelEnums.StageEvent.INITIATED, "gst3b_page_with_otp_initiated", loanDashboardApiVersion);
             Gst3bSessionDetails previousGst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdAndMethodOrderByIdDesc(merchantId, "OTP");
             String orderId = UUID.randomUUID().toString();
             Gst3bSessionDetails gst3bSessionDetails = Gst3bSessionDetails.builder()
@@ -87,7 +95,7 @@ public class Gst3bService {
                 gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                 gst3bSessionDetails.setRejectReason(Gst3bRejectReason.SENT_OTP_API_FAILED.name());
                 gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed", loanDashboardApiVersion);
                 return new ApiResponse<>(false, "Unable to send otp");
             }
             if (!apiResponse.getSuccess()) {
@@ -96,7 +104,7 @@ public class Gst3bService {
                     gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.SENT_OTP_API_FAILED.name());
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                    funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed");
+                    sendFunnelEvent(merchantId, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed", loanDashboardApiVersion);
                     return new ApiResponse<>(false, apiResponse.getErrors().get(0).getError());
                 }
                 if(apiResponse.getMessage().equalsIgnoreCase(CUSTOMISED_MESSAGE_FOR_OTP_FAILURE)) {
@@ -104,14 +112,14 @@ public class Gst3bService {
                     gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.SENT_OTP_API_FAILED.name());
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                    funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed");
+                    sendFunnelEvent(merchantId, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed", loanDashboardApiVersion);
                     return new ApiResponse<>(false, "Unable to send otp");
                 } else {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                     gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                     gst3bSessionDetails.setRejectReason(apiResponse.getMessage());
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                    funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed");
+                    sendFunnelEvent(merchantId, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp_failed", loanDashboardApiVersion);
                     return new ApiResponse<>(false, apiResponse.getMessage());
                 }
             }
@@ -119,9 +127,9 @@ public class Gst3bService {
             gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
             gst3bSessionDetailsDao.save(gst3bSessionDetails);
             if (ObjectUtils.isEmpty(previousGst3bSessionDetails)) {
-                funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.OTP_SENT, "gst3b_page_with_otp_sent_otp", loanDashboardApiVersion);
             } else {
-                funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_RESEND, "gst3b_page_with_otp_resend_otp");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.OTP_RESEND, "gst3b_page_with_otp_resend_otp", loanDashboardApiVersion);
             }
             Map<String, String> data = new HashMap<>();
             data.put("message", "Successfully sent otp for gst3b");
@@ -142,12 +150,14 @@ public class Gst3bService {
             if (ObjectUtils.isEmpty(gst3bSessionDetails)) {
                 return new ApiResponse<>(false, "No session details found for given requestId");
             }
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(gst3bSessionDetails.getMerchantId());
+
             Gst3bSessionResponseDTO apiResponse = financeUtilsHandler.verifyGst3bOtp(gst3bSessionRequestDTO.getRequestId(), gst3bSessionRequestDTO.getOtp());
             if (ObjectUtils.isEmpty(apiResponse)) {
                 gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                 gst3bSessionDetails.setRejectReason(Gst3bRejectReason.VERIFY_OTP_API_FAILED.name());
                 gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.WRONG_OTP, "gst3b_with_otp_verify_failed");
+                sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.WRONG_OTP, "gst3b_with_otp_verify_failed", loanDashboardApiVersion);
                 return new ApiResponse<>(false, "Unable to verify otp");
             }
             if (!apiResponse.getSuccess()) {
@@ -156,7 +166,7 @@ public class Gst3bService {
                     gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.VERIFY_OTP_API_FAILED.name());
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                    funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.WRONG_OTP, "gst3b_with_otp_verify_failed");
+                    sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.WRONG_OTP, "gst3b_with_otp_verify_failed", loanDashboardApiVersion);
                     return new ApiResponse<>(false, apiResponse.getErrors().get(0).getError());
                 }
                 if(apiResponse.getMessage().equalsIgnoreCase(CUSTOMISED_MESSAGE_FOR_OTP_FAILURE)) {
@@ -164,21 +174,21 @@ public class Gst3bService {
                     gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.VERIFY_OTP_API_FAILED.name());
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                    funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.WRONG_OTP, "gst3b_page_with_otp_wrong_otp");
+                    sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.WRONG_OTP, "gst3b_page_with_otp_wrong_otp", loanDashboardApiVersion);
                     return new ApiResponse<>(false, "Unable to verify otp");
                 } else {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                     gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                     gst3bSessionDetails.setRejectReason(apiResponse.getMessage());
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                    funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.WRONG_OTP, "gst3b_page_with_otp_wrong_otp");
+                    sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.WRONG_OTP, "gst3b_page_with_otp_wrong_otp", loanDashboardApiVersion);
                     return new ApiResponse<>(false, apiResponse.getMessage());
                 }
             }
             gst3bSessionDetails.setStatus(Gst3bSessionStatus.SUBMITTED);
             gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
             gst3bSessionDetailsDao.save(gst3bSessionDetails);
-            funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.OTP_VERIFIED, "gst3b_page_with_otp_verified_otp");
+            sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.OTP_VERIFIED, "gst3b_page_with_otp_verified_otp", loanDashboardApiVersion);
             return new ApiResponse<>("Successfully verified otp for gst3b");
         } catch (Exception e) {
             log.error("Exception in verifying otp ", e);
@@ -203,7 +213,9 @@ public class Gst3bService {
             if (!verifyPanWithGst(merchantId, gst3bSessionRequestDTO.getGstin()) && !loanUtil.isInternalMerchant(merchantId)) {
                 return new ApiResponse<>(false, "Gstin and Pan number mismatched");
             }
-            funnelService.submitEvent(merchantId, null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.INITIATED, "gst3b_page_with_doc_initiated");
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+
+            sendFunnelEvent(merchantId, FunnelEnums.StageEvent.INITIATED, "gst3b_page_with_doc_initiated", loanDashboardApiVersion);
             Gst3bSessionDetails previousGst3bSessionDetails = gst3bSessionDetailsDao.findFirstByMerchantIdAndMethodOrderByIdDesc(merchantId, "UPLOAD");
             String orderId = UUID.randomUUID().toString();
             Gst3bSessionDetails gst3bSessionDetails = Gst3bSessionDetails.builder()
@@ -219,7 +231,7 @@ public class Gst3bService {
                 gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                 gst3bSessionDetails.setRejectReason(Gst3bRejectReason.UPLOAD_API_FAILED.name());
                 gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.UPLOAD_FAILED, "gst3b_page_with_doc_upload_failed");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.UPLOAD_FAILED, "gst3b_page_with_doc_upload_failed", loanDashboardApiVersion);
                 return new ApiResponse<>(false, "Error in uploading gst3b file");
             }
             if (!apiResponse.getSuccess()) {
@@ -227,16 +239,16 @@ public class Gst3bService {
                 gst3bSessionDetails.setRejectReason(Gst3bRejectReason.UPLOAD_API_FAILED.name());
                 gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
                 gst3bSessionDetailsDao.save(gst3bSessionDetails);
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.UPLOAD_FAILED, "gst3b_page_with_doc_upload_failed");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.UPLOAD_FAILED, "gst3b_page_with_doc_upload_failed", loanDashboardApiVersion);
                 return new ApiResponse<>(false, "Error in uploading gst3b file");
             }
             gst3bSessionDetails.setStatus(Gst3bSessionStatus.SUBMITTED);
             gst3bSessionDetails.setRequestId(apiResponse.getRequestId());
             gst3bSessionDetailsDao.save(gst3bSessionDetails);
             if (ObjectUtils.isEmpty(previousGst3bSessionDetails)) {
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.UPLOAD, "gst3b_page_with_doc_upload");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.UPLOAD, "gst3b_page_with_doc_upload", loanDashboardApiVersion);
             } else {
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.UPLOADED_AGAIN, "gst3b_page_with_doc_uploaded_again");
+                sendFunnelEvent(merchantId, FunnelEnums.StageEvent.UPLOADED_AGAIN, "gst3b_page_with_doc_uploaded_again", loanDashboardApiVersion);
             }
             return new ApiResponse<>("Successfully submitted gst3b file");
         } catch (Exception e) {
@@ -271,41 +283,42 @@ public class Gst3bService {
             log.error("Gst3b session for given sessionId is already processed");
             return;
         }
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(gst3bSessionDetails.getMerchantId());
         try {
             if (sessionCallbackDto.getStatus().equals(Gst3bSessionStatus.FAILED)) {
                 gst3bSessionDetails.setStatus(sessionCallbackDto.getStatus());
                 gst3bSessionDetails.setRejectReason(Gst3bRejectReason.FAILED_CALLBACK_STATUS.name());
                 if("OTP".equalsIgnoreCase(gst3bSessionDetails.getMethod())) {
-                    funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed");
+                    sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed", loanDashboardApiVersion);
                 } else {
-                    funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed");
+                    sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed", loanDashboardApiVersion);
                 }
             } else if (sessionCallbackDto.getStatus().equals(Gst3bSessionStatus.SUCCESS)) {
                 if (!ObjectUtils.isEmpty(sessionCallbackDto.getCorrectTenure()) && !sessionCallbackDto.getCorrectTenure() && !loanUtil.isInternalMerchant(gst3bSessionDetails.getMerchantId())) {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.GST3B_NOT_IN_12_MONTH_PERIOD.name());
                     if("OTP".equalsIgnoreCase(gst3bSessionDetails.getMethod())) {
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed", loanDashboardApiVersion);
                     } else {
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed", loanDashboardApiVersion);
                     }
                 } else if (!verifyPanWithGst(gst3bSessionDetails.getMerchantId(), sessionCallbackDto.getGstin()) && !loanUtil.isInternalMerchant(gst3bSessionDetails.getMerchantId())) {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.PAN_GST_MISMATCHED.name());
                     if("OTP".equalsIgnoreCase(gst3bSessionDetails.getMethod())) {
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed", loanDashboardApiVersion);
                     } else {
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed", loanDashboardApiVersion);
                     }
                 } else {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.INPROCESS);
                     gst3bSessionDetailsDao.save(gst3bSessionDetails);
                     if (gst3bSessionDetails.getMethod().equalsIgnoreCase("OTP")) {
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.SUBMITTED, "gst3b_page_with_otp_submitted");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.SUBMITTED, "gst3b_page_with_otp_submitted", loanDashboardApiVersion);
                     } else {
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.SUBMITTED, "gst3b_page_with_doc_upload_submitted");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.SUBMITTED, "gst3b_page_with_doc_upload_submitted", loanDashboardApiVersion);
                     }
-                    gst3bSessionDetails = gst3bUnderwritingAnalysis(gst3bSessionDetails);
+                    gst3bSessionDetails = gst3bUnderwritingAnalysis(gst3bSessionDetails, loanDashboardApiVersion);
                 }
             }
             gst3bSessionDetailsDao.save(gst3bSessionDetails);
@@ -316,14 +329,14 @@ public class Gst3bService {
             gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
             gst3bSessionDetailsDao.save(gst3bSessionDetails);
             if("OTP".equalsIgnoreCase(gst3bSessionDetails.getMethod())) {
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed");
+                sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_otp_failed", loanDashboardApiVersion);
             } else {
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed");
+                sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, "gst3b_page_with_upload_failed", loanDashboardApiVersion);
             }
         }
     }
 
-    private Gst3bSessionDetails gst3bUnderwritingAnalysis(Gst3bSessionDetails gst3bSessionDetails) {
+    private Gst3bSessionDetails gst3bUnderwritingAnalysis(Gst3bSessionDetails gst3bSessionDetails, LoanDashboardApiVersion loanDashboardApiVersion) {
         try {
             Double currentLimit = 0D;
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(gst3bSessionDetails.getMerchantId());
@@ -344,28 +357,28 @@ public class Gst3bService {
                             evictLoanDetailV2Cache(gst3bSessionDetails.getMerchantId());
                         }
                         gst3bSessionDetails.setStatus(Gst3bSessionStatus.SUCCESS);
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.SUCCESS, eventValue + "_success");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.SUCCESS, eventValue + "_success", loanDashboardApiVersion);
                     } else {
                         gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                         gst3bSessionDetails.setRejectReason(Gst3bRejectReason.OFFER_SAME.name());
-                        funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, eventValue + "_failed");
+                        sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, eventValue + "_failed", loanDashboardApiVersion);
                     }
                 } else {
                     gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
                     gst3bSessionDetails.setRejectReason(Gst3bRejectReason.OFFER_SAME.name());
-                    funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, eventValue + "_failed");
+                    sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, eventValue + "_failed", loanDashboardApiVersion);
                 }
             } else {
                 gst3bSessionDetails.setRejectReason(Gst3bRejectReason.GLOBAL_LIMIT_FAILED.name());
                 gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
-                funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, eventValue + "_failed");
+                sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, eventValue + "_failed", loanDashboardApiVersion);
             }
         } catch (Exception e) {
             log.error("Exception in getting global limit for merchantId : {}", gst3bSessionDetails.getMerchantId());
             String eventValue = gst3bSessionDetails.getMethod().equals("OTP") ? "gst3b_page_with_otp" : "gst3b_page_with_doc";
             gst3bSessionDetails.setStatus(Gst3bSessionStatus.FAILED);
             gst3bSessionDetails.setRejectReason(Gst3bRejectReason.GLOBAL_LIMIT_EXCEPTION.name());
-            funnelService.submitEvent(gst3bSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.GST3B, FunnelEnums.StageEvent.FAILED, eventValue + "_failed");
+            sendFunnelEvent(gst3bSessionDetails.getMerchantId(), FunnelEnums.StageEvent.FAILED, eventValue + "_failed", loanDashboardApiVersion);
         }
         gst3bSessionDetailsDao.save(gst3bSessionDetails);
         return gst3bSessionDetails;
@@ -379,6 +392,7 @@ public class Gst3bService {
         } else {
             log.info("no key exists!");
         }
+        loanDashboardService.deleteLoanDashboardCache(merchantId);
     }
 
     private Boolean verifyPanWithGst(Long merchantId, String gstin) {
@@ -391,5 +405,16 @@ public class Gst3bService {
            }
         }
         return false;
+    }
+
+    private void sendFunnelEvent(Long merchantId, FunnelEnums.StageEvent stageEvent, String eventValue, LoanDashboardApiVersion loanDashboardApiVersion){
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(merchantId, null, null,
+                    FunnelEnums.StageId.GST3B, stageEvent, eventValue, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(merchantId, null, null,
+                    FunnelEnums.StageId.GST3B, stageEvent, eventValue);
+        }
     }
 }
