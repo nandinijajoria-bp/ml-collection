@@ -850,6 +850,7 @@ public class LoanDashboardService {
 
     public void deleteLoanDashboardCache(Long merchantId){
         try{
+            if(Objects.isNull(merchantId))return;
             String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchantId;
             log.info("deleting cached key of loan dashboard api for merchant: {}",merchantId);
             lendingCache.delete(loanDetailsCacheKey);
