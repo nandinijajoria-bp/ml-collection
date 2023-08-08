@@ -2139,14 +2139,14 @@ public class SupportService {
                     String bucket = "loan-document";
 
                     if (s3BucketHandler.doesS3ObjectExist(kfsFileName, bucket)) {
-                        String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get());
+                        String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get().getId(), kfsFileName);
                         lendingKfs.setKfsDocUrl(kfsShorturl);
                     } else {
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getKfsSignedAt());
                     }
 
                     if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
-                        String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get());
+                        String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get().getId(), sanctionAndLoanAgreementFileName);
                         lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
                     } else {
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());

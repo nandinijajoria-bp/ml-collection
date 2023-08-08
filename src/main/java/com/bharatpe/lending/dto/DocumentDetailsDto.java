@@ -20,6 +20,7 @@ public class DocumentDetailsDto {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Data {
         String agreementUrl;
+        String kfsUrl;
         String sanctionUrl;
         String nocUrl;
     }

@@ -36,12 +36,14 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 //import com.bharatpe.lending.entity.LendingBlockedPancard;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.joda.time.DateTime;
@@ -58,6 +60,9 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
 
 @Service
 public class LoanDetailsService {
@@ -199,6 +204,11 @@ public class LoanDetailsService {
 	KycHandler kycHandler;
 //	@Transactional
 
+	@Autowired
+	LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+	@Autowired
+	LendingKfsDao lendingKfsDao;
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -1438,27 +1448,67 @@ public class LoanDetailsService {
 		return new CommonResponse(lendingGstDetail);
 	}
 
-	public DocumentDetailsDto documentDetails(LendingPaymentSchedule lendingPaymentSchedule) {
+//	@Deprecated
+//	public DocumentDetailsDto documentDetails(LendingPaymentSchedule lendingPaymentSchedule) {
+//		DocumentDetailsDto documentDetailsDto = new DocumentDetailsDto();
+//		documentDetailsDto.setMessage("Fetched Document details");
+//		documentDetailsDto.setSuccess(true);
+//		DocumentDetailsDto.Data data = new DocumentDetailsDto.Data();
+//		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingPaymentSchedule.getApplicationId(), "agreement");
+//		String shortUrl = "";
+//		if (loanAgreement != null) {
+//			String fileName = loanAgreement.getAgreementName();
+//			try {
+//				shortUrl = liquiloansService.getShorturl(fileName, loanAgreement);
+//			} catch (UnsupportedEncodingException e) {
+//				e.printStackTrace();
+//			}
+//		}
+////		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
+//		String nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
+//
+//		data.setAgreementUrl(shortUrl);
+//		data.setNocUrl(nocUrl);
+//		data.setSanctionUrl(null);
+//		documentDetailsDto.setData(data);
+//		return documentDetailsDto;
+//	}
+
+	public DocumentDetailsDto documentDetails(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
 		DocumentDetailsDto documentDetailsDto = new DocumentDetailsDto();
 		documentDetailsDto.setMessage("Fetched Document details");
 		documentDetailsDto.setSuccess(true);
 		DocumentDetailsDto.Data data = new DocumentDetailsDto.Data();
-		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingPaymentSchedule.getApplicationId(), "agreement");
-		String shortUrl = "";
-		if (loanAgreement != null) {
+		Long applicationId = lendingPaymentSchedule.getApplicationId();
+		String kfsUrl = null;
+		String sanctionUrl = null;
+		String nocUrl = null;
+		String agreementUrl = null;
+		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId, "agreement");
+		if (!ObjectUtils.isEmpty(loanAgreement)) {
 			String fileName = loanAgreement.getAgreementName();
 			try {
-				shortUrl = liquiloansService.getShorturl(fileName, loanAgreement);
+				agreementUrl = liquiloansService.getShorturl(fileName, loanAgreement);
 			} catch (UnsupportedEncodingException e) {
 				e.printStackTrace();
 			}
 		}
-//		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
-		String nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
-
-		data.setAgreementUrl(shortUrl);
+		else{
+			String kfsFileName = null;
+			String sanctionAndLoanAgreementFileName = null;
+			LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+			if(!ObjectUtils.isEmpty(lendingKfs)){
+				kfsFileName= ObjectUtils.isEmpty(lendingKfs.getKfsDocFile()) ? KFS_S3_KEY_PREFIX + applicationId  : lendingKfs.getKfsDocFile();
+				sanctionAndLoanAgreementFileName= ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
+			}
+			kfsUrl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingPaymentSchedule.getApplicationId(), kfsFileName);
+			sanctionUrl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(applicationId, sanctionAndLoanAgreementFileName);
+		}
+		nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
+		data.setAgreementUrl(agreementUrl);
+		data.setKfsUrl(kfsUrl);
+		data.setSanctionUrl(sanctionUrl);
 		data.setNocUrl(nocUrl);
-		data.setSanctionUrl(null);
 		documentDetailsDto.setData(data);
 		return documentDetailsDto;
 	}

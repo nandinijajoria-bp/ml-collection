@@ -2278,22 +2278,20 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public String fetchKfsFromS3andGenerateShortUrl(LendingApplication lendingApplication) throws Exception {
-            String fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId();
+    public String fetchKfsFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
             String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
             String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
             if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
-                throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
+                throw new Exception("Unable to create short URL for KFS doc link for : " + applicationId);
 
             return kfsShortUrl;
     }
 
-    public String fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(LendingApplication lendingApplication) throws Exception {
-        String fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId();
+    public String fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
         String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
         String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
         if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())
-            throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
+            throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + applicationId);
 
         return shortUrl;
     }
