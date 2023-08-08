@@ -449,7 +449,7 @@ public class BankStatementService {
             if("COMPLETED".equalsIgnoreCase(apiResponse.getData().getStatus()) && "ANALYTICS_COMPLETE".equalsIgnoreCase(apiResponse.getData().getNotificationType())) {
                 bankStatementSessionDetails.setStatus(BankStatementSessionStatus.INPROCESS);
                 bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-                underWritingAnalysis(bankStatementSessionDetails);
+                underWritingAnalysis(bankStatementSessionDetails,  loanDashboardService.getLoanDashboardApiVersion(bankStatementSessionDetails.getMerchantId()));
             }
         } catch (Exception e) {
             log.error("Exception in checking status of AA session with orderId : {}, {}", orderId, e.getMessage());
