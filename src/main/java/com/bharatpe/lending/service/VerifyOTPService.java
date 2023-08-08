@@ -211,10 +211,10 @@ public class VerifyOTPService {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             logger.info("deleting cached key of loan details in verifyOtp flow for merchant: {}", merchant.getId());
             lendingCache.delete(loanDetailsCacheKey);
+            loanDashboardService.deleteLoanDashboardCache(merchant.getId());
         } else {
             logger.info("merchant id not found in verifyOtp flow");
         }
-        loanDashboardService.deleteLoanDashboardCache(merchant.getId());
 
         Map<String, Object> finalResponse = new LinkedHashMap<>();
         finalResponse.put("success", false);
