@@ -468,7 +468,7 @@ public class VerifyOTPService {
         }
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
-        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantBasicDetailsDto.getId(), lendingApplication);
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(lendingApplication.getMerchantId(), lendingApplication);
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
