@@ -396,4 +396,37 @@ public class BankStatementService {
         }
     }
 
+
+    public void checkAASessionStatus(String orderId, String eventValue) {
+        try {
+            BankStatementSessionDetails bankStatementSessionDetails = bankStatementSessionDetailsDao.findByOrderId(orderId);
+            if(ObjectUtils.isEmpty(bankStatementSessionDetails) || !"ACCOUNT_AGGREGATOR".equalsIgnoreCase(bankStatementSessionDetails.getType())) {
+                log.info("No Account-Aggregator session found for given orderId : {}", orderId);
+                return;
+            }
+            AccountAggregatorInitiateResponseDTO apiResponse = financeUtilsHandler.AAStatusCheck(orderId);
+            if(ObjectUtils.isEmpty(apiResponse) || ObjectUtils.isEmpty(apiResponse.getData()) || !apiResponse.getSuccess()) {
+                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                bankStatementSessionDetails.setRejectReason(eventValue);
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                return;
+            }
+            if ("INITIATED".equalsIgnoreCase(apiResponse.getData().getStatus()) || ("FAILED").equalsIgnoreCase(apiResponse.getData().getStatus()) || ("PROCESSING").equalsIgnoreCase(apiResponse.getData().getStatus())) {
+                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
+                bankStatementSessionDetails.setRejectReason(eventValue);
+                bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                return;
+            }
+            if("COMPLETED".equalsIgnoreCase(apiResponse.getData().getStatus()) && "ANALYTICS_COMPLETE".equalsIgnoreCase(apiResponse.getData().getNotificationType())) {
+                bankStatementSessionDetails.setStatus(BankStatementSessionStatus.INPROCESS);
+                bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+                underWritingAnalysis(bankStatementSessionDetails);
+            }
+        } catch (Exception e) {
+            log.error("Exception in checking status of AA session with orderId : {}, {}", orderId, e.getMessage());
+        }
+    }
 }

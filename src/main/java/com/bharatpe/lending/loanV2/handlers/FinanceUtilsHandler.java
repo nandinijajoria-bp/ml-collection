@@ -68,6 +68,8 @@ public class FinanceUtilsHandler {
 
     public String AA_BANK_LIST_API = "/api/account-aggregator/fetch/metaData";
 
+    public String AA_STATUS_CHECK_API = "/api/account-aggregator/check/status";
+
     public Gst3bSessionResponseDTO sendGst3bOtp(String gstIn, String userName, String orderId, Long merchantId) {
         try {
             log.info("In financeUtils handler");
@@ -302,6 +304,32 @@ public class FinanceUtilsHandler {
                  | HttpClientErrorException
                  | ResourceAccessException exception) {
             log.error("exception in exception fetching bank list :{} {}", exception.getMessage(), exception);
+        }
+        return null;
+    }
+
+    public AccountAggregatorInitiateResponseDTO AAStatusCheck(String orderId) {
+        try {
+            log.info("In financeUtils handler");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Client-Name", CLIENT);
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("orderId", orderId);
+            headers.set("hash", lendingHmacCalculator.calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), getInternalSecret()));
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            String url = FINANCE_UTILS_BASE_URL + AA_STATUS_CHECK_API;
+            log.info("Account Aggregator status check api request url: {} request: {}", url, request);
+            ResponseEntity<AccountAggregatorInitiateResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, request, AccountAggregatorInitiateResponseDTO.class);
+            if (ObjectUtils.isEmpty(response.getBody())) {
+                return null;
+            }
+            log.info("Account Aggregator status check api response url: {} response: {}", url, response.getBody());
+            return response.getBody();
+        } catch (HttpServerErrorException
+                 | HttpClientErrorException
+                 | ResourceAccessException exception) {
+            log.error("exception in account Aggregator status check :{} {}", exception.getMessage(), exception);
         }
         return null;
     }
