@@ -341,19 +341,21 @@ public class LendingApplicationServiceV2 {
                         aadharDigilocker = true;
                         log.info("Aadhar is digilocker approved for : {}", merchant.getId());
                     }
-                } else if (kycDoc.getDocType() != null && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
-                    lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
-                    if(Objects.isNull(lendingApplicationKycDetails.getPanApprovedAt()))lendingApplicationKycDetails.setPanApprovedAt(new Date());
-                    panCardApproved = true;
-                    log.info("Pan Card is valid for : {}", merchant.getId());
-                } else if (kycDoc.getDocType() != null && KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                }
+//                else if (kycDoc.getDocType() != null && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+//                    lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
+//                    if(Objects.isNull(lendingApplicationKycDetails.getPanApprovedAt()))lendingApplicationKycDetails.setPanApprovedAt(new Date());
+//                    panCardApproved = true;
+//                    log.info("Pan Card is valid for : {}", merchant.getId());
+//                }
+                else if (kycDoc.getDocType() != null && KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
                     lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
                     panNoApproved = true;
                     log.info("Pan No is valid for : {}", merchant.getId());
                 }
             }
             lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
-            if (selfieValid && aadharValid && aadharDigilocker && panCardApproved && panNoApproved) {
+            if (selfieValid && aadharValid && aadharDigilocker && panNoApproved) {
                 lendingApplicationKycDetails.setConsentDate(new Date());
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
                 log.info("Kyc details verified for merchant : {}", merchant.getId());
@@ -363,8 +365,8 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(kycDeepLink);
             }
             List<KycDocType> docTypes = new ArrayList<>();
-            if (!panCardApproved) {
-                docTypes.add(KycDocType.PAN_CARD);
+            if (!panNoApproved) {
+//                docTypes.add(KycDocType.PAN_CARD);
                 docTypes.add(KycDocType.PAN_NO);
             }
             docTypes.add(KycDocType.SELFIE);

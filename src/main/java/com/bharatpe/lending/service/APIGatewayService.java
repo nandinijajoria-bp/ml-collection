@@ -2330,11 +2330,7 @@ public class APIGatewayService {
             Date dateOfBirth = null;
             List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId);
             for(KycDoc kycDoc : kycDocs){
-                if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.PAN_CARD.equals(kycDoc.getDocType()) &&
-                        KycDocStatus.APPROVED.equals(kycDoc.getStatus()) && Objects.nonNull(kycDoc.getDob())) {
-                    dateOfBirth = parseKycDob(kycDoc.getDob());
-                }
-                else if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.POA.equals(kycDoc.getDocType()) &&
+                if (Objects.nonNull(kycDoc.getDocType()) && KycDocType.POA.equals(kycDoc.getDocType()) &&
                         KycDocStatus.APPROVED.equals(kycDoc.getStatus()) && Objects.nonNull(kycDoc.getDob())){
                     dateOfBirth = parseKycDob(kycDoc.getDob());
                 }

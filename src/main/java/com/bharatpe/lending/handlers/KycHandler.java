@@ -61,7 +61,7 @@ public class KycHandler {
 
     private static String clientSecret;
 
-    private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
+    private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.POA);
 
     private HttpHeaders getApiHeaders(Map<String, Object> requestBody) {
         String payload = lendingHmacCalculator.getObjectPayload(requestBody);
@@ -86,7 +86,7 @@ public class KycHandler {
     public List<KycDoc> getKycDoc(Long merchantId) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         try {
-            String docs = "PAN_NO,PAN_CARD,SELFIE,POA";
+            String docs = "PAN_NO,SELFIE,POA";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("docs", docs);
@@ -115,7 +115,7 @@ public class KycHandler {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
             String validAfter = sdf.format(validAfterDate);
-            String docs = "PAN_NO,PAN_CARD,SELFIE,POA";
+            String docs = "PAN_NO,SELFIE,POA";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("validAfter", validAfter);
