@@ -67,7 +67,7 @@ public class LoanDashboardService {
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
 
-    @Value("${loan.version.api.refresh.window:5}")
+    @Value("${loan.version.api.refresh.window:60}")
     int loanVersionApiRefreshWindow;
 
     @Autowired
@@ -732,7 +732,7 @@ public class LoanDashboardService {
             addCacheDto.setKey(LoanDetailsConstant.LENDING_VERSION_KEY_PREFIX+merchantId);
             addCacheDto.setValue(objectMapper.writeValueAsString(loanDashboardApiVersion));
             addCacheDto.setTtl(loanVersionApiRefreshWindow);
-            lendingCache.add(addCacheDto, TimeUnit.DAYS);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
         } catch (Exception e) {
             log.error("exception occured while caching version detail for {} !!", LoanDetailsConstant.LENDING_VERSION_KEY_PREFIX+merchantId);
         }
