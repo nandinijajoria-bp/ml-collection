@@ -957,14 +957,16 @@ public class FosService {
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
                 return lendingRiskVariables != null ? lendingRiskVariables.getLoanType() : null;
             case "maybe":
-                MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantId);
-                if (ObjectUtils.isEmpty(merchantResponseDTO)) {
-                    throw new MerchantSummaryExceptionHandler(merchantId.toString());
-                }
-                return (!ObjectUtils.isEmpty(merchantResponseDTO.getUniqueCustomer1mon()) && merchantResponseDTO.getUniqueCustomer1mon() > 15 &&
-                        !ObjectUtils.isEmpty(merchantResponseDTO.getFirstTransactionDate()) &&
-                        dateTimeUtil.getDateDiffInDays(dateTimeUtil.getCurrentDate(), merchantResponseDTO.getFirstTransactionDate()) > 60 &&
-                        merchantResponseDTO.getBpScore() >= 9) ? "REGULAR" : "NTB";
+//                MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchantId);
+//                if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+//                    throw new MerchantSummaryExceptionHandler(merchantId.toString());
+//                }
+//                return (!ObjectUtils.isEmpty(merchantResponseDTO.getUniqueCustomer1mon()) && merchantResponseDTO.getUniqueCustomer1mon() > 15 &&
+//                        !ObjectUtils.isEmpty(merchantResponseDTO.getFirstTransactionDate()) &&
+//                        dateTimeUtil.getDateDiffInDays(dateTimeUtil.getCurrentDate(), merchantResponseDTO.getFirstTransactionDate()) > 60 &&
+//                        merchantResponseDTO.getBpScore() >= 9) ? "REGULAR" : "NTB";
+                return "REGULAR";
+
             default:
                 return null;
         }
