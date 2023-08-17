@@ -1350,7 +1350,8 @@ public class LoanDetailsServiceV2 {
         String mobile = merchant.getMobile().substring(2);
         Long merchantId = merchant.getId();
         log.info("calling bureau handler");
-        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile);
+        Long days = 60L;
+        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile, days);
         CreditScoreReportDetailDTO creditScoreDetails;
         if (ObjectUtils.isEmpty(bureauResponseDTO) || Objects.isNull(bureauResponseDTO.getVariables()) || Objects.isNull(bureauResponseDTO.getVariables().getCreditScoreReportDetailDTO()))
             return new ApiResponse<>(false, "Bureau Data not found");
@@ -1381,7 +1382,7 @@ public class LoanDetailsServiceV2 {
         String pan_card = commonAPIRequest.getPayload().get("pan_card") != null ? commonAPIRequest.getPayload().get("pan_card").toString() : null;
         String mobile = merchant.getMobile().substring(2);
         Long merchantId = merchant.getId();
-        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile);
+        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile, 30L);
 
         LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO;
         if (ObjectUtils.isEmpty(bureauResponseDTO) || Objects.isNull(bureauResponseDTO.getVariables()) || Objects.isNull(bureauResponseDTO.getVariables().getLoanAndCreditCardDetailDTO()))

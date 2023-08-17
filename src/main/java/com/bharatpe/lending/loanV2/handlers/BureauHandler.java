@@ -32,7 +32,7 @@ public class BureauHandler {
     @Value("${bureau.base.url}")
     public String BUREAU_BASE_URL;
 
-    public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile) {
+    public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days) {
         try {
             log.info("in bureau handler");
             HttpHeaders headers = new HttpHeaders();
@@ -49,7 +49,7 @@ public class BureauHandler {
             }
             requestBody.put("source", "EASY_LOANS");
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-            final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days=30";
+            final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days" + "=" + days;
             log.info("BureauHandler call for phone: {}",mobile);
 
             ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);

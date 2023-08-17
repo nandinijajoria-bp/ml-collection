@@ -664,7 +664,7 @@ public class LenderAssignService implements ILenderAssignService {
             }
             BureauResponseDTO responseDTO = null;
             if(!ObjectUtils.isEmpty(merchantDetails)){
-                responseDTO = bureauHandler.getBureauData(merchantDetails.getPanNumber(), merchantDetails.getId(), merchantDetails.getMobile());
+                responseDTO = bureauHandler.getBureauData(merchantDetails.getPanNumber(), merchantDetails.getId(), merchantDetails.getMobile(), 30L);
             }
             if(ObjectUtils.isEmpty(responseDTO) || ObjectUtils.isEmpty(responseDTO.getVariables()) || ObjectUtils.isEmpty(responseDTO.getVariables().getMaxDpd6Months())){
                 flag = false;
