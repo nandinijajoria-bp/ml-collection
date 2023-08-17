@@ -805,14 +805,7 @@ public class FosService {
 
     public ResponseDTO checkMerchantEligibilty(Long merchantId, Boolean forceEligibilityCheck) {
         try {
-//            Merchant merchant = merchantDao.getById(merchantId);
-            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
-            // check for existing merchant
-            if (!merchant.isPresent()) {
-                logger.info("non existing merchant {}", merchantId);
 
-                return computeEligibilityParams("ineligible", null, merchantId, "non existing merchant");
-            }
             // is a store/d2r merchant
 //            if ("ORGANIZED".equalsIgnoreCase(merchant.get().getCorrectMerchantType())
 ////                    || partnersApiHandler.isD2RMerchant(merchantId)
@@ -861,7 +854,7 @@ public class FosService {
 //                }
 //            }
 
-            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.get().getId());
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             // lending applications
             if (Objects.nonNull(lendingApplication)) {
                 //draft
@@ -915,13 +908,13 @@ public class FosService {
                             // closed loans and eligibility check
                             else if (lendingPaymentSchedule.getStatus().equalsIgnoreCase("CLOSED")) {
                                 logger.info("merchant {} has a closed loan", merchantId);
-                                return computeEligibilityParams(hasFinalOfferGtZero(merchant.get(), forceEligibilityCheck), null, merchantId, "closed loan");
+                                return computeEligibilityParams(hasFinalOfferGtZero(merchantId, forceEligibilityCheck), null, merchantId, "closed loan");
                             }
                         }
                     }
                 }
             }
-            String finalOfferEligibility = hasFinalOfferGtZero(merchant.get(), forceEligibilityCheck);
+            String finalOfferEligibility = hasFinalOfferGtZero(merchantId, forceEligibilityCheck);
             return finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId, null) : computeEligibilityParams(finalOfferEligibility, null, merchantId, "no existing offer found");
         } catch (Exception e) {
             logger.error("error while checking fos loan eligibility for merchant: {}", merchantId, e);
@@ -929,7 +922,7 @@ public class FosService {
         return new ResponseDTO(Boolean.FALSE, "something went wrong !!");
     }
 
-    public String hasFinalOfferGtZero(BasicDetailsDto merchant, Boolean forceEligibilityCheck) {
+    public String hasFinalOfferGtZero(Long merchantId, Boolean forceEligibilityCheck) {
 //        if (forceEligibilityCheck) {
 //            try {
 //                String globalDetailsCacheKey = "LENDING_GLOBAL_DETAILS_" + merchant.getId();
@@ -942,7 +935,7 @@ public class FosService {
 //                logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);
 //            }
 //        }
-        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
         if (Objects.isNull(lendingRiskVariables)) {
             return "maybe";
         } else if (!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() > 0) {
