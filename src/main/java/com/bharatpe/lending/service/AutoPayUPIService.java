@@ -104,8 +104,8 @@ public class AutoPayUPIService {
     }
 
     public String handleMandatePgCallback(PgPaymentCallbackDTO request) {
-        log.info("Received mandate callback request for order ID {} : {}", request.getOrderId(), request);
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findByOrderId(request.getOrderId());
+        log.info("Received mandate callback request for order ID {} : {}", request.getMandate().getOrderId(), request);
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByOrderId(request.getMandate().getOrderId());
         try {
             if (autoPayUPI == null) {
                 log.error("No order for order id {}", request.getOrderId());

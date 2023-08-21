@@ -13,11 +13,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import javax.persistence.Column;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Objects;
 import java.util.Optional;
+
+import static com.bharatpe.lending.constant.LendingConstants.UPI;
+import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
 
 @Slf4j
 @Service
@@ -30,6 +31,13 @@ public class LendingCollectionAuditService {
 
     @Autowired
     HightpvLenderDetailsDao hightpvLenderDetailsDao;
+
+    private String getAdjustmentMode(String adjustmentModeFromLedger) {
+        if ((UPI_AUTOPAY_ADJUSTMENT_MODE).equalsIgnoreCase(adjustmentModeFromLedger))
+            return UPI;
+
+        return adjustmentModeFromLedger;
+    }
 
     public void sendCollectionAudit(LendingLedger lendingLedger){
         try {
@@ -55,34 +63,34 @@ public class LendingCollectionAuditService {
                     return;
                 }
             }
-            LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
-                    .merchantId(lendingLedger.getMerchantId())
-                    .merchantStoreId(lendingLedger.getMerchantStoreId())
-                    .loanId(lendingLedger.getLendingPaymentSchedule().getId())
-                    .ledgerId(lendingLedger.getId())
-                    .applicationId(lendingLedger.getLendingPaymentSchedule().getApplicationId())
-                    .bpLoanId(bpLoanId)
-                    .nbfcId(nbfcId)
-                    .settlementId(lendingLedger.getSettlementId())
-                    .txnType(lendingLedger.getTxnType())
-                    .transferType(lendingLedger.getTransferType())
-                    .transferDate(lendingLedger.getDate())
-                    .status("PENDING")
-                    .amount(lendingLedger.getAmount())
-                    .description(lendingLedger.getDescription())
-                    .principle(lendingLedger.getPrinciple())
-                    .interest(lendingLedger.getInterest())
-                    .otherCharges(lendingLedger.getOtherCharges())
-                    .penalty(lendingLedger.getPenalty())
-                    .adjustmentMode(lendingLedger.getAdjustmentMode())
-                    .transferType(lendingLedger.getTransferType())
-                    .terminalOrderId(lendingLedger.getTerminalOrderId())
-                    .lender(lendingLedger.getLendingPaymentSchedule().getNbfc())
-                    .loanStatus(lendingLedger.getLendingPaymentSchedule().getStatus())
-                    .loanClosingDate(lendingLedger.getLendingPaymentSchedule().getClosingDate())
-                    .mobile(lendingLedger.getLendingPaymentSchedule().getMobile())
-                    .build();
-            lendingCollectionAuditDao.save(lendingCollectionAudit);
+                LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
+                        .merchantId(lendingLedger.getMerchantId())
+                        .merchantStoreId(lendingLedger.getMerchantStoreId())
+                        .loanId(lendingLedger.getLendingPaymentSchedule().getId())
+                        .ledgerId(lendingLedger.getId())
+                        .applicationId(lendingLedger.getLendingPaymentSchedule().getApplicationId())
+                        .bpLoanId(bpLoanId)
+                        .nbfcId(nbfcId)
+                        .settlementId(lendingLedger.getSettlementId())
+                        .txnType(lendingLedger.getTxnType())
+                        .transferType(lendingLedger.getTransferType())
+                        .transferDate(lendingLedger.getDate())
+                        .status("PENDING")
+                        .amount(lendingLedger.getAmount())
+                        .description(lendingLedger.getDescription())
+                        .principle(lendingLedger.getPrinciple())
+                        .interest(lendingLedger.getInterest())
+                        .otherCharges(lendingLedger.getOtherCharges())
+                        .penalty(lendingLedger.getPenalty())
+                        .adjustmentMode(getAdjustmentMode(lendingLedger.getAdjustmentMode()))
+                        .transferType(lendingLedger.getTransferType())
+                        .terminalOrderId(lendingLedger.getTerminalOrderId())
+                        .lender(lendingLedger.getLendingPaymentSchedule().getNbfc())
+                        .loanStatus(lendingLedger.getLendingPaymentSchedule().getStatus())
+                        .loanClosingDate(lendingLedger.getLendingPaymentSchedule().getClosingDate())
+                        .mobile(lendingLedger.getLendingPaymentSchedule().getMobile())
+                        .build();
+                lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
             log.error("Error in creating collection audit for ledger id {}, {}", lendingLedger.getId(), Arrays.asList(e.getStackTrace()));
         }
