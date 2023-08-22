@@ -379,7 +379,8 @@ public class MerchantLoansService {
                     Optional<AutoPayUPI> autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, loan.getApplicationId());
                     if (autoPayUPI.isPresent()) {
                         log.info("autoPay UPI is present {}",autoPayUPI);
-                        if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING))
+                        if (autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.PENDING) ||
+                                autoPayUPI.get().getStatus().equals(AutoPayStatusEnum.INIT))
                         {
                             Date createdMandateDate = autoPayUPI.get().getCreatedAt();
                             long diffMinutes = calculateTimeDiff(createdMandateDate);
@@ -387,7 +388,7 @@ public class MerchantLoansService {
                             if (diffMinutes >= 30L) {
                                 autoPayUPI.get().setStatus(AutoPayStatusEnum.FAILED);
                                 autoPayUPIDao.save(autoPayUPI.get());
-                                log.info("status for mandate register marked as failed for merchant id {} application id {}",
+                                log.info("status for mandate register marked as failed due to tat for merchant id {} application id {}",
                                         autoPayUPI.get().getMerchantId(), autoPayUPI.get().getApplicationId());
                             }
                         }
@@ -396,8 +397,18 @@ public class MerchantLoansService {
                     }
 
                     Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
-                    if (loanDpd.isPresent() && loanDpd.get().getDpd()<3)
-                        loan.setAutoPayEligibility(true);
+                    log.info("loan dpd{} for merchant id is {}",loanDpd.get(), merchantId);
+                    if (loanDpd.isPresent() && loanDpd.get().getDpd()<3 && loanDpd.get().getDpd()!=0) {
+                        log.info("merchant id is {}",merchantId);
+                        if (easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.upiPercent)
+                                && "LDC".equalsIgnoreCase(loan.getLender())) {
+                            loan.setAutoPayEligibility(Boolean.TRUE);
+                        }
+                        else {
+                            loan.setAutoPayEligibility(Boolean.FALSE);
+                        }
+
+                    }
                     else
                         loan.setAutoPayEligibility(Boolean.FALSE);
                 }
