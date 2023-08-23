@@ -43,6 +43,7 @@ public class GlobalLimitResponse {
         Boolean isClubV2Member;
         Boolean bankAffectedOffer;
         Boolean gst3bAffectedOffer;
+        private Boolean preApprovedLoan;
     }
 
     @lombok.Data

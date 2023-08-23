@@ -183,6 +183,7 @@ public class EligibilityV3Service {
             log.info("Global limit for merchant:{} is {}", eligibilityStateDTO.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
+            eligibilityStateDTO.setPreApprovedLoan(globalLimitResponse.getData().getPreApprovedLoan());
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
@@ -205,6 +206,7 @@ public class EligibilityV3Service {
             log.info("Global limit for merchant:{} is {}", eligibilityStateDTO.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
+            eligibilityStateDTO.setPreApprovedLoan(globalLimitResponse.getData().getPreApprovedLoan());
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());

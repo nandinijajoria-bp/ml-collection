@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 @Component
 @Slf4j
@@ -41,7 +42,13 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
     @Override
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
+        //TODO : put condition for repeat preapproved loan
+        if(Objects.nonNull(lendingStateDTO.getData().getPreApprovedLoan()) && lendingStateDTO.getData().getPreApprovedLoan()){
+            lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+        }
+        else{
+            lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
+        }
         return lendingStateDTO;
     }
 
