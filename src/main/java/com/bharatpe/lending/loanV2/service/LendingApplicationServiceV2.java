@@ -2699,7 +2699,7 @@ public class LendingApplicationServiceV2 {
                     if (KycDocType.POA.equals(kycDoc.getDocType())) {
                         lendingGstDetail.setAddress1(kycDoc.getAddress());
                         lendingGstDetail.setCity(kycDoc.getCity());
-                        lendingApplication.setPincode(Long.valueOf(kycDoc.getPincode()));
+//                        lendingApplication.setPincode(Long.valueOf(kycDoc.getPincode()));
                         lendingGstDetail.setState(kycDoc.getState());
                         lendingGstDetail.setAddress2(null);
                         lendingGstDetail.setLandmark(null);
