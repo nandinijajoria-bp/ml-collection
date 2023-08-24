@@ -28,6 +28,7 @@ import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.NBFCService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -120,6 +121,9 @@ public class VerifyOTPService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    NBFCService nbfcService;
 
     @Autowired
     RedisNotificationService redisNotificationService;
@@ -653,6 +657,13 @@ public class VerifyOTPService {
             activeLoan.setDuePrinciple(0D);
             activeLoan.setDueInterest(0D);
             lendingPaymentScheduleDao.save(activeLoan);
+
+            if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
+                if ("LDC".equals(activeLoan.getLoanApplication().getLender())) {
+                    nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
+                }
+            }
+
             lendingCollectionAuditService.sendCollectionAudit(lendingLedger, activeLoan);
 
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
