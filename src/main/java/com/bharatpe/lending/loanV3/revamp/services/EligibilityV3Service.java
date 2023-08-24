@@ -184,6 +184,7 @@ public class EligibilityV3Service {
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
             eligibilityStateDTO.setPreApprovedLoan(globalLimitResponse.getData().getPreApprovedLoan());
+            eligibilityStateDTO.setRiskSegment(globalLimitResponse.getData().getRiskSegment());
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());

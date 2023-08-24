@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -42,8 +44,9 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
     @Override
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        //TODO : put condition for repeat preapproved loan
-        if(Objects.nonNull(lendingStateDTO.getData().getPreApprovedLoan()) && lendingStateDTO.getData().getPreApprovedLoan()){
+        if(Objects.nonNull(lendingStateDTO.getData().getPreApprovedLoan()) && lendingStateDTO.getData().getPreApprovedLoan() &&
+                Objects.nonNull(lendingStateDTO.getData().getRiskSegment()) && RiskSegment.REPEAT.name().equalsIgnoreCase(lendingStateDTO.getData().getRiskSegment())
+        ){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
         }
         else{
