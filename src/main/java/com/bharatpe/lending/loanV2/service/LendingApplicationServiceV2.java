@@ -515,9 +515,7 @@ public class LendingApplicationServiceV2 {
     private ApiResponse<?> createNewApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
-            if(applicationRequest.isPreapprovedRepeatLoan()){
-                fetchPreviousApplicationData(merchant.getId(), applicationRequest);
-            }
+            checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
 
             AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
             String error = baseChecks(merchant, applicationRequest);
@@ -887,15 +885,18 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    public void fetchPreviousApplicationData(Long merchantId, CreateApplicationRequest applicationRequest){
+    public void checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest){
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
         if (lendingRiskVariables != null) {
             String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
             if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
                 log.info("loan request is pre-approved repeat for {}", merchantId);
+                fetchPreviousApplicationData(merchantId, applicationRequest);
             }
-            else return;
         }
+    }
+
+    public void fetchPreviousApplicationData(Long merchantId, CreateApplicationRequest applicationRequest){
         LendingApplication prevApplication =
                 lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "APPROVED");
         log.info("pervious application for merchant {} : {}", merchantId, prevApplication);
