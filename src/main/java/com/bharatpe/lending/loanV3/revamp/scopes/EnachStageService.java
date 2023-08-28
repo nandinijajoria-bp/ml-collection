@@ -13,6 +13,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -75,7 +76,10 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EnachStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
+        if(lendingStateDTO.getData().isTopup()){
+            lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+        }
+        else lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
         return lendingStateDTO;
     }
 
@@ -125,6 +129,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
         if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())){
             enachStateDTO.setEnachDone("APPROVED".equalsIgnoreCase(openApplication.getNachStatus()));
+            enachStateDTO.setTopup(true);
         }
 
         if (!StringUtils.isEmpty(enachStateDTO.getEnachDeeplink())) {
@@ -132,7 +137,10 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
 
         if(Objects.nonNull(enachStateDTO.getEnachDone()) && enachStateDTO.getEnachDone()){
-            loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            if(LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())){
+                loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.AGREEMENT_PAGE);
+            }
+            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
         }
 
         enachStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));

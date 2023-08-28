@@ -164,8 +164,9 @@ public class LoanDetailsV3Response {
         applicationDetails.setApplicationId(agreementStateDTO.getApplicationId());
         applicationDetails.setLoanAmount(agreementStateDTO.getLoanAmount());
         applicationDetails.setEnachBank(agreementStateDTO.getEnachBank());
+        if(agreementStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
+        else loanDetailsV3Response.setLoanApplication(applicationDetails);
 
-        loanDetailsV3Response.setLoanApplication(applicationDetails);
         loanDetailsV3Response.setLender(agreementStateDTO.getLender());
         loanDetailsV3Response.setInterestRate(agreementStateDTO.getInterestRate());
         loanDetailsV3Response.setArrangerFee(agreementStateDTO.getArrangerFee());
@@ -263,7 +264,8 @@ public class LoanDetailsV3Response {
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
-        loanDetailsV3Response.setLoanApplication(applicationDetails);
+        if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
+        else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
 
     public static LoanDetailsV3Response populateResponseForRequestWithoutScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response) {

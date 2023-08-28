@@ -25,4 +25,5 @@ public class EnachStateDTO {
     private Long nachStartedAt;
     private String nachSessionStatus;
     private String nachSessionMode;
+    private boolean isTopup;
 }

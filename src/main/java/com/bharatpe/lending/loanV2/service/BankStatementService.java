@@ -430,12 +430,13 @@ public class BankStatementService {
                 log.info("No Account-Aggregator session found for given orderId : {}", orderId);
                 return;
             }
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(bankStatementSessionDetails.getMerchantId());
             AccountAggregatorInitiateResponseDTO apiResponse = financeUtilsHandler.AAStatusCheck(orderId);
             if(ObjectUtils.isEmpty(apiResponse) || ObjectUtils.isEmpty(apiResponse.getData()) || !apiResponse.getSuccess()) {
                 bankStatementSessionDetails.setStatus(BankStatementSessionStatus.FAILED);
                 bankStatementSessionDetails.setRejectReason(eventValue);
                 bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                sendFunnelEvent(bankStatementSessionDetails.getMerchantId(), FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject", loanDashboardApiVersion);
                 return;
             }
             if ("INITIATED".equalsIgnoreCase(apiResponse.getData().getStatus()) || ("FAILED").equalsIgnoreCase(apiResponse.getData().getStatus()) || ("PROCESSING").equalsIgnoreCase(apiResponse.getData().getStatus())) {
@@ -443,7 +444,7 @@ public class BankStatementService {
                 bankStatementSessionDetails.setRejectReason(eventValue);
                 bankStatementSessionDetails.setRequestId(apiResponse.getRequestId());
                 bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-                funnelService.submitEvent(bankStatementSessionDetails.getMerchantId(), null, null, FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject");
+                sendFunnelEvent(bankStatementSessionDetails.getMerchantId(), FunnelEnums.StageId.ACCOUNT_AGGREGATOR, FunnelEnums.StageEvent.REJECT, "account_aggregator_initiate_reject", loanDashboardApiVersion);
                 return;
             }
             if("COMPLETED".equalsIgnoreCase(apiResponse.getData().getStatus()) && "ANALYTICS_COMPLETE".equalsIgnoreCase(apiResponse.getData().getNotificationType())) {
