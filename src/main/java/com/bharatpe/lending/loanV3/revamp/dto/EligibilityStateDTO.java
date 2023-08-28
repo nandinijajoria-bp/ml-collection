@@ -44,6 +44,7 @@ public class EligibilityStateDTO {
     private String stageOneHitId;
     private String stageTwoHitId;
     private Boolean preApprovedLoan = false;
+    private Boolean isPreapprovedRepeatLoan = false;
     private String riskSegment;
 
 }

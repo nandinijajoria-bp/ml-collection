@@ -48,6 +48,7 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
                 Objects.nonNull(lendingStateDTO.getData().getRiskSegment()) && RiskSegment.REPEAT.name().equalsIgnoreCase(lendingStateDTO.getData().getRiskSegment())
         ){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+            lendingStateDTO.getData().setIsPreapprovedRepeatLoan(true);
         }
         else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
