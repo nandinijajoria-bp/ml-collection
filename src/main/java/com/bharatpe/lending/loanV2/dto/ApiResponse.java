@@ -16,11 +16,20 @@ public class ApiResponse<T> {
     public boolean success;
     public String message;
     public T data;
+    private String errorCode;
+
 
     public ApiResponse(boolean success, String message) {
         this.success = success;
         this.message = message;
     }
+
+    public ApiResponse(boolean success, String errorCode,String message) {
+        this.success = success;
+        this.message = message;
+        this.errorCode=errorCode;
+    }
+
 
     public ApiResponse(T data) {
         this.data = data;

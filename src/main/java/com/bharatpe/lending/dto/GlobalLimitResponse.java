@@ -1,6 +1,7 @@
 package com.bharatpe.lending.dto;
 
 import com.bharatpe.common.entities.Experian;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.*;
 
 import java.util.List;
@@ -10,6 +11,7 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class GlobalLimitResponse {
     private boolean success;
     private String message;
@@ -20,6 +22,7 @@ public class GlobalLimitResponse {
     @AllArgsConstructor
     @NoArgsConstructor
     @ToString
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Data {
         private Long merchantId;
         private Double globalLimit;
@@ -46,6 +49,7 @@ public class GlobalLimitResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     @ToString
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class OfferDetail {
         private Double interestRate;
         private Double initialRoi;

@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import java.io.FileNotFoundException;
+import java.time.LocalDateTime;
 import java.util.*;
 
 import com.bharatpe.common.entities.*;
@@ -29,6 +30,9 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +95,9 @@ public class ImageURLService {
 
 	@Autowired
 	EasyLoanUtil easyLoanUtil;
+
+	@Autowired
+	private LoanDashboardService loanDashboardService;
 
 	@Value("${aws.s3.bucket}")
 	private String bucket;
@@ -250,6 +257,8 @@ public class ImageURLService {
 			finalResponse.add(proof);
 		}
 
+		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
+
 		if(!ObjectUtils.isEmpty(lendingShopDocumentsList)){
 
 			Boolean skipDistanceCheck = false;
@@ -268,8 +277,14 @@ public class ImageURLService {
 				lendingApplicationDetails.setSkipDistanceCheck(skipDistanceCheck);
 				lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
-				funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED, String.valueOf(skipDistanceCheck));
+				if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+					funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED, String.valueOf(skipDistanceCheck), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+				}
+				else{
+					funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED, String.valueOf(skipDistanceCheck));
+				}
 			}
 
 			Double distanceBetweenShopAndInferredLocation = null;
@@ -302,8 +317,14 @@ public class ImageURLService {
 								lendingShopDocuments.setProofBackSide(null);
 								lendingShopDocumentsDao.save(lendingShopDocuments);
 
-								funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-										FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation));
+								if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+									funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+											FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+								}
+								else{
+									funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+											FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation));
+								}
 								continue;
 							}
 						}

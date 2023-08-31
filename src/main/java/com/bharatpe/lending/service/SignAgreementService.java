@@ -29,6 +29,8 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -125,6 +127,9 @@ public class SignAgreementService {
 
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+	@Autowired
+	private LoanDetailsV3Service loanDetailsV3Service;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -788,7 +793,9 @@ public class SignAgreementService {
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(finalNewApplication.getId());
 		if(!ObjectUtils.isEmpty(lendingApplicationDetails)){
-			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());lendingApplicationDetailsDao.save(lendingApplicationDetails);
+			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), LendingViewStates.ENACH_PAGE);
 		}
 		response.put("success", true);
 		response.put("message","Application created Successfully");

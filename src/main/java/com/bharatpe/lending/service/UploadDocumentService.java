@@ -25,6 +25,9 @@ import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
 //import com.bharatpe.lending.util.UploadDocumentUtil;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +107,9 @@ public class UploadDocumentService {
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
+	@Autowired
+	private LoanDashboardService loanDashboardService;
+
     @Value("${sid.threshold}")
     Double sidThreshold;
 
@@ -140,7 +146,9 @@ public class UploadDocumentService {
 		}
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
 
-        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
+
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         if(!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())){
             Double SID = calculateShopInferredDistance(requestDTO.getMeta(), lendingApplication.getMerchantId());
             logger.info("Calculated Shop Inferred Distance for merchant:{} and application:{} is:{}", lendingApplication.getMerchantId(), lendingApplication.getId(), SID);
@@ -148,8 +156,14 @@ public class UploadDocumentService {
                 logger.info("SID iS greater than 2.5KM for merchant:{} and application:{}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 uploadDocumentResponse.setSidGreaterThanRequired(true);
 
-                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                        FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN, String.valueOf(SID));
+				if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+					funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN, String.valueOf(SID), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+				}
+				else{
+					funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN, String.valueOf(SID));
+				}
             }
         }
 
@@ -164,20 +178,27 @@ public class UploadDocumentService {
 		if(lendingShopDocumentsList.size()>0){
 			isUpdateMoreDocument = true;
 		}
-		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse,isUpdateMoreDocument, resubmitRequest);
+		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse,isUpdateMoreDocument, resubmitRequest, loanDashboardApiVersion.getApiVersion());
 
 		if(documentList.size() > 0) {
 			finalResponse.put("success", true);
 			uploadDocumentResponse.setSuccess(true);
-			funnelService.submitEvent(merchant.getId(), null, applicationId,
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+
+			if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+				funnelService.submitEventV3(merchant.getId(), null, applicationId,
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+			}
+			else{
+				funnelService.submitEvent(merchant.getId(), null, applicationId,
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+			}
 		}
 		uploadDocumentResponse.setDocument(documentList);
 //		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
 		return uploadDocumentResponse;
 	}
 	
-	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse,Boolean isUpdateMoreDocument, Boolean resubmitRequest) {
+	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse,Boolean isUpdateMoreDocument, Boolean resubmitRequest, String version) {
 		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
 		List<LendingShopDocumentsAudit> lendingShopDocumentsAuditList = new ArrayList<>();
@@ -202,7 +223,7 @@ public class UploadDocumentService {
 			LendingShopDocuments lendingShopDocuments = null;
 			if("shop-front".equalsIgnoreCase(proofType) || "shop-stock".equalsIgnoreCase(proofType) || "shop-qr".equalsIgnoreCase(proofType)){
 				if(isUpdateMoreDocument){
-					lendingShopDocuments = updateShopDocuments(proofType,frontSide,backSide,merchantBasicDetails,lendingApplication,meta);
+					lendingShopDocuments = updateShopDocuments(proofType,frontSide,backSide,merchantBasicDetails,lendingApplication,meta, version);
 				}else{
 					lendingShopDocuments = insertShopDocuments(proofType,frontSide,backSide,merchantBasicDetails,lendingApplication,meta);
 				}
@@ -244,6 +265,7 @@ public class UploadDocumentService {
 						if (!ObjectUtils.isEmpty(shopFrontStructure)) {
 							LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
 							if (!ObjectUtils.isEmpty(lendingGstDetail)) {
+								if(Objects.isNull(lendingGstDetail.getShopType()) && !ObjectUtils.isEmpty(shopFrontStructure.getDsClass()))lendingGstDetail.setShopType(shopFrontStructure.getDsClass());
 								lendingGstDetail.setComputedShopType(shopFrontStructure.getDsClass());
 								lendingGstDetail.setConfidence(shopFrontStructure.getConfidence());
 								lendingGstDao.save(lendingGstDetail);
@@ -383,7 +405,7 @@ public class UploadDocumentService {
 		return documentsIdProof;
 	}
 
-	private LendingShopDocuments updateShopDocuments(String proofType, String frontSide, String backSide, BasicDetailsDto merchant, LendingApplication lendingApplication, MetaDTO meta) {
+	private LendingShopDocuments updateShopDocuments(String proofType, String frontSide, String backSide, BasicDetailsDto merchant, LendingApplication lendingApplication, MetaDTO meta, String version) {
 		LendingShopDocuments lendingShopDocuments = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(merchant.getId(), lendingApplication.getId(), proofType);
 
 		if(lendingShopDocuments != null) {
@@ -395,9 +417,14 @@ public class UploadDocumentService {
 				lendingShopDocuments.setIp(meta.getIp());
 			}
 			lendingShopDocumentsDao.save(lendingShopDocuments);
-
-			funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.UPLOADED_AGAIN, lendingShopDocuments.getProofType());
+			if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(version)){
+				funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.UPLOADED_AGAIN, lendingShopDocuments.getProofType(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+			}
+			else{
+				funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.UPLOADED_AGAIN, lendingShopDocuments.getProofType());
+			}
 		} else {
 			lendingShopDocuments = insertShopDocuments(proofType, frontSide, backSide, merchant, lendingApplication, meta);
 		}

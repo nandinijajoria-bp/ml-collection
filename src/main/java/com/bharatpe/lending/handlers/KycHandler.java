@@ -61,7 +61,7 @@ public class KycHandler {
 
     private static String clientSecret;
 
-    private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
+    private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.POA);
 
     private HttpHeaders getApiHeaders(Map<String, Object> requestBody) {
         String payload = lendingHmacCalculator.getObjectPayload(requestBody);
@@ -86,7 +86,7 @@ public class KycHandler {
     public List<KycDoc> getKycDoc(Long merchantId) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         try {
-            String docs = "PAN_NO,PAN_CARD,SELFIE,POA";
+            String docs = "PAN_NO,SELFIE,POA";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("docs", docs);
@@ -115,7 +115,7 @@ public class KycHandler {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
             String validAfter = sdf.format(validAfterDate);
-            String docs = "PAN_NO,PAN_CARD,SELFIE,POA";
+            String docs = "PAN_NO,SELFIE,POA";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("validAfter", validAfter);
@@ -363,5 +363,57 @@ public class KycHandler {
             return data.get("name");
         }
         return null;
+    }
+
+    private List<KycDoc> getPan(Long merchantId) {
+        log.info("Getting PAN for merchant:{}", merchantId);
+        try {
+            String docs = "PAN_NO";
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchantId", merchantId);
+                put("docs", docs);
+                put("imgRequire", true);
+                put("acceptRejected", true);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=true";
+            log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
+            ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
+            log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
+            if (Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().isStatus() && responseEntity.getBody().getData() != null) {
+                return responseEntity.getBody().getData().getDocs();
+            }
+        } catch (Exception ex) {
+            log.error("Exception in getKycDoc for merchant:{}", merchantId, ex);
+        }
+        return null;
+    }
+
+    public KycStatus getPanStatus(Long merchantId){
+
+        List<KycDoc> kycDocs = getPan(merchantId);
+        if(easyLoanUtil.isDummyMerchant(merchantId) || merchantId == 10407700L) {
+            log.info("Merchant is Dummy, return kyc status as approved");
+            return KycStatus.APPROVED;
+        }
+
+        try {
+            if (!CollectionUtils.isEmpty(kycDocs)) {
+                if (kycDocs.size() < 1) return KycStatus.DRAFT;
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                        return KycStatus.REJECTED;
+                    }
+                    if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.REJECTED) && !kycDoc.getStatus().equals(KycDocStatus.APPROVED)) {
+                        return KycStatus.valueOf(kycDoc.getStatus().name());
+                    }
+                }
+                return KycStatus.APPROVED;
+            }
+        } catch (Exception e) {
+            log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
+        }
+        return KycStatus.NEW;
     }
 }

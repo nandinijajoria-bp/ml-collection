@@ -47,6 +47,11 @@ import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.loanV2.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
@@ -206,6 +211,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     CleverTapEventService cleverTapEventService;
 
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
+
     @Value("${abfl.rollout.percent:10}")
     Integer rolloutAbflPercent;
 
@@ -242,6 +250,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LmsFieldValuesDao lmsFieldValuesDao;
 
+    @Autowired
+    private LoanDashboardService loanDashboardService;
+
     @Value(("${bankstatement.enabled:false}"))
     boolean bankStatementEnabled;
 
@@ -263,15 +274,18 @@ public class LoanDetailsServiceV2 {
     @Autowired
     FinanceUtilsHandler financeUtilsHandler;
 
-
     @Autowired
     ExcessNachService excessNachService;
+
+    @Autowired
+    BankStatementService bankStatementService;
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
         try {
-            if (Objects.nonNull(request) && Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
+            if (Objects.nonNull(request) &&
+                    Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
                 if (Objects.nonNull(merchant.getId())) {
                     String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
                     log.info("deleting cached key of loan details where pan, pin is not null for merchant: {}", merchant.getId());
@@ -341,6 +355,7 @@ public class LoanDetailsServiceV2 {
                     boolean isIOS = request != null && request.isIOS();
                     LoanApplicationDetails topupApplicationDetails = setApplicationDetails(loanDetailsResponse, topupApplication, token, isIOS, experian, merchant);
                     loanDetailsResponse.setTopupLoanApplication(topupApplicationDetails);
+                    loanDetailsResponse.setShowReferencePage(false);
                 }
                 loanDetailsResponse.setActiveLoan(true);
                 return new ApiResponse<>(loanDetailsResponse);
@@ -361,8 +376,9 @@ public class LoanDetailsServiceV2 {
             }
             LendingApplication draftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(),"draft");
             String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchant.getId();
-            if(draftApplication != null) {
-                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty() && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
+            if(draftApplication != null && !"TOPUP".equalsIgnoreCase(draftApplication.getLoanType())) {
+                if(lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(), draftApplication.getId()).isEmpty()
+                        && Objects.isNull(lendingCache.get(deReferencesCacheKey))) {
                     executorService.submit(() -> {
                         log.info("Again caching MerchantReferences from de of merchantId : {} inside",merchant.getId());
                         loanUtil.callingDeForReferences(merchant.getId(),draftApplication);
@@ -431,6 +447,7 @@ public class LoanDetailsServiceV2 {
                     log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
                     loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                 }
+                //kyc checks can be removed from here...
                 boolean isIOS = request != null && request.isIOS();
                 List<LendingMerchantReferences> referencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchant.getId(),openApplication.getId());
                 log.info("ReferenceList: {}",Arrays.toString(referencesList.toArray()));
@@ -732,7 +749,7 @@ public class LoanDetailsServiceV2 {
         MutableBoolean isDerog = new MutableBoolean(false);
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null,
                 request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
-                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse);
+                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse,null);
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
@@ -798,7 +815,7 @@ public class LoanDetailsServiceV2 {
         return null;
     }
 
-    private String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
+    public String getIneligibleReason(Long merchantId, MutableBoolean isDerog, Integer pincode, GlobalLimitResponse globalLimitResponse) {
         log.info("Checking ineligible reason for merchant:{}", merchantId);
         try {
             if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
@@ -834,7 +851,7 @@ public class LoanDetailsServiceV2 {
 //        return null;
 //    }
 
-    private Eligibility createEligibility(Long merchantId) {
+    public Eligibility createEligibility(Long merchantId) {
         try {
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchantId);
             if (ObjectUtils.isEmpty(eligibleLoan)) {
@@ -1143,6 +1160,9 @@ public class LoanDetailsServiceV2 {
         }
         if (easyLoanUtil.isDummyMerchant(openApplication.getMerchantId()) || loanUtil.isEnachDone(openApplication.getMerchantId(), openApplication.getId()) ||
                 loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender())) {
+            if(ObjectUtils.isEmpty(openApplication.getNachStatus())){
+                loanDashboardService.deleteLoanDashboardCache(openApplication.getMerchantId());
+            }
             log.info("marking nach status approved for {}, {}", openApplication.getMerchantId(), openApplication.getId());
             openApplication.setNachStatus("APPROVED");
             openApplication.setNachType("ENACH");
@@ -1330,7 +1350,8 @@ public class LoanDetailsServiceV2 {
         String mobile = merchant.getMobile().substring(2);
         Long merchantId = merchant.getId();
         log.info("calling bureau handler");
-        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile);
+        Long days = 60L;
+        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile, days);
         CreditScoreReportDetailDTO creditScoreDetails;
         if (ObjectUtils.isEmpty(bureauResponseDTO) || Objects.isNull(bureauResponseDTO.getVariables()) || Objects.isNull(bureauResponseDTO.getVariables().getCreditScoreReportDetailDTO()))
             return new ApiResponse<>(false, "Bureau Data not found");
@@ -1361,7 +1382,7 @@ public class LoanDetailsServiceV2 {
         String pan_card = commonAPIRequest.getPayload().get("pan_card") != null ? commonAPIRequest.getPayload().get("pan_card").toString() : null;
         String mobile = merchant.getMobile().substring(2);
         Long merchantId = merchant.getId();
-        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile);
+        BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(pan_card, merchantId, mobile, 30L);
 
         LoanAndCreditCardDetailDTO loanAndCreditCardDetailDTO;
         if (ObjectUtils.isEmpty(bureauResponseDTO) || Objects.isNull(bureauResponseDTO.getVariables()) || Objects.isNull(bureauResponseDTO.getVariables().getLoanAndCreditCardDetailDTO()))
@@ -1409,6 +1430,12 @@ public class LoanDetailsServiceV2 {
                 log.info("No applicationId found of merchantId: {}", merchantId);
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
+
+            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
+            {
+                log.info("lending application loan Type is {} ",lendingApplication.getLoanType());
+                return new ApiResponse<>(false,"Application type is Topup");
+            }
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
             Long referencesLimit = getReferenceLimit(lendingApplication);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
@@ -1420,6 +1447,7 @@ public class LoanDetailsServiceV2 {
                 responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
                 return new ApiResponse<>(responseDto);
             }
+
             Integer totalContacts = deResponse.getTotalContacts();
             List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
 
@@ -1457,7 +1485,8 @@ public class LoanDetailsServiceV2 {
                     }
                 }
                 log.info("Successfully fetched references of merchantId: {}", merchantId);
-                responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
+                responseDto = MerchantReferencesResponseDto.builder().
+                        references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
 
             }
             return new ApiResponse<>(responseDto);
@@ -1548,8 +1577,16 @@ public class LoanDetailsServiceV2 {
                 }
 
                 log.info("Successfully saved all references of merchantId: {}", merchantId);
-                funnelService.submitEvent(merchant.getId(), null, applicationId,
-                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId, lendingApplication);
+                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    funnelService.submitEventV3(merchant.getId(), null, applicationId,
+                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                }
+                else{
+                    funnelService.submitEvent(merchant.getId(), null, applicationId,
+                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+                }
+                loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, LendingViewStates.AGREEMENT_PAGE);
                 return new ApiResponse<>(true, "Successfully updated merchant References!");
             }
 
@@ -1816,7 +1853,7 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong while posting iframe consumption event");
     }
 
-    public ApiResponse<?> underwritingDocsEligibility(Long merchantId, String docType, boolean statusCheck) {
+    public ApiResponse<?> underwritingDocsEligibility(Long merchantId, String docType, boolean statusCheck, String event) {
         try {
             log.info("UnderWritingDoc eligibility for merchantId : {}, docType : {} ", merchantId, docType);
             UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO = UnderwritingDocEligibilityDTO.builder()
@@ -1846,6 +1883,10 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(underwritingDocEligibilityDTO);
             }
 
+            if(!ObjectUtils.isEmpty(event) && !ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+                bankStatementService.checkAASessionStatus(bankStatementSessionDetails.getOrderId(), event);
+            }
+
             String orderId = null;
             String latestBsSessionStatus = null;
             String latestGst3bSessionStatus = null;
@@ -1872,17 +1913,18 @@ public class LoanDetailsServiceV2 {
                     bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
                 }
                 underwritingDocEligibilityDTO.getBankStatement().setStatus(bankStatementSessionDetails.getStatus());
+                bsSessionType = "BANK_STATEMENT".equalsIgnoreCase(bankStatementSessionDetails.getType()) ? bankStatementSessionDetails.getType() : "AA";
                 if (docType.equalsIgnoreCase("BANK_STATEMENT")) {
                     underwritingDocEligibilityDTO.setActivityStartTime(bankStatementSessionDetails.getUpdatedAt());
                     underwritingDocEligibilityDTO.setActivityStatus(bankStatementSessionDetails.getStatus().name());
                     underwritingDocEligibilityDTO.setActivityFailedError(bankStatementSessionDetails.getRejectReason());
+                    underwritingDocEligibilityDTO.setActivityType(bsSessionType);
                     orderId = bankStatementSessionDetails.getOrderId();
                 }
                 latestBsSessionTime = bankStatementSessionDetails.getUpdatedAt();
                 latestBsSessionStatus = bankStatementSessionDetails.getStatus().name();
                 bsRejectReason = bankStatementSessionDetails.getRejectReason();
                 bsOrderId = bankStatementSessionDetails.getOrderId();
-                bsSessionType = "BANK_STATEMENT".equalsIgnoreCase(bankStatementSessionDetails.getType()) ? bankStatementSessionDetails.getType() : "AA";
             }
             if (!ObjectUtils.isEmpty(gst3bSessionDetails)) {
                 log.info("Latest Gst3b session for merchantId : {},  {}", merchantId, gst3bSessionDetails);
@@ -1900,6 +1942,7 @@ public class LoanDetailsServiceV2 {
                     underwritingDocEligibilityDTO.setActivityStartTime(gst3bSessionDetails.getUpdatedAt());
                     underwritingDocEligibilityDTO.setActivityStatus(gst3bSessionDetails.getStatus().name());
                     underwritingDocEligibilityDTO.setActivityFailedError(gst3bSessionDetails.getRejectReason());
+                    underwritingDocEligibilityDTO.setActivityType("GST3B");
                     orderId = gst3bSessionDetails.getOrderId();
                 }
                 latestGst3bSessionStatus = gst3bSessionDetails.getStatus().name();
@@ -1912,22 +1955,26 @@ public class LoanDetailsServiceV2 {
                     underwritingDocEligibilityDTO.setActivityStatus(latestGst3bSessionStatus);
                     underwritingDocEligibilityDTO.setActivityStartTime(latestGst3bSessionTime);
                     underwritingDocEligibilityDTO.setActivityFailedError(gst3bRejectReason);
+                    underwritingDocEligibilityDTO.setActivityType("GST3B");
                     orderId = gstOrderId;
                 } else if (ObjectUtils.isEmpty(latestGst3bSessionStatus)) {
                     underwritingDocEligibilityDTO.setActivityStartTime(latestBsSessionTime);
                     underwritingDocEligibilityDTO.setActivityStatus(latestBsSessionStatus);
                     underwritingDocEligibilityDTO.setActivityFailedError(bsRejectReason);
+                    underwritingDocEligibilityDTO.setActivityType(bsSessionType);
                     orderId = bsOrderId;
                 } else if (!ObjectUtils.isEmpty(latestBsSessionStatus) && !ObjectUtils.isEmpty(latestGst3bSessionStatus)) {
                     if (latestBsSessionTime.compareTo(latestGst3bSessionTime) > 0) {
                         underwritingDocEligibilityDTO.setActivityStartTime(latestBsSessionTime);
                         underwritingDocEligibilityDTO.setActivityStatus(latestBsSessionStatus);
                         underwritingDocEligibilityDTO.setActivityFailedError(bsRejectReason);
+                        underwritingDocEligibilityDTO.setActivityType(bsSessionType);
                         orderId = bsOrderId;
                     } else {
                         underwritingDocEligibilityDTO.setActivityStatus(latestGst3bSessionStatus);
                         underwritingDocEligibilityDTO.setActivityStartTime(latestGst3bSessionTime);
                         underwritingDocEligibilityDTO.setActivityFailedError(gst3bRejectReason);
+                        underwritingDocEligibilityDTO.setActivityType("GST3B");
                         orderId = gstOrderId;
                     }
                 }
@@ -2174,7 +2221,7 @@ public class LoanDetailsServiceV2 {
             return underwritingDocEligibilityDTO;
         }
 
-        /***
+
         final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId).orElse(null);
         if (ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
             log.info("Bank details not found for merchantId : {}", merchantId);
@@ -2182,13 +2229,26 @@ public class LoanDetailsServiceV2 {
             return underwritingDocEligibilityDTO;
         }
         String bankAccount = bankDetailsDtoOptional.getBankName();
-        ApiResponse apiResponse = financeUtilsHandler.getAABankList(bankAccount);
-        if(ObjectUtils.isEmpty(apiResponse) || !apiResponse.isSuccess() || ObjectUtils.isEmpty(apiResponse.getData())) {
+        String AABankEnabledKey = "AA_BANK_ENABLED_" + merchantId;
+        Boolean isBankEnabledForAA = (Boolean) lendingCache.get(AABankEnabledKey);
+        if(ObjectUtils.isEmpty(isBankEnabledForAA)) {
+            ApiResponse apiResponse = financeUtilsHandler.getAABankList(bankAccount);
+            if(ObjectUtils.isEmpty(apiResponse) || !apiResponse.isSuccess() || ObjectUtils.isEmpty(apiResponse.getData())) {
+                isBankEnabledForAA = Boolean.FALSE;
+            } else  {
+                isBankEnabledForAA = Boolean.TRUE;
+            }
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(AABankEnabledKey);
+            addCacheDto.setValue(isBankEnabledForAA);
+            addCacheDto.setTtl(1);
+            lendingCache.add(addCacheDto);
+        }
+        if(!isBankEnabledForAA) {
             log.info("Linked bank : {} of merchantId : {} is not enabled for AA", bankAccount, merchantId);
             underwritingDocEligibilityDTO.getBankStatement().setAccountAggregatorActive(Boolean.FALSE);
             return underwritingDocEligibilityDTO;
         }
-         */
 
         underwritingDocEligibilityDTO.getBankStatement().setAccountAggregatorActive(Boolean.TRUE);
         return underwritingDocEligibilityDTO;

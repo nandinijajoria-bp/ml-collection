@@ -33,6 +33,7 @@ import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -176,6 +177,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+	@Autowired
+	private LoanDashboardService loanDashboardService;
 
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
@@ -1352,6 +1356,7 @@ public class LoanUtil {
 			lendingApplication.setStatus("pending_verification");
 			lendingApplicationDao.save(lendingApplication);
 			lendingResubmitTaskDao.save(resubmitTask);
+			loanDashboardService.deleteLoanDashboardCache(lendingApplication.getMerchantId());
 			return true;
 		} catch (Exception e) {
 			logger.error("exception in updating lender for {}, {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));

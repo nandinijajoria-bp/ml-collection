@@ -188,8 +188,9 @@ public class LoanDetailsControllerV2 {
     public ResponseEntity<ApiResponse<?>> getUnderWritingDocEligibility(
             @RequestParam(name = "type") String docType,
             @RequestParam(name = "statusCheck", required = false) boolean statusCheck,
+            @RequestParam(name = "event", required = false) String event,
             @RequestAttribute BasicDetailsDto merchant
     ) {
-        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck));
+        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck, event));
     }
 }

@@ -1,0 +1,37 @@
+package com.bharatpe.lending.loanV3.revamp.dto;
+
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import lombok.Builder;
+import lombok.Data;
+import lombok.ToString;
+
+@Data
+@ToString
+@Builder
+public class AgreementStateDTO {
+    private Long applicationId;
+    private String lender;
+    private Double loanAmount;
+    private Double interestRate;
+    private Integer arrangerFee;
+    private Double disbursalAmount;
+    private String tenure;
+    private Integer ediAmount;
+    private Integer ediCount;
+    private com.bharatpe.lending.loanV2.dto.AgreementResponse.Repayment repayment;
+    private BankAccountDetails accountDetails;
+    private boolean bpClubMember;
+    private boolean clubV2;
+    private boolean ediModelModified;
+    private Boolean enachBank;
+    private boolean isTopup;
+
+    @Data
+    @ToString
+    @Builder
+    public static class Repayment {
+        private Double principal;
+        private Double interest;
+        private Double total;
+    }
+}

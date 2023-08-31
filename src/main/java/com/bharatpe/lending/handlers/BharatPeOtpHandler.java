@@ -112,7 +112,7 @@ public class BharatPeOtpHandler{
             logger.info("Bharatpe verify otp Response: {}", responseEntity);
             Map<String,Object> body = responseEntity.getBody();
             Map<String,Object> data = (Map<String,Object>) body.get("data");
-            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("status")!=null && responseEntity.getBody().get("status").equals("success") && data.get("status")!=null && data.get("status").equals("verified")) {
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().get("status")!=null && responseEntity.getBody().get("status").equals("success") && data.get("verified")!=null && data.get("verified").equals(true)) {
                 responseFlag=true;
             }
         }

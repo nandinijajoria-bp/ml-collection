@@ -18,6 +18,7 @@ public class UnderwritingDocEligibilityDTO {
     private Date activityStartTime;
     private String activityStatus;
     private String activityFailedError;
+    private String activityType;
     private GST3b gst3b;
     private BankStatement bankStatement;
 

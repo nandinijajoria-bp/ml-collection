@@ -104,8 +104,8 @@ public class AutoPayUPIService {
     }
 
     public String handleMandatePgCallback(PgPaymentCallbackDTO request) {
-        log.info("Received mandate callback request for order ID {} : {}", request.getOrderId(), request);
-        AutoPayUPI autoPayUPI = autoPayUPIDao.findByOrderId(request.getOrderId());
+        log.info("Received mandate callback request for order ID {} : {}", request.getMandate().getOrderId(), request);
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByOrderId(request.getMandate().getOrderId());
         try {
             if (autoPayUPI == null) {
                 log.error("No order for order id {}", request.getOrderId());
@@ -221,6 +221,7 @@ public class AutoPayUPIService {
 
                 registerPgRequest.setNarration("Register mandate with orderId" + autoPayUPI.getOrderId());
                 registerPgRequest.setOrderId(autoPayUPI.getOrderId());
+                registerPgRequest.setCheckout("JUSPAY");
 
                 Calendar currentTimeNow = Calendar.getInstance();
                 System.out.println("Current time now : " + currentTimeNow.getTime());
@@ -230,11 +231,11 @@ public class AutoPayUPIService {
                 registerPgRequest.setMandateStartDate(epochMandateStartDate);
                 registerPgRequest.setRedirectURIDeeplink("bharatpe://dynamic?key=loan-dashboard&openfrom=pg&orderId=" + autoPayUPI.getOrderId());
 
-                if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
+               /* if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) ||
                         easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), apiGatewayService.upiPercent)) {
                     log.info("pg flow enabling for internal merchants with app version for merchant: {}", merchantBasicDetails.getId());
                     registerPgRequest.setCheckout("JUSPAY");
-                }
+                }*/
                 AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
 
                 if (registerPgResponseDto != null && registerPgResponseDto.getStatusCode() != null

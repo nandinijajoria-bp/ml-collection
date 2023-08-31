@@ -82,6 +82,9 @@ public interface LendingConstants {
 	String TOPUP_PILOT_IDENTIFIER = "TOPUP_V3";
 	String SIX_DAY_MODEL_OFF_DAY = "SUNDAY";
 
+	String UPI_AUTOPAY_ADJUSTMENT_MODE = "UPI_AUTOPAY";
+	String UPI = "UPI";
+
 	String PENNYDROP_LOCK_PREFIX = "LENDING_PENNYDROP_";
 
 }

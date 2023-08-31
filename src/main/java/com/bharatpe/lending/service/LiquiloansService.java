@@ -38,6 +38,9 @@ import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.DisbursalStageMapping;
 import com.bharatpe.lending.util.Finance;
 import com.bharatpe.lending.util.LoanUtil;
@@ -224,6 +227,9 @@ public class LiquiloansService {
     @Autowired
     @Lazy
     LiquiloansAsyncService liquiloansAsyncService;
+
+    @Autowired
+    private LoanDashboardService loanDashboardService;
 
     @Value("${enable.backdated.loan:true}")
     Boolean backdatedLoanEnabled;
@@ -597,8 +603,15 @@ public class LiquiloansService {
 
                 lendingApplicationDao.save(lendingApplication);
 
-                funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                  FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(lendingApplication.getMerchantId(), lendingApplication);
+                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                            FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                }
+                else{
+                    funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                            FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
+                }
 
                 lendingPaymentSchedule = new LendingPaymentSchedule();
 
