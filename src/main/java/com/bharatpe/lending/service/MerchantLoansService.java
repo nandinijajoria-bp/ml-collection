@@ -397,17 +397,18 @@ public class MerchantLoansService {
                     }
 
                     Optional<LoanDpd> loanDpd = loanDpdDao.findTop1ByLoanIdOrderByIdDesc(loan.getLoanId());
-                    log.info("loan dpd{} for merchant id is {}",loanDpd.get(), merchantId);
+                    if (!ObjectUtils.isEmpty(loanDpd))
+                    {
+                        log.info("loan dpd{} for merchant id is {}",loanDpd.get(), merchantId);
                     if (loanDpd.isPresent() && loanDpd.get().getDpd()<3 && loanDpd.get().getDpd()!=0) {
-                        log.info("merchant id is {}",merchantId);
+                        log.info("merchant id is {}", merchantId);
                         if (easyLoanUtil.percentScaleUp(merchantId, apiGatewayService.upiPercent)
                                 && "LDC".equalsIgnoreCase(loan.getLender())) {
                             loan.setAutoPayEligibility(Boolean.TRUE);
-                        }
-                        else {
+                        } else {
                             loan.setAutoPayEligibility(Boolean.FALSE);
                         }
-
+                    }
                     }
                     else
                         loan.setAutoPayEligibility(Boolean.FALSE);
