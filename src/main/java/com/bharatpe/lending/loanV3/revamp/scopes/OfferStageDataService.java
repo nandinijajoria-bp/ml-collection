@@ -2,13 +2,9 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.lending.common.enums.RiskSegment;
-import com.bharatpe.lending.dto.KycDoc;
-import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
-import com.bharatpe.lending.loanV3.revamp.dto.ReferenceStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
@@ -19,8 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 
 @Component
 @Slf4j
@@ -44,11 +38,8 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
     @Override
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(Objects.nonNull(lendingStateDTO.getData().getPreApprovedLoan()) && lendingStateDTO.getData().getPreApprovedLoan() &&
-                Objects.nonNull(lendingStateDTO.getData().getRiskSegment()) && RiskSegment.REPEAT.name().equalsIgnoreCase(lendingStateDTO.getData().getRiskSegment())
-        ){
+        if(lendingStateDTO.getData().getIsPreapprovedRepeatLoan()){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-            lendingStateDTO.getData().setIsPreapprovedRepeatLoan(true);
         }
         else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
