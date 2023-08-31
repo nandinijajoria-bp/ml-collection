@@ -19,5 +19,4 @@ public class CreateApplicationRequest {
     private String businessName;
     private Boolean currentAddressSameAsPermanentAddress;
     private String ip;
-    private boolean isPreapprovedRepeatLoan;
 }
