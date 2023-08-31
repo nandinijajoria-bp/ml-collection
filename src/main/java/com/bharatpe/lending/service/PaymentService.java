@@ -20,6 +20,7 @@ import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.NBFCService;
 import com.bharatpe.lending.common.service.PaymentSettlementService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -129,6 +130,9 @@ public class PaymentService {
 
     @Autowired
     RedisNotificationService redisNotificationService;
+
+    @Autowired
+    NBFCService nbfcService;
 
     @Autowired
     LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
@@ -958,7 +962,8 @@ public class PaymentService {
                 lendingPrepayment.setAdvanceEdiAmount(0D);
                 lendingPrepaymentDao.save(lendingPrepayment);
             }
-        } else {
+        }
+        else {
             double balance=amount;
             if(balance>0D && activeLoan.getDueOtherCharges()!=null && activeLoan.getDueOtherCharges()>0D) {
                 Double paidAmount=balance>=activeLoan.getDueOtherCharges()?activeLoan.getDueOtherCharges():balance;
@@ -1114,6 +1119,13 @@ public class PaymentService {
         LendingLedger lendingLedger = createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
                 preclosure), source, transferType, terminalOrderId);
         lendingPaymentScheduleDao.save(activeLoan);
+
+        if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
+            if ("LDC".equals(activeLoan.getLoanApplication().getLender())) {
+                nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
+            }
+        }
+
         if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
             redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
         }
@@ -1747,6 +1759,12 @@ public class PaymentService {
         }
 
         lendingPaymentScheduleDao.save(activeLoan);
+
+        if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
+            if ("LDC".equals(activeLoan.getLoanApplication().getLender())) {
+                nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
+            }
+        }
 
         boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
