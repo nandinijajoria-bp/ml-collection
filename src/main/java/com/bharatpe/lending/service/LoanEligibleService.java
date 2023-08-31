@@ -7,8 +7,6 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
-import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -84,9 +82,6 @@ public class LoanEligibleService {
 
     @Autowired
     LendingLedgerDao lendingLedgerDao;
-
-    @Autowired
-    LendingLedgerSlaveDao lendingLedgerSlaveDao;
 
 //    @Autowired
 //    EmailHandler emailHandler;
@@ -1107,7 +1102,7 @@ public class LoanEligibleService {
             return 0;
         }
         LendingLedger lastEDI = lendingLedgerDao.findLastEDIDueEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-        LendingLedgerSlave lastPayment = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+        LendingLedger lastPayment = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
         if (lastEDI == null || lastPayment == null) {
             return 0;
         }

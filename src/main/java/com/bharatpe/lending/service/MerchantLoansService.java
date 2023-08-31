@@ -9,11 +9,6 @@ import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
-import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
-import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
-import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
-import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.dao.*;
@@ -71,9 +66,6 @@ public class MerchantLoansService {
     LendingLedgerDao lendingLedgerDao;
 
     @Autowired
-    LendingLedgerSlaveDao lendingLedgerSlaveDao;
-
-    @Autowired
     ExperianDao experianDao;
 
     @Autowired
@@ -81,9 +73,6 @@ public class MerchantLoansService {
 
     @Autowired
     LoanDpdDao loanDpdDao;
-
-    @Autowired
-    LoanDpdDaoSlave loanDpdDaoSlave;
 
     @Autowired
     EligibleLoanDao eligibleLoanDao;
@@ -105,9 +94,6 @@ public class MerchantLoansService {
 
     @Autowired
     LoanPaymentOrderDao loanPaymentOrderDao;
-
-    @Autowired
-    LoanPaymentOrderSlaveDao loanPaymentOrderSlaveDao;
 
     @Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
@@ -359,7 +345,7 @@ public class MerchantLoansService {
             logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
-                LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
+                LendingLedger lendingLedger = lendingLedgerDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
                 loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount()));
                 if (lendingLedger != null) {
                     loan.setLastEdiPaid(lendingLedger.getAmount());
@@ -436,9 +422,9 @@ public class MerchantLoansService {
                     responseDTO.setEdiStarted(Boolean.FALSE);
                 }
                 List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
-                List<LoanPaymentOrderSlave> loanPaymentOrderList = loanPaymentOrderSlaveDao.findRecentTransactions(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId());
+                List<LoanPaymentOrder> loanPaymentOrderList = loanPaymentOrderDao.findRecentTransactions(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId());
                 if (loanPaymentOrderList != null) {
-                    for (LoanPaymentOrderSlave loanPaymentOrder : loanPaymentOrderList) {
+                    for (LoanPaymentOrder loanPaymentOrder : loanPaymentOrderList) {
                         LendingMerchantLoansResponseDTO.RepaymentDetails repaymentDetails = new LendingMerchantLoansResponseDTO.RepaymentDetails();
                         repaymentDetails.setAmount(loanPaymentOrder.getAmount());
                         repaymentDetails.setDate(loanPaymentOrder.getCreatedAt());
@@ -750,7 +736,7 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
+                BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
                 if (maxDpd.intValue() > 30) {
                     logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
@@ -809,8 +795,7 @@ public class MerchantLoansService {
 
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
 
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.
-                    findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
@@ -1199,7 +1184,7 @@ public class MerchantLoansService {
             if (basicDetailsDto != null && basicDetailsDto.isPresent()) {
                 List<LendingPaymentSchedule> lendingPaymentScheduleList = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(basicDetailsDto.get().getId(), false);
                 for (LendingPaymentSchedule lendingPaymentSchedule : lendingPaymentScheduleList) {
-                    BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
+                    BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
                     if (maxDpd.intValue() >= 20) {
                         isBpMerchant = true;
                         break;

@@ -15,9 +15,6 @@ import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.dto.SettleLoanPaymentDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
-import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
-import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.NBFCService;
@@ -123,9 +120,6 @@ public class PaymentService {
     LoanPaymentOrderDao loanPaymentOrderDao;
 
     @Autowired
-    LoanPaymentOrderSlaveDao loanPaymentOrderSlaveDao;
-
-    @Autowired
     LendingEDIScheduleDao lendingEDIScheduleDao;
 
     @Autowired
@@ -139,9 +133,6 @@ public class PaymentService {
 
     @Autowired
     LoanDpdDao loanDpdDao;
-
-    @Autowired
-    LoanDpdDaoSlave loanDpdDaoSlave;
 
     @Autowired
     LendingNotificationService lendingNotificationService;
@@ -315,8 +306,8 @@ public class PaymentService {
             Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
 
             // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
-            final LoanPaymentOrderSlave pendingTransaction =
-              loanPaymentOrderSlaveDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(activeLoan.getId(), activeLoan.getMerchantId(),
+            final LoanPaymentOrder pendingTransaction =
+              loanPaymentOrderDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(activeLoan.getId(), activeLoan.getMerchantId(),
                 checkPendingAfterTime);
 
             if (!ObjectUtils.isEmpty(pendingTransaction)) {
@@ -1335,7 +1326,7 @@ public class PaymentService {
                     && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D
                     && (isClubV2 || lendingPaymentSchedule.getLoanApplication().getAgreementAt().before(compareToDate))) {
                 logger.info("refund processing fee before 16th june or club member for merchant: {}", lendingPaymentSchedule.getMerchantId());
-                BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
+                BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
                 long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
                 LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
                 if (maxDpd.intValue() <= 5 &&  dpd <= 5 && (dpd >= -5 || Objects.isNull(lendingLedger))) {
@@ -1856,8 +1847,8 @@ public class PaymentService {
             Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
 
             // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
-            final LoanPaymentOrderSlave pendingTransaction =
-                    loanPaymentOrderSlaveDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(activeLoan.getId(), activeLoan.getMerchantId(),
+            final LoanPaymentOrder pendingTransaction =
+                    loanPaymentOrderDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(activeLoan.getId(), activeLoan.getMerchantId(),
                             checkPendingAfterTime);
 
             if (!ObjectUtils.isEmpty(pendingTransaction)) {
