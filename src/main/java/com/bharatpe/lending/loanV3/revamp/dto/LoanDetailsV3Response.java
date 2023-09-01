@@ -180,6 +180,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEdiModelModified(agreementStateDTO.isEdiModelModified());
         loanDetailsV3Response.setRepayment(agreementStateDTO.getRepayment());
         loanDetailsV3Response.setAccountDetails(agreementStateDTO.getAccountDetails());
+        loanDetailsV3Response.setIsPreapprovedRepeatLoan(agreementStateDTO.getIsPreapprovedRepeatLoan());
     }
 
     private static void setShopDetailsResponse(ShopDetailsStateDTO shopDetailsStateDTO, LoanDetailsV3Response loanDetailsV3Response){

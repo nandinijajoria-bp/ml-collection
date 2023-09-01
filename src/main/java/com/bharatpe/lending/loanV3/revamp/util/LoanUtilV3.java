@@ -5,15 +5,18 @@ import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingResubmitReasonCountDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationPriority;
 import com.bharatpe.lending.common.entity.LendingResubmitReasonCount;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ResubmitDoneDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -60,6 +63,9 @@ public class LoanUtilV3 {
 
     @Autowired
     private LoanDashboardService loanDashboardService;
+
+    @Autowired
+    private LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -163,5 +169,15 @@ public class LoanUtilV3 {
             resubmitDoneDTO.setErrorString("Something Went Wrong");
         }
         return resubmitDoneDTO;
+    }
+
+    public boolean isPreapprovedRepeatLoan(Long applicationId){
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+        if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot))return false;
+        String pilotIdentifier = lendingRiskVariablesSnapshot.getPilotIdentifier();
+        if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+            return true;
+        }
+        return false;
     }
 }

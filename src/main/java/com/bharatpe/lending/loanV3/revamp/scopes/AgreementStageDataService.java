@@ -13,6 +13,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +33,9 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    LoanUtilV3 loanUtilV3;
 
     @Autowired
     LendingApplicationServiceV3 lendingApplicationServiceV3;
@@ -71,7 +75,8 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                         .total(lendingApplication.getRepayment())
                         .build())
                 .accountDetails(loanUtil.getAccountDetails(lendingApplication.getMerchantId()))
-                .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId())).build();
+                .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId()))
+                .isPreapprovedRepeatLoan(loanUtilV3.isPreapprovedRepeatLoan(lendingApplication.getId())).build();
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))agreementResponseV3.setTopup(true);
 
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
