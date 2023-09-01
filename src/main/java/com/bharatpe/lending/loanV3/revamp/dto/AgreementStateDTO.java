@@ -24,6 +24,7 @@ public class AgreementStateDTO {
     private boolean clubV2;
     private boolean ediModelModified;
     private Boolean enachBank;
+    private boolean isTopup;
 
     @Data
     @ToString

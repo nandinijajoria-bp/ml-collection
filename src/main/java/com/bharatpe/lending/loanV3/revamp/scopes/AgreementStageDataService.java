@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -71,6 +72,8 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                         .build())
                 .accountDetails(loanUtil.getAccountDetails(lendingApplication.getMerchantId()))
                 .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId())).build();
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))agreementResponseV3.setTopup(true);
+
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
     }
 }

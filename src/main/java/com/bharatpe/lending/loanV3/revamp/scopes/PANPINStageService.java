@@ -2,10 +2,13 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
+import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 @Component
 @Slf4j

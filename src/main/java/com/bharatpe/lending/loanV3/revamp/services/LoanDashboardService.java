@@ -32,6 +32,7 @@ import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
+import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanApplicationDetailsV3;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
@@ -171,6 +172,9 @@ public class LoanDashboardService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    private ExcessNachService excessNachService;
 
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
@@ -313,6 +317,7 @@ public class LoanDashboardService {
                 loanDashboardResponse.setTopupLoanApplication(topUpApplicationDetails);
             }
             loanDashboardResponse.setActiveLoan(true);
+            loanDashboardResponse.setExcessNachAmount(excessNachService.getExcessNachAmount(merchantDetails.getId()));
             cacheLoanDetailsData(loanDashboardResponse);
             return loanDashboardResponse;
         }
