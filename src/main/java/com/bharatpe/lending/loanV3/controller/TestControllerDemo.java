@@ -10,6 +10,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
+import java.util.Map;
+
 @RestController
 @RequestMapping("lending/v3/test/")
 @Slf4j
@@ -28,8 +31,10 @@ public class TestControllerDemo {
     }
 
     @GetMapping("/postAbflReceipts")
-    public ResponseEntity<LoanReceiptResponseDTO> postAbflRepaymentReceipts(@RequestParam Long ledgerId) {
-        log.info("postAbflReceipts for ledgerId {}", ledgerId);
-        return ResponseEntity.ok(abflReceiptService.sendReceipt(ledgerId));
+    public ResponseEntity<Map> postAbflRepaymentReceipts(@RequestParam Long ledgerId) {
+        log.info("postAbflReceipts for ledgerId : {}", ledgerId);
+        boolean status = abflReceiptService.sendReceipt(ledgerId);
+        return ResponseEntity.status(HttpStatus.OK).body(Collections.singletonMap("success", status));
     }
+
 }

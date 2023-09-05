@@ -97,44 +97,40 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
         return Optional.empty();
     }
 
-
-        public LoanReceiptResponseDTO sendReceipt(Long ledgerId) {
-        Optional<LendingLedger> lendingLedgerOptional = lendingLedgerDao.findById(ledgerId);
-
-        if (!lendingLedgerOptional.isPresent()) {
-            log.info("Ledger with provided id not found : {}", ledgerId);
-            return LoanReceiptResponseDTO.builder().error(LoanReceiptResponseDTO.ErrorPayload.builder().code("404").description("Ledger not found").build()).build();
-        }
-
-        LendingLedger lendingLedger = lendingLedgerOptional.get();
-
-        if (!ObjectUtils.isEmpty(lendingLedger.getDescription()) && lendingLedger.getDescription().contains("PRECLOSER")) {
-            log.info("skipping foreclosure postings for abfl for ledger id {}", lendingLedger.getId());
-            return LoanReceiptResponseDTO.builder().error(LoanReceiptResponseDTO.ErrorPayload.builder().code("400").description("PRECLOSER ledger description cannot use this api").build()).build();
-        }
-
-        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
-        String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
-
+    public boolean sendReceipt(Long ledgerId) {
+        try {
+            Optional<LendingLedger> lendingLedgerOptional = lendingLedgerDao.findById(ledgerId);
+            if (!lendingLedgerOptional.isPresent()) {
+                log.info("Ledger with provided id not found : {}", ledgerId);
+                return false;
+            }
+            LendingLedger lendingLedger = lendingLedgerOptional.get();
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
+            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             RepaymentRequestDto repaymentRequestDto =
-              RepaymentRequestDto.builder()
-                .lender("ABFL")
-                .productName("LENDING")
-                .applicationId(lendingApplication.get().getId())
-                .payload(RepaymentRequestDto.Payload.builder()
-                  .accountId(lendingApplication.get().getExternalLoanId())
-                  .loanNo(lendingApplication.get().getNbfcId())
-                  .paidByContactNo(lendingLedger.getLendingPaymentSchedule().getMobile().substring(2))
-                  .transactionRefNumber(String.valueOf(lendingLedger.getId()))
-                  .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType()) + "_" + txnId)
-                  .receiptAmount(lendingLedger.getAmount())
-                  .receiptDateTime(lendingLedger.getDate())
-                  .build())
-                .build();
-
-
-        log.info("repaymentRequestDto : {} for ledgerId : {}", repaymentRequestDto, ledgerId);
-
-        return abflApiGateway.postLoanReceipt(repaymentRequestDto);
+                    RepaymentRequestDto.builder()
+                            .lender("ABFL")
+                            .productName("LENDING")
+                            .applicationId(lendingApplication.get().getId())
+                            .payload(RepaymentRequestDto.Payload.builder()
+                                    .accountId(lendingApplication.get().getExternalLoanId())
+                                    .loanNo(lendingApplication.get().getNbfcId())
+                                    .paidByContactNo(lendingLedger.getLendingPaymentSchedule().getMobile().substring(2))
+                                    .transactionRefNumber(String.valueOf(lendingLedger.getId()))
+                                    .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType()) + "_" + txnId)
+                                    .receiptAmount(lendingLedger.getAmount())
+                                    .receiptDateTime(lendingLedger.getDate())
+                                    .build())
+                            .build();
+            log.info("repaymentRequestDto : {} for ledgerId : {}", repaymentRequestDto, ledgerId);
+            String message = objectMapper.writeValueAsString(repaymentRequestDto);
+            log.info("receipt msg : {}", message);
+            kafkaTemplate.send("loan-receipt", objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {}));
+            return true;
+        } catch (Exception exception) {
+            log.error("exception while processing the loan receipt for ledger id : {}", ledgerId, exception);
+            return false;
+        }
     }
+
 }
