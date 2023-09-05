@@ -50,9 +50,6 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.foreclosureamt.api:api/v3/lender/foreclosure-details}")
     String nbfcForeClosureAmtUrl;
 
-    @Value("${nbfc.loan.receipt.api:api/v3/lender/abfl/post-loan-receipt}")
-    String nbfcLoanReceiptApiUrl;
-
     @Autowired
     ObjectMapper objectMapper;
 
@@ -123,12 +120,4 @@ public class AbflApiGateway extends INbfcLenderGateway {
         return null;
     }
 
-    public LoanReceiptResponseDTO postLoanReceipt(RepaymentRequestDto repaymentRequestDto) {
-        try {
-            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(repaymentRequestDto), LoanReceiptResponseDTO.class,nbfcBaseUrl+nbfcLoanReceiptApiUrl);
-        } catch (JsonProcessingException e) {
-            log.error("exception occurred while posting repayment amt to nbfc svc for {}",repaymentRequestDto, e);
-        }
-        return null;
-    }
 }
