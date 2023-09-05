@@ -313,7 +313,7 @@ public class BankStatementService {
             }
             LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
 
-            String bankAccount = bankDetailsDtoOptional.getBankName();
+            String bankAccount = bankDetailsDtoOptional.getBankCode();
             String accountNumber = bankDetailsDtoOptional.getAccountNumber().replaceAll("^0+(?!$)", "");
             String accountNoLast4Digit = accountNumber.substring(accountNumber.length() - 4);
             String mobile = merchant.getMobile().length() > 10 ? merchant.getMobile().substring(2) : merchant.getMobile();
