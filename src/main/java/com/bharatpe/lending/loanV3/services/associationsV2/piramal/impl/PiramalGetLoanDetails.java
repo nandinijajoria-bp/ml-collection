@@ -34,7 +34,7 @@ public class PiramalGetLoanDetails {
     ObjectMapper objectMapper;
 
     public PiramalGetLoanResponseDto getLoanDetails(Long  applicationId) {
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, Lender.PIRAMAL.name());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PIRAMAL.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("lender record doesnt exist for {}", applicationId);
             return null;

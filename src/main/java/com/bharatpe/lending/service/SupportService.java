@@ -50,6 +50,7 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -158,6 +159,7 @@ public class SupportService {
     @Autowired
     LendingAutoDisbursalDao lendingAutoDisbursalDao;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
@@ -779,7 +781,7 @@ public class SupportService {
             supportApiResponseDto.setEligibleForTopUp(Boolean.FALSE);
             supportApiResponseDto.setActiveLoan(Boolean.FALSE);
             if(Objects.nonNull(lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp()) && "DISBURSED".equals(lendingPaymentSchedule.getLoanApplication().getLoanDisbursalStatus())){
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
                 supportApiResponseDto.setDisbursalUtr(ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo());
             }
             if ("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
@@ -1025,7 +1027,7 @@ public class SupportService {
                     // Loan details
                     LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
                     if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
-                        lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(application.getId(), application.getLender());
+                        lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(application.getId(), application.getLender());
                     }
                     LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LoanUtil.getEdiModal(application).name(), refundDetails);
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
