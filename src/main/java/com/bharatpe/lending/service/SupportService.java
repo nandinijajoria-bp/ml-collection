@@ -2556,7 +2556,7 @@ public class SupportService {
             return upgradeLoanOfferEligibilityDTO;
         }
 
-        String bankAccount = bankDetailsDtoOptional.getBankName();
+        String bankAccount = bankDetailsDtoOptional.getBankCode();
         String AABankEnabledKey = "AA_BANK_ENABLED_" + merchantId;
         Boolean isBankEnabledForAA = (Boolean) lendingCache.get(AABankEnabledKey);
         if(ObjectUtils.isEmpty(isBankEnabledForAA)) {
