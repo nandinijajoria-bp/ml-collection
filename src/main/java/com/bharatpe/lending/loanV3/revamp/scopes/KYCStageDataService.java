@@ -143,7 +143,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 // check the status for already created entry in table
-               boolean kycVerified=updateApplicationKycDetails(lendingApplicationKycDetails, scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),lendingApplication.getCreatedAt());
+               boolean kycVerified=updateApplicationKycDetails(lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),lendingApplication.getCreatedAt());
                 if(kycVerified){
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
                     initiateKycResponse.setDeeplink(kycDeepLink);
@@ -206,7 +206,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         throw new LoanDetailsException(LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorCode(),LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorMessage());
     }
 
-    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long merchantId,String mid, Date vaildAfterDate) {
+    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long applicationId, Long merchantId,String mid, Date vaildAfterDate) {
         boolean kycVerified=false;
         log.info("Updating kyc details for merchant:{}", merchantId);
         boolean selfieValid = false;
@@ -265,7 +265,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             kycVerified=true;
             log.info("Kyc details verified for merchant : {}", merchantId);
             executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, mid));
-            funnelService.submitEventV3(merchantId, null, merchantId,
+            funnelService.submitEventV3(merchantId, null, applicationId,
                     FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
