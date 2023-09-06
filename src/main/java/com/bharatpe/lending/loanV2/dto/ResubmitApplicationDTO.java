@@ -14,6 +14,7 @@ public class ResubmitApplicationDTO {
     Long merchantId;
     Long applicationId;
     String resubmitReason;
+    Integer resubmitCount;
     LendingResubmitEnum type;
     Double customAmount;
     String shopStructure;

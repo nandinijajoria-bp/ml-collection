@@ -1598,6 +1598,8 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setResubmitReason(resubmitApplicationDTO.getResubmitReason());
                 lendingResubmitTask.setResubmitTimestamp(new Date());
 
+                createLendingResubmitReasonCountRecord(lendingApplication, resubmitApplicationDTO.getResubmitReason(), resubmitApplicationDTO.getResubmitCount());
+
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
                 lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
                 lendingAuditTrial.setApplicationId(lendingApplication.getId());
@@ -1641,10 +1643,28 @@ public class LendingApplicationServiceV2 {
             loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
             return new ApiResponse<>(true,"Application Submitted Successfully");
         }catch (Exception e){
-            log.error("Exception in resubmit application for application:{}", resubmitApplicationDTO.getApplicationId(), e);
+            log.error("Exception in resubmit application for application:{}, {}, {}", resubmitApplicationDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
         return new ApiResponse<>(false,"Something went wrong");
+    }
+
+    private void createLendingResubmitReasonCountRecord(LendingApplication lendingApplication, String resubmitReasons, Integer resubmitCount) {
+        log.info("Creating entry in lending resubmit reason count for {}", lendingApplication.getId());
+        List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
+
+        for(String resubmitReason : resubmitReasonList){
+            LendingResubmitReasonCount lendingResubmitReasonCount = new LendingResubmitReasonCount();
+            lendingResubmitReasonCount.setApplicationId(lendingApplication.getId());
+            lendingResubmitReasonCount.setResubmitCount(Objects.isNull(resubmitCount) ? 1 : resubmitCount);
+            lendingResubmitReasonCount.setMerchantId(lendingApplication.getMerchantId());
+            lendingResubmitReasonCount.setResubmitDone(false);
+            lendingResubmitReasonCount.setResubmit(true);
+            lendingResubmitReasonCount.setResubmitReason(resubmitReason);
+            lendingResubmitReasonCount.setResubmitTimestamp(new Date());
+            lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
+            log.info("LendingResubmitReasonCount : {}", lendingResubmitReasonCount);
+        }
     }
 
     public Boolean downgradeApplication(LendingApplication lendingApplication, ResubmitApplicationDTO resubmitApplicationDTO){
