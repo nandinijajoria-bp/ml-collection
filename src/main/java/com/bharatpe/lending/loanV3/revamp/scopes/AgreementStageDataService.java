@@ -35,9 +35,6 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     LoanUtil loanUtil;
 
     @Autowired
-    LoanUtilV3 loanUtilV3;
-
-    @Autowired
     LendingApplicationServiceV3 lendingApplicationServiceV3;
 
     @Override
@@ -75,8 +72,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                         .total(lendingApplication.getRepayment())
                         .build())
                 .accountDetails(loanUtil.getAccountDetails(lendingApplication.getMerchantId()))
-                .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId()))
-                .isPreapprovedRepeatLoan(loanUtilV3.isPreapprovedRepeatLoan(lendingApplication.getId())).build();
+                .enachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId())).build();
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))agreementResponseV3.setTopup(true);
 
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);

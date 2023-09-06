@@ -25,7 +25,6 @@ public class AgreementStateDTO {
     private boolean ediModelModified;
     private Boolean enachBank;
     private boolean isTopup;
-    private Boolean isPreapprovedRepeatLoan;
 
     @Data
     @ToString
