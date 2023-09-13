@@ -137,6 +137,7 @@ public class EligibilityV3Service {
                 experianDao.save(experian);
                 checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
                 try {
+                    eligibilityStateDTO.setPincodeChanged(true);
                     refreshEligibility(request, eligibilityStateDTO);
                 } catch (BureauCallMaskedApiException e) {
                     log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));

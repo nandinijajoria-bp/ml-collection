@@ -1567,6 +1567,12 @@ public class APIGatewayService {
             return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache);
         }
 
+        boolean isPincodeChanged = false;
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
+            isPincodeChanged = eligibilityStateDTO.isPincodeChanged();
+        }
+        boolean finalIsPincodeChanged = isPincodeChanged;
+
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
             put("source", source);
@@ -1579,6 +1585,7 @@ public class APIGatewayService {
             put("skipMaskedMobileException", skipMaskedMobileException);
             put("sessionId", sessionId);
             put("offerType", offerType);
+            put("isPincodeChanged", finalIsPincodeChanged);
         }};
         StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
         if (!ObjectUtils.isEmpty(source)) {
@@ -1610,6 +1617,9 @@ public class APIGatewayService {
         }
         if(!ObjectUtils.isEmpty(offerType)) {
             queryParams.append("&offerType=").append(offerType);
+        }
+        if(!ObjectUtils.isEmpty(isPincodeChanged)) {
+            queryParams.append("&isPincodeChanged=").append(finalIsPincodeChanged);
         }
         String url = Objects.requireNonNull(env.getProperty("lending.global.endpoint")) + "/global_limit/v2" + queryParams;
         String payload = lendingHmacCalculator.getObjectPayload(requestParams);

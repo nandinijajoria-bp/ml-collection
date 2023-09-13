@@ -44,4 +44,6 @@ public class EligibilityStateDTO {
     private String stageOneHitId;
     private String stageTwoHitId;
 
+    private boolean isPincodeChanged;
+
 }
