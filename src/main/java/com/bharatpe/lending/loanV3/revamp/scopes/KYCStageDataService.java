@@ -14,10 +14,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.entity.LendingApplicationKycDetails;
-import com.bharatpe.lending.enums.CleverTapEvents;
-import com.bharatpe.lending.enums.KycDocStatus;
-import com.bharatpe.lending.enums.KycDocType;
-import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
@@ -103,6 +100,10 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         if (ObjectUtils.isEmpty(lendingApplication)) {
             log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
+        }
+        if (!ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus())) {
+            log.info("draft application not found for {}", scopeDataArgs.getMerchant().getId());
+            throw new LoanDetailsException(LoanDetailExceptionEnum.DRAFT_APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.DRAFT_APPLICATION_NOT_FOUND.getErrorMessage());
         }
         try {
             //checking lender association

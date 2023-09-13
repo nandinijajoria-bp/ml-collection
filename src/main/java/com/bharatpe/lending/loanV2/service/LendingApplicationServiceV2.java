@@ -1583,8 +1583,19 @@ public class LendingApplicationServiceV2 {
             }
 
             LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(resubmitApplicationDTO.getApplicationId(),resubmitApplicationDTO.getMerchantId());
-            if(Objects.nonNull(lendingResubmitTask) && (resubmitApplicationDTO.getType().equals(LendingResubmitEnum.RESUBMIT) &&(lendingResubmitTask.getResubmit() || lendingResubmitTask.getResubmitDone())) && resubmitApplicationDTO.getType().equals(LendingResubmitEnum.DOWNGRADE) &&(lendingResubmitTask.getDowngrade() || lendingResubmitTask.getDowngradeDone())){
-                return new ApiResponse<>(false,"application already resubmited");
+            if(Objects.nonNull(lendingResubmitTask) && (LendingResubmitEnum.RESUBMIT.equals(resubmitApplicationDTO.getType()))){
+                if(Objects.nonNull(lendingResubmitTask.getResubmit()) && lendingResubmitTask.getResubmit() &&
+                        Objects.nonNull(lendingResubmitTask.getResubmitDone()) && !lendingResubmitTask.getResubmitDone()
+                ) {
+                    return new ApiResponse<>(false,"application already resubmited");
+                }
+            }
+            if(Objects.nonNull(lendingResubmitTask) && (LendingResubmitEnum.DOWNGRADE.equals(resubmitApplicationDTO.getType()))){
+                if(Objects.nonNull(lendingResubmitTask.getDowngrade()) && lendingResubmitTask.getDowngrade() &&
+                        Objects.nonNull(lendingResubmitTask.getDowngradeDone()) && !lendingResubmitTask.getDowngradeDone()
+                ) {
+                    return new ApiResponse<>(false,"application already resubmited");
+                }
             }
 
             if(Objects.isNull(lendingResubmitTask)){
