@@ -107,6 +107,12 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
             LendingLedger lendingLedger = lendingLedgerOptional.get();
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            String transferType = TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType());
+            if (!ObjectUtils.isEmpty(transferType) && transferType.equalsIgnoreCase("DIRECT_TRANSFER_LENDER")) {
+                transferType = "DTTL";
+            } else if (!ObjectUtils.isEmpty(transferType) && transferType.equalsIgnoreCase("TRANSFER_BY_BP")) {
+                transferType = "TBBP";
+            }
             RepaymentRequestDto repaymentRequestDto =
                     RepaymentRequestDto.builder()
                             .lender("ABFL")
@@ -117,7 +123,7 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
                                     .loanNo(lendingApplication.get().getNbfcId())
                                     .paidByContactNo(lendingLedger.getLendingPaymentSchedule().getMobile().substring(2))
                                     .transactionRefNumber(String.valueOf(lendingLedger.getId()))
-                                    .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType()) + "_" + txnId)
+                                    .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + transferType + "_" + txnId)
                                     .receiptAmount(lendingLedger.getAmount())
                                     .receiptDateTime(lendingLedger.getDate())
                                     .build())
