@@ -219,6 +219,15 @@ public class LenderAssignService implements ILenderAssignService {
             throw new RuntimeException("Application not found for merchant:" + application.getMerchantId());
         }
         String decidedLender = null;
+        decidedLender = checkForcefulAssignedLenderForMerchant(application);
+        if(!ObjectUtils.isEmpty(decidedLender)) {
+            saveLenderChangeAudit(application, decidedLender);
+            String oldLender = application.getLender();
+            application.setLender(decidedLender);
+            updateOfferDetailsInApplication(application,LenderOffDays.valueOf(application.getLender()).getEdiModel(), oldLender);
+            lendingApplicationDao.save(application);
+            return application;
+        }
         if (loanUtil.isInternalMerchant(application.getMerchantId()) && ObjectUtils.isEmpty(application.getLender())
                 && !ObjectUtils.isEmpty(application.getExternalLoanId())) {
             log.info("internal merchant lender assignment, skipping all rules {}", application.getMerchantId());
@@ -695,5 +704,30 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
        return decidedLender;
+    }
+
+    private String checkForcefulAssignedLenderForMerchant(LendingApplication lendingApplication) {
+        try {
+            log.info("checking forced lender for merchantId : {}", lendingApplication.getMerchantId());
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+            List<RiskSegment> riskSegments = Arrays.asList(RiskSegment.NTB_ETB_1, RiskSegment.NTB_ETB_2, RiskSegment.PURE_NTB, RiskSegment.NTB_PURE);
+            if (!ObjectUtils.isEmpty(lendingRiskVariables) && riskSegments.contains(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()))){
+                Map<Long, String> forcefulLenderMerchants = loanUtil.forcefulLenderMerchantList();
+                if (ObjectUtils.isEmpty(forcefulLenderMerchants)) {
+                    log.info("Empty forceful assigned lender merchants list");
+                    return null;
+                }
+                String lender = forcefulLenderMerchants.get(lendingApplication.getMerchantId());
+                if (ObjectUtils.isEmpty(lender)) {
+                    log.info("merchantId is not there in forceful assigned lender merchants list : {}", lendingApplication.getMerchantId());
+                    return null;
+                }
+                log.info("forced lender for merchantId : {}, {}", lendingApplication.getMerchantId(), lender);
+                return lender;
+            }
+        } catch (Exception e) {
+            log.error("Exception in checking forceful assigned lender for merchantId : {}, {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
     }
 }
