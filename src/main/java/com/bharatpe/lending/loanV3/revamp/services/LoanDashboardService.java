@@ -756,6 +756,7 @@ public class LoanDashboardService {
                     .tenure(eligibleLoan.getTenure())
                     .category(eligibleLoan.getCategory())
                     .loanType(eligibleLoan.getLoanType())
+                    .initialRoi(eligibleLoan.getInitialRoi())
                     .clubV2Amount(eligibleLoan.getClubV2Amount())
                     .uniqueKey(eligibleLoan.getId())
                     .build();
