@@ -2335,6 +2335,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
+                filePath = "/templates/KFS_NONP2P_ABFL.html";
             }
             else filePath = "/templates/" + "KFS_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2375,6 +2377,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL.html";
+            } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
             }
             else filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
