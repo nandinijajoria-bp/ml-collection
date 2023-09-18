@@ -1,24 +1,20 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
-import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
-import com.bharatpe.lending.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
-import com.bharatpe.lending.loanV3.dto.LenderAssociationStatusResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -28,9 +24,8 @@ import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.CleverTapEventService;
-import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -240,6 +235,9 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                             if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
                                 lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
                             }
+                            String dob = KycUtils.getDOB(kycDoc);
+                            log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchantId);
+                            lendingApplicationKycDetails.setDob(dob);
                             aadharDigilocker = true;
                             log.info("Aadhaar digilocker doc valid for merchantId:{}", merchantId);
                         }

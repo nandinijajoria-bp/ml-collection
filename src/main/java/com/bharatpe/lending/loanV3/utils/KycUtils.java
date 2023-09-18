@@ -1,18 +1,23 @@
 package com.bharatpe.lending.loanV3.utils;
 
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+import static com.bharatpe.lending.enums.KycDocType.PAN_CARD;
 
 @Component
 @Slf4j
@@ -105,5 +110,38 @@ public class KycUtils {
                 : cKycResponseDto.getLastName().trim();
         log.info("last name for name: {}", lastName);
         return converterUtils.parseNameData(lastName);
+    }
+
+    public static String getDOB(KycDoc kycDoc) {
+        if (ObjectUtils.isEmpty(kycDoc)) {
+            return null;
+        }
+        return kycDoc.getDob();
+    }
+
+    public static Date getFormattedDate(String dateString) {
+        try {
+            if (StringUtils.isBlank(dateString)) {
+                return null;
+            }
+            DateFormat sdf = new SimpleDateFormat("dd/MM/yyyy");
+            sdf.setLenient(false);
+            return sdf.parse(dateString);
+        } catch (ParseException e) {
+            try {
+                DateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                sdf.setLenient(false);
+                return sdf.parse(dateString);
+            } catch (ParseException ex) {
+                try {
+                    DateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                    sdf.setLenient(false);
+                    return sdf.parse(dateString);
+                } catch (ParseException exception) {
+                    log.info("Unable to parse date" + dateString);
+                    return null;
+                }
+            }
+        }
     }
 }
