@@ -1555,7 +1555,13 @@ public class APIGatewayService {
             try {
                 Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
                 if(!ObjectUtils.isEmpty(response)) {
-                    GlobalLimitResponse globalLimitResponse = mapper.convertValue(response, GlobalLimitResponse.class);
+
+                    // due to date format mismatch using a customer objectMapper
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    objectMapper.setDateFormat(df);
+
+                    GlobalLimitResponse globalLimitResponse = objectMapper.readValue(response.toString(), GlobalLimitResponse.class);
                     return globalLimitResponse;
                 }
             } catch (Exception e) {

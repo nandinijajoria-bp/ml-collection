@@ -227,7 +227,7 @@ public class EligibilityV3Service {
     public GlobalLimitResponse requestForEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(eligibilityStateDTO.getMerchant().getId(), null,
                 request.getAppVersion(), eligibilityStateDTO.getClubV2Member(), request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
-                request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,false,null, eligibilityStateDTO);
+                request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO);
         return globalLimitResponse;
     }
 
