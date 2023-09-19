@@ -9,7 +9,7 @@ import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.entity.LendingKfs;
@@ -39,6 +39,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -338,6 +339,9 @@ public class LendingApplicationServiceV2 {
                         if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
                             lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
                         }
+                        String dob = KycUtils.getDOB(kycDoc);
+                        log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchant.getId());
+                        lendingApplicationKycDetails.setDob(dob);
                         aadharDigilocker = true;
                         log.info("Aadhar is digilocker approved for : {}", merchant.getId());
                     }

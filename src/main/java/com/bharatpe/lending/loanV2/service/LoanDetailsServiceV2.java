@@ -35,9 +35,9 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -53,12 +53,11 @@ import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,9 +70,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -502,6 +499,9 @@ public class LoanDetailsServiceV2 {
                         if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
                             lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
                         }
+                        String dob = KycUtils.getDOB(kycDoc);
+                        log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchant.getId());
+                        lendingApplicationKycDetails.setDob(dob);
                         aadharDigilocker = true;
                         log.info("Aadhar is digilocker approved for : {}", merchant.getId());
                     }
