@@ -245,6 +245,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setClubV2Member(eligibilityStateDTO.getClubV2Member());
         loanDetailsV3Response.setAccountDetails(eligibilityStateDTO.getAccountDetails());
         loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
+        loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
     }
 
     private static void setPanPinResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
