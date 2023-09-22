@@ -678,16 +678,21 @@ public class LendingMerchantLoansResponseDTO {
     @Override
     public String toString() {
         return "LendingMerchantLoansResponseDTO{" +
-                "loans=" + loans +
-                ", success=" + success +
-                ", eligibility=" + eligibility +
-                ", message='" + message + '\'' +
-                ", topup=" + topup +
-                ", totalPaidAmount=" + totalPaidAmount +
-                ", totalAmount=" + totalAmount +
-                ", totalDueAmount=" + totalDueAmount +
-                ", halfLoan=" + halfLoan +
-                ", ioLoan=" + ioLoan +
-                '}';
+          "loans=" + loans +
+          ", success=" + success +
+          ", eligibility=" + eligibility +
+          ", message='" + message + '\'' +
+          ", topup=" + topup +
+          ", totalPaidAmount=" + totalPaidAmount +
+          ", totalAmount=" + totalAmount +
+          ", totalDueAmount=" + totalDueAmount +
+          ", halfLoan=" + halfLoan +
+          ", ioLoan=" + ioLoan +
+          ", ediStarted=" + ediStarted +
+          ", repaymentDetails=" + repaymentDetails +
+          ", topupLender='" + topupLender + '\'' +
+          ", accountDetails=" + accountDetails +
+          ", contactSync=" + contactSync +
+          '}';
     }
 }
