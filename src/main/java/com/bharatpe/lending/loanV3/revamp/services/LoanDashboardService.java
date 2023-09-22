@@ -192,7 +192,7 @@ public class LoanDashboardService {
                 return loanDashboardApiVersion;
             }
             // hardcoding value for some testing
-            if(merchantId==9987300){
+            if(merchantId==9987300 || merchantId == 9319451){
                 loanDashboardApiVersion.setApiVersion("v1");
             }
             else if (loanUtil.isInternalMerchant(merchantId)){

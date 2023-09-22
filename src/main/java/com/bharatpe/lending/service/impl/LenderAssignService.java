@@ -607,7 +607,7 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("topup lenders:{}", topupLenders);
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
             if(topupLenders.contains(activeLoan.getNbfc())){
-                lender = lenderMapper(activeLoan.getNbfc());
+                lender = topupLenderMapper(activeLoan.getNbfc());
                 lendingApplication.setLender(lender);
                 lendingApplicationDao.save(lendingApplication);
                 saveLenderChangeAudit(lendingApplication, lender);
@@ -620,8 +620,8 @@ public class LenderAssignService implements ILenderAssignService {
         return lender;
     }
 
-    public String lenderMapper(String prevLender){
-        if("LDC".equals(prevLender)) return "LDC";
+    public static String topupLenderMapper(String prevLender){
+        if("LDC".equals(prevLender)) return "LIQUILOANS_NBFC";
         if("LIQUILOANS_P2P".equals(prevLender) || "LIQUILOANS_P2P_OF".equals(prevLender) || "LIQUILOANS_NBFC".equals(prevLender)) return "LIQUILOANS_P2P";
         return null;
     }

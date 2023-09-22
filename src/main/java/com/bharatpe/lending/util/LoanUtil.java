@@ -90,6 +90,9 @@ public class LoanUtil {
 	@Autowired
 	APIGatewayService apiGatewayService;
 
+	@Value("${ldc.foreclose.amount.date.diff:2}")
+	long ldcForecloseAmountDateDiff;
+
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
@@ -1064,6 +1067,25 @@ public class LoanUtil {
 		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
+	}
+
+	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
+
+		double prevLoanUnpaidAmount = 0;
+
+		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
+		apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
+
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+		String dateString = format.format(addDays(new Date(), ldcForecloseAmountDateDiff));
+
+		final LdcForeclosureDetailsApiResponseDTO.ForeclosureData foreclosureData = ldcForeclosureDetails.getData().getData().get(dateString);
+
+		logger.info("foreclosure amount picked for date : {} {}", dateString, foreclosureData);
+
+		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount();
+		return prevLoanUnpaidAmount;
 	}
 
 	public void publishApplicationEvent(LendingApplication lendingApplication) {

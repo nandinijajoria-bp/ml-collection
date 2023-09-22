@@ -13,4 +13,5 @@ public class KYCStateDTO {
     private String deeplink;
     private Boolean showKycPage;
     private Boolean lenderAssc;
+    private boolean isTopup;
 }

@@ -352,6 +352,9 @@ public class LoanDetailsServiceV2 {
                     boolean isIOS = request != null && request.isIOS();
                     LoanApplicationDetails topupApplicationDetails = setApplicationDetails(loanDetailsResponse, topupApplication, token, isIOS, experian, merchant);
                     loanDetailsResponse.setTopupLoanApplication(topupApplicationDetails);
+                    if("draft".equalsIgnoreCase(topupApplication.getStatus()) && Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(topupApplication.getLender())){
+                        checkKycForTopup(loanDetailsResponse, topupApplication, merchant, experian);
+                    }
                     loanDetailsResponse.setShowReferencePage(false);
                 }
                 loanDetailsResponse.setActiveLoan(true);
@@ -2333,6 +2336,60 @@ public class LoanDetailsServiceV2 {
             lendingCache.delete(loanDetailsCacheKey);
         } else {
             log.info("no key exists!");
+        }
+    }
+
+    private void checkKycForTopup(LoanDetailsResponse loanDetailsResponse, LendingApplication openApplication, BasicDetailsDto merchant, Experian experian){
+        log.info("open application for merchant:{}", merchant.getId());
+        //with validAfter timestamp
+        LendingApplicationKycDetails lendingApplicationKycDetails = null;
+
+        if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
+            lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
+        }
+
+        if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||
+                (ObjectUtils.isEmpty(lendingApplicationKycDetails)
+                )){
+            lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(openApplication.getId());
+        } else if("draft".equalsIgnoreCase(openApplication.getStatus())) {
+            loanDetailsResponse.setKycDone(true);
+            if(!KycStatus.APPROVED.name().equalsIgnoreCase(openApplication.getCkycStatus())){
+                openApplication.setCkycStatus(KycStatus.APPROVED.name());
+                openApplication.setCkycDate(new Date());
+                lendingApplicationDao.save(openApplication);
+            }
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
+            if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+                lendingApplicationDetails = new LendingApplicationDetails();
+                lendingApplicationDetails.setApplicationId(openApplication.getId());
+            }
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+        }
+        Date validAfterDate;
+        if(ObjectUtils.isEmpty(lendingApplicationKycDetails)){
+            log.info("Unable to fetch entry from KYC table for {}", openApplication.getId());
+            LendingApplicationKycDetails lendingApplicationKycDetails1 = new LendingApplicationKycDetails();
+            lendingApplicationKycDetails1.setMerchantId(merchant.getId());
+            lendingApplicationKycDetails1.setApplicationId(openApplication.getId());
+            lendingApplicationKycDetails1.setLender(openApplication.getLender());
+            lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails1);
+            validAfterDate = lendingApplicationKycDetails1.getCreatedAt();
+        }
+        else{
+            validAfterDate = lendingApplicationKycDetails.getCreatedAt();
+        }
+        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchant.getId(), validAfterDate, LendingConstants.POA_PROVIDER);
+        loanDetailsResponse.setKycStatus(kycHandler.getKycStatus(kycDocs, merchant.getId()).getKycStatus());
+
+        if(KycStatus.APPROVED.equals(loanDetailsResponse.getKycStatus())){
+            updateKycDetails(merchant, validAfterDate, LendingConstants.POA_PROVIDER, lendingApplicationKycDetails, kycDocs);
+        }
+
+        updateCkycStatus(openApplication, experian);
+        if (!ObjectUtils.isEmpty(openApplication.getAgreementAt())) {
+            log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
+            loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
         }
     }
 }

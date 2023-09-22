@@ -19,10 +19,11 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.CreateApplicationRequestForTopupDTO;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
-import com.bharatpe.lending.dto.CreateApplicationRequestForTopupDTO;
+import com.bharatpe.lending.dto.ClosePreviousLoanForTopupDTO;
 
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
@@ -700,8 +701,14 @@ public class SignAgreementService {
 		}
 		Double processingFee;
 
-		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())? eligibleLoan.getAmount() - loanUtil.getForeclosureAmount(prevLendingSchedule)
-				:eligibleLoan.getAmount();
+		double previousAmount = 0;
+
+		if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
+			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
+		} else previousAmount = loanUtil.getForeclosureAmount(prevLendingSchedule);
+
+		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())
+		? eligibleLoan.getAmount() - previousAmount : eligibleLoan.getAmount();
 
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
 			processingFee = 0D;
@@ -789,14 +796,18 @@ public class SignAgreementService {
 		}
 		LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
 		LendingApplication finalNewApplication = newApplication;
-		executorService.execute(() -> apiGatewayService.globalLimitTxn(finalNewApplication.getMerchantId(), "DEBIT", finalNewApplication.getLoanAmount()));
+
 		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(finalNewApplication.getId());
-		if(!ObjectUtils.isEmpty(lendingApplicationDetails)){
-			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
-			lendingApplicationDetailsDao.save(lendingApplicationDetails);
-			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), LendingViewStates.ENACH_PAGE);
+
+		if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+			lendingApplicationDetails = new LendingApplicationDetails();
+			lendingApplicationDetails.setApplicationId(finalNewApplication.getId());
 		}
+		lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
+		lendingApplicationDetailsDao.save(lendingApplicationDetails);
+		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), LendingViewStates.ENACH_PAGE);
+
 		response.put("success", true);
 		response.put("message","Application created Successfully");
 		return response;

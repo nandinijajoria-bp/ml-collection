@@ -425,6 +425,7 @@ public class VerifyOTPService {
         lendingApplication.setAgreementAt(new Date());
         lendingApplication.setAgreement(1);
         lendingApplication.setIp(meta.getIp());
+        lendingApplicationDao.save(lendingApplication);
         if (meta != null && meta.getLatitude() != null && !meta.getLatitude().equalsIgnoreCase("undefined") && !meta.getLatitude().trim().equalsIgnoreCase("")) {
             lendingApplication.setLatitude(meta.getLatitude());
         }
@@ -529,9 +530,11 @@ public class VerifyOTPService {
         logger.info("Lending application status after kyc for application: {}, : {} and ckycId is: {} and ckyc status: {}", lendingApplication.getId(), lendingApplication.getStatus(), lendingApplication.getCkycId(), lendingApplication.getCkycStatus());
         sendLatLong(merchantBasicDetailsDto.getId(), lendingApplication.getId());
 
-        if (Objects.nonNull(enachSuccess) || isNachSkippable) {
-            logger.info("entered before sending to topic for post checks for application_id :  {}", lendingApplication.getId());
-            sendDetailsForContactsVerification(merchantBasicDetailsDto.getId(), lendingApplication.getId());
+        if (!loanUtil.isInternalMerchant(lendingApplication.getMerchantId())) {
+            if (Objects.nonNull(enachSuccess) || isNachSkippable) {
+                logger.info("entered before sending to topic for post checks for application_id :  {}", lendingApplication.getId());
+                sendDetailsForContactsVerification(merchantBasicDetailsDto.getId(), lendingApplication.getId());
+            }
         }
         sendDuplicatePancardCheck(merchantBasicDetailsDto.getId(), lendingApplication.getId());
         loanUtil.publishApplicationEvent(lendingApplication);
@@ -603,6 +606,7 @@ public class VerifyOTPService {
                 return false;
             }
             Integer age = apiGatewayService.getMerchantAge(lendingApplication.getMerchantId());
+
             if (age > 0 && age < 21) {
                 //String ageRejectReason = age > 65 ? "Age_Reject_65" : "Age Reject";
                 String ageRejectReason = "Age Reject";
@@ -621,65 +625,132 @@ public class VerifyOTPService {
                 lendingAuditTrialDao.save(lendingAuditTrial);
                 return false;
             }
-            double previousAmount = loanUtil.getForeclosureAmount(activeLoan);
-            LendingLedger lendingLedger = new LendingLedger();
-            lendingLedger.setMerchantId(activeLoan.getMerchantId());
-            lendingLedger.setLendingPaymentSchedule(activeLoan);
-            lendingLedger.setTxnType("EDI");
-            lendingLedger.setAmount(previousAmount);
-            lendingLedger.setDate(new Date());
-            lendingLedger.setDescription("TOPUP LOAN ADJUSTMENT");
-            lendingLedger.setPrinciple(previousAmount - activeLoan.getDueInterest());
-            lendingLedger.setInterest(activeLoan.getDueInterest());
-            lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
-            lendingLedger.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
-            lendingLedgerDao.save(lendingLedger);
 
-            LendingLedger negativeEntry = new LendingLedger();
-            negativeEntry.setMerchantId(activeLoan.getMerchantId());
-            negativeEntry.setLendingPaymentSchedule(activeLoan);
-            negativeEntry.setTxnType("EDI");
-            negativeEntry.setAmount(-(previousAmount - activeLoan.getDueAmount()));
-            negativeEntry.setDate(new Date());
-            negativeEntry.setDescription("TOPUP LOAN ADJUSTMENT");
-            negativeEntry.setPrinciple(-(previousAmount - activeLoan.getDueAmount()));
-            negativeEntry.setInterest(0D);
-            negativeEntry.setAdjustmentMode(lendingApplication.getLoanType());
-            negativeEntry.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
-            lendingLedgerDao.save(negativeEntry);
+            double previousAmount = 0;
 
-            activeLoan.setStatus("CLOSED");
-            activeLoan.setClosingDate(new Date());
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + previousAmount);
-            activeLoan.setPaidPrinciple(activeLoan.getPaidPrinciple() + previousAmount - activeLoan.getDueInterest());
-            activeLoan.setPaidInterest(activeLoan.getPaidInterest() + activeLoan.getDueInterest());
-            activeLoan.setDueAmount(0D);
-            activeLoan.setDuePrinciple(0D);
-            activeLoan.setDueInterest(0D);
-            lendingPaymentScheduleDao.save(activeLoan);
+            if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
+                previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
+            } else previousAmount = loanUtil.getForeclosureAmount(activeLoan);
 
-            if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
-                if ("LDC".equals(activeLoan.getLoanApplication().getLender())) {
-                    nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
-                }
-            }
-
-            lendingCollectionAuditService.sendCollectionAudit(lendingLedger, activeLoan);
 
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
-            if (LoanType.IO_TOPUP.name().equals(lendingApplication.getLoanType())) {
-                lendingApplication.setLender("LIQUILOANS_NBFC");
-            }
             lendingApplicationDao.save(lendingApplication);
-            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
-                notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT", previousAmount));
-            }
 
+            if (!"LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
+                ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
+            }
+            else {
+                // flow for LDC topup loans on liquiloan_nbfc
+
+                // we mark the loan inactive here so that we stop the further collection of amount on this loan
+                // and once the topup is successfully created on liquiloans we can mark this loan as closed with appropriate ledger entries
+                activeLoan.setStatus("INACTIVE_TOPUP");
+                lendingPaymentScheduleDao.save(activeLoan);
+            }
         } catch (Exception ex) {
             logger.error("Exception IN TOPUP LOANS Ledger for application:{}", lendingApplication.getId(), ex);
         }
 
         return true;
+    }
+
+    private void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
+
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchantId(previousLoan.getMerchantId());
+        lendingLedger.setLendingPaymentSchedule(previousLoan);
+        lendingLedger.setTxnType("EDI");
+        lendingLedger.setAmount(previousAmount);
+        lendingLedger.setDate(new Date());
+        lendingLedger.setDescription("TOPUP LOAN ADJUSTMENT");
+        lendingLedger.setPrinciple(previousAmount - previousLoan.getDueInterest());
+        lendingLedger.setInterest(previousLoan.getDueInterest());
+        lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
+        lendingLedger.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
+        lendingLedgerDao.save(lendingLedger);
+
+        LendingLedger negativeEntry = new LendingLedger();
+        negativeEntry.setMerchantId(previousLoan.getMerchantId());
+        negativeEntry.setLendingPaymentSchedule(previousLoan);
+        negativeEntry.setTxnType("EDI");
+        negativeEntry.setAmount(-(previousAmount - previousLoan.getDueAmount()));
+        negativeEntry.setDate(new Date());
+        negativeEntry.setDescription("TOPUP LOAN ADJUSTMENT");
+        negativeEntry.setPrinciple(-(previousAmount - previousLoan.getDueAmount()));
+        negativeEntry.setInterest(0D);
+        negativeEntry.setAdjustmentMode(lendingApplication.getLoanType());
+        negativeEntry.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
+        lendingLedgerDao.save(negativeEntry);
+
+        previousLoan.setStatus("CLOSED");
+        previousLoan.setClosingDate(new Date());
+        previousLoan.setPaidAmount(previousLoan.getPaidAmount() + previousAmount);
+        previousLoan.setPaidPrinciple(previousLoan.getPaidPrinciple() + previousAmount - previousLoan.getDueInterest());
+        previousLoan.setPaidInterest(previousLoan.getPaidInterest() + previousLoan.getDueInterest());
+        previousLoan.setDueAmount(0D);
+        previousLoan.setDuePrinciple(0D);
+        previousLoan.setDueInterest(0D);
+        lendingPaymentScheduleDao.save(previousLoan);
+
+        if (previousLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
+            if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
+                nbfcService.pushCloseLoanEventToKafka(previousLoan.getApplicationId());
+            }
+        }
+        lendingCollectionAuditService.sendCollectionAudit(lendingLedger, previousLoan);
+    }
+
+    public Map<String, Object> closePreviousLoanAfterSuccessfulTopupCreation(Long applicationId) {
+
+        Map<String, Object> finalResponse = new LinkedHashMap<>();
+        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
+
+        if (!lendingApplicationOptional.isPresent()) {
+            finalResponse.put("message", "lending application not found");
+            return finalResponse;
+        }
+
+        if (!"TOPUP".equalsIgnoreCase(lendingApplicationOptional.get().getLoanType())) {
+            finalResponse.put("message", "loantype for application is not topup");
+            return finalResponse;
+        }
+
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplicationOptional.get().getId());
+
+        if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            finalResponse.put("message", "lending application details not found");
+            return finalResponse;
+        }
+
+        logger.info("pervious application id : {} for applicationId : {}", lendingApplicationDetails.getPrevAppId(), applicationId);
+
+        // fetch previous lending application on which topup is created
+        Optional<LendingApplication> previousLendingApplicationOptional = lendingApplicationDao.findById(lendingApplicationDetails.getPrevAppId());
+
+
+        if (!previousLendingApplicationOptional.isPresent()) {
+            finalResponse.put("message", "previous lending application not found");
+            return finalResponse;
+        }
+
+        LendingPaymentSchedule previousLoan = lendingPaymentScheduleDao.findByApplicationId(previousLendingApplicationOptional.get().getId());
+
+        if ("CLOSED".equalsIgnoreCase(previousLoan.getStatus())) {
+            finalResponse.put("message", "previous loan is already closed");
+            return finalResponse;
+        }
+
+        double previousAmount = lendingApplicationOptional.get().getLoanAmount()
+                                - lendingApplicationOptional.get().getDisbursalAmount()
+                                - lendingApplicationOptional.get().getProcessingFee();
+
+        ledgerAdjustmentForTopup(previousLoan, lendingApplicationOptional.get(), previousAmount);
+
+        // send loan closure consent to LDC
+        apiGatewayService.getLdcTopupConsent(previousLendingApplicationOptional.get().getId(), true, previousAmount);
+
+        finalResponse.put("message", "successfully settled previous loan");
+        return finalResponse;
     }
 
     public void sendPennyDrop(Long merchantId, Long applicationId) {
