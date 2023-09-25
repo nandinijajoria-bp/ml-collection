@@ -2,8 +2,11 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.LenderEvaluationStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ReferenceStateDTO;
@@ -11,22 +14,32 @@ import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
 @Slf4j
 public class LenderEvaluationStageDataService implements IStageDataService<LenderEvaluationStateDTO>{
 
+    @Autowired
+    LoanUtilV3 loanUtilV3;
+
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        lendingStateDTO.setLendingViewStates(LendingViewStates.REFERENCE_PAGE);
+        if(loanUtilV3.isPreapprovedRepeatLoan(scopeDataArgs.getApplicationId())){
+            lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+        }
+        else{
+            lendingStateDTO.setLendingViewStates(LendingViewStates.REFERENCE_PAGE);
+        }
         return lendingStateDTO;
     }
 

@@ -519,6 +519,8 @@ public class LendingApplicationServiceV2 {
     private ApiResponse<?> createNewApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
+            checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
+
             AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
             String error = baseChecks(merchant, applicationRequest);
             if (error != null) return new ApiResponse<>(false, error);
@@ -885,6 +887,37 @@ public class LendingApplicationServiceV2 {
             return "Already an ongoing loan exists";
         }
         return null;
+    }
+
+    public void checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest){
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        if (lendingRiskVariables != null) {
+            String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+            if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+                log.info("loan request is pre-approved repeat for {}", merchantId);
+                fetchPreviousApplicationData(merchantId, applicationRequest);
+            }
+        }
+    }
+
+    public void fetchPreviousApplicationData(Long merchantId, CreateApplicationRequest applicationRequest){
+        LendingApplication prevApplication =
+                lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "APPROVED");
+        log.info("pervious application for merchant {} : {}", merchantId, prevApplication);
+        if(!ObjectUtils.isEmpty(prevApplication)){
+            AddressDetails addressDetails = new AddressDetails();
+            addressDetails.setPincode(prevApplication.getPincode().toString());
+            addressDetails.setArea(prevApplication.getArea());
+            addressDetails.setCity(prevApplication.getCity());
+            addressDetails.setState(prevApplication.getState());
+            addressDetails.setAddress1(prevApplication.getShopNumber());
+            addressDetails.setAddress2(prevApplication.getStreetAddress());
+            addressDetails.setLandmark(prevApplication.getLandmark());
+
+            applicationRequest.setAddressDetails(addressDetails);
+            applicationRequest.setBusinessName(prevApplication.getBusinessName());
+        }
+        log.info("CreateApplicationRequest for  {} : {}", merchantId, applicationRequest);
     }
 
     public ApiResponse<?> getAgreement(Long applicationId, BasicDetailsDto merchant) {
