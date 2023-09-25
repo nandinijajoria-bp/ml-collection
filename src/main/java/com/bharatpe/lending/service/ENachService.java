@@ -272,6 +272,10 @@ public class ENachService {
 //            if (lendingPennydrop == null) {
 //                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
 //            }
+            if (!LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) {
+                logger.info("pushing into post check kafka after nach success for applicationId: {}",lendingApplication.getId());
+                verifyOTPService.sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
+            }
         }
         
         requestDTO.setLender(lendingApplication.getLender());
