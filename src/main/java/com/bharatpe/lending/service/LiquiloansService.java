@@ -74,6 +74,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.common.enums.VpaTrackingStatus.DISBURSED;
 import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
 import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
 
@@ -338,7 +339,7 @@ public class LiquiloansService {
             lendingApplication.setDisburseTimestamp(new Date());
             lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
             lendingApplicationDao.save(lendingApplication);
-            updateLendingVpaStage(lendingApplication, VpaTrackingStatus.DISBURSED.name());
+            updateLendingVpaStage(lendingApplication, DISBURSED.name());
 
             lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(basicDetailsDto.get().getId(), lendingApplication.getId());
             if (lendingPaymentSchedule != null) {
@@ -704,12 +705,10 @@ public class LiquiloansService {
             logger.error("Error occured while populating data into lending_payment_schedule table {}", Arrays.toString(e.getStackTrace()));
             logger.info("Changing loan_disbursal_status back to 'PENDING'");
             if (lendingApplication != null) {
-                lendingApplication.setDisburseTimestamp(null);
-                lendingApplication.setLoanDisbursalStatus("PENDING");
-                lendingApplicationDao.save(lendingApplication);
-//                updateLendingVpaStage(lendingApplication, VpaTrackingStatus.PROCESSING.name());
-                if (lendingPaymentSchedule != null) {
-                    lendingPaymentScheduleDao.delete(lendingPaymentSchedule);
+                if (!"DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+                    lendingApplication.setDisburseTimestamp(null);
+                    lendingApplication.setLoanDisbursalStatus("PENDING");
+                    lendingApplicationDao.save(lendingApplication);
                 }
             }
             postPayoutResponseDto.setStatus("FAILED");
@@ -1756,6 +1755,9 @@ public class LiquiloansService {
     }
 
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
+
+        // trim utr string length to 50
+        utr = utr.substring(0, Math.min(utr.length() - 1, 49));
 
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name(), lender);
 

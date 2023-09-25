@@ -52,6 +52,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -79,6 +80,7 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -1555,7 +1557,13 @@ public class APIGatewayService {
             try {
                 Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
                 if(!ObjectUtils.isEmpty(response)) {
-                    GlobalLimitResponse globalLimitResponse = mapper.convertValue(response, GlobalLimitResponse.class);
+
+                    // due to date format mismatch using a customer objectMapper
+                    ObjectMapper objectMapper = new ObjectMapper();
+                    DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    objectMapper.setDateFormat(df);
+
+                    GlobalLimitResponse globalLimitResponse = objectMapper.readValue(response.toString(), GlobalLimitResponse.class);
                     return globalLimitResponse;
                 }
             } catch (Exception e) {
@@ -2974,5 +2982,78 @@ public class APIGatewayService {
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String orderId, String type) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
         return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false,null, null);
+    }
+
+    public LdcTopConsentApiResponseDTO getLdcTopupConsent(Long applicationId, Boolean toBePaused, Double expectedForeclosureAmount) {
+        logger.info("get topup consent for LDC application :{}", applicationId);
+        String url = nbfcServiceBaseUrl + "/api/v1/loan/ldc-topup-consent";
+        Map<String, Object> requestPayload = new HashMap<String, Object>() {{
+            put("application_id", applicationId);
+            put("to_be_paused", toBePaused);
+            put("expected_foreclosure_amount", expectedForeclosureAmount);
+        }};
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Client-Name", CLIENT);
+        headers.set("Hash", getHmacBase64(requestPayload));
+
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(requestPayload, headers);
+        ResponseEntity<LdcTopConsentApiResponseDTO> responseEntity = null;
+        try{
+            logger.info("request entity for topup consent API:{} and url:{}", requestEntity, url);
+            responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, LdcTopConsentApiResponseDTO.class);
+            logger.info("response entity for topup consent API:{} and url:{}", responseEntity, url);
+            if(!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())){
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException | HttpServerErrorException ex){
+            logger.error("Error occurred while calling topup consent API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            try {
+                LdcTopConsentApiResponseDTO response = objectMapper.readValue(ex.getResponseBodyAsString(), LdcTopConsentApiResponseDTO.class);
+                return response;
+            } catch (IOException e) {
+                logger.error("Error in parsing exception response in foreclosure details API : {}", e.getMessage());
+            }
+        }catch (Exception ex){
+            logger.error("Exception occurred while calling topup consent API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
+
+    public LdcForeclosureDetailsApiResponseDTO getLdcForeclosureDetails(Long applicationId) {
+        logger.info("get foreclosure details for LDC application :{}", applicationId);
+        String url = nbfcServiceBaseUrl + "/api/v1/loan/ldc-foreclosure-details?application_id=" + applicationId;
+        Map<String, Object> requestPayload = new HashMap<String, Object>() {{
+            put("application_id", applicationId);
+        }};
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Accept", MediaType.ALL_VALUE);
+        headers.set("Client-Name", CLIENT);
+        headers.set("Hash", getHmacBase64(requestPayload));
+
+        HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(headers);
+        ResponseEntity<LdcForeclosureDetailsApiResponseDTO> responseEntity = null;
+        try{
+            logger.info("request entity for foreclosure details API:{} and url:{}", requestEntity, url);
+            responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, LdcForeclosureDetailsApiResponseDTO.class);
+            logger.info("response entity for foreclosure details API:{} and url:{}", responseEntity.getBody(), url);
+            if(!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())){
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException | HttpServerErrorException ex){
+            logger.error("Error occurred while calling foreclosure details API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            try {
+                LdcForeclosureDetailsApiResponseDTO response = objectMapper.readValue(ex.getResponseBodyAsString(), LdcForeclosureDetailsApiResponseDTO.class);
+                return response;
+            } catch (IOException e) {
+                logger.error("Error in parsing exception response in foreclosure details API : {}", e.getMessage());
+                throw new RuntimeException("Error getting ldc foreclosure details");
+            }
+        }catch (Exception ex){
+            logger.error("Exception occurred while calling foreclosure details API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            throw ex;
+        }
+        return null;
     }
 }

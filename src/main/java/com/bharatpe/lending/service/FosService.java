@@ -32,6 +32,8 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.dto.UnderwritingDocEligibilityDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -142,6 +144,9 @@ public class FosService {
 
     @Value("${fos.nach.percent}")
     Integer fosNachPercent;
+
+    @Autowired
+    SupportService supportService;
 
 
     public ResponseDTO fosLoan(Long merchantId) {
@@ -1015,7 +1020,10 @@ public class FosService {
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
-        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0);
+        FosMerchantEligibilityDto fosMerchantEligibilityDto = new FosMerchantEligibilityDto("SMALL_TICKET".equals(loanType)?"ineligible":eligibility, merchantId, priority, offerType, loanType, reason, "pending nach application".equals(reason)?1:0, null);
+        if("eligible".equalsIgnoreCase(eligibility)) {
+            fosMerchantEligibilityDto.setUpgradeLoanOfferEligibility(getUpgradeLoanOfferEligibility(merchantId));
+        }
         ResponseDTO responseDTO = new ResponseDTO();
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);
@@ -1299,5 +1307,20 @@ public class FosService {
         } else disbursalStatus = "NO";
         response.put("disbursal_status", disbursalStatus);
         return new ResponseDTO(Boolean.TRUE, null, response);
+    }
+
+    private FosMerchantEligibilityDto.UpgradeLoanOfferEligibility getUpgradeLoanOfferEligibility(Long merchantId) {
+        FosMerchantEligibilityDto.UpgradeLoanOfferEligibility upgradeLoanOfferEligibility = new FosMerchantEligibilityDto.UpgradeLoanOfferEligibility();
+        try {
+            UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO = supportService.checkUpgradeLoanOfferEligibility(merchantId);
+            upgradeLoanOfferEligibility.setEligibility(upgradeLoanOfferEligibilityDTO.getBankStatementEligibility() || upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility() || upgradeLoanOfferEligibilityDTO.getGst3bEligibility());
+            upgradeLoanOfferEligibility.setBsActive(upgradeLoanOfferEligibilityDTO.getBankStatementEligibility());
+            upgradeLoanOfferEligibility.setAaActive(upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility());
+            upgradeLoanOfferEligibility.setGst3bActive(upgradeLoanOfferEligibilityDTO.getGst3bEligibility());
+            return upgradeLoanOfferEligibility;
+        } catch (Exception e) {
+            logger.error("Exception in getting upgradeLoan offer eligibility for merchantId : {}, {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return upgradeLoanOfferEligibility;
     }
 }

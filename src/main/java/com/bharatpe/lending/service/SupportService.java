@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.DTO.AddCacheDto;
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
@@ -12,14 +14,19 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.ApplicationStage;
-import com.bharatpe.lending.common.enums.CrmBulkContactsResponseStatus;
-import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
+import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.query.dao.BankStatementSessionDetailsDaoSlave;
+import com.bharatpe.lending.common.query.dao.BankStatementWhitelistedBanksDaoSlave;
+import com.bharatpe.lending.common.query.entity.BankStatementSessionDetailsSlave;
+import com.bharatpe.lending.common.query.entity.BankStatementWhitelistedBanksSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -29,9 +36,11 @@ import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LendingRefundLedger;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.BankStatementRejectReason;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -42,6 +51,7 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -139,6 +149,9 @@ public class SupportService {
     LoanDpdDao loanDpdDao;
 
     @Autowired
+    LoanDpdDaoSlave loanDpdDaoSlave;
+
+    @Autowired
     EnachHandler enachHandler;
 
     @Autowired
@@ -150,6 +163,7 @@ public class SupportService {
     @Autowired
     LendingAutoDisbursalDao lendingAutoDisbursalDao;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
@@ -186,6 +200,24 @@ public class SupportService {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    BankStatementSessionDetailsDaoSlave bankStatementSessionDetailsDaoSlave;
+
+    @Autowired
+    BankStatementWhitelistedBanksDaoSlave bankStatementWhitelistedBanksDaoSlave;
+
+    @Autowired
+    LendingRiskVariablesDaoSlave lendingRiskVariablesDaoSlave;
+
+    @Autowired
+    LmsFieldValuesDao lmsFieldValuesDao;
+
+    @Autowired
+    LendingCache lendingCache;
+
+    @Autowired
+    FinanceUtilsHandler financeUtilsHandler;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -256,6 +288,8 @@ public class SupportService {
             supportLoanResponseDTO.setSupportApiResponseDto(supportApiResponseDto);
             supportApiResponseDto.setStageCommunication(getStageCommunication(supportApiResponseDto));
             responseDTO.setData(supportLoanResponseDTO);
+
+            supportLoanResponseDTO = getUpgradeLoanOfferEligibility(supportLoanResponseDTO, merchantId);
 
             if (ObjectUtils.isEmpty(experian)) {
                 logger.info("PAN not entered so eligibility is not checked for the merchantId: {}", merchantId);
@@ -751,7 +785,7 @@ public class SupportService {
             supportApiResponseDto.setEligibleForTopUp(Boolean.FALSE);
             supportApiResponseDto.setActiveLoan(Boolean.FALSE);
             if(Objects.nonNull(lendingPaymentSchedule.getLoanApplication().getDisburseTimestamp()) && "DISBURSED".equals(lendingPaymentSchedule.getLoanApplication().getLoanDisbursalStatus())){
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
                 supportApiResponseDto.setDisbursalUtr(ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo());
             }
             if ("ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
@@ -997,7 +1031,7 @@ public class SupportService {
                     // Loan details
                     LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
                     if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
-                        lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(application.getId(), application.getLender());
+                        lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(application.getId(), application.getLender());
                     }
                     LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LoanUtil.getEdiModal(application).name(), refundDetails);
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
@@ -1105,7 +1139,7 @@ public class SupportService {
         if (lendingPaymentSchedule.getStatus().equals("CLOSED") && lendingPaymentSchedule.getLoanApplication() != null &&
                 lendingPaymentSchedule.getLoanApplication().getProcessingFee() != null && lendingPaymentSchedule.getLoanApplication().getProcessingFee() > 0D &&
                 (isClubV2 || lendingPaymentSchedule.getLoanApplication().getAgreementAt().before(compareToDate))) {
-            BigInteger maxDpd = loanDpdDao.findMaxDpd(lendingPaymentSchedule.getId());
+            BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
             long dpd = LoanUtil.getDateDiffInDays(lendingPaymentSchedule.getTentativeClosingDate(), lendingPaymentSchedule.getClosingDate());
             LendingLedger lendingLedger = lendingLedgerDao.getForClosedLedger(lendingPaymentSchedule.getId());
             Long loanId = lendingLedgerDao.getLedgerByAdjustmentModes(lendingPaymentSchedule.getId());
@@ -2345,6 +2379,210 @@ public class SupportService {
             logger.error("something went wrong !!! {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return responseDTO;
+    }
+
+    private SupportLoanResponseDTO getUpgradeLoanOfferEligibility(SupportLoanResponseDTO supportLoanResponseDTO, Long merchantId) {
+        try {
+            UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO = checkUpgradeLoanOfferEligibility(merchantId);
+            supportLoanResponseDTO.setBsUploadEligibility(upgradeLoanOfferEligibilityDTO.getBankStatementEligibility());
+            supportLoanResponseDTO.setAaEligibility(upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility());
+            return supportLoanResponseDTO;
+        } catch (Exception e) {
+            logger.info("Exception in getting upgrade loan offer eligibility for merchantId : {}, {}", merchantId, e.getMessage());
+        }
+        return supportLoanResponseDTO;
+    }
+
+    public UpgradeLoanOfferEligibilityDTO checkUpgradeLoanOfferEligibility(Long merchantId) {
+        try {
+            logger.info("Check Upgrade loan offer eligibility for merchantId : {}", merchantId);
+            UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO = new UpgradeLoanOfferEligibilityDTO();
+            upgradeLoanOfferEligibilityDTO = checkBankStatementAndAccountAggregatorSessionEligibility(merchantId, upgradeLoanOfferEligibilityDTO);
+            if(!upgradeLoanOfferEligibilityDTO.getBankStatementEligibility()
+               && !upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility()
+               && !upgradeLoanOfferEligibilityDTO.getGst3bEligibility()) {
+                logger.info("No of session checks failed for upgrade loan offer eligibility for merchantId : {}", merchantId);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            upgradeLoanOfferEligibilityDTO = checkRiskEligibilityForUpgradeLoanOffer(merchantId, upgradeLoanOfferEligibilityDTO);
+            if(!upgradeLoanOfferEligibilityDTO.getBankStatementEligibility()
+                    && !upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility()
+                    && !upgradeLoanOfferEligibilityDTO.getGst3bEligibility()) {
+                logger.info("Risk checks failed for upgrade loan offer eligibility for merchantId : {}", merchantId);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            upgradeLoanOfferEligibilityDTO = checkMerchantBankEligibilityForBankStatementAndAccountAggregator(merchantId, upgradeLoanOfferEligibilityDTO);
+            return upgradeLoanOfferEligibilityDTO;
+        } catch (Exception e) {
+            logger.error("Exception in checking upgrade loan Offer Eligibility for merchantId : {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
+            return new UpgradeLoanOfferEligibilityDTO();
+        }
+    }
+
+    public UpgradeLoanOfferEligibilityDTO checkBankStatementAndAccountAggregatorSessionEligibility(Long merchantId, UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO) {
+        logger.info("Checking bankStatement and accountAggregator session eligibility for merchantId : {}", merchantId);
+        Pageable pageable = PageRequest.of(0, 2, Sort.by("Id").descending());
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date());
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+        Date currentDate = calendar.getTime();
+        List<BankStatementSessionDetailsSlave> bankStatementSessionDetailsList = bankStatementSessionDetailsDaoSlave.findAllByMerchantIdAndCreatedAtGreaterThanEqual(merchantId, currentDate, pageable);
+        if (bankStatementSessionDetailsList.size() >= 2) {
+            if (bankStatementSessionDetailsList.get(0).getStatus().equals(BankStatementSessionStatus.FAILED) && bankStatementSessionDetailsList.get(1).getStatus().equals(BankStatementSessionStatus.FAILED) && !loanUtil.isInternalMerchant(merchantId)) {
+                logger.info("Two failed bankStatement session for the day : {}, {}", currentDate, merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+        }
+
+        BankStatementSessionDetailsSlave bankStatementSessionDetails = bankStatementSessionDetailsDaoSlave.findFirstByMerchantIdOrderByIdDesc(merchantId);
+        if(!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+            calendar.setTime(bankStatementSessionDetails.getCreatedAt());
+            calendar.add(Calendar.MONTH, 1);
+            if (new Date().compareTo(calendar.getTime()) < 0
+                    && (BankStatementSessionStatus.SUCCESS.equals(bankStatementSessionDetails.getStatus())
+                    || (BankStatementSessionStatus.FAILED.equals(bankStatementSessionDetails.getStatus())
+                    && BankStatementRejectReason.OFFER_SAME.name().equals(bankStatementSessionDetails.getRejectReason())))
+                    && !loanUtil.isInternalMerchant(merchantId)) {
+                logger.info("Offer already evaluated on bankStatements less than 1 month ago for merchantId");
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            if (new Date().compareTo(calendar.getTime()) < 0
+                    && BankStatementSessionStatus.FAILED.equals(bankStatementSessionDetails.getStatus())
+                    && !BankStatementRejectReason.BEYOND_TAT.name().equals(bankStatementSessionDetails.getRejectReason())
+                    && "ACCOUNT_AGGREGATOR".equalsIgnoreCase(bankStatementSessionDetails.getType())
+                    && !loanUtil.isInternalMerchant(merchantId)) {
+                logger.info("AA session failed less than 1 month ago for merchantId");
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+        }
+        upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.TRUE);
+        upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.TRUE);
+        return upgradeLoanOfferEligibilityDTO;
+    }
+
+    public UpgradeLoanOfferEligibilityDTO checkRiskEligibilityForUpgradeLoanOffer(Long merchantId, UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO) {
+        logger.info("Checking risk checks for upgradeLoan offer eligibility");
+        LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if (!ObjectUtils.isEmpty(lendingRiskVariables)) {
+            List<PincodeColor> pincodeColors = Arrays.asList(PincodeColor.DARK_GREEN, PincodeColor.GREEN, PincodeColor.YELLOW, PincodeColor.LIGHT_GREEN);
+            List<RiskGroup> riskGroups = Arrays.asList(RiskGroup.R4, RiskGroup.R5);
+            if (!ObjectUtils.isEmpty(lendingRiskVariables.getPincodeColor()) && !pincodeColors.contains(lendingRiskVariables.getPincodeColor())) {
+                logger.info("pincode color not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskColor(), merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            if (!ObjectUtils.isEmpty(lendingRiskVariables.getRiskSegment())
+                    && (RiskSegment.NTB_ETB_1.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()))
+                    || RiskSegment.NTB_ETB_2.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()))
+                    || RiskSegment.NTB_PURE.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment()))
+                    || RiskSegment.REGULAR_NTC.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment())))) {
+                logger.info("risk segment not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskSegment(), merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            if (!ObjectUtils.isEmpty(lendingRiskVariables.getRiskSegment()) && !ObjectUtils.isEmpty(lendingRiskVariables.getRiskGroup())
+                    && (RiskSegment.REPEAT.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment())))
+                    && riskGroups.contains(RiskGroup.valueOf(lendingRiskVariables.getRiskGroup()))) {
+                logger.info("risk group not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskGroup(), merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            if (!ObjectUtils.isEmpty(lendingRiskVariables.getRiskSegment()) && !ObjectUtils.isEmpty(lendingRiskVariables.getRiskGroup())
+                    && (RiskSegment.REGULAR_ETC.equals(RiskSegment.valueOf(lendingRiskVariables.getRiskSegment())))
+                    && (RiskGroup.R5.equals(RiskGroup.valueOf(lendingRiskVariables.getRiskGroup()))
+                    || RiskGroup.R4.equals(RiskGroup.valueOf(lendingRiskVariables.getRiskGroup()))
+                    || RiskGroup.R3.equals(RiskGroup.valueOf(lendingRiskVariables.getRiskGroup())))) {
+                logger.info("risk group not allowed for banking based offer: {} {}", lendingRiskVariables.getRiskGroup(), merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            if (!ObjectUtils.isEmpty(lendingRiskVariables.getBbs()) && lendingRiskVariables.getBbs() < 650) {
+                logger.info("bbs score is less for banking based offer: {} {}", lendingRiskVariables.getBbs(), merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+            if (!ObjectUtils.isEmpty(lendingRiskVariables.getDrsScore()) && lendingRiskVariables.getDrsScore() <= 10) {
+                logger.info("drs score is less for banking based offer: {} {}", lendingRiskVariables.getDrsScore(), merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                return upgradeLoanOfferEligibilityDTO;
+            }
+        }
+        String shopType = null;
+        List<LendingPaymentSchedule> previousLoans = lendingPaymentScheduleDao.findPreviousLoansByMerchantAndCreditLoan(merchantId, false);
+        if (!ObjectUtils.isEmpty(previousLoans)) {
+            LendingPaymentSchedule previousLoan = previousLoans.get(0);
+            LmsFieldValues lmsFieldValues = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(38L, previousLoan.getApplicationId());
+            if (!ObjectUtils.isEmpty(lmsFieldValues)) {
+                shopType = lmsFieldValues.getFieldDropdownValue();
+                logger.info("shop type found for merchant: {} from lms fields for last application: {}", shopType, merchantId);
+                if (!"PERMANENT".equalsIgnoreCase(shopType)) {
+                    logger.info("shop type is not permanent for banking based offer: {} {}", shopType, merchantId);
+                    upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+                    upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+                    return upgradeLoanOfferEligibilityDTO;
+                }
+            }
+        }
+        upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.TRUE);
+        upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.TRUE);
+        return upgradeLoanOfferEligibilityDTO;
+    }
+
+    public UpgradeLoanOfferEligibilityDTO checkMerchantBankEligibilityForBankStatementAndAccountAggregator(Long merchantId, UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO) {
+        logger.info("Check merchant bank eligibility for AA and BS for merchantId : {}", merchantId);
+        final BankDetailsDto bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId).orElse(null);
+        if (!ObjectUtils.isEmpty(bankDetailsDtoOptional)) {
+            BankStatementWhitelistedBanksSlave bankStatementWhitelistedBanks = null;
+            if (!ObjectUtils.isEmpty(bankDetailsDtoOptional.getBankCode())) {
+                bankStatementWhitelistedBanks = bankStatementWhitelistedBanksDaoSlave.findFirstByBankCode(bankDetailsDtoOptional.getBankCode());
+            }
+            if (ObjectUtils.isEmpty(bankStatementWhitelistedBanks)) {
+                logger.info("bank is not in bankStatement whitelisted banks : {}, {}", bankStatementWhitelistedBanks, merchantId);
+                upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+            }
+        } else {
+            logger.info("bank details are not found for merchantId : {}", merchantId);
+            upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+            upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+            return upgradeLoanOfferEligibilityDTO;
+        }
+
+        String bankAccount = bankDetailsDtoOptional.getBankCode();
+        String AABankEnabledKey = "AA_BANK_ENABLED_" + merchantId;
+        Boolean isBankEnabledForAA = (Boolean) lendingCache.get(AABankEnabledKey);
+        if(ObjectUtils.isEmpty(isBankEnabledForAA)) {
+            ApiResponse apiResponse = financeUtilsHandler.getAABankList(bankAccount);
+            if(ObjectUtils.isEmpty(apiResponse) || !apiResponse.isSuccess() || ObjectUtils.isEmpty(apiResponse.getData())) {
+                isBankEnabledForAA = Boolean.FALSE;
+            } else  {
+                isBankEnabledForAA = Boolean.TRUE;
+            }
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(AABankEnabledKey);
+            addCacheDto.setValue(isBankEnabledForAA);
+            addCacheDto.setTtl(1);
+            lendingCache.add(addCacheDto);
+        }
+        if(!isBankEnabledForAA) {
+            logger.info("Linked bank : {} of merchantId : {} is not enabled for AA", bankAccount, merchantId);
+            upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+        }
+        return upgradeLoanOfferEligibilityDTO;
     }
 
 }

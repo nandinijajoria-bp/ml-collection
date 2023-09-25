@@ -2,13 +2,22 @@ package com.bharatpe.lending.loanV3.services.associations;
 
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dto.RepaymentRequestDto;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
+import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.loanV3.dto.LoanReceiptResponseDTO;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.services.gateway.AbflApiGateway;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -16,8 +25,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.Optional;
@@ -39,7 +50,13 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
+    LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    AbflApiGateway abflApiGateway;
 
     @Override
     public Optional invoke(Long applicationId, Map<String, Object> args) {
@@ -79,4 +96,47 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
         }
         return Optional.empty();
     }
+
+    public boolean sendReceipt(Long ledgerId) {
+        try {
+            Optional<LendingLedger> lendingLedgerOptional = lendingLedgerDao.findById(ledgerId);
+            if (!lendingLedgerOptional.isPresent()) {
+                log.info("Ledger with provided id not found : {}", ledgerId);
+                return false;
+            }
+            LendingLedger lendingLedger = lendingLedgerOptional.get();
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
+            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            String transferType = TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType());
+            if (!ObjectUtils.isEmpty(transferType) && transferType.equalsIgnoreCase("DIRECT_TRANSFER_LENDER")) {
+                transferType = "DTTL";
+            } else if (!ObjectUtils.isEmpty(transferType) && transferType.equalsIgnoreCase("TRANSFER_BY_BP")) {
+                transferType = "TBBP";
+            }
+            RepaymentRequestDto repaymentRequestDto =
+                    RepaymentRequestDto.builder()
+                            .lender("ABFL")
+                            .productName("LENDING")
+                            .applicationId(lendingApplication.get().getId())
+                            .payload(RepaymentRequestDto.Payload.builder()
+                                    .accountId(lendingApplication.get().getExternalLoanId())
+                                    .loanNo(lendingApplication.get().getNbfcId())
+                                    .paidByContactNo(lendingLedger.getLendingPaymentSchedule().getMobile().substring(2))
+                                    .transactionRefNumber(String.valueOf(lendingLedger.getId()))
+                                    .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + transferType + "_" + txnId)
+                                    .receiptAmount(lendingLedger.getAmount())
+                                    .receiptDateTime(lendingLedger.getDate())
+                                    .build())
+                            .build();
+            log.info("repaymentRequestDto : {} for ledgerId : {}", repaymentRequestDto, ledgerId);
+            String message = objectMapper.writeValueAsString(repaymentRequestDto);
+            log.info("receipt msg : {}", message);
+            kafkaTemplate.send("loan-receipt", objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {}));
+            return true;
+        } catch (Exception exception) {
+            log.error("exception while processing the loan receipt for ledger id : {}", ledgerId, exception);
+            return false;
+        }
+    }
+
 }

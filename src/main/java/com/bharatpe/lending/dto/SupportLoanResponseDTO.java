@@ -32,6 +32,8 @@ public class SupportLoanResponseDTO {
     private LoanArrangerFee loanArrangerFee;
     private SupportApiResponseDto supportApiResponseDto;
     private List<ApplicationDetailsDTO> applicationHistory;
+    private Boolean bsUploadEligibility;
+    private Boolean AaEligibility;
 
     public Long getMerchantId() {
         return merchantId;

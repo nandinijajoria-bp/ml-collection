@@ -192,7 +192,7 @@ public class LoanDashboardService {
                 return loanDashboardApiVersion;
             }
             // hardcoding value for some testing
-            if(merchantId==9987300){
+            if(merchantId==9987300 || merchantId == 9319451){
                 loanDashboardApiVersion.setApiVersion("v1");
             }
             else if (loanUtil.isInternalMerchant(merchantId)){
@@ -333,10 +333,16 @@ public class LoanDashboardService {
             //kyc checks can be removed from here...
             LoanApplicationDetailsV3 loanApplicationDetailsV3 = setApplicationDetails(openApplication, merchantDetails);
             loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
-            cacheLoanDetailsData(loanDashboardResponse);
-            return loanDashboardResponse;
+            if (loanDashboardResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDashboardResponse.getLoanApplication().getReapply())) {
+                //if no reapply then dont check eligibility
+                cacheLoanDetailsData(loanDashboardResponse);
+                return loanDashboardResponse;
+            }
         }
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        if(Objects.nonNull(loanDashboardResponse.getIneligible())){
+            loanDashboardResponse.setLoanApplication(null);
+        }
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
         return loanDashboardResponse;
@@ -640,6 +646,7 @@ public class LoanDashboardService {
         return null;
     }
         private void checkEligibility(LoanDashboardResponse loanDashboardResponse, LoanDetailsRequest request, BasicDetailsDto merchant)  {
+            log.info("checking eligibility for {}", merchant.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
@@ -756,6 +763,7 @@ public class LoanDashboardService {
                     .tenure(eligibleLoan.getTenure())
                     .category(eligibleLoan.getCategory())
                     .loanType(eligibleLoan.getLoanType())
+                    .initialRoi(eligibleLoan.getInitialRoi())
                     .clubV2Amount(eligibleLoan.getClubV2Amount())
                     .uniqueKey(eligibleLoan.getId())
                     .build();

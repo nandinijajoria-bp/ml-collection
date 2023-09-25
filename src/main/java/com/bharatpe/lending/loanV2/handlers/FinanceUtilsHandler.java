@@ -246,7 +246,7 @@ public class FinanceUtilsHandler {
         return clientSecret;
     }
 
-    public AccountAggregatorInitiateResponseDTO AAInitiate(String orderId, Long merchantId, String phoneNumber, String bankAccount, LendingEnum.LENDER lender, String redirectUrl, String accNoLast4Digit) {
+    public AccountAggregatorInitiateResponseDTO AAInitiate(String orderId, Long merchantId, String phoneNumber, String bankCode, LendingEnum.LENDER lender, String redirectUrl, String accNoLast4Digit) {
         try {
             log.info("In financeUtils handler");
             HttpHeaders headers = new HttpHeaders();
@@ -256,7 +256,7 @@ public class FinanceUtilsHandler {
             requestBody.put("merchantId", merchantId);
             requestBody.put("orderId", orderId);
             requestBody.put("phoneNumber", phoneNumber);
-            requestBody.put("bankAccount", bankAccount);
+            requestBody.put("bankCode", bankCode);
             requestBody.put("lender", lender);
             requestBody.put("source", "MERCHANT");
             requestBody.put("webUrl", redirectUrl);
@@ -279,14 +279,14 @@ public class FinanceUtilsHandler {
         return null;
     }
 
-    public ApiResponse<?> getAABankList(String bankName) {
+    public ApiResponse<?> getAABankList(String bankCode) {
         try {
             log.info("In financeUtils handler");
             Map<String, Object> requestParams = new HashMap<>();
-            requestParams.put("bankName", bankName);
+            requestParams.put("bankCode", bankCode);
             String payload = lendingHmacCalculator.getObjectPayload(requestParams);
             String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
-            StringBuilder queryParams = new StringBuilder("?bankName=").append(bankName);
+            StringBuilder queryParams = new StringBuilder("?bankCode=").append(bankCode);
             String url = FINANCE_UTILS_BASE_URL + AA_BANK_LIST_API + queryParams;
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
