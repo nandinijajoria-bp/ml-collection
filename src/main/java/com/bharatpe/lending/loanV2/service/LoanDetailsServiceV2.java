@@ -355,6 +355,9 @@ public class LoanDetailsServiceV2 {
                     if("draft".equalsIgnoreCase(topupApplication.getStatus()) && Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(topupApplication.getLender())){
                         checkKycForTopup(loanDetailsResponse, topupApplication, merchant, experian);
                     }
+                    else{
+                        loanDetailsResponse.setKycDone(true);
+                    }
                     loanDetailsResponse.setShowReferencePage(false);
                 }
                 loanDetailsResponse.setActiveLoan(true);
