@@ -37,5 +37,7 @@ public class LoanDetailsConstant {
 
     public static String PREAPPROVED_REPEAT_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_REPEAT";
 
+    public static String PREAPPROVED_TOPUP_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_TOPUP";
+
 }
 

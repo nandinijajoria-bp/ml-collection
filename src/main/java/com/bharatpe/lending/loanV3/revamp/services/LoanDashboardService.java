@@ -38,6 +38,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.LoanApplicationDetailsV3;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.RejectionStateDto;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
+import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
@@ -175,6 +176,9 @@ public class LoanDashboardService {
 
     @Autowired
     private ExcessNachService excessNachService;
+
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
 
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
@@ -656,6 +660,7 @@ public class LoanDashboardService {
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
+            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
 //            loanDashboardResponse.setPancard(experian.getPancardNumber());
 //            loanDashboardResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
 //            loanDashboardResponse.setHasExperian(true);
@@ -871,6 +876,30 @@ public class LoanDashboardService {
         catch(Exception e){
             log.error("unable to evict dashboard api cache for : {}", merchantId);
         }
+    }
+
+    private String getPreApprovedTag(Long merchantId){
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        if(ObjectUtils.isEmpty(lendingRiskVariables)){
+            return null;
+        }
+        String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+        if(ObjectUtils.isEmpty(pilotIdentifier)){
+            return null;
+        }
+        if(pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_TOPUP_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return PreApprovedLoanEnums.PRE_APPROVED_TOPUP.name();
+        }
+        if(pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return PreApprovedLoanEnums.PRE_APPROVED_REPEAT.name();
+        }
+        if(pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_FRESH_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return PreApprovedLoanEnums.PRE_APPROVED_FRESH.name();
+        }
+        return null;
     }
 
     private boolean percentScaleUp(Long merchantId, Integer percent) {
