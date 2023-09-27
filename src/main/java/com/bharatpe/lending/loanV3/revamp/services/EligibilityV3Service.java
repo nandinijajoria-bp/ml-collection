@@ -134,7 +134,7 @@ public class EligibilityV3Service {
                 log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
             }
         } else if (request != null && request.getPincode() != null) {
-            if(Objects.nonNull(experian.getPincode()) && (experian.getPincode() == Integer.valueOf(request.getPincode()))){
+            if(Objects.nonNull(experian.getPincode()) && (experian.getPincode().equals(Integer.valueOf(request.getPincode())))){
                 log.info("pincode value in request is same as experian for {} : {}, {}", merchant.getId(), request.getPincode(), experian.getPincode());
             }
             else{
