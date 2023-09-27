@@ -5,7 +5,10 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -14,6 +17,7 @@ import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Request;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -34,6 +38,8 @@ import java.util.Objects;
 @Service
 @Slf4j
 public class EligibilityV3Service {
+    @Autowired
+    private LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Autowired
     KycHandler kycHandler;
@@ -204,6 +210,12 @@ public class EligibilityV3Service {
             log.info("Global limit for merchant:{} is {}", eligibilityStateDTO.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
+            if(RiskSegment.REPEAT.name().equalsIgnoreCase(globalLimitResponse.getData().getRiskSegment()) &&
+                    Objects.nonNull(globalLimitResponse.getData().getPreApprovedLoan()) &&
+                            globalLimitResponse.getData().getPreApprovedLoan()
+            ){
+                eligibilityStateDTO.setIsPreapprovedRepeatLoan(true);
+            }
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
@@ -248,7 +260,7 @@ public class EligibilityV3Service {
     public GlobalLimitResponse requestForEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(eligibilityStateDTO.getMerchant().getId(), null,
                 request.getAppVersion(), eligibilityStateDTO.getClubV2Member(), request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
-                request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,false,null, eligibilityStateDTO);
+                request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO);
         return globalLimitResponse;
     }
 
@@ -273,6 +285,7 @@ public class EligibilityV3Service {
     public void fetchEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) {
         checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
         fetchPreComputedEligibility(eligibilityStateDTO);
+        checkForPreapprovedRepeatOffer(eligibilityStateDTO);
         if (null != eligibilityStateDTO.getEligibility()) {
             setEdiModel(eligibilityStateDTO);
             return;
@@ -301,6 +314,18 @@ public class EligibilityV3Service {
         }
         if (null != eligibilityStateDTO.getEligibility()) {
             setEdiModel(eligibilityStateDTO);
+        }
+    }
+
+    private void checkForPreapprovedRepeatOffer(EligibilityStateDTO eligibilityStateDTO){
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(eligibilityStateDTO.getMerchant().getId());
+        if(ObjectUtils.isEmpty(lendingRiskVariables)){
+            return;
+        }
+        String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+        if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved repeat for {}", eligibilityStateDTO.getMerchant().getId());
+            eligibilityStateDTO.setIsPreapprovedRepeatLoan(true);
         }
     }
 }

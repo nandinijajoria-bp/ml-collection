@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Disbursement Request Letter</title>
+    <style>
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .width-33 {
+            width: 33%;
+        }
+
+        .width-50 {
+            width: 50%;
+        }
+
+        .width-66 {
+            width: 66%;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-right {
+            text-align: right
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .mb30 {
+            margin-bottom: 20px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .text-start {
+            text-align: left;
+        }
+
+        .upper-case {
+            text-transform: uppercase;
+        }
+
+        .ml10 {
+            margin-left: 10px;
+        }
+
+        .ml20 {
+            margin-left: 20px;
+        }
+
+        .fwbold {
+            font-weight: bold;
+        }
+
+        .m0 {
+            margin: 0px;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="padding: 20px 30px;margin-top: 50px;">
+        <p style="margin: 20px 16px;" class="width-100 text-right">
+            <span class="fwbold">Date: {{date}}</span>
+        </p>
+
+        <p style="margin: 6px 16px;" class="width-100 mb20">
+        <p class="text-left fwbold m0">Trillionloans Fintech Private Limited ("Trillionloan")</p>
+        <p class="text-left fwbold m0">A-703 & B-704, 7th Floor, The Qube , 86/19 OFF M V Road, </p>
+        <p class="text-left fwbold m0">CTS NO. 1498, Near Chimatpada Gurudwara, Marol Andheri (East), </p>
+        <p class="text-left fwbold m0">Marol Naka Mumbai MH 400059 IN</p>
+        </p>
+
+        <p class="width-100 mb20 text-left fwbold">
+            <span class="underline ">Sub: Disbursement Request Letter</span>
+        </p>
+
+        <p style="margin: 6px 0px;" class="fw400">
+            The undersigned hereby grant his/her consent to initiate the disbursement for the purpose of the foreclosure
+            of my existing loan with <span class="fwbold">Innofin Solution Private Limited ("Lendenclub") </span>vide
+            Loan ID No. {{loan_id}}, through the digital lending application i.e. BharatPe.
+        </p>
+
+        <p style="margin: 6px 0px;" class="fw400">
+            I authorize Trillionloan to transfer the amount as communicated by Lendenclub, through the Digital Lending
+            Application i.e. BharatPe for foreclosure of the Lendenclub's loan with Loan ID No. {{loan_id}}, on
+            my behalf .
+        </p>
+
+        <p style="margin: 6px 0px;" class="fw400">
+            I, further authorize Trillionloans to disburse any amount after deduction of the foreclosure amount as
+            mentioned above, to my bank account.
+        </p>
+
+        <p style="margin: 6px 0px;" class="fw400">
+            I fully comprehend and accept the terms of this loan disbursement request letter.
+        </p>
+
+        <p style="margin: 6px 0px;" class="fw400">
+            I expressly acknowledge that authorization represents a formal and legally binding agreement, for
+            Trillionloans to make disbursement as mentioned in this letter.
+        </p>
+
+        <p class="text-left fwbold m0 mt16" style="margin-top: 16px;margin-bottom: 4px;">{{borrower_name}}</p>
+        <p class="text-left fwbold m0 mb16" style="margin-bottom: 16px;">{{pan_of_borrower}}</p>
+
+        <table border="1" cellspacing="0" class="width-50 m-auto mb20">
+            <tbody>
+
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Mobile No.
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{mobile_number}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Platform
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{platform}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            IP Address
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{ip_address}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Device ID
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{device_id}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Time Stamp
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="width-50">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{time_stamp}}
+                        </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+
+</html>

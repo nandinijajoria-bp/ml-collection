@@ -28,8 +28,9 @@ public enum LoanDetailExceptionEnum {
 
     INITIATE_KYC_FAILED("LEN0008", "Unable to initiate KYC"),
 
-    DRAFT_APPLICATION_NOT_FOUND("LEN0003", "Draft Application not found");
+    DRAFT_APPLICATION_NOT_FOUND("LEN0003", "Draft Application not found"),
 
+    PREVIOUS_APPLICATION_NOT_FOUND_FOR_TOPUP("LEN0009", "Previous disbursed application not found");
 
 
 

@@ -71,6 +71,7 @@ public class LoanDetailsV3Response {
 
     private String mobile;
     private String kycDeeplink;
+    private Boolean isPreapprovedRepeatLoan;
 
 
     @Data
@@ -245,6 +246,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setClubV2Member(eligibilityStateDTO.getClubV2Member());
         loanDetailsV3Response.setAccountDetails(eligibilityStateDTO.getAccountDetails());
         loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
+        loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
+        loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
     }
 
     private static void setPanPinResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){

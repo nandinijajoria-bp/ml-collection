@@ -134,11 +134,17 @@ public class ImageURLService {
 		panNameCheck = getBanificaryAndPanName(merchant, lendingApplication);
 		result.put("panNameCheck", panNameCheck);
 
-		Boolean ekycDone=isEkycDone(merchant, lendingApplication.getId());
-		if(ekycDone==null){
-			result.put("success", false);
-			return result;
+		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
+
+		Boolean ekycDone = false;
+		if(!LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+			ekycDone=isEkycDone(merchant, lendingApplication.getId());
+			if(ekycDone==null){
+				result.put("success", false);
+				return result;
+			}
 		}
+
 		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
 		if (finalCall) {
 			List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchant.getId());

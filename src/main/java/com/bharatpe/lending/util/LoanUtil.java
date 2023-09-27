@@ -37,6 +37,8 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.opencsv.CSVReader;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -47,7 +49,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.io.File;
+import java.io.FileReader;
 import java.io.InputStream;
+import java.io.Reader;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -84,6 +89,9 @@ public class LoanUtil {
 
 	@Autowired
 	APIGatewayService apiGatewayService;
+
+	@Value("${ldc.foreclose.amount.date.diff:2}")
+	long ldcForecloseAmountDateDiff;
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -195,6 +203,8 @@ public class LoanUtil {
 	List<Long> gst3bEligibleMerchants = new ArrayList<>();
 
 	List<Long> accountAggregatorEligibleMerchants = new ArrayList<>();
+
+	Map<Long, String> forceLendersForMerchants = new HashMap<>();
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1059,6 +1069,25 @@ public class LoanUtil {
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
 	}
 
+	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
+
+		double prevLoanUnpaidAmount = 0;
+
+		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
+		apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
+
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+		String dateString = format.format(addDays(new Date(), ldcForecloseAmountDateDiff));
+
+		final LdcForeclosureDetailsApiResponseDTO.ForeclosureData foreclosureData = ldcForeclosureDetails.getData().getData().get(dateString);
+
+		logger.info("foreclosure amount picked for date : {} {}", dateString, foreclosureData);
+
+		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount();
+		return prevLoanUnpaidAmount;
+	}
+
 	public void publishApplicationEvent(LendingApplication lendingApplication) {
 		try {
 			Map<String, Object> request = new HashMap<String, Object>() {{
@@ -1623,6 +1652,36 @@ public class LoanUtil {
 			logger.error("Exception in assigning lender for AA for merchantId : {}", merchantId);
 			return null;
 		}
+	}
+
+	private Map<Long, String> readForcefulLenderMerchantsCsvFile() {
+		Map<Long, String> merchantIdLenderMap = new HashMap<>();
+		try {
+
+			String filePath = "/MerchantList/force_assign_lender_merchants";
+			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+			File file = new File("/tmp/force_assigned_lender_merchants.csv");
+			FileUtils.copyInputStreamToFile(inputStream, file);
+			List<String[]> fileRows;
+			Reader fileReader = new FileReader(file);
+			CSVReader csvReader = new CSVReader(fileReader);
+			fileRows = csvReader.readAll();
+			for(String[] row : fileRows) {
+				merchantIdLenderMap.put(Long.parseLong(row[0]), row[1]);
+			}
+			FileUtil.deleteFile(file.toPath());
+		} catch (Exception e) {
+			logger.info("exception while reading force assign lender merchants csv file: {} {}", e, e.getMessage());
+		}
+		return merchantIdLenderMap;
+	}
+
+	public Map<Long, String> forcefulLenderMerchantList() {
+        if(!ObjectUtils.isEmpty(forceLendersForMerchants)) {
+			return forceLendersForMerchants;
+		}
+		forceLendersForMerchants = readForcefulLenderMerchantsCsvFile();
+		return forceLendersForMerchants;
 	}
 
 }

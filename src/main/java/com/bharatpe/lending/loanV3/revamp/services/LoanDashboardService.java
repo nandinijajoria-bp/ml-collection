@@ -38,6 +38,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.LoanApplicationDetailsV3;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.RejectionStateDto;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
+import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
@@ -176,6 +177,9 @@ public class LoanDashboardService {
     @Autowired
     private ExcessNachService excessNachService;
 
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
+
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
     currently we are deciding this feature on the basis of internal/external merchant only
@@ -192,7 +196,7 @@ public class LoanDashboardService {
                 return loanDashboardApiVersion;
             }
             // hardcoding value for some testing
-            if(merchantId==9987300){
+            if(merchantId==9987300 || merchantId == 9319451){
                 loanDashboardApiVersion.setApiVersion("v1");
             }
             else if (loanUtil.isInternalMerchant(merchantId)){
@@ -333,10 +337,16 @@ public class LoanDashboardService {
             //kyc checks can be removed from here...
             LoanApplicationDetailsV3 loanApplicationDetailsV3 = setApplicationDetails(openApplication, merchantDetails);
             loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
-            cacheLoanDetailsData(loanDashboardResponse);
-            return loanDashboardResponse;
+            if (loanDashboardResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDashboardResponse.getLoanApplication().getReapply())) {
+                //if no reapply then dont check eligibility
+                cacheLoanDetailsData(loanDashboardResponse);
+                return loanDashboardResponse;
+            }
         }
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        if(Objects.nonNull(loanDashboardResponse.getIneligible())){
+            loanDashboardResponse.setLoanApplication(null);
+        }
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
         return loanDashboardResponse;
@@ -640,6 +650,7 @@ public class LoanDashboardService {
         return null;
     }
         private void checkEligibility(LoanDashboardResponse loanDashboardResponse, LoanDetailsRequest request, BasicDetailsDto merchant)  {
+            log.info("checking eligibility for {}", merchant.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
@@ -649,6 +660,7 @@ public class LoanDashboardService {
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
+            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
 //            loanDashboardResponse.setPancard(experian.getPancardNumber());
 //            loanDashboardResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
 //            loanDashboardResponse.setHasExperian(true);
@@ -756,6 +768,7 @@ public class LoanDashboardService {
                     .tenure(eligibleLoan.getTenure())
                     .category(eligibleLoan.getCategory())
                     .loanType(eligibleLoan.getLoanType())
+                    .initialRoi(eligibleLoan.getInitialRoi())
                     .clubV2Amount(eligibleLoan.getClubV2Amount())
                     .uniqueKey(eligibleLoan.getId())
                     .build();
@@ -863,6 +876,30 @@ public class LoanDashboardService {
         catch(Exception e){
             log.error("unable to evict dashboard api cache for : {}", merchantId);
         }
+    }
+
+    private String getPreApprovedTag(Long merchantId){
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        if(ObjectUtils.isEmpty(lendingRiskVariables)){
+            return null;
+        }
+        String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+        if(ObjectUtils.isEmpty(pilotIdentifier)){
+            return null;
+        }
+        if(pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_TOPUP_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return PreApprovedLoanEnums.PRE_APPROVED_TOPUP.name();
+        }
+        if(pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return PreApprovedLoanEnums.PRE_APPROVED_REPEAT.name();
+        }
+        if(pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_FRESH_LOAN_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return PreApprovedLoanEnums.PRE_APPROVED_FRESH.name();
+        }
+        return null;
     }
 
     private boolean percentScaleUp(Long merchantId, Integer percent) {

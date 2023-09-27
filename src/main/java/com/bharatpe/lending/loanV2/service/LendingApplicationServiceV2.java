@@ -9,7 +9,7 @@ import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.entity.LendingKfs;
@@ -39,6 +39,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -338,6 +339,9 @@ public class LendingApplicationServiceV2 {
                         if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
                             lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
                         }
+                        String dob = KycUtils.getDOB(kycDoc);
+                        log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchant.getId());
+                        lendingApplicationKycDetails.setDob(dob);
                         aadharDigilocker = true;
                         log.info("Aadhar is digilocker approved for : {}", merchant.getId());
                     }
@@ -515,6 +519,8 @@ public class LendingApplicationServiceV2 {
     private ApiResponse<?> createNewApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
+            checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
+
             AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
             String error = baseChecks(merchant, applicationRequest);
             if (error != null) return new ApiResponse<>(false, error);
@@ -881,6 +887,37 @@ public class LendingApplicationServiceV2 {
             return "Already an ongoing loan exists";
         }
         return null;
+    }
+
+    public void checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest){
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        if (lendingRiskVariables != null) {
+            String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+            if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+                log.info("loan request is pre-approved repeat for {}", merchantId);
+                fetchPreviousApplicationData(merchantId, applicationRequest);
+            }
+        }
+    }
+
+    public void fetchPreviousApplicationData(Long merchantId, CreateApplicationRequest applicationRequest){
+        LendingApplication prevApplication =
+                lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantId, "APPROVED");
+        log.info("pervious application for merchant {} : {}", merchantId, prevApplication);
+        if(!ObjectUtils.isEmpty(prevApplication)){
+            AddressDetails addressDetails = new AddressDetails();
+            addressDetails.setPincode(prevApplication.getPincode().toString());
+            addressDetails.setArea(prevApplication.getArea());
+            addressDetails.setCity(prevApplication.getCity());
+            addressDetails.setState(prevApplication.getState());
+            addressDetails.setAddress1(prevApplication.getShopNumber());
+            addressDetails.setAddress2(prevApplication.getStreetAddress());
+            addressDetails.setLandmark(prevApplication.getLandmark());
+
+            applicationRequest.setAddressDetails(addressDetails);
+            applicationRequest.setBusinessName(prevApplication.getBusinessName());
+        }
+        log.info("CreateApplicationRequest for  {} : {}", merchantId, applicationRequest);
     }
 
     public ApiResponse<?> getAgreement(Long applicationId, BasicDetailsDto merchant) {
@@ -1982,7 +2019,7 @@ public class LendingApplicationServiceV2 {
         return currentData;
     }
 
-    public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType){
+    public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType,String clientIp, String deviceId, String platform){
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
           merchant.getId());
         if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -1999,6 +2036,8 @@ public class LendingApplicationServiceV2 {
             }
             else if(docType.equalsIgnoreCase(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.toString())){
                 return generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, false, null);
+            } else if (docType.equalsIgnoreCase(ApplicationDocType.DISBURSMENT_REQUEST_LETTER_DOC.toString())) {
+                return generateDisbursementRequestLetter(applicationId, lendingApplication, merchant, clientIp, deviceId, platform);
             }
             return new ApiResponse<>(false, "Unhandled DocType");
         }
@@ -2335,6 +2374,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
+                filePath = "/templates/KFS_NONP2P_ABFL.html";
             }
             else filePath = "/templates/" + "KFS_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2375,6 +2416,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL.html";
+            } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
             }
             else filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2392,6 +2435,110 @@ public class LendingApplicationServiceV2 {
             return new ApiResponse<>(false, "Unable to generate Sanction Cum Loan Agreement");
         }
     }
+//
+//    public String getDisbursementRequestLetter(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) {
+//
+//        String disbursementRequestLetterFileName =  DISBURSEMENT_REQUEST_LETTER_S3_KEY_PREFIX + applicationId + ".pdf";
+//        String bucket = "loan-document";
+//
+//        String sanctionAndLoanAgreementShorturl = "";
+//
+//        if (s3BucketHandler.doesS3ObjectExist(disbursementRequestLetterFileName, bucket)) {
+//            sanctionAndLoanAgreementShorturl = fetchDisbursementRequestLetterFromS3andGenerateShortUrl(applicationId, disbursementRequestLetterFileName);
+//        } else {
+//            sanctionAndLoanAgreementShorturl = createAndPutDisbursementRequestLetterInS3(lendingApplication.getId(), lendingApplication, merchant);
+//        }
+//
+//        return sanctionAndLoanAgreementShorturl;
+//    }
+
+    public String createAndPutDisbursementRequestLetterInS3(Long applicationId, String html) {
+        String fileName =  DISBURSEMENT_REQUEST_LETTER_S3_KEY_PREFIX + applicationId + ".pdf";;
+        String bucket = "loan-document";
+        if (s3BucketHandler.doesS3ObjectExist(fileName, bucket)) {
+            return fetchDisbursementRequestLetterFromS3andGenerateShortUrl(applicationId, fileName);
+        }
+        String shortUrl = "";
+        try {
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream);
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
+
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            String disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            shortUrl = apiGatewayService.getShortUrl(disbursementRequestLetterUrl);
+        } catch (Exception e) {
+            log.error("Error while creating DisbursementRequestLetter for applicationiId : {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+
+        return shortUrl;
+    }
+
+
+
+    public ApiResponse<?> generateDisbursementRequestLetter(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, String clientIp, String deviceId, String platform){
+        try {
+            if (!"TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+                return new ApiResponse<>(false, "loantype for application is not topup");
+            }
+
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
+            if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+                return new ApiResponse<>(false, "lending application details not found");
+            }
+
+            log.info("pervious application id : {} for applicationId : {}", lendingApplicationDetails.getPrevAppId(), applicationId);
+
+            // fetch previous lending application on which topup is created
+            Optional<LendingApplication> previousLendingApplicationOptional = lendingApplicationDao.findById(lendingApplicationDetails.getPrevAppId());
+
+
+            if (!previousLendingApplicationOptional.isPresent()) {
+                return new ApiResponse<>(false, "previous lending application not found");
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("loan_id", previousLendingApplicationOptional.get().getNbfcId());
+
+            SimpleDateFormat format = new SimpleDateFormat("dd-MM-yyyy");
+
+            String dateString = format.format(new Date());
+
+            data.put("date", dateString);
+            data.put("borrower_name", lendingApplication.getMerchantName());
+
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+
+            data.put("pan_of_borrower", lendingApplicationKycDetails.getPan());
+            data.put("mobile_number", merchant.getMobile());
+            data.put("device_id", Objects.toString(deviceId, ""));
+            data.put("ip_address", Objects.toString(clientIp, ""));
+            data.put("platform", Objects.toString(PLATFORM_PREFIX + platform, PLATFORM_PREFIX));
+            data.put("time_stamp", new Date());
+
+
+            String html = "";
+            String filePath = "/templates/topup_disbursement_letter_liquiloans.html";
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";;
+            for(Map.Entry<String,Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                log.info(key + " " + val);
+                html = html.replace(key, val);
+            }
+            createAndPutDisbursementRequestLetterInS3(applicationId, html);
+            return new ApiResponse<>(html);
+        } catch (Exception e) {
+            log.error("Exception while generating Disbursement Request Letter html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Unable to generate Disbursement Request Letter");
+        }
+    }
 
     public String fetchKfsFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
             String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
@@ -2407,6 +2554,22 @@ public class LendingApplicationServiceV2 {
         String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
         if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())
             throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + applicationId);
+
+        return shortUrl;
+    }
+
+    public String fetchDisbursementRequestLetterFromS3andGenerateShortUrl(Long applicationId, String fileName) {
+        String disbursementRequestLetterUrl = null;
+        try {
+            disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        } catch (FileNotFoundException e) {
+            log.error("Unable to find file  disbursementRequestLetter for applicationId :  {} {}", applicationId, e.getMessage());
+            return null;
+        }
+        String shortUrl = apiGatewayService.getShortUrl(disbursementRequestLetterUrl);
+        if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty()){
+            log.error("Unable to create disbursementRequestLetterUrl for applicationId :  {}", applicationId);
+        }
 
         return shortUrl;
     }

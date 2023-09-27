@@ -114,11 +114,11 @@ public class LendingApplicationControllerV2 {
     }
 
     @GetMapping(value="/applicationDocs")
-    public ResponseEntity<?> kfs(@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant, @RequestParam String docType) {
+    public ResponseEntity<?> kfs(@RequestParam Long applicationId, @RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp, @RequestParam String docType, @RequestParam(required = false) String deviceId, @RequestParam(required = false) String platform) {
         log.info("Request for {} for applicationId :{} for merchant:{}", docType, applicationId, merchant.getId());
         if (Objects.isNull(applicationId) || Objects.isNull(docType))
             return ResponseEntity.badRequest().body("ApplicationId or docType is missing.");
-        ApiResponse<?> response = lendingApplicationServiceV2.getApplicationDoc(applicationId, merchant, docType);
+        ApiResponse<?> response = lendingApplicationServiceV2.getApplicationDoc(applicationId, merchant, docType, clientIp, deviceId, platform);
         return ResponseEntity.ok(response);
     }
     @PostMapping(value = "/updateCurrentAddress", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
