@@ -1552,8 +1552,13 @@ public class APIGatewayService {
                                               String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
                                               Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
+        boolean isPincodeChanged = false;
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
+            isPincodeChanged = eligibilityStateDTO.isPincodeChanged();
+        }
+        boolean finalIsPincodeChanged = isPincodeChanged;
 
-        if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+        if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent) && !finalIsPincodeChanged) {
             try {
                 Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
                 if(!ObjectUtils.isEmpty(response)) {
@@ -1570,12 +1575,6 @@ public class APIGatewayService {
                 logger.error("Error occurred while getting global limit response from cache for merchant:{} {} {}", merchantId, e.getMessage(), e);
             }
         }
-
-        boolean isPincodeChanged = false;
-        if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
-            isPincodeChanged = eligibilityStateDTO.isPincodeChanged();
-        }
-        boolean finalIsPincodeChanged = isPincodeChanged;
 
         if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent)) {
             return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache, finalIsPincodeChanged);
