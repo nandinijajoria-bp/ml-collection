@@ -46,4 +46,6 @@ public class EligibilityStateDTO {
     private Boolean isPreapprovedRepeatLoan = false;
     private String riskSegment;
 
+    private boolean isPincodeChanged;
+
 }

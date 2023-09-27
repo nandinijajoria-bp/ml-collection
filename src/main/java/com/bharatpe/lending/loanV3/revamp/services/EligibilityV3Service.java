@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
 
@@ -126,10 +127,29 @@ public class EligibilityV3Service {
             experian.setReportDate(null);
             experian.setExperianScore(null);
             experianDao.save(experian);
+            checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
+            try {
+                refreshEligibility(request, eligibilityStateDTO);
+            } catch (BureauCallMaskedApiException e) {
+                log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+            }
         } else if (request != null && request.getPincode() != null) {
-            log.info("updating experian pincode:{} for merchant:{}", request.getPincode(), merchant.getId());
-            experian.setPincode(Integer.valueOf(request.getPincode()));
-            experianDao.save(experian);
+            if(Objects.nonNull(experian.getPincode()) && (experian.getPincode().equals(Integer.valueOf(request.getPincode())))){
+                log.info("pincode value in request is same as experian for {} : {}, {}", merchant.getId(), request.getPincode(), experian.getPincode());
+            }
+            else{
+                log.info("updating experian pincode:{} for merchant:{}", request.getPincode(), merchant.getId());
+                experian.setPincode(Integer.valueOf(request.getPincode()));
+                experianDao.save(experian);
+                checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
+                try {
+                    eligibilityStateDTO.setPincodeChanged(true);
+                    refreshEligibility(request, eligibilityStateDTO);
+                } catch (BureauCallMaskedApiException e) {
+                    log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+                }
+            }
+
         }
         if (!easyLoanUtil.isDummyMerchant(merchant.getId())) {
             if (!StringUtils.isEmpty(eligibilityStateDTO.getKycPancard()) && !eligibilityStateDTO.getKycPancard().equalsIgnoreCase(experian.getPancardNumber())) {
