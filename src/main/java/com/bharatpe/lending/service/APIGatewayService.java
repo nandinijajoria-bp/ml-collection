@@ -1691,6 +1691,9 @@ public class APIGatewayService {
         if (!ObjectUtils.isEmpty(clubV2)) {
             queryParams.append("&clubV2=").append(clubV2);
         }
+        if (!ObjectUtils.isEmpty(isPincodeChanged)) {
+            queryParams.append("&isPincodeChanged=").append(isPincodeChanged);
+        }
         String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/eligibility" + queryParams;
         String payload = lendingHmacCalculator.getObjectPayload(requestParams);
         String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
