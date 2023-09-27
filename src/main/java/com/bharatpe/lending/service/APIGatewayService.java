@@ -1571,15 +1571,17 @@ public class APIGatewayService {
             }
         }
 
-        if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent)) {
-            return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache);
-        }
-
         boolean isPincodeChanged = false;
         if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
             isPincodeChanged = eligibilityStateDTO.isPincodeChanged();
         }
         boolean finalIsPincodeChanged = isPincodeChanged;
+
+        if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent)) {
+            return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache, finalIsPincodeChanged);
+        }
+
+
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1669,7 +1671,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache) {
+    public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged) {
         logger.info("Get scenaptic limit for merchant:{}", merchantId);
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
@@ -1677,6 +1679,7 @@ public class APIGatewayService {
             put("source", source);
             put("appVersion", appVersion);
             put("clubV2", clubV2);
+            put("isPincodeChanged", isPincodeChanged);
         }};
         StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
         if (!ObjectUtils.isEmpty(source)) {
