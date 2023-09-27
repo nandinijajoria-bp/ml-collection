@@ -1558,7 +1558,7 @@ public class APIGatewayService {
         }
         boolean finalIsPincodeChanged = isPincodeChanged;
 
-        if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent) && !isPincodeChanged) {
+        if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent) && !finalIsPincodeChanged) {
             try {
                 Object response = globalAPICacheService.getGlobalAPIResponseCache(merchantId, globalApiCacheTtl);
                 if(!ObjectUtils.isEmpty(response)) {
