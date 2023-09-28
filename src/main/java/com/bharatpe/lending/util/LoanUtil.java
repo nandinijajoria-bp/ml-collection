@@ -196,6 +196,8 @@ public class LoanUtil {
 
 	List<Long> derogMerchants = new ArrayList();
 
+	List<Long> customEnabledMerchants = new ArrayList();
+
 	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
 
 	List<Long> abflExcludedMerchants = new ArrayList<>();
@@ -210,8 +212,22 @@ public class LoanUtil {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
 		}
-		derogMerchants = readCsvFile();
+
+		String filePath = "/MerchantList/derog_merchant";
+
+		derogMerchants = readCsvFile(filePath);
 		return derogMerchants;
+	}
+
+	public List<Long> customEnabledTopupMerchants() {
+		if (!ObjectUtils.isEmpty(customEnabledMerchants)) {
+			return customEnabledMerchants;
+		}
+
+		String filePath = "/MerchantList/custom_enabled_merchants";
+
+		customEnabledMerchants = readCsvFile(filePath);
+		return customEnabledMerchants;
 	}
 
 	private boolean derogTopUpEnable(Long merchantId) {
@@ -1536,11 +1552,12 @@ public class LoanUtil {
 		} else return -1D;
 	}
 
-	private List<Long> readCsvFile() {
+	private List<Long> readCsvFile(String filePath) {
 		List<Long> merchantList = new ArrayList<>();
 		try {
 
-			String filePath = "/MerchantList/derog_merchant";
+			logger.info("Reading file on path {}", filePath);
+
 			InputStream inputStream = this.getClass().getResourceAsStream(filePath);
 			Scanner sc = new Scanner(inputStream);
 			sc.useDelimiter(",");

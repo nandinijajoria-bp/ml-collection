@@ -707,6 +707,13 @@ public class MerchantLoansService {
 
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentSchedule lendingPaymentSchedule) {
         List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
+        List<Long> customEnabledMerchants = loanUtil.customEnabledTopupMerchants();
+
+        if (customEnabledMerchants.contains(lendingPaymentSchedule.getMerchantId())) {
+            return derogTestEligibility(lendingPaymentSchedule);
+
+        }
+
         if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
             return derogTestEligibility(lendingPaymentSchedule);
         }
