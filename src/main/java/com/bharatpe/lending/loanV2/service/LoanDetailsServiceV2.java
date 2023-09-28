@@ -356,6 +356,7 @@ public class LoanDetailsServiceV2 {
                         checkKycForTopup(loanDetailsResponse, topupApplication, merchant, experian);
                     }
                     else{
+                        loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
                         loanDetailsResponse.setKycDone(true);
                     }
                     loanDetailsResponse.setShowReferencePage(false);
