@@ -22,7 +22,6 @@ import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.AutoPayUPI;
-import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -31,10 +30,10 @@ import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
-import com.mysql.cj.x.protobuf.MysqlxExpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,7 +50,6 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
-import static com.bharatpe.lending.util.LoanUtil.addDays;
 
 @Service
 @Slf4j
@@ -710,12 +708,12 @@ public class MerchantLoansService {
         List<Long> customEnabledMerchants = loanUtil.customEnabledTopupMerchants();
 
         if (customEnabledMerchants.contains(lendingPaymentSchedule.getMerchantId())) {
-            return derogTestEligibility(lendingPaymentSchedule);
+            return computeEligibility(lendingPaymentSchedule);
 
         }
 
         if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
-            return derogTestEligibility(lendingPaymentSchedule);
+            return computeEligibility(lendingPaymentSchedule);
         }
 
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
@@ -843,6 +841,13 @@ public class MerchantLoansService {
                 if (paidRatio >= 0.5D && paidRatio < 0.60D) {
                     logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
+                }
+
+                final List<LoanEligibilityDTO> eligibilityDTOS = computeEligibility(lendingPaymentSchedule);
+
+                if (!eligibilityDTOS.isEmpty() && paidRatio >= 0.05D && checkForMultipleRepeatTopupOffer(lendingPaymentSchedule.getMerchantId()) ) {
+                    logger.info("multiple repeat topup eligible and paid ratio >= 0.05 : {}", lendingPaymentSchedule.getMerchantId());
+                    return eligibilityDTOS;
                 }
             }
         } catch (Exception e) {
@@ -979,6 +984,19 @@ public class MerchantLoansService {
             logger.info("Exception occurred in Additional Topup Rule Engine for merchantId: {}", lendingPaymentSchedule.getMerchantId());
         }
         return eligiblity;
+    }
+
+    private boolean checkForMultipleRepeatTopupOffer(Long merchantId){
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        if(ObjectUtils.isEmpty(lendingRiskVariables)){
+            return false;
+        }
+        String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+        if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.MULTIPLE_REPEAT_TOPUP_LOAN_IDENTIFIER)){
+            log.info("loan request is multiple_repeat_top_up for {}", merchantId);
+            return true;
+        }
+        return false;
     }
 
     private List<LoanEligibilityDTO> ExistingTopupRuleEngine(LendingPaymentSchedule lendingPaymentSchedule, LendingApplication lendingApplication) {
@@ -1306,7 +1324,7 @@ public class MerchantLoansService {
         return new CommonResponse(false, "merchant not found");
     }
 
-    private List<LoanEligibilityDTO> derogTestEligibility(LendingPaymentSchedule lendingPaymentSchedule) {
+    private List<LoanEligibilityDTO> computeEligibility(LendingPaymentSchedule lendingPaymentSchedule) {
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
 
         try {
