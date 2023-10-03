@@ -712,8 +712,10 @@ public class LoanDashboardService {
             }
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
-                recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
-                eligibility = createEligibility(merchant.getId(),eligibleLoan);
+                eligibleLoan = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
+                if (!ObjectUtils.isEmpty(eligibleLoan)) {
+                    eligibility = createEligibility(merchant.getId(),eligibleLoan);
+                }
             }
             if (eligibility != null) {
                 loanDashboardResponse.setEligibility(eligibility);
@@ -839,31 +841,32 @@ public class LoanDashboardService {
         return RejectionReason.LOW_TRANSACTION.getReason();
     }
 
-    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
+    public EligibleLoan recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
             log.info("Global Limit not found");
-            return;
+            return null;
         }
         Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
         String loanType = globalLimitResponse.getData().getLoanType();
         Double version = globalLimitResponse.getData().getVersion();
+        EligibleLoan eligibleLoan = null;
         try {
-//            eligibleLoanDao.deleteByMerchantId(merchantId);
             List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
             offerDetails.sort(Comparator.comparingInt(GlobalLimitResponse.OfferDetail::getTenure));
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
                 log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
                 if (Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getLoanAmount()) {
-                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
+                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
                 }
                 if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= (offerDetail.getLoanAmount())) {
-                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
+                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
                 }
             }
-//            eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
         } catch (Exception e) {
             log.error("Exception while recomputing eligible loan for merchant:{}", merchantId, e);
         }
+
+        return eligibleLoan;
     }
 
     public void deleteLoanDashboardCache(Long merchantId){

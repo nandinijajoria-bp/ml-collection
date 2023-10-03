@@ -1171,7 +1171,7 @@ public class LoanUtil {
 	}
 
 
-	public LoanEligibilityDTO calculateLoanBreakup(GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
+	public EligibleLoan calculateLoanBreakup(GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
 
 		Integer ediAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / tenureDetail.getEdiCount());
 		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
@@ -1228,7 +1228,7 @@ public class LoanUtil {
 		eligibleLoanList.add(sevenDayEligibleLoanOffer);
 		eligibleLoanDao.saveAll(eligibleLoanList);
 		eligibleLoanDao.flush();
-		return null;
+		return sevenDayEligibleLoanOffer;
 	}
 
 	public boolean isInternalMerchant(Long merchantId) {
