@@ -211,8 +211,8 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         initiateKycResponse.setTopup(isTopup);
         List<KycDocType> docTypes = new ArrayList<>();
-
-            docTypes.add(KycDocType.PAN_CARD);docTypes.add(KycDocType.PAN_NO);
+//        docTypes.add(KycDocType.PAN_CARD);
+        docTypes.add(KycDocType.PAN_NO);
         docTypes.add(KycDocType.SELFIE);
         docTypes.add(KycDocType.EKYC);
         String callBackURL = env.getProperty("kyc.loan.deeplink.v3");
@@ -246,7 +246,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         boolean selfieValid = false;
         boolean aadharValid = false;
         boolean aadharDigilocker = false;
-        boolean panCardApproved = false;
+//        boolean panCardApproved = false;
         boolean panNoApproved = false;
 
         List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER);
@@ -280,14 +280,14 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                             log.info("Aadhaar digilocker doc valid for merchantId:{}", merchantId);
                         }
                     }
-                case PAN_CARD:
-                    if (KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
-                        lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
-                        if (Objects.isNull(lendingApplicationKycDetails.getPanApprovedAt()))
-                            lendingApplicationKycDetails.setPanApprovedAt(new Date());
-                        panCardApproved = true;
-                        log.info("Pan Card is valid for merchantId:{}", lendingApplicationKycDetails.getMerchantId());
-                    }
+//                case PAN_CARD:
+//                    if (KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+//                        lendingApplicationKycDetails.setPanUrl(kycDoc.getDocFrontImageUrl());
+//                        if (Objects.isNull(lendingApplicationKycDetails.getPanApprovedAt()))
+//                            lendingApplicationKycDetails.setPanApprovedAt(new Date());
+//                        panCardApproved = true;
+//                        log.info("Pan Card is valid for merchantId:{}", lendingApplicationKycDetails.getMerchantId());
+//                    }
                 case PAN_NO:
                     if (KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
                         lendingApplicationKycDetails.setPan(kycDoc.getDocIdentifier());
@@ -296,7 +296,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     }
             }
         }
-        if (selfieValid && aadharValid && aadharDigilocker && panCardApproved && panNoApproved) {
+        if (selfieValid && aadharValid && aadharDigilocker && panNoApproved) {
             log.info("All the required kyc documents are valid for merchantId:{}, setting consent date as kyc success", merchantId);
             lendingApplicationKycDetails.setConsentDate(new Date());
             kycVerified=true;
