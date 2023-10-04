@@ -2643,6 +2643,11 @@ public class LendingApplicationServiceV2 {
         if(aadharAddressResponse.isSuccess()){
             AadhaarAddressResponseDTO aadhaarAddressResponseDTO = (AadhaarAddressResponseDTO)aadharAddressResponse.getData();
             data.put("address_of_borrower", aadhaarAddressResponseDTO.getAddress());
+            if (!ObjectUtils.isEmpty(aadhaarAddressResponseDTO.getName())) {
+                data.put("borrower_name", aadhaarAddressResponseDTO.getName());
+                log.info("borrower name getting populated in agreement for application: {} {}", aadhaarAddressResponseDTO.getName(), applicationId);
+            }
+
         }
         else throw new Exception("Unable to get aadhar address for : " + applicationId);
         data.put("device_id", "");
@@ -2937,6 +2942,7 @@ public class LendingApplicationServiceV2 {
                     dto.setCity(kycDoc.getCity());
                     dto.setPincode(kycDoc.getPincode());
                     dto.setState(kycDoc.getState());
+                    dto.setName(kycDoc.getName());
                     return new ApiResponse<>(dto);
                 }
             }
