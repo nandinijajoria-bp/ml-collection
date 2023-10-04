@@ -2958,6 +2958,13 @@ public class LendingApplicationServiceV2 {
                 log.info("Updating current address details as address provided by merchant of applicationId {} and merchantId {}", applicationId, merchant.getId());
             }
             lendingGstDao.save(lendingGstDetail);
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(sameAsAdhaar);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            // invoke bre for piramal
+            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
+                invokeBreForPiramal(lendingGstDetail, lendingApplication);
+            }
             funnelService.submitEvent(merchant.getId(), null, applicationId,
                     FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             return new ApiResponse<>(true, "Current Address updated successfully!");

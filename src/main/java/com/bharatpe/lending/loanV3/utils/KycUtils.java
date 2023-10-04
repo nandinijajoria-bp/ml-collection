@@ -52,12 +52,12 @@ public class KycUtils {
                     cKycResponseDto.setGender(doc.getGender());
                     cKycResponseDto.setPincode(doc.getPincode());
                     cKycResponseDto.setState(doc.getState());
-                    cKycResponseDto.setPoAXml(ConverterUtils.convertXmlToBase64String(doc.getXml()));
+                    cKycResponseDto.setPoAXml(Objects.isNull(doc.getXml()) ? null: ConverterUtils.convertXmlToBase64String(doc.getXml()));
                     cKycResponseDto.setPoAXml(ObjectUtils.isEmpty(cKycResponseDto.getPoAXml()) ? ConverterUtils.convertXmlToBase64String(doc.getDigioXml()) : cKycResponseDto.getPoAXml());
                     cKycResponseDto.setName(doc.getName());
                     cKycResponseDto.setDob(doc.getDob());
                     cKycResponseDto.setAadharNumber(doc.getDocIdentifier());
-                    cKycResponseDto.setPoaString(ConverterUtils.convertXmlToString(doc.getXml()));
+                    cKycResponseDto.setPoaString(Objects.isNull(doc.getXml()) ? null : ConverterUtils.convertXmlToString(doc.getXml()));
                     cKycResponseDto.setPoaString(ObjectUtils.isEmpty(cKycResponseDto.getPoaString()) ? ConverterUtils.convertXmlToString(doc.getDigioXml()) : cKycResponseDto.getPoAXml());
 
                 } else if ("PAN_NO".equalsIgnoreCase(doc.getDocType().name())) {
