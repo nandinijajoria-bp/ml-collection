@@ -2,12 +2,17 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -34,8 +40,23 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
     @Autowired
     LoanUtil loanUtil;
 
+    @Autowired
+    LoanDashboardService loanDashboardService;
+
+    @Autowired
+    FunnelService funnelService;
+
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, null,
+                    FunnelEnums.StageId.PAN_PIN_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(scopeDataArgs.getMerchant().getId(), null, null,
+                    FunnelEnums.StageId.PAN_PIN_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+        }
         EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
         try{
             eligibilityStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));
@@ -68,7 +89,15 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             eligibilityV3Service.savePanPinData(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
         }
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_PAGE, LendingViewStates.PAN_PIN_PAGE);
-        // model all the info in responsev3
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, null,
+                    FunnelEnums.StageId.PAN_PIN_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(scopeDataArgs.getMerchant().getId(), null, null,
+                    FunnelEnums.StageId.PAN_PIN_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+        }
         return lendingStateDTO;
     }
 }

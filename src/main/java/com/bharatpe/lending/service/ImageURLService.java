@@ -129,12 +129,20 @@ public class ImageURLService {
 			lendingApplication =lendingApplicationDao.findById(applicationId).get();
 		}
 
+		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
+		if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+			funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+		}
+		else{
+			funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+		}
+
 		logger.info("Application: {}", lendingApplication);
 
 		panNameCheck = getBanificaryAndPanName(merchant, lendingApplication);
 		result.put("panNameCheck", panNameCheck);
-
-		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
 
 		Boolean ekycDone = false;
 		if(!LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
@@ -342,6 +350,15 @@ public class ImageURLService {
 					if(!StringUtils.isEmpty(lendingShopDocuments.getProofBackSide())) {
 						String backURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofBackSide(), bucket);
 						imageURL.add(backURL);
+					}
+
+					if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+						funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+								FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED, imageURL.toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+					}
+					else{
+						funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+								FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED, imageURL.toString());
 					}
 				} catch (FileNotFoundException e) {
 					logger.info("ImageURLService file not found in S3 bucket for key : {}", lendingShopDocuments.getProofBackSide());

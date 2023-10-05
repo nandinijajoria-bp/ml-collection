@@ -11,12 +11,14 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.ApplicationStage;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -56,6 +58,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -176,6 +179,9 @@ public class LoanDashboardService {
 
     @Autowired
     private ExcessNachService excessNachService;
+
+    @Autowired
+    private FunnelService funnelService;
 
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -313,6 +319,8 @@ public class LoanDashboardService {
 //        if (loanUtil.hasActiveLoan(merchantDetails)) {
         if (hasActiveLoan(merchantDetails.getId())) {
             log.info("active loan merchant:{}", merchantDetails.getId());
+            funnelService.submitEvent(merchantDetails.getId(), null, null,
+                    FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.ACTIVE_LOAN, LocalDateTime.now().toString());
             // set bank details and benificiaryName and account details (in single api get all the information)
             setBankAccountDetails(merchantDetails.getId(),loanDashboardResponse);
             LendingApplicationSlave topupApplication = lendingApplicationDaoSlave.findOpenTopUpApplication(merchantDetails.getId(), "TOPUP");
@@ -346,6 +354,12 @@ public class LoanDashboardService {
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
         if(Objects.nonNull(loanDashboardResponse.getIneligible())){
             loanDashboardResponse.setLoanApplication(null);
+            funnelService.submitEvent(merchantDetails.getId(), null, null,
+                    FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.INELIGIBLE, LocalDateTime.now().toString());
+        }
+        else if(Objects.isNull(loanDashboardResponse.getEligibility())){
+            funnelService.submitEvent(merchantDetails.getId(), null, null,
+                    FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TEN_LAKH_LOAN_PAGE, LocalDateTime.now().toString());
         }
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
@@ -462,6 +476,10 @@ public class LoanDashboardService {
             applicationDetails.setInterestRate(openApplication.getInterestRate());
             applicationDetails.setApplicationStatus(openApplication.getStatus().toLowerCase());
             applicationDetails.setLender(openApplication.getLender());
+            if(ApplicationStatus.DRAFT.name().equalsIgnoreCase(openApplication.getStatus())){
+                funnelService.submitEvent(merchantDetails.getId(), null, openApplication.getId(),
+                        FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PENDING_APPLICATION, LocalDateTime.now().toString());
+            }
 //            LendingApplicationDetails lendingApplicationDetails =
 //                    lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
 //            if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -488,6 +506,8 @@ public class LoanDashboardService {
             }
 
             if("rejected".equalsIgnoreCase(openApplication.getStatus())){
+                funnelService.submitEvent(merchantDetails.getId(), null, openApplication.getId(),
+                        FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.REJECTED, LocalDateTime.now().toString());
                 RejectionStateDto rejectionStateDto = getRejectionReason(openApplication, merchantDetails);
                 applicationDetails.setRejectReason(rejectionStateDto.getRejectionReason());
 //            applicationDetails.setRejectionMessage(rejectionStateDto.getRejectionMessage());
@@ -661,6 +681,10 @@ public class LoanDashboardService {
                 return;
             }
             loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
+            if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
+                funnelService.submitEvent(merchant.getId(), null, null,
+                        FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
+            }
 //            loanDashboardResponse.setPancard(experian.getPancardNumber());
 //            loanDashboardResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
 //            loanDashboardResponse.setHasExperian(true);

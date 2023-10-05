@@ -1496,6 +1496,15 @@ public class LoanDetailsServiceV2 {
                         references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
 
             }
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+            if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),
+                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+            }
+            else{
+                funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),
+                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+            }
             return new ApiResponse<>(responseDto);
         } catch (Exception e) {
             log.error("Error occurred while fetching merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
