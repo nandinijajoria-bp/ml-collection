@@ -426,6 +426,8 @@ public class MerchantLoansService {
                         } else {
                             loan.setAutoPayEligibility(Boolean.FALSE);
                         }
+                    } else {
+                        loan.setAutoPayEligibility(Boolean.FALSE);
                     }
                     }
                     else
