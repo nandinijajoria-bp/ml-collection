@@ -46,10 +46,13 @@ public class LendingCollectionAuditService {
 
             String bpLoanId = null;
             String nbfcId = null;
-            Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
-            if (lendingApplicationSlave.isPresent()) {
-                bpLoanId = lendingApplicationSlave.get().getExternalLoanId();
-                nbfcId = lendingApplicationSlave.get().getNbfcId();
+
+            if (!ObjectUtils.isEmpty(lendingLedger.getLendingPaymentSchedule().getApplicationId())) {
+                Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
+                if (lendingApplicationSlave.isPresent()) {
+                    bpLoanId = lendingApplicationSlave.get().getExternalLoanId();
+                    nbfcId = lendingApplicationSlave.get().getNbfcId();
+                }
             }
             else{
                 HightpvLenderDetails hightpvLenderDetails = hightpvLenderDetailsDao.findByLpsId(lendingLedger.getLendingPaymentSchedule().getId());
