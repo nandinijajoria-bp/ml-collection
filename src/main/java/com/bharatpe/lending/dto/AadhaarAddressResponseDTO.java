@@ -11,4 +11,5 @@ public class AadhaarAddressResponseDTO {
     private String city;
     private String pincode;
     private String state;
+    private String name;
 }
