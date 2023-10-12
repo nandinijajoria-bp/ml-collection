@@ -31,6 +31,9 @@ public class LoanDashboardResponse {
     private String source;
     private Long merchantId;
     private Double excessNachAmount;
+    private Double excessCollectionAmount;
+    private Double excessCollectionAdjusted;
+    private Double excessCollectionBalance;
     private String preApprovedTag;
 }
 

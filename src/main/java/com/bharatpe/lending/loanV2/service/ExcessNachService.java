@@ -2,15 +2,19 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
+import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.query.dao.LendingRefundLedgerSlaveDao;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LendingRefundLedgerDao;
+import com.bharatpe.lending.dto.RepaymentHistoryDTO;
 import com.bharatpe.lending.entity.LendingRefundLedger;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.ExcessNachDetailDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -39,6 +43,9 @@ public class ExcessNachService {
 
     @Autowired
     LendingRefundLedgerSlaveDao lendingRefundLedgerSlaveDao;
+
+    @Autowired
+    LendingCollectionExcessDao lendingCollectionExcessDao;
 
     public ApiResponse<?> excessNachDetailsList(Long merchantId) {
         try {
@@ -106,6 +113,82 @@ public class ExcessNachService {
         } catch (Exception e) {
             log.error("Exception getting pending excessNach amount for merchantId : {}, {}", merchantId, e.getMessage());
             return 0D;
+        }
+    }
+
+    public void setExcessCollectionDetails(Long merchantId, LoanDashboardResponse loanDashboardResponse) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("No application found for merchantId : {}", merchantId);
+                return;
+            }
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(lendingApplication.getId());
+            if (ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+                log.info("No paymentSchedule found for applicationId : {} for merchantId : {}", lendingApplication.getId(), merchantId);
+                return;
+            }
+            Double excessNachAmountRefundable = lendingRefundLedgerSlaveDao.findTotalExcessNachAmount(merchantId, lendingPaymentSchedule.getId(), "EXCESS_NACH", "PENDING");
+            loanDashboardResponse.setExcessNachAmount(excessNachAmountRefundable);
+
+            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            Double excessCollectedAmount = 0D;
+            Double excessCollectionAdjusted = 0D;
+            Double excessCollectionBalance = 0D;
+            if(ObjectUtils.isEmpty(lendingCollectionExcessList)){
+                log.info("No excess collection for merchantId : {}", merchantId);
+                return;
+            }
+            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+                excessCollectedAmount += lendingCollectionExcess.getExcessNachCreditAmount();
+                excessCollectionBalance += lendingCollectionExcess.getAmount();
+                excessCollectionAdjusted = excessCollectedAmount - excessCollectionBalance;
+            }
+            loanDashboardResponse.setExcessCollectionAmount(excessCollectedAmount);
+            loanDashboardResponse.setExcessCollectionBalance(excessCollectionBalance);
+            loanDashboardResponse.setExcessCollectionAdjusted(excessCollectionAdjusted);
+        } catch (Exception e) {
+            log.error("Exception getting pending excessNach amount for merchantId : {}, {}", merchantId, e.getMessage());
+            return;
+        }
+    }
+
+    public void setExcessCollectionDetails(Long merchantId, RepaymentHistoryDTO repaymentHistoryDTO, Long loanId) {
+        try {
+            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdOrderByIdAsc(merchantId, loanId);
+            Double excessCollectedAmount = 0D;
+            Double excessCollectionAdjusted = 0D;
+            Double excessCollectionBalance = 0D;
+            if(ObjectUtils.isEmpty(lendingCollectionExcessList)){
+                log.info("No excess collection for merchantId : {}", merchantId);
+                return;
+            }
+            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+                excessCollectedAmount += lendingCollectionExcess.getExcessNachCreditAmount();
+                excessCollectionBalance += lendingCollectionExcess.getAmount();
+                excessCollectionAdjusted = excessCollectedAmount - excessCollectionBalance;
+            }
+            repaymentHistoryDTO.setExcessCollectionAmount(excessCollectedAmount);
+            repaymentHistoryDTO.setExcessCollectionBalance(excessCollectionBalance);
+            repaymentHistoryDTO.setExcessCollectionAdjusted(excessCollectionAdjusted);
+        } catch (Exception e) {
+            log.error("Exception getting pending excessNach amount for merchantId : {}, {}", merchantId, e.getMessage());
+        }
+    }
+
+    public Double getExcessCollectionBalanceAmount(Long merchantId, Long loanId) {
+        try {
+            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(merchantId, loanId, "ACTIVE");
+            Double excessCollectionBalance = 0D;
+            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+                if(lendingCollectionExcess.getAmount() > 0){
+                    excessCollectionBalance += lendingCollectionExcess.getAmount();
+                }
+            }
+            return excessCollectionBalance;
+        } catch (Exception e) {
+            log.error("Exception getting pending balance amount from excess collection for merchantId : {}, {}", merchantId, e.getMessage());
+            return null;
         }
     }
 }

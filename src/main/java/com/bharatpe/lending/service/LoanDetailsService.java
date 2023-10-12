@@ -45,6 +45,7 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -214,6 +215,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingKfsDao lendingKfsDao;
+
+	@Autowired
+	ExcessNachService excessNachService;
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -1362,6 +1366,7 @@ public class LoanDetailsService {
 
 
 		try {
+			RepaymentHistoryDTO repaymentHistoryDTO = new RepaymentHistoryDTO();
 			List<LoanPaymentOrderSlave> loanPaymentOrders = loanPaymentOrderSlaveDao.findByOwnerIdAndMerchantId(lendingPaymentScheduleId, merchant.getId());
 			if(Objects.nonNull(loanPaymentOrders)){
 				List<Map<String, Object>> repaymentHistoryList = new ArrayList<>();
@@ -1375,8 +1380,9 @@ public class LoanDetailsService {
 
 					repaymentHistoryList.add(repaymentHistory);
 				}
-
-				return new CommonResponse(true, "Repayment History", repaymentHistoryList);
+				repaymentHistoryDTO.setRepaymentHistory(repaymentHistoryList);
+				excessNachService.setExcessCollectionDetails(merchant.getId(), repaymentHistoryDTO, Long.valueOf(lendingPaymentScheduleId));
+				return new CommonResponse(true, "Repayment History", repaymentHistoryDTO);
 			}
 		} catch (Exception ex) {
 			logger.error("Exception while repayment history for ApplicationId {} Error: {}", lendingPaymentScheduleId, ex);

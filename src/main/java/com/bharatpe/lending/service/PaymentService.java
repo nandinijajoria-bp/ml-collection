@@ -37,6 +37,7 @@ import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
@@ -89,6 +90,7 @@ import org.springframework.util.StringUtils;
 import javax.transaction.Transactional;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
+import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
 
 @Service
 @Slf4j
@@ -214,6 +216,9 @@ public class PaymentService {
 
     @Autowired
     private LoanDashboardService loanDashboardService;
+
+    @Autowired
+    LendingCollectionExcessDao lendingCollectionExcessDao;
 
 
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
@@ -917,18 +922,27 @@ public class PaymentService {
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
+        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
+        Double excessCollectionBalance = 0D;
+        for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+            if(lendingCollectionExcess.getAmount() > 0){
+                excessCollectionBalance += lendingCollectionExcess.getAmount();
+            }
+        }
 
         Double paidInterestAmount = 0D;
         Double paidPrincipalAmount = 0D;
         boolean preclosure = false;
         boolean advanceAdjusted = false;
+        boolean excessCollectionAdjusted = false;
         logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), (principalDueAmount + ediHolidayInterestAmount));
         logger.info("Advance EDI amount for loanId:{} is:{}", activeLoan.getId(), advanceEdiAmount);
+        logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
         if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
-            paidPrincipalAmount = amount - paidInterestAmount + advanceEdiAmount;
+            paidPrincipalAmount = amount - paidInterestAmount + advanceEdiAmount + excessCollectionBalance;
             double extraPrinciple = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
             if (extraPrinciple > 0) {
                 logger.info("Extra principle received for loanId:{} and extra amount:{}", activeLoan.getId(), extraPrinciple);
@@ -937,15 +951,16 @@ public class PaymentService {
             }
             logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
             if(activeLoan.getDueAmount() >= 0) {
-                createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + advanceEdiAmount) ,
-                        -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount),
+                createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + advanceEdiAmount + excessCollectionBalance) ,
+                        -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance),
                         Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source, transferType, terminalOrderId);
             } else {
-                createLendingLedger(activeLoan, -1 * amount + advanceEdiAmount, -1 * amount - ediHolidayInterestAmount + advanceEdiAmount,
+                createLendingLedger(activeLoan, -1 * (amount + advanceEdiAmount + excessCollectionBalance),
+                        -1 * (amount - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance),
                         Double.valueOf(ediHolidayInterestAmount), "PREPAYMENT", source, transferType, terminalOrderId);
             }
 
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + advanceEdiAmount);
+            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + advanceEdiAmount + excessCollectionBalance);
             activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
             activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
 
@@ -956,6 +971,7 @@ public class PaymentService {
             activeLoan.setStatus("CLOSED");
             activeLoan.setClosingDate(new Date());
             preclosure = true;
+            if(excessCollectionBalance > 0D)excessCollectionAdjusted = true;
             if (lendingPrepayment != null && advanceEdiAmount > 0d) {
                 advanceAdjusted = true;
                 lendingPrepayment.setAdvanceEdiCount(0);
@@ -1116,8 +1132,13 @@ public class PaymentService {
             amount = (paidPrincipalAmount + paidInterestAmount);
         }
         logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
-        LendingLedger lendingLedger = createLendingLedger(activeLoan, amount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
+        LendingLedger lendingLedger = createLendingLedger(activeLoan, amount, excessCollectionAdjusted ? paidPrincipalAmount - excessCollectionBalance : paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
                 preclosure), source, transferType, terminalOrderId);
+        if(excessCollectionAdjusted){
+            logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
+            createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
+            settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
+        }
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
@@ -1695,7 +1716,16 @@ public class PaymentService {
         Double paidPrincipalAmount = 0D;
         Double remainingBalance = amount;
         boolean preclosure = false;
+        boolean excessCollectionAdjusted = false;
+        Double excessCollectionBalance = 0D;
+        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
+        for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+            if(lendingCollectionExcess.getAmount() > 0){
+                excessCollectionBalance += lendingCollectionExcess.getAmount();
+            }
+        }
 
+        logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), foreclosureAmount);
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
 
@@ -1703,22 +1733,22 @@ public class PaymentService {
         if(foreclosureAmount - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
-            paidPrincipalAmount = amount - paidInterestAmount;
+            paidPrincipalAmount = amount - paidInterestAmount + excessCollectionBalance;
             remainingBalance = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
 
-            paymentSettlementService.settlePreclosureLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), amount);
+            paymentSettlementService.settlePreclosureLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), amount + excessCollectionBalance);
 
             logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
             if(activeLoan.getDueAmount() >= 0) {
-                createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount()) ,
-                  -1 * Math.abs(amount - activeLoan.getDueAmount()),
+                createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + excessCollectionBalance) ,
+                  -1 * Math.abs(amount - activeLoan.getDueAmount() + excessCollectionBalance),
                   0d, "PREPAYMENT", source, transferType, terminalOrderId);
             } else {
-                createLendingLedger(activeLoan, -1 * amount, -1 * amount,
+                createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
                   0d, "PREPAYMENT", source, transferType, terminalOrderId);
             }
 
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount);
+            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + excessCollectionBalance);
             activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + paidInterestAmount);
             activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + paidPrincipalAmount);
 
@@ -1729,6 +1759,7 @@ public class PaymentService {
             activeLoan.setStatus("CLOSED");
             activeLoan.setClosingDate(new Date());
             preclosure = true;
+            if(excessCollectionBalance > 0D)excessCollectionAdjusted = true;
         }
         else {
             final SettleLoanPaymentDTO settleLoanPaymentDTO = paymentSettlementService.settleLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), remainingBalance);
@@ -1748,8 +1779,15 @@ public class PaymentService {
 
         logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 
-        LendingLedger lendingLedger = createLendingLedger(activeLoan, paidPrincipalAmount + paidInterestAmount, paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
-          preclosure), source, transferType, terminalOrderId);
+        LendingLedger lendingLedger = createLendingLedger(
+                activeLoan, excessCollectionAdjusted ? paidPrincipalAmount + paidInterestAmount - excessCollectionBalance : paidPrincipalAmount + paidInterestAmount,
+                paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo, preclosure), source, transferType, terminalOrderId
+        );
+        if(excessCollectionAdjusted){
+            logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
+            createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
+            settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
+        }
 
         if (Objects.nonNull(activeLoan.getSettleAllPrinciple()) && activeLoan.getSettleAllPrinciple()) {
             // switch back to IPC if all due is paid
@@ -1986,6 +2024,31 @@ public class PaymentService {
         } catch (Exception e) {
             logger.error("Exception in payment status check", e);
             return new PaymentStatusV3ResponseDTO(false, "Something went wrong");
+        }
+    }
+
+    private void settleExcessCollectionBalance(Long loanId, List<LendingCollectionExcess> lendingCollectionExcessList){
+        if(ObjectUtils.isEmpty(lendingCollectionExcessList))return;
+        logger.info("settling excess collection upon foreclosure for loanId:{}, {}", loanId, lendingCollectionExcessList);
+        for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+            lendingCollectionExcess.setDeductedAmount(lendingCollectionExcess.getDeductedAmount() + lendingCollectionExcess.getAmount());
+            lendingCollectionExcess.setAmount(0D);
+            lendingCollectionExcess.setDeductionCount(lendingCollectionExcess.getDeductionCount() + 1);
+            lendingCollectionExcess.setStatus("CLOSED");
+            lendingCollectionExcessDao.save(lendingCollectionExcess);
+        }
+    }
+
+    private void createLendingLedgerForExcessCollectionOnForeclosure(LendingPaymentSchedule activeLoan, List<LendingCollectionExcess> lendingCollectionExcessList){
+        if(ObjectUtils.isEmpty(lendingCollectionExcessList))return;
+        List<LendingLedger> lendingLedgersListExcessCollection = new ArrayList<>();
+        for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+            String desc = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + (lendingCollectionExcess.getDeductionCount() + 1);
+            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
+                    lendingCollectionExcess.getAmount(), 0d,  desc,
+                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc
+            );
+            lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }
     }
 

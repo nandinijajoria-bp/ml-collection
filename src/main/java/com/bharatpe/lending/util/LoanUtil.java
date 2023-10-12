@@ -32,6 +32,7 @@ import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -188,6 +189,12 @@ public class LoanUtil {
 
 	@Autowired
 	private LoanDashboardService loanDashboardService;
+
+	@Autowired
+	LendingCollectionExcessDao lendingCollectionExcessDao;
+
+	@Autowired
+	ExcessNachService excessNachService;
 
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
@@ -434,6 +441,7 @@ public class LoanUtil {
 		put("BT", "Bank Transfer");
 		put("AUTO_FP", "Investment A/c");
 		put("ADVANCE_EDI", "Advance EDI");
+		put("EXCESS_SETLMNT", "Excess Credit Adjusted");
 	}};
 
 	public static List<JsonNode> jsonNodeArrayUtil(JsonNode nodeData) {
@@ -1082,7 +1090,10 @@ public class LoanUtil {
 		}
 		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
-		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount);
+
+		Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount - excessCollectionBalance);
 	}
 
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {

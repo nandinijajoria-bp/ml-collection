@@ -329,7 +329,7 @@ public class LoanDashboardService {
                 loanDashboardResponse.setTopupLoanApplication(topUpApplicationDetails);
             }
             loanDashboardResponse.setActiveLoan(true);
-            loanDashboardResponse.setExcessNachAmount(excessNachService.getExcessNachAmount(merchantDetails.getId()));
+            excessNachService.setExcessCollectionDetails(merchantDetails.getId(), loanDashboardResponse);
             cacheLoanDetailsData(loanDashboardResponse);
             return loanDashboardResponse;
         }
