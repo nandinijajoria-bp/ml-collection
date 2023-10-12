@@ -668,7 +668,7 @@ public class PaymentService {
                     order.setStatus("PENDING");
                     loanPaymentOrderDao.save(order);
                 }
-                logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
+                logger.error("Exception in payment callback for order id {}, {}, {}", request.getOrderId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             }
         }
         return "OK";
@@ -1142,7 +1142,7 @@ public class PaymentService {
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
-            if ("LDC".equals(activeLoan.getLoanApplication().getLender())) {
+            if ("LDC".equals(activeLoan.getNbfc())) {
                 nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
             }
         }
