@@ -143,6 +143,7 @@ public class MileStoneHelperService {
 
         if (rteEligibleMerchants.contains(merchant.getId())) {
             merchant.setCreatedAt(new Date());
+            merchant.setCreated_at(new Date());
         }
 
         boolean lessThan30 = false;
