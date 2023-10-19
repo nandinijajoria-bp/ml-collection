@@ -28,9 +28,15 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.MileStoneDao;
+import com.bharatpe.lending.dto.DEPinCode;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
+import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
@@ -44,6 +50,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.PreApprovedLoanEnums;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
+import com.bharatpe.lending.service.MileStoneHelperService;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -75,6 +82,9 @@ public class LoanDashboardService {
     @Value("${loan.version.api.refresh.window:60}")
     int loanVersionApiRefreshWindow;
 
+
+    @Autowired
+    MileStoneHelperService mileStoneHelperService;
     @Autowired
     private LoanUtil loanUtil;
 
@@ -186,6 +196,15 @@ public class LoanDashboardService {
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
 
+    @Autowired
+    LendingPincodesDao lendingPincodesDao;
+
+    @Autowired
+    DsHandler dsHandler;
+
+    @Autowired
+    MileStoneDao mileStoneDao;
+
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
     currently we are deciding this feature on the basis of internal/external merchant only
@@ -283,6 +302,12 @@ public class LoanDashboardService {
         //set dummy merchant
         loanDashboardResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchantDetails.getId()));
 
+
+//        if (!("APPROVED".equalsIgnoreCase(doc.getKycStatus().name())))
+//        {
+//            kycHandler.initiateKyc(merchantDetails.getId(),)
+//        }
+
        // @Deprecated
 //        Experian experian = experianDao.getByMerchantId(merchantDetails.getId());
 //        if (experian != null) {
@@ -361,6 +386,49 @@ public class LoanDashboardService {
             funnelService.submitEvent(merchantDetails.getId(), null, null,
                     FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TEN_LAKH_LOAN_PAGE, LocalDateTime.now().toString());
         }
+        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchantDetails);
+        loanDashboardResponse.setRouteToEligibilityData(mileStoneEligibilityResponseDto);
+
+        if (Boolean.TRUE.equals(mileStoneEligibilityResponseDto.getMilStoneEligibility())) {
+
+            Integer pincode = null;
+            Experian experian = experianDao.getByMerchantId(merchantDetails.getId());
+
+            if (!ObjectUtils.isEmpty(experian)) {
+                if (experian.getPincode() != null) {
+                    LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(experian.getPincode());
+                    log.info("pincode entity is {}", lendingPincodes);
+                    pincode = lendingPincodes.getPincode();
+                } else {
+                    if (!ObjectUtils.isEmpty(experian.getLatitude()) && !ObjectUtils.isEmpty(experian.getLongitude())) {
+                        DEPinCode pinCodeResponse = dsHandler.getInferredPinCode(merchantDetails.getId(), experian.getLatitude(), experian.getLongitude());
+                        if (!ObjectUtils.isEmpty(pinCodeResponse.getPincode())) {
+                            LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(experian.getPincode());
+                            log.info("pincode entity is {} ", lendingPincodes);
+                            pincode = lendingPincodes.getPincode();
+                        }
+                    }
+                }
+            } else {
+                pincode = null;
+            }
+
+            loanDashboardResponse.setPinCode(pincode);
+            boolean isMileStoneExpiry = false;
+            MileStoneEntity mileStoneEntity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
+            if (!ObjectUtils.isEmpty(mileStoneEntity)) {
+                Date date = new Date();
+                isMileStoneExpiry = mileStoneEntity.getExpiryDate().getTime() < date.getTime();
+                if (isMileStoneExpiry && "IN_PROGRESS".equalsIgnoreCase(mileStoneEntity.getSessionStatus())) {
+                    mileStoneEntity.setSessionStatus("COMPLETED");
+                    mileStoneDao.save(mileStoneEntity);
+                }
+            }
+
+            loanDashboardResponse.setIsMileStoneProgramExpired(isMileStoneExpiry);
+        }
+        KycStatusDTO doc = kycHandler.getKycStatus(merchantDetails.getId());
+        loanDashboardResponse.setKycStatus(doc.getKycStatus());
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
         return loanDashboardResponse;

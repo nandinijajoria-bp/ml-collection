@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
@@ -35,5 +36,10 @@ public class LoanDashboardResponse {
     private Double excessCollectionAdjusted;
     private Double excessCollectionBalance;
     private String preApprovedTag;
+
+    private Integer pinCode;
+    private Boolean isMileStoneProgramExpired;
+    private MileStoneEligibilityResponseDto routeToEligibilityData;
+
 }
 

@@ -205,6 +205,8 @@ public class LoanUtil {
 
 	List<Long> customEnabledMerchants = new ArrayList();
 
+	List<Long> rteEligibleMerchants = new ArrayList();
+
 	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
 
 	List<Long> abflExcludedMerchants = new ArrayList<>();
@@ -243,6 +245,16 @@ public class LoanUtil {
 		return LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
 	}
 
+	public List<Long> rteEligibleMerchant() {
+		if (!ObjectUtils.isEmpty(rteEligibleMerchants)) {
+			return rteEligibleMerchants;
+		}
+
+		String filePath = "/MerchantList/rte_eligible_merchants";
+
+		rteEligibleMerchants = readCsvFile(filePath);
+		return rteEligibleMerchants;
+	}
 
 	public static Map<String, Object> prepareSelectedLoanForClient(LendingApplication application, LendingCategories lendingCategories) {
 		Map<String, Object> selectedLoan = new LinkedHashMap<>();

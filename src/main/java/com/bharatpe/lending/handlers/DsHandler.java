@@ -1,13 +1,10 @@
 package com.bharatpe.lending.handlers;
 
 import com.bharatpe.lending.common.dto.KafkaAudit;
-import com.bharatpe.lending.dto.DSMainResponse;
-import com.bharatpe.lending.dto.DeGetMerchantReferencesAudit;
-import com.bharatpe.lending.dto.MerchantReference;
-import com.bharatpe.lending.dto.PostPayoutAuditDto;
-import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.dto.DeGetReferencesResponse;
 import com.bharatpe.lending.loanV2.dto.DsValidateReferencesResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +33,9 @@ public class DsHandler {
 
     @Value("${ds.api.url}")
     String dsApiUrl;
+
+    @Autowired
+    ObjectMapper mapper;
 
 
     public List<MerchantReference> validateMerchantReferences(Long merchantId, List<ValidateMerchantReferencesRequestDto> referenceList) {
@@ -91,6 +91,7 @@ public class DsHandler {
             DeGetMerchantReferencesAudit auditData = new DeGetMerchantReferencesAudit(applicationId,responseEntity);
             KafkaAudit<DeGetMerchantReferencesAudit> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "de_get_references_response_audit", null);
             kafkaAudit.setData(auditData);
+
             pushKafkaAudit(kafkaAudit);
 
             log.info("DE Get Merchant References for merchantId: {}, responseEntity : {} ", merchantId, responseEntity);
@@ -155,5 +156,91 @@ public class DsHandler {
         return null;
     }
 
+    public DSMileStoneResponse fetchMileStoneData(Long merchantId, Double bureauScore, Double bbsScore, String pincodeColor) {
+        try {
+            log.info("Request to fetch DS milestones for merchantId:{}", merchantId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
+            HttpEntity<Object> request = new HttpEntity<>(headers);
+            String url = deBaseUrl + "/merchant_milestone" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor;
+
+            log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+
+            ResponseEntity<DSMileStoneResponse> responseEntity = null;
+            try {
+                responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
+                log.info("response {} of target for merchantid {} is ", responseEntity.getBody(),merchantId);
+                if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
+                    return responseEntity.getBody();
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Exception in Http Client while fetching DS milestones for merchant:{} error is: {}", merchantId, e.getResponseBodyAsString());
+            }
+        } catch (Exception e) {
+            log.error("Exception while fetching milestone data for merchant: {} and error: {}", merchantId, e.getStackTrace());
+        }
+        return null;
+    }
+
+
+    public DSMileStoneAchievementResponse fetchMilestoneAchievements(Long merchantId,String sessionId)
+    {
+        try {
+            log.info("Request to fetch Achieve milestones for merchantId:{} and sessionId: {}", merchantId, sessionId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
+            HttpEntity<Object> request = new HttpEntity<>(headers);
+            String url = deBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
+
+            log.info("DE Achieve MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            ResponseEntity<DSMileStoneAchievementResponse> responseEntity = null;
+            try {
+                responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneAchievementResponse.class);
+                log.info("response {} of achievements for merchantid {}",responseEntity.getBody(),merchantId);
+                if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
+                    return responseEntity.getBody();
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Exception in Http Client while fetching Achieve milestones for merchant:{} error is: {}", merchantId, e.getResponseBodyAsString());
+            }
+        } catch (Exception e) {
+            log.error("Exception while fetching Achieve milestone data for merchant: {} and error: {}", merchantId, e.getStackTrace());
+
+        }
+        return null;
+    }
+
+
+    public DEPinCode getInferredPinCode(Long merchantId, Double latitude, Double longtitude) {
+
+        try {
+            log.info("Request to get Pincode for merchantId:{} ", merchantId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
+
+            Map<String, Object> requestMap = new HashMap<>();
+            requestMap.put("lat", latitude);
+            requestMap.put("lon", longtitude);
+            HttpEntity<Object> request = new HttpEntity<>(requestMap, headers);
+
+            String url = deBaseUrl + "/geo-info";
+
+            log.info("Request for Inferred Pincode for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            ResponseEntity<DEPinCode> responseEntity = null;
+            try {
+                responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, DEPinCode.class);
+                log.info("response {} of inferred pincode for merchantid {}",responseEntity.getBody(),merchantId);
+                if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
+                    return responseEntity.getBody();
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Exception in Http Client while fetching Pincode for merchant:{} error is: {}", merchantId, e.getResponseBodyAsString());
+            }
+        } catch (Exception e) {
+            log.error("Exception while fetching Pincode for merchant: {} and error: {}", merchantId, e.getStackTrace());
+
+        }
+        return null;
+    }
 
 }
