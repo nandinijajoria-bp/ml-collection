@@ -1,9 +1,11 @@
 package com.bharatpe.lending.loanV3.revamp.util;
 
 import lombok.extern.slf4j.Slf4j;
+import org.joda.time.LocalDateTime;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 @Slf4j
@@ -24,25 +26,6 @@ public class DateUtils {
     public static String formatDate_HH_mm_a(Date inputDate){
         return HH_mm_a.format(inputDate);
     }
-
-    public static String addDays(Date date, int daysCount)
-    {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        calendar.add(Calendar.DATE, daysCount);
-        return new SimpleDateFormat("yyyy-MM-dd").format(calendar.getTime());
-    }
-
-    public static Date addDaysWithTime(Date date, int daysCount)
-    {
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(date);
-        calendar.add(Calendar.DATE, daysCount);
-        return calendar.getTime();
-    }
-
-
-
 
 
 

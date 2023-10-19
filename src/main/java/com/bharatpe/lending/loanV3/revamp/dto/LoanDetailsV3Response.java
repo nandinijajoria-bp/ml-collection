@@ -134,11 +134,6 @@ public class LoanDetailsV3Response {
                     setEnachResponse((EnachStateDTO)lendingStateDTO.getData(),loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
-                case KYC_ROUTE_TO_ELIGIBILITY:
-                    setKYCRouteToEligibilityResponse((KYCRTEDto) lendingStateDTO.getData(),loanDetailsV3Response);
-                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
-                    return loanDetailsV3Response;
-
                 default:
 
             }
@@ -163,15 +158,6 @@ public class LoanDetailsV3Response {
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
-    }
-
-    private static void setKYCRouteToEligibilityResponse(KYCRTEDto kycStateDTO, LoanDetailsV3Response loanDetailsV3Response)
-
-    {
-        loanDetailsV3Response.setKycStatus(kycStateDTO.getKycStatus());
-        loanDetailsV3Response.setKycDeeplink(kycStateDTO.getDeepLink());
-        loanDetailsV3Response.setShowKycPage(kycStateDTO.getShowKycPage());
-
     }
 
     private static void setAgreementResponse(AgreementStateDTO agreementStateDTO, LoanDetailsV3Response loanDetailsV3Response){

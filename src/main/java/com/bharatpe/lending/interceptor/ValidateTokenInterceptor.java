@@ -2,7 +2,6 @@ package com.bharatpe.lending.interceptor;
 
 import java.text.Normalizer;
 import java.text.Normalizer.Form;
-import java.util.UUID;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -12,7 +11,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.util.StringUtils;
@@ -35,9 +33,6 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
 	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 		logger.info("Pre handle Interceptor of ValidateTokenInterceptor for {}",request);
         String token = request.getHeader("token");
-
-		UUID requestId = UUID.randomUUID();
-		MDC.put("requestId", requestId.toString());
         
         try {
         	if(StringUtils.isEmpty(token)) {
