@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
@@ -1108,12 +1109,43 @@ public class LoanUtil {
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount - excessCollectionBalance);
 	}
 
+	public int getForeclosureAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return 0;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+
+		Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount - excessCollectionBalance);
+	}
+
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
 
 		double prevLoanUnpaidAmount = 0;
 
 		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
 		apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
+
+		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+		String dateString = format.format(addDays(new Date(), ldcForecloseAmountDateDiff));
+
+		final LdcForeclosureDetailsApiResponseDTO.ForeclosureData foreclosureData = ldcForeclosureDetails.getData().getData().get(dateString);
+
+		logger.info("foreclosure amount picked for date : {} {}", dateString, foreclosureData);
+
+		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount();
+		return prevLoanUnpaidAmount;
+	}
+
+	public double getForeclosureAmountForLdc (LendingPaymentScheduleSlave lendingPaymentSchedule) {
+
+		double prevLoanUnpaidAmount = 0;
+
+		final LdcForeclosureDetailsApiResponseDTO ldcForeclosureDetails =
+				apiGatewayService.getLdcForeclosureDetails(lendingPaymentSchedule.getApplicationId());
 
 		SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -1189,6 +1221,11 @@ public class LoanUtil {
 	}
 
 	public int getIoHalfPF(LendingPaymentSchedule lendingPaymentSchedule) {
+		int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
+		return (int) Math.ceil(foreclosureAmount * 0.05);
+	}
+
+	public int getIoHalfPF(LendingPaymentScheduleSlave lendingPaymentSchedule) {
 		int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
 		return (int) Math.ceil(foreclosureAmount * 0.05);
 	}

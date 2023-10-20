@@ -15,18 +15,11 @@ import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
-import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
-import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
-import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
+import com.bharatpe.lending.common.query.dao.*;
+import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.query.dao.BankStatementSessionDetailsDaoSlave;
-import com.bharatpe.lending.common.query.dao.BankStatementWhitelistedBanksDaoSlave;
-import com.bharatpe.lending.common.query.entity.BankStatementSessionDetailsSlave;
-import com.bharatpe.lending.common.query.entity.BankStatementWhitelistedBanksSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
@@ -219,6 +212,9 @@ public class SupportService {
     @Autowired
     FinanceUtilsHandler financeUtilsHandler;
 
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -233,7 +229,7 @@ public class SupportService {
 //            CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
 //            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             Experian experian = experianDao.getByMerchantId(merchantId);
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+            LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdAndStatusNotOrderByIdDesc(merchantId, "deleted");
             List<LendingPaymentSchedule> closedLoans = lendingPaymentScheduleDao.getLoansByMerchantIdAndStatus(merchantId,"CLOSED");
             List<NachableBanksDTO> nachableBanks = enachHandler.getEnachBankList();
@@ -777,7 +773,7 @@ public class SupportService {
         populateApplicationData(supportApiResponseDto, lendingApplication);
     }
 
-    private void populateLoanData(SupportApiResponseDto supportApiResponseDto, LendingPaymentSchedule lendingPaymentSchedule) {
+    private void populateLoanData(SupportApiResponseDto supportApiResponseDto, LendingPaymentScheduleSlave lendingPaymentSchedule) {
         try {
             if (Objects.isNull(lendingPaymentSchedule)) {
                 return;

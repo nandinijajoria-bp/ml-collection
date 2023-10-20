@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -459,7 +461,7 @@ public class LendingMerchantLoansResponseDTO {
         this.loans = loans;
     }
 
-    public void setLoansFromLendingPaymentSchedule(List<LendingPaymentSchedule> loansList) {
+    public void setLoansFromLendingPaymentSchedule(List<LendingPaymentScheduleSlave> loansList) {
         this.loans = loansList.stream().map(this::lendingPaymentScheduleToLoan).collect(Collectors.toList());
         this.totalAmount = this.loans.stream().reduce(0D,
                 (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getLoanAmount()) ? 0 : loan.getLoanAmount()), Double::sum);
@@ -469,7 +471,7 @@ public class LendingMerchantLoansResponseDTO {
                 (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getPaidAmount()) ? 0 : loan.getPaidAmount()), Double::sum);
     }
 
-    public void setHalfLoan(LendingPaymentSchedule lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {
+    public void setHalfLoan(LendingPaymentScheduleSlave lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {
         if (loanBreakupDetail == null || lendingPaymentSchedule == null) {
             this.halfLoan = null;
             return;
@@ -496,7 +498,7 @@ public class LendingMerchantLoansResponseDTO {
                 .build();
     }
 
-    public void setIoLoan(LendingPaymentSchedule lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {
+    public void setIoLoan(LendingPaymentScheduleSlave lendingPaymentSchedule, LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail) {
         if (loanBreakupDetail == null || lendingPaymentSchedule == null) {
             this.ioLoan = null;
             return;
@@ -528,8 +530,8 @@ public class LendingMerchantLoansResponseDTO {
                 .build();
     }
 
-    private Loan lendingPaymentScheduleToLoan(LendingPaymentSchedule lendingPaymentSchedule) {
-        LendingApplication application = lendingPaymentSchedule.getLoanApplication();
+    private Loan lendingPaymentScheduleToLoan(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+        LendingApplicationSlave application = lendingPaymentSchedule.getLoanApplication();
         Double loanAmount = lendingPaymentSchedule.getLoanAmount() != null ? lendingPaymentSchedule.getLoanAmount()
                 : 0d;
         Double paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null
