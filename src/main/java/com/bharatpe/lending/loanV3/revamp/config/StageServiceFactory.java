@@ -45,6 +45,9 @@ public class StageServiceFactory {
     @Autowired
     private EnachStageService enachStageService;
 
+    @Autowired
+    KYCRouteToEligibilityService kycRouteToEligibilityService;
+
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
@@ -71,6 +74,8 @@ public class StageServiceFactory {
                 return offerStageDataService;
             case ENACH_PAGE:
                 return enachStageService;
+            case KYC_ROUTE_TO_ELIGIBILITY:
+                return kycRouteToEligibilityService;
             default:
                 return null;
         }
