@@ -155,7 +155,7 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneDashboardDetails> dashboardDetails(BasicDetailsDto merchant) {
 
         MileStoneDashboardDetails mileStoneDashboardDetails = new MileStoneDashboardDetails();
-        MileStoneSlave entity = mileStoneDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 
         if (ObjectUtils.isEmpty(entity)) {
             log.info("entry not found for this merchantId");

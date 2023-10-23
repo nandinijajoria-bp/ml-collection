@@ -156,7 +156,7 @@ public class MileStoneHelperService {
         }
 
 
-        MileStoneSlave entity = mileStoneDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         log.info("entity for milestone journey {} for merchantId {}", entity, merchant.getId());
 
         String mileStoneCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
@@ -278,11 +278,11 @@ public class MileStoneHelperService {
     }
 
 
-    public DSMileStoneAchievementResponse getAchievementData(DsHandler dsHandler, MileStoneSlave entity) {
+    public DSMileStoneAchievementResponse getAchievementData(DsHandler dsHandler, MileStoneEntity entity) {
         return dsHandler.fetchMilestoneAchievements(entity.getMerchantId(), entity.getSessionId());
     }
 
-    public DSMileStoneResponse fetchTarget(MileStoneSlave entity) {
+    public DSMileStoneResponse fetchTarget(MileStoneEntity entity) {
         return mapperUtil.objectMapper.convertValue(mapperUtil.getObjectFromJsonString(entity.getResponse()), DSMileStoneResponse.class);
 
     }
