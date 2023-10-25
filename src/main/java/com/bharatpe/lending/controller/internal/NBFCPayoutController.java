@@ -22,10 +22,21 @@ public class NBFCPayoutController {
     @PostMapping(produces = "application/json")
     public ResponseEntity<Object> createTransaction(@RequestBody Map<String,Object> requestDto) {
         try {
-            NBFCPayout payout = nbfcPayoutService.processPayout(Long.valueOf(String.valueOf(requestDto.get("id"))));
+            NBFCPayout payout = nbfcPayoutService.processPayout(Long.valueOf(String.valueOf(requestDto.get("id"))), false);
             return ResponseEntity.ok(payout);
         } catch (Exception ex) {
             log.warn(ex.getClass().getSimpleName() + " occurred while creating transaction request: {} - {}", requestDto, ex);
+            return ResponseEntity.status(500).body(null);
+        }
+    }
+
+    @PostMapping(produces = "application/json", value = "/retry")
+    public ResponseEntity<Object> retryPayout(@RequestBody Map<String,Object> requestDto) {
+        try {
+            NBFCPayout payout = nbfcPayoutService.processPayout(Long.valueOf(String.valueOf(requestDto.get("id"))), true);
+            return ResponseEntity.ok(payout);
+        } catch (Exception ex) {
+            log.warn(ex.getClass().getSimpleName() + " occurred while retyring transaction request: {} - {}", requestDto, ex);
             return ResponseEntity.status(500).body(null);
         }
     }

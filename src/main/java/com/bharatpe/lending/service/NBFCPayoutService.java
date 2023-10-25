@@ -37,7 +37,7 @@ public class NBFCPayoutService {
         this.lendingNotificationService = lendingNotificationService;
     }
 
-    public NBFCPayout processPayout(Long id) throws IOException {
+    public NBFCPayout processPayout(Long id, boolean retry) throws IOException {
         Optional<NBFCPayout> payoutOptional = nbfcPayoutDao.findById(id);
         if (!payoutOptional.isPresent()) {
             log.error("No NBFC payout found for id: {}", id);
@@ -47,7 +47,17 @@ public class NBFCPayoutService {
         if (TransactionStatus.PENDING.name().equals(payout.getStatus())) {
             PayoutResponseDTO payoutStatus = payoutHandler.checkStatus(payout.getOrderId(), payout.getType());
             payout = updatePayoutByStatusData(payout, payoutStatus);
+            log.info("No action taken on the payout {} as status is {}", payout.getId(), payout.getStatus());
+            return payout;
         }
+
+        if (retry && TransactionStatus.FAILED.name().equals(payout.getStatus())) {
+            payout.setRetryAttempt(payout.getRetryAttempt() + 1);
+            payout.setStatus(TransactionStatus.INIT.name());
+            nbfcPayoutDao.save(payout);
+            log.info("Initiating retry : {} for nbfc_payout id : {}", payout.getRetryAttempt(), payout.getId());
+        }
+
         NBFC nbfc = nbfcService.getNBFCById(payout.getNbfcId());
 //        if (TransactionStatus.FAILED.name().equals(payout.getStatus())) {
 //            if (ObjectUtils.isEmpty(nbfc.getMaxAutoTransferAttempt()) || payout.getRetryAttempt() >= nbfc.getMaxAutoTransferAttempt()) {
@@ -66,7 +76,6 @@ public class NBFCPayoutService {
                     , BeneficiaryInfoDTO.from(payout.getAccountNumber(), payout.getIfsc(), payout.getBeneficiaryName(), nbfc.getBankCode()));
             return payout;
         }
-        log.info("No action taken on the payout {} as status is {}", payout.getId(), payout.getStatus());
         return payout;
     }
 
