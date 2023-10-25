@@ -7,11 +7,13 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.constant.KycConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.dto.KycDocResponseDTO;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
@@ -166,7 +168,10 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 // check the status for already created entry in table
-               boolean kycVerified=updateApplicationKycDetails(lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),lendingApplication.getCreatedAt());
+               boolean kycVerified=updateApplicationKycDetails(
+                       lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
+                       lendingApplication.getCreatedAt(), initiateKycResponse
+               );
                 if(kycVerified){
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
                     initiateKycResponse.setDeeplink(kycDeepLink);
@@ -177,7 +182,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
-                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup());
+                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc());
                 loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
                 if(initiateKycResponse.isTopup()){
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
@@ -191,7 +196,14 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 lendingApplicationKycDetails.setLender(lendingApplication.getLender());
                 lendingApplicationKycDetails.setKycInitiatedAt(new Date());
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
-                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup());
+
+
+                boolean kycVerified=updateApplicationKycDetails(
+                        lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
+                        lendingApplication.getCreatedAt(), initiateKycResponse
+                );
+
+                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, scopeDataArgs.getMerchant().getMid()));
                 funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
@@ -207,7 +219,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         }
     }
 
-    private KYCStateDTO initiateKyc(LendingApplication lendingApplication,Long merchantId, Boolean isTopup){
+    private KYCStateDTO initiateKyc(LendingApplication lendingApplication,Long merchantId, Boolean isTopup, boolean isFreshKyc){
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         initiateKycResponse.setTopup(isTopup);
         List<KycDocType> docTypes = new ArrayList<>();
@@ -230,8 +242,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchantId, initiateKycDTO, docTypes, lendingApplication.getCreatedAt());
         if (ckycResponseObj.containsKey("ckycId")) {
             lendingApplicationDao.updateKycId(lendingApplication.getId(), ckycResponseObj.get("ckycId"), merchantId);
-            //TODO : confirm if single deeplink can be used for both new and revalidation case
-            initiateKycResponse.setDeeplink(kycRevalidationDeeplink);
+            if(isFreshKyc){
+                initiateKycResponse.setDeeplink(ckycResponseObj.containsKey("callBackUrl") ? ckycResponseObj.get("callBackUrl") : kycDeepLink);
+            }
+            else {
+                initiateKycResponse.setDeeplink(kycRevalidationDeeplink);
+            }
             initiateKycResponse.setShowKycPage(true);
             initiateKycResponse.setKycStatus(KycStatus.DRAFT);
             return initiateKycResponse;
@@ -240,7 +256,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         throw new LoanDetailsException(LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorCode(),LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorMessage());
     }
 
-    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long applicationId, Long merchantId,String mid, Date vaildAfterDate) {
+    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long applicationId, Long merchantId,String mid, Date vaildAfterDate, KYCStateDTO kycStateDTO) {
         boolean kycVerified=false;
         log.info("Updating kyc details for merchant:{}", merchantId);
         boolean selfieValid = false;
@@ -249,9 +265,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
 //        boolean panCardApproved = false;
         boolean panNoApproved = false;
 
-        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER);
+        KycDocResponseDTO kycDocResponseDTO = kycHandler.getKycDocs(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER);
         log.info("KYC docs fetched for merchantId : {}", merchantId);
-        for (KycDoc kycDoc : kycDocs) {
+        if(!KycConstants.KYC_ENTITY_ACTIVATED.equalsIgnoreCase(kycDocResponseDTO.getEntityStatus())){
+            kycStateDTO.setFreshKyc(true);
+        }
+        for (KycDoc kycDoc : kycDocResponseDTO.getKycDocs()) {
             switch (kycDoc.getDocType()) {
                 case SELFIE:
                     if (KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {

@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.common.util.RestUtils;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.KycDocResponseDTO;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
@@ -132,6 +133,41 @@ public class KycHandler {
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
             if (Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().isStatus() && responseEntity.getBody().getData() != null) {
                 return responseEntity.getBody().getData().getDocs();
+            }
+        } catch (Exception ex) {
+            log.error("Exception in getKycDoc for merchant:{}", merchantId, ex);
+        }
+        return null;
+    }
+
+    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider) {
+        log.info("Getting Kyc docs for merchant:{}", merchantId);
+        KycDocResponseDTO kycDocResponseDTO = new KycDocResponseDTO();
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+            String validAfter = sdf.format(validAfterDate);
+            String docs = "PAN_NO,SELFIE,POA";
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchantId", merchantId);
+                put("validAfter", validAfter);
+                put("provider", provider);
+                put("docs", docs);
+                put("imgRequire", true);
+                put("acceptRejected", true);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=true" + "&validAfter=" + validAfter + "&provider=" + provider;
+            log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
+            ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
+            log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
+            if (Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().isStatus() && responseEntity.getBody().getData() != null) {
+                kycDocResponseDTO.setKycDocs(responseEntity.getBody().getData().getDocs());
+                if(Objects.nonNull(responseEntity.getBody().getData().getEntity())){
+                    kycDocResponseDTO.setEntityStatus(responseEntity.getBody().getData().getEntity().getStatus());
+                }
+                return kycDocResponseDTO;
             }
         } catch (Exception ex) {
             log.error("Exception in getKycDoc for merchant:{}", merchantId, ex);
@@ -303,8 +339,12 @@ public class KycHandler {
                     if (jsonNode.has("requestorId")) {
                         responseObj.put("ckycId", jsonNode.get("requestorId").asText());
                     }
-                    if (jsonNode.has("message"))
+                    if (jsonNode.has("message")){
                         responseObj.put("message", jsonNode.get("message").asText());
+                    }
+                    if (jsonNode.has("callBackUrl")){
+                        responseObj.put("callBackUrl", jsonNode.get("callBackUrl").asText());
+                    }
                 }
             }
         } catch (Exception e) {
