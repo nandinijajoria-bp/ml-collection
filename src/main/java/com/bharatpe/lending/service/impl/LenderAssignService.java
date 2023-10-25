@@ -28,6 +28,11 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
+import static com.bharatpe.lending.enums.Lender.LDC;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P_OF;
+
 @Slf4j
 @Service
 public class LenderAssignService implements ILenderAssignService {
@@ -272,7 +277,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         // change lender if it is LDC and nachMode is adhaar
         if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(application.getMerchantId()))) {
-            decidedLender = Lender.LIQUILOANS_NBFC.name();
+            decidedLender = LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
         }
 
@@ -621,8 +626,12 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public static String topupLenderMapper(String prevLender){
-        if("LDC".equals(prevLender)) return "LIQUILOANS_NBFC";
-        if("LIQUILOANS_P2P".equals(prevLender) || "LIQUILOANS_P2P_OF".equals(prevLender) || "LIQUILOANS_NBFC".equals(prevLender)) return "LIQUILOANS_P2P";
+        if(LDC.toString().equals(prevLender)) return LIQUILOANS_NBFC.toString();
+
+        if(LIQUILOANS_NBFC.toString().equals(prevLender)) return LIQUILOANS_NBFC.toString();
+
+        if(LIQUILOANS_P2P.toString().equals(prevLender) || LIQUILOANS_P2P_OF.toString().equals(prevLender)) return LIQUILOANS_P2P.toString();
+        
         return null;
     }
 

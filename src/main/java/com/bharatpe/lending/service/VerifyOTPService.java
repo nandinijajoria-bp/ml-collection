@@ -649,7 +649,7 @@ public class VerifyOTPService {
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             lendingApplicationDao.save(lendingApplication);
 
-            if (!"LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
+            if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
                 ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
             }
             else {
@@ -760,7 +760,9 @@ public class VerifyOTPService {
         ledgerAdjustmentForTopup(previousLoan, lendingApplicationOptional.get(), previousAmount);
 
         // send loan closure consent to LDC
-        apiGatewayService.getLdcTopupConsent(previousLendingApplicationOptional.get().getId(), true, previousAmount);
+        if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
+            apiGatewayService.getLdcTopupConsent(previousLendingApplicationOptional.get().getId(), true, previousAmount);
+        }
 
         finalResponse.put("message", "successfully settled previous loan");
         return finalResponse;

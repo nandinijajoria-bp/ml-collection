@@ -50,6 +50,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import static com.bharatpe.lending.constant.LendingConstants.*;
+import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
 @Service
@@ -165,8 +166,8 @@ public class MerchantLoansService {
     Integer rolloutTopupPercent;
 
 
-    @Value("${topup.on.ldc.rollout.percent:10}")
-    Integer topupOnLdcRolloutPercent;
+    @Value("${topup.on.tl.tl.rollout.percent:10}")
+    Integer topupOnTltoTlRolloutPercent;
 
     @Value("${whitelisted.topup.lenders}")
     String topupLenders;
@@ -746,8 +747,8 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
-            if("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), topupOnLdcRolloutPercent)){
-                logger.info("LDC topup not enabled for merchantId:{}",lendingPaymentSchedule.getMerchantId());
+            if(LIQUILOANS_NBFC.toString().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), topupOnTltoTlRolloutPercent)){
+                logger.info("LIQUILOANS_NBFC topup not enabled for merchantId:{}",lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
@@ -768,11 +769,11 @@ public class MerchantLoansService {
                   findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
 
-                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
-                internalMerchantLoan.setRateOfInterest(1.80);
-                internalMerchantLoan.setProcessingFee(2000);
-                internalMerchantLoan.setProcessingFeeRate(0.02D);
-                internalMerchantLoan.setId(544888920L);
+                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 300000D, "12 Months", "ACTIVE", null, 0, 0, null, 1149, 0, 357339, null, "TOPUP", null);
+                internalMerchantLoan.setRateOfInterest(1.59);
+                internalMerchantLoan.setProcessingFee(14130);
+                internalMerchantLoan.setProcessingFeeRate(0.05D);
+                internalMerchantLoan.setId(644147506L);
                 eligibleLoanList.add(internalMerchantLoan);
 
                 double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
@@ -910,11 +911,11 @@ public class MerchantLoansService {
                     findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
-                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
-                internalMerchantLoan.setRateOfInterest(1.80);
-                internalMerchantLoan.setProcessingFee(2000);
-                internalMerchantLoan.setProcessingFeeRate(0.02D);
-                internalMerchantLoan.setId(544888920L);
+                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 300000D, "12 Months", "ACTIVE", null, 0, 0, null, 1149, 0, 357339, null, "TOPUP", null);
+                internalMerchantLoan.setRateOfInterest(1.59);
+                internalMerchantLoan.setProcessingFee(14130);
+                internalMerchantLoan.setProcessingFeeRate(0.05D);
+                internalMerchantLoan.setId(644147506L);
                 eligibleLoanList.add(internalMerchantLoan);
             }
 
@@ -1072,11 +1073,11 @@ public class MerchantLoansService {
             List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
-                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 100000D, "9 Months", "ACTIVE", null, 0, 0, null, 431, 0, 116370, null, "TOPUP", null);
-                internalMerchantLoan.setRateOfInterest(1.80);
-                internalMerchantLoan.setProcessingFee(2000);
-                internalMerchantLoan.setProcessingFeeRate(0.02D);
-                internalMerchantLoan.setId(544888920L);
+                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 300000D, "12 Months", "ACTIVE", null, 0, 0, null, 1149, 0, 357339, null, "TOPUP", null);
+                internalMerchantLoan.setRateOfInterest(1.59);
+                internalMerchantLoan.setProcessingFee(14130);
+                internalMerchantLoan.setProcessingFeeRate(0.05D);
+                internalMerchantLoan.setId(644147506L);
                 eligibleLoanList.add(internalMerchantLoan);
             }
 

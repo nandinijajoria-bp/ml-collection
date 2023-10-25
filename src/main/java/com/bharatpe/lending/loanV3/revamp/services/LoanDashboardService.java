@@ -220,6 +220,7 @@ public class LoanDashboardService {
                 loanDashboardApiVersion = objectMapper.readValue((String) versionDetailCacheResponse, LoanDashboardApiVersion.class);
                 return loanDashboardApiVersion;
             }
+
             // hardcoding value for some testing
             if(merchantId==9987300){
                 loanDashboardApiVersion.setApiVersion("v1");
