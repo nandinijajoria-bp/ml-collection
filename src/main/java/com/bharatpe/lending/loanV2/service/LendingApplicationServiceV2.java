@@ -545,6 +545,13 @@ public class LendingApplicationServiceV2 {
             if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
                 funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                    put("loanAmount", lendingApplication.getLoanAmount().toString());
+                    put("beneficiaryName", lendingApplication.getMerchantName());
+                    put("businessName", lendingApplication.getBusinessName());
+                    put("loanType", lendingApplication.getLoanType());
+                }};
+                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_APPLICATION_INITIATED_BE.name(), cleverTapEvtData, merchant.getMid()));
             }
             else{
                 funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),

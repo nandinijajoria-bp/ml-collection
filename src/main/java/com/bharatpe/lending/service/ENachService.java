@@ -17,10 +17,7 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.enums.EnachMode;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.revamp.controller.LoanDashboardController;
@@ -114,6 +111,9 @@ public class ENachService {
 
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
+
+    @Autowired
+    CleverTapEventService cleverTapEventService;
 
     @Value("${v3.easyloan.deeplink}")
     public String v3EasyloanDeeplink;
@@ -292,6 +292,14 @@ public class ENachService {
 
         if(!ObjectUtils.isEmpty(lendingApplicationDetails))lendingApplicationDetailsDao.save(lendingApplicationDetails);
         lendingApplicationDao.save(lendingApplication);
+
+        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+            put("loanAmount", lendingApplication.getLoanAmount().toString());
+            put("beneficiaryName", lendingApplication.getMerchantName());
+            put("businessName", lendingApplication.getBusinessName());
+            put("loanType", lendingApplication.getLoanType());
+        }};
+        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_NACH_COMPLETED_BE.name(), cleverTapEvtData, merchant.getMid()));
 
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);

@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
@@ -21,6 +22,7 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Request;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.service.IEdiModelAssignment;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +35,10 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
@@ -82,6 +87,11 @@ public class EligibilityV3Service {
 
     @Value("${club.eligible.loan.cache:true}")
     Boolean clubEligibleLoanCache;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
+
+    @Autowired
+    CleverTapEventService cleverTapEventService;
 
     public boolean eligibilityBaseChecksSuccess(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) {
 
@@ -261,6 +271,17 @@ public class EligibilityV3Service {
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(eligibilityStateDTO.getMerchant().getId(), null,
                 request.getAppVersion(), eligibilityStateDTO.getClubV2Member(), request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
                 request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO);
+
+        if(globalLimitResponse.getData().getPreApprovedLoan()){
+            HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                put("globalLimit", globalLimitResponse.getData().getGlobalLimit().toString());
+                put("riskSegment", globalLimitResponse.getData().getRiskSegment());
+                put("beneficiaryName", eligibilityStateDTO.getMerchant().getBeneficiaryName());
+            }};
+            executorService.execute(() -> cleverTapEventService.sendClevertapEvent(
+                    CleverTapEvents.LOAN_PREAPPROVED_BE.name(), cleverTapEvtData, eligibilityStateDTO.getMerchant().getMid()
+                    ));
+        }
         return globalLimitResponse;
     }
 

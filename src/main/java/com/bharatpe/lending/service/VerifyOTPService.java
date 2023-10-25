@@ -37,6 +37,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.dao.*;
@@ -208,6 +209,11 @@ public class VerifyOTPService {
 
     @Autowired
     LoanDashboardService loanDashboardService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
+
+    @Autowired
+    CleverTapEventService cleverTapEventService;
 
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
@@ -478,6 +484,13 @@ public class VerifyOTPService {
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+            HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                put("loanAmount", lendingApplication.getLoanAmount().toString());
+                put("beneficiaryName", lendingApplication.getMerchantName());
+                put("businessName", lendingApplication.getBusinessName());
+                put("loanType", lendingApplication.getLoanType());
+            }};
+            executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_APPLICATION_COMPLETED_BE.name(), cleverTapEvtData, merchantBasicDetailsDto.getMid()));
         }
         else{
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
