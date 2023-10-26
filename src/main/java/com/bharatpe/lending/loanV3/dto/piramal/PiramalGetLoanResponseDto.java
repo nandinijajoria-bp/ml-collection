@@ -14,6 +14,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PiramalGetLoanResponseDto {
+
     private String loanAccountNumber;
 
     private String leadId;
@@ -73,7 +74,7 @@ public class PiramalGetLoanResponseDto {
     private Long advancePaymentAmount;
 
     @Data
-    private static class LoanSchedule{
+    public static class LoanSchedule{
 
         private Long scheduledDate;
 

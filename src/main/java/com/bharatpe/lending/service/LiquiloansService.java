@@ -38,9 +38,11 @@ import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
 import com.bharatpe.lending.util.Finance;
 import com.bharatpe.lending.util.LoanUtil;
@@ -238,6 +240,9 @@ public class LiquiloansService {
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     private LendingLedgerDao lendingLedgerDao;
+
+    @Autowired
+    private PiramalGetLoanDetails piramalGetLoanDetails;
 
     public void publishForDisbursal(Long lendingAppId) {
 
@@ -1463,6 +1468,19 @@ public class LiquiloansService {
     }
 
     public void createEdiSchedule(LendingPaymentSchedule paymentSchedule) {
+        if (null != paymentSchedule.getNbfc() && paymentSchedule.getNbfc().equalsIgnoreCase("PIRAMAL")) {
+            boolean flag;
+            int retry = 0;
+            do {
+                flag = constructPiramalEDISchedule(paymentSchedule);
+                retry++;
+            } while (!flag && retry < 3);
+        } else {
+            constructBharatPeEDISchedule(paymentSchedule);
+        }
+    }
+
+    public void constructBharatPeEDISchedule(LendingPaymentSchedule paymentSchedule) {
         try {
             List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
             if (scheduleList != null && !scheduleList.isEmpty()) {
@@ -1565,7 +1583,6 @@ public class LiquiloansService {
                     cal.add(Calendar.DAY_OF_MONTH, 1);
                 }
             }
-
             lendingEDIScheduleDao.saveAll(ediSchedules);
             paymentSchedule.setInterest(totalInterest);
             paymentSchedule.setOtherCharges(0D);
@@ -1573,6 +1590,61 @@ public class LiquiloansService {
             lendingPaymentScheduleDao.save(paymentSchedule);
         } catch (Exception ex) {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
+        }
+    }
+
+    public boolean constructPiramalEDISchedule(LendingPaymentSchedule paymentSchedule) {
+        try {
+            List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
+            if (scheduleList != null && !scheduleList.isEmpty()) {
+                logger.info("EDI schedule already exist for Loan ID {}.", paymentSchedule.getId());
+                return true;
+            }
+            logger.info("Creating EDI schedule for Loan ID {}.", paymentSchedule.getId());
+            PiramalGetLoanResponseDto piramalGetLoanResponseDto = piramalGetLoanDetails.getLoanDetails(paymentSchedule.getApplicationId());
+            logger.info("response from piramal loan details for application id : {} is : {}", paymentSchedule.getApplicationId(), piramalGetLoanResponseDto);
+            if (ObjectUtils.isEmpty(piramalGetLoanResponseDto)) {
+                logger.info("failure response from piramal get loan api");
+                return false;
+            }
+            int installmentNo = 1;
+            int ediCount = piramalGetLoanResponseDto.getLoanTenor();
+            Double openingBalance = piramalGetLoanResponseDto.getLoanAmount().doubleValue();
+            List<LendingEDISchedule> ediSchedules = new ArrayList<>();
+            double procFee = paymentSchedule.getLoanApplication() == null ? 0D : paymentSchedule.getLoanApplication().getProcessingFee();
+            Long storeId = paymentSchedule.getMerchantStoreId() == null ? null : paymentSchedule.getMerchantStoreId();
+            if (procFee > 0D) {
+                ediSchedules.add(createProcFeeSchedule(paymentSchedule, storeId));
+            }
+            Calendar calendar = Calendar.getInstance();
+            for (PiramalGetLoanResponseDto.LoanSchedule loanSchedule : piramalGetLoanResponseDto.getRepaymentSchedule()) {
+                LendingEDISchedule currentSchedule = new LendingEDISchedule();
+                calendar.setTimeInMillis(loanSchedule.getScheduledDate());
+                currentSchedule.setDate(calendar.getTime());
+                currentSchedule.setEdiType("Regular");
+                currentSchedule.setInstallmentNumber(installmentNo);
+                currentSchedule.setOpeningBalance(loanSchedule.getEndBalance().doubleValue());
+                currentSchedule.setInterest(loanSchedule.getScheduledInterest().doubleValue());
+                currentSchedule.setPrinciple(loanSchedule.getScheduledPrincipal().doubleValue());
+                currentSchedule.setProcessingFee(0D);
+                currentSchedule.setTotalEdi(loanSchedule.getScheduledTotal().intValue());
+                currentSchedule.setOtherCharges(0D);
+                currentSchedule.setMerchantId(paymentSchedule.getMerchantId());
+                currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+                currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+                currentSchedule.setMerchantStoreId(storeId);
+                ediSchedules.add(currentSchedule);
+                installmentNo++;
+            }
+            lendingEDIScheduleDao.saveAll(ediSchedules);
+            paymentSchedule.setInterest(piramalGetLoanResponseDto.getTotalInterestPayable().doubleValue());
+            paymentSchedule.setOtherCharges(0D);
+            paymentSchedule.setTentativeClosingDate(piramalGetLoanResponseDto.getMaturityDate());
+            lendingPaymentScheduleDao.save(paymentSchedule);
+            return true;
+        } catch (Exception ex) {
+            logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
+            return false;
         }
     }
 
