@@ -134,6 +134,12 @@ public class InvokeCreateLeadAndDocUploadWraperService {
 
     private boolean checkForGSTDetails(Long applicationId) {
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
+        log.info("lendingGstDetails {}",lendingGstDetail);
+        if (!ObjectUtils.isEmpty(lendingGstDetail) && lendingGstDetail.getShopType()==null)
+        {
+            lendingGstDetail.setShopType("Permanent");
+            return true;
+        }
         return (lendingGstDetail != null && null != lendingGstDetail.getShopType());
     }
 
