@@ -17,16 +17,14 @@ import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.query.dao.AutoPayUPISlaveDao;
-import com.bharatpe.lending.common.query.dao.LendingEDIScheduleSlaveDao;
+import com.bharatpe.lending.common.query.dao.LendingEDIScheduleQueryDao;
 import com.bharatpe.lending.common.query.dao.LendingPrePaymentSlaveDao;
-import com.bharatpe.lending.common.query.entity.LendingEDIScheduleSlave;
+import com.bharatpe.lending.common.query.entity.LendingEDIScheduleQuery;
 import com.bharatpe.lending.common.query.entity.AutoPayUPISlave;
 import com.bharatpe.lending.common.query.entity.LendingPrepaymentSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -185,7 +183,7 @@ public class MerchantLoansService {
     LendingPullPaymentDao pullPaymentDao;
 
     @Autowired
-    LendingEDIScheduleSlaveDao lendingEDIScheduleSlaveDao;
+    LendingEDIScheduleQueryDao lendingEDIScheduleQueryDao;
 
     @Autowired
     LendingPrePaymentSlaveDao lendingPrePaymentSlaveDao;
@@ -391,7 +389,7 @@ public class MerchantLoansService {
                 } else {
                     loan.setLastEdiPaid(0D);
                 }
-                LendingEDIScheduleSlave lendingEDISchedule = lendingEDIScheduleSlaveDao.getLatestByLoanId(loan.getLoanId());
+                LendingEDIScheduleQuery lendingEDISchedule = lendingEDIScheduleQueryDao.getLatestByLoanId(loan.getLoanId());
                 if (lendingEDISchedule != null) {
                     loan.setShowCustomAmount(true);
                 }

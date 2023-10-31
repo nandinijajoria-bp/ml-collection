@@ -24,6 +24,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 
@@ -147,6 +149,23 @@ public class AutoPayUPIService {
                     (String.format("Invalid application : %s", orderId));
         }
 
+        if (mandateApplication.equals(AutoPayStatusEnum.PENDING) ||
+                mandateApplication.getStatus().equals(AutoPayStatusEnum.INIT))
+        {
+            Date createdMandateDate = mandateApplication.getCreatedAt();
+            long diffMinutes = calculateTimeDiff(createdMandateDate);
+            log.info("diffMinutes is {}", diffMinutes);
+            if (diffMinutes >= 30L) {
+                mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
+                log.info("marking status for mandate register as failed due to tat for merchant id {} application id {}",
+                        mandateApplication.getMerchantId(), mandateApplication.getApplicationId());
+                autoPayUPIDao.save(mandateApplication);
+                MandateUPIStatusResponse.Data data = new MandateUPIStatusResponse.Data(mandateApplication.getOrderId()
+                        , mandateApplication.getApplicationId(), mandateApplication.getStatus());
+                return new MandateUPIStatusResponse(data);
+            }
+        }
+
         if (AutoPayStatusEnum.PENDING.name().equalsIgnoreCase(String.valueOf(mandateApplication.getStatus()))) {
             log.info("status of application {} ", mandateApplication.getStatus());
             PgStatusResponse response =
@@ -172,6 +191,38 @@ public class AutoPayUPIService {
         MandateUPIStatusResponse.Data data = new MandateUPIStatusResponse.Data(mandateApplication.getOrderId()
                 , mandateApplication.getApplicationId(), mandateApplication.getStatus());
         return new MandateUPIStatusResponse(data);
+    }
+
+    public long calculateTimeDiff(Date createdMandateDate) {
+        log.info("createdMandateDate is {}", createdMandateDate);
+        SimpleDateFormat format = new SimpleDateFormat("yy/MM/dd HH:mm:ss");
+        long diffMinutes=0l;
+        Date date = new Date();
+        log.info("date is {}", date);
+        format.format(date);
+        String currentDateTime = format.format(date);
+
+        Date d1 = null;
+        try {
+            d1 = format.parse((currentDateTime));
+
+            log.info("d1 {}", d1);
+            long diff;
+            diff = createdMandateDate.getTime() - d1.getTime();
+            if (diff<0)
+            {
+                diff = Math.abs(diff);
+            }
+            log.info("diff is {}", diff);
+            diffMinutes = diff / (60 * 1000);
+            log.info("diff minutes is {}", diffMinutes);
+            return diffMinutes;
+
+        }
+        catch (ParseException e) {
+            log.error("e is {}", e);
+        }
+        return diffMinutes;
     }
 
 
