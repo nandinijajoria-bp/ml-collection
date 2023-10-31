@@ -1601,8 +1601,8 @@ public class LiquiloansService {
                 return true;
             }
             logger.info("Creating EDI schedule for Loan ID {}.", paymentSchedule.getId());
-            PiramalGetLoanResponseDto piramalGetLoanResponseDto = piramalGetLoanDetails.getLoanDetails(paymentSchedule.getApplicationId());
-            logger.info("response from piramal loan details for application id : {} is : {}", paymentSchedule.getApplicationId(), piramalGetLoanResponseDto);
+            PiramalGetLoanResponseDto piramalGetLoanResponseDto = piramalGetLoanDetails.getLoanDetails(paymentSchedule.getLoanApplication().getId());
+            logger.info("response from piramal loan details for application id : {} is : {}", paymentSchedule.getLoanApplication().getId(), piramalGetLoanResponseDto);
             if (ObjectUtils.isEmpty(piramalGetLoanResponseDto)) {
                 logger.info("failure response from piramal get loan api");
                 return false;
