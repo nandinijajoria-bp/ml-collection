@@ -77,7 +77,9 @@ public class PaymentDetailsResponseDTO {
 		private Double repaymentAmount;
 
 		private String mobile;
-		
+
+		private Integer penaltyFee;
+
 		public Data() {
 			
 		}
@@ -124,6 +126,14 @@ public class PaymentDetailsResponseDTO {
 			this.isEligibleForPayment = isEligibleForPayment;
 		}
 
+		public Integer getPenaltyFee() {
+			return penaltyFee;
+		}
+
+		public void setPenaltyFee(Integer penaltyFee) {
+			this.penaltyFee = penaltyFee;
+		}
+
 		public Double getLenderPrincipalDueAmount() {
 			return lenderPrincipalDueAmount;
 		}
@@ -160,6 +170,7 @@ public class PaymentDetailsResponseDTO {
 		public String toString() {
 			return "Data{" +
 					"loanAmount=" + loanAmount +
+					"penaltyFee=" + penaltyFee +
 					", overdueAmount=" + overdueAmount +
 					", principalDueAmount=" + principalDueAmount +
 					", lenderPrincipalDueAmount=" + lenderPrincipalDueAmount +
