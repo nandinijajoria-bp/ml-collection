@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -55,7 +56,7 @@ public class MileStoneProgramService {
     MileStoneRewardDaoSlave mileStoneRewardDaoSlave;
 
 
-    @Value("${bureau.score.pull.Days}")
+    @Value("${bureau.milestone.score.pull.Days}")
     private Long bureauScorePullDays;
 
     @Autowired
@@ -94,6 +95,22 @@ public class MileStoneProgramService {
         }
     }
 
+    @Async
+    public void evictCache( Long merchantId) {
+        if(Objects.isNull(merchantId)){
+            log.info("merchant id empty");
+        }
+        try{
+            String offerCacheKey = LoanDetailsConstant.RTE_MILESTONE_OFFER_KEY + merchantId;
+            log.info("deleting cached key of offer details in RTE for merchant: {}",merchantId);
+            lendingCache.delete(offerCacheKey);
+        }
+        catch(Exception e){
+            log.info("unable to evict cache for : {}", merchantId);
+        }
+
+    }
+
     public ApiResponse<DSMileStoneResponse> programSummary(BasicDetailsDto merchant) {
 
         log.info("Merchant Id is : {}", merchant.getId());
@@ -107,7 +124,24 @@ public class MileStoneProgramService {
         }
 
         BureauResponseDTO responseDTO = mileStoneHelperService.calculateBureauScore(merchant);
-        if (!ObjectUtils.isEmpty(responseDTO)) {
+
+        log.info("bureau data {} for merchant id {} is :",responseDTO,merchant.getId());
+
+        if (responseDTO.getIsNTC() == Boolean.TRUE)
+        {
+            BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
+            if (ObjectUtils.isEmpty(responseDTO.getVariables())) {
+                variables.setBbs(0D);
+                variables.setBureauScore(0D);
+            }
+            response = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(),
+                    variables.getBbs(), pinCodeColor);
+
+            if (!ObjectUtils.isEmpty(response) && !ObjectUtils.isEmpty(response.getTarget())) {
+                return new ApiResponse<>(response);
+            }
+        }
+        if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getIsNTC() == Boolean.FALSE) {
             log.info("response DTO for merchant {}, bureauScore {}, bbsScore{} ,pinCodeColor {}",
                     merchant.getId(),
                     responseDTO.getVariables().getBureauScore(),
@@ -137,9 +171,16 @@ public class MileStoneProgramService {
 
         try {
             MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(merchant);
-            if (responseDto.getMilStoneEligibility()) {
+            if (Boolean.TRUE.equals(responseDto.getMilStoneEligibility())) {
                 entity = mileStoneHelperService.createMileStoneSession(merchant.getId(), dsMileStoneResponse, dsMileStoneResponse.getTarget_duration_days());
                 log.info("created an entry for mileStone Entry {}", entity);
+
+                String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
+                Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
+                if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
+                    lendingCache.delete(loanDetailsCacheKey);
+                }
+
                 funnelService.submitEvent(merchant.getId(), null,null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.RTE_SESSION_CREATED, "RTE Session Creation");
                 return new ApiResponse<>(true, "200", "OK");
@@ -186,9 +227,9 @@ public class MileStoneProgramService {
         }
         DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
 
-        if (mileStoneResponse.target == null) {
+       /* if (mileStoneResponse.target == null) {
             return new ApiResponse<>(false, "Target Not Found");
-        }
+        }*/
 
         List<MileStoneDashboardData> mapList = new ArrayList<>();
 

@@ -119,5 +119,12 @@ public class SupportLoanController {
         logger.info("sendArcCommunication request : {}", requestDTO);
         return arcSoldLoanService.sendArcCommunication(requestDTO.getLpsId(), requestDTO.getMobile(), null);
     }
+
+    @GetMapping(value = "/rte-program",produces = "application/json")
+    public ApiResponse<?> rteProgramDetails(@RequestParam Long merchantId)
+    {
+        logger.info("checking rteProgram details");
+        return new ApiResponse<>(supportService.rteProgramDetails(merchantId));
+    }
 }
 

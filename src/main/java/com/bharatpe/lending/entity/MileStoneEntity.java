@@ -42,4 +42,7 @@ public class MileStoneEntity extends BaseEntity {
     @Column(name="kycStatus")
     private String kycStatus;
 
+    @Column(name = "graphData")
+    private Double graphData;
+
 }

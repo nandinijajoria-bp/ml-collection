@@ -13,8 +13,13 @@ public class MileStoneEligibilityResponseDto {
     private Double graphData;
     private String deepLinkUrl;
     private String weekCount;
+    private Boolean showSplashBanner;
+    private Boolean showHomeWidgets;
+    private Boolean showRTELoansFlow;
     ProgramActiveData programActiveData;
     ProgramEligibleData programEligibleData;
+    private Boolean isMileStoneExpiry;
+    private String dsErrorMessage;
 
     @Data
     public static class ProgramActiveData {

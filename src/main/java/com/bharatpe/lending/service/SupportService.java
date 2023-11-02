@@ -25,12 +25,11 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.entity.LendingRefundLedger;
-import com.bharatpe.lending.entity.LoanAgreement;
+import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.BankStatementRejectReason;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
@@ -214,6 +213,18 @@ public class SupportService {
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Autowired
+    MileStoneHelperService mileStoneHelperService;
+
+    @Autowired
+    MileStoneDao mileStoneDao;
+
+    @Autowired
+    MileStoneRewardDao mileStoneRewardDao;
+
+    @Autowired
+    DsHandler dsHandler;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -2581,5 +2592,48 @@ public class SupportService {
         return upgradeLoanOfferEligibilityDTO;
     }
 
+
+    public MilestoneSupportDto rteProgramDetails(Long merchantId) {
+
+        MilestoneSupportDto supportDto = new MilestoneSupportDto();
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        logger.info("basic Details of Merchant{} for milestone program for merchantId {}",basicDetailsDto,merchantId);
+        if (basicDetailsDto.isPresent()) {
+            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+            supportDto.setMileStoneEligibility(responseDto);
+            supportDto.setMerchantId(merchantId);
+            MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            logger.info("entity {} for merchant id {}",entity,merchantId);
+            if (!ObjectUtils.isEmpty(entity)) {
+                entity.getProgramStartDate();
+                supportDto.setProgramStartDate(entity.getProgramStartDate());
+                DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
+                supportDto.setMileStoneResponse(mileStoneResponse);
+
+                supportDto.setMerchantOnboardingDate(basicDetailsDto.get().getCreated_at());
+                DSMileStoneAchievementResponse achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
+
+                supportDto.setAchievementResponse(achievementResponse);
+                supportDto.setMilestoneData(true);
+                MileStoneReward reward = mileStoneRewardDao.findTop1ByMerchantId(merchantId);
+                if(!ObjectUtils.isEmpty(reward)) {
+                    if (reward.getSessionId().equalsIgnoreCase(entity.getSessionId())) {
+                        supportDto.setClaimedDate(reward.getClaimDate());
+                        supportDto.setRewardStatus(reward.getRewardClaimedStatus());
+                        supportDto.setRewardName(reward.getRewardName());
+                    }
+                }
+                return supportDto;
+            }
+        }
+        else{
+            logger.info("No Data presnt for merchantId {}",merchantId);
+            supportDto.setMilestoneData(false);
+            supportDto.setMerchantId(merchantId);
+            return supportDto;
+        }
+        return supportDto;
+
+    }
 }
 

@@ -69,6 +69,43 @@ public class BureauHandler {
         return null;
     }
 
+
+    public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days,String source) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("mobile",mobile);
+            Map<String, String> merchantName = apiGatewayService.getFirstLastName(merchantId, pancard);
+            requestBody.put("first_name",merchantName.get("firstName"));
+            requestBody.put("last_name",merchantName.get("lastName"));
+            log.info("name fetched");
+            if (!StringUtils.isEmpty(pancard)) {
+                requestBody.put("pancard", pancard);
+            }
+            requestBody.put("source", source);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            log.info("request for bureau data {} for merchant id {}", request, merchantId);
+            final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days" + "=" + days;
+            log.info("BureauHandler call for phone: {}",mobile);
+
+            ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+            BureauResponseDTO bureauResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(responseEntity.getBody().getData()), BureauResponseDTO.class);
+            log.info("bureauResponse:{}",bureauResponseDTO);
+            return bureauResponseDTO;
+        }  catch (HttpServerErrorException
+                  | HttpClientErrorException
+                  | ResourceAccessException exception) {
+            log.info("exception while fetch bureau :{} {}", exception.getMessage(), exception);
+        }catch (IOException exception) {
+            log.error("Error occurred while parsing json: {} {}", exception.getMessage(), exception);
+        }
+        return null;
+    }
+
     public BureauResponseDTO getMaskedMobileNos(String pancard, Long merchantId, String mobile, String stageOneHitId, String stageTwoHitId) {
         try {
             log.info("Fetching Masked Mobile nos for merchant:{} with mobile: {}",merchantId, mobile);

@@ -434,7 +434,7 @@ public class LoanDashboardService {
             }
 
             loanDashboardResponse.setPinCode(pincode);
-            boolean isMileStoneExpiry = false;
+            /*boolean isMileStoneExpiry = false;
             MileStoneEntity mileStoneEntity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
             if (!ObjectUtils.isEmpty(mileStoneEntity)) {
                 Date date = new Date();
@@ -443,9 +443,9 @@ public class LoanDashboardService {
                     mileStoneEntity.setSessionStatus("COMPLETED");
                     mileStoneDao.save(mileStoneEntity);
                 }
-            }
+            }*/
 
-            loanDashboardResponse.setIsMileStoneProgramExpired(isMileStoneExpiry);
+            loanDashboardResponse.setIsMileStoneProgramExpired(mileStoneEligibilityResponseDto.getIsMileStoneExpiry());
         }
         KycStatusDTO doc = kycHandler.getKycStatus(merchantDetails.getId());
         loanDashboardResponse.setKycStatus(doc.getKycStatus());
