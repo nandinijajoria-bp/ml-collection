@@ -875,7 +875,7 @@ public class FosService {
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("pending_verification")) {
                     // pending nach
                     logger.info("merchant {} has a pending application", merchantId);
-                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 20000 ) {
                         if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), fosNachPercent)){
                             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
                             if(Objects.nonNull(lendingApplicationDetails) && Objects.nonNull(lendingApplicationDetails.getCpvReferralCode())){
