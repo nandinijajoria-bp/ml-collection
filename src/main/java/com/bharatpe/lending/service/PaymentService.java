@@ -1140,7 +1140,7 @@ public class PaymentService {
                 }
             }
         }
-        if (penaltyFee > 0) {
+        if (penaltyFee > 0.5) {
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(activeLoan.getMerchantId(), activeLoan.getId(), penaltyFee, source, false, activeLoan.getNbfc());
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
         }
@@ -1789,8 +1789,7 @@ public class PaymentService {
             paidPrincipalAmount = settleLoanPaymentDTO.getPaidPrinciple();
             paidInterestAmount = settleLoanPaymentDTO.getPaidInterest();
             double duePenalty = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
-            penaltyFee = settleLoanPaymentDTO.getRemainingBalance() > duePenalty ?
-                    settleLoanPaymentDTO.getRemainingBalance() - duePenalty : settleLoanPaymentDTO.getRemainingBalance();
+            penaltyFee = settleLoanPaymentDTO.getRemainingBalance() > duePenalty ? duePenalty : settleLoanPaymentDTO.getRemainingBalance();
             remainingBalance = settleLoanPaymentDTO.getRemainingBalance() - penaltyFee;
 
             activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - paidPrincipalAmount);
@@ -1817,7 +1816,7 @@ public class PaymentService {
             settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
         }
 
-        if (penaltyFee > 0) {
+        if (penaltyFee > 0.5) {
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(activeLoan.getMerchantId(), activeLoan.getId(), penaltyFee, source, false, activeLoan.getNbfc());
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
         }
