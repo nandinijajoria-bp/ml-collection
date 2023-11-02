@@ -205,6 +205,8 @@ public class MileStoneHelperService {
 
             if (!easyLoanUtil.percentScaleUp(merchant.getId(), milestoneTargetUser)
                     && !rteEligibleMerchants.contains(merchant.getId())) {
+
+                log.info("ineligible due to not present in percent scale up or not in list for merchant id {}",merchant.getId());
                 responseDto.setMilStoneEligibility(false);
                 responseDto.setEnrollState(false);
                 return responseDto;
