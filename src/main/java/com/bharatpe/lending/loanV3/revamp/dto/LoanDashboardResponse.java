@@ -11,6 +11,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.util.Date;
+
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -40,6 +42,9 @@ public class LoanDashboardResponse {
     private Integer pinCode;
     private Boolean isMileStoneProgramExpired;
     private MileStoneEligibilityResponseDto routeToEligibilityData;
+    private String diwaliBannerType;
+    private String diwaliBannerEndDate;
+
 
 }
 

@@ -16,8 +16,10 @@ import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -181,6 +183,21 @@ public class LoanDashboardService {
     @Value("${screen.redesign.hundred.percent.rollout.date:}")
     String screenRedesignHundredPercentRolloutDate;
 
+    @Value("${enable.diwali.banner:false}")
+    boolean enableDiwaliBanner;
+
+    @Value("${diwali.banner.one.rollout.date:}")
+    String diwaliBannerOneRolloutDate;
+
+    @Value("${diwali.banner.two.rollout.date:}")
+    String diwaliBannerTwoRolloutDate;
+
+    @Value("${diwali.banner.one.end.date:}")
+    String diwaliBannerOneEndDate;
+
+    @Value("${diwali.banner.two.end.date:}")
+    String diwaliBannerTwoEndDate;
+
     @Autowired
     IEdiModelAssignment iEdiModelAssignment;
 
@@ -194,7 +211,7 @@ public class LoanDashboardService {
     private FunnelService funnelService;
 
     @Autowired
-    LendingRiskVariablesDao lendingRiskVariablesDao;
+    LendingRiskVariablesDaoSlave lendingRiskVariablesDaoSlave;
 
     @Autowired
     LendingPincodesDao lendingPincodesDao;
@@ -204,6 +221,8 @@ public class LoanDashboardService {
 
     @Autowired
     MileStoneDao mileStoneDao;
+
+    private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd hh:mm:ss";
 
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
@@ -232,7 +251,7 @@ public class LoanDashboardService {
                 LendingApplicationSlave lendingApplication = lendingApplicationServiceV3.getLendingApplicationSlave(null, merchantId);
                 if(!ObjectUtils.isEmpty(lendingApplication)){
                     Date thresholdDate = getThresholdDate(merchantId);
-                    if(lendingApplication.getCreatedAt().after(thresholdDate))loanDashboardApiVersion.setApiVersion("v2");
+                    if(lendingApplication.getCreatedAt().after(thresholdDate)) loanDashboardApiVersion.setApiVersion("v2");
                     else loanDashboardApiVersion.setApiVersion("v1");
                 }
                 else loanDashboardApiVersion.setApiVersion("v2");
@@ -738,18 +757,44 @@ public class LoanDashboardService {
         }
         return null;
     }
-        private void checkEligibility(LoanDashboardResponse loanDashboardResponse, LoanDetailsRequest request, BasicDetailsDto merchant)  {
+    private void checkEligibility(LoanDashboardResponse loanDashboardResponse, LoanDetailsRequest request, BasicDetailsDto merchant)  {
             log.info("checking eligibility for {}", merchant.getId());
             MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
             if (ObjectUtils.isEmpty(merchantResponseDTO)) {
                 throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
             }
+
+            if (enableDiwaliBanner) {
+                Date diwaliBannerOneRolloutDateParsed = parseDate(diwaliBannerOneRolloutDate);
+                Date diwaliBannerOneEndDateParsed = parseDate(diwaliBannerOneEndDate);
+
+                Date diwaliBannerTwoRolloutDateParsed = parseDate(diwaliBannerTwoRolloutDate);
+                Date diwaliBannerTwoEndDateParsed = parseDate(diwaliBannerTwoEndDate);
+
+                if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
+                    if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {
+                        log.info("Enabling diwali banner one for merchantId : {}", merchant.getId());
+                        loanDashboardResponse.setDiwaliBannerType(getDiwaliBannerType(merchant.getId()));
+                        loanDashboardResponse.setDiwaliBannerEndDate(new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS).format(diwaliBannerOneEndDateParsed));
+                    }
+                }
+
+                if (!ObjectUtils.isEmpty(diwaliBannerTwoRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerTwoEndDateParsed)) {
+                    if (new Date().after(diwaliBannerTwoRolloutDateParsed) && new Date().before(diwaliBannerTwoEndDateParsed)) {
+                        log.info("Enabling diwali  banner two for merchantId : {}", merchant.getId());
+                        loanDashboardResponse.setDiwaliBannerType(getDiwaliBannerType(merchant.getId()));
+                        loanDashboardResponse.setDiwaliBannerEndDate(new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS).format(diwaliBannerTwoEndDateParsed));
+                    }
+                }
+            }
+
             Experian experian = experianDao.getByMerchantId(merchant.getId());
             if(ObjectUtils.isEmpty(experian)){
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
             loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
+
             if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
@@ -825,6 +870,15 @@ public class LoanDashboardService {
             }
         }
 
+    private Date parseDate(String stringDate) {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
+            return sdf.parse(stringDate);
+        } catch (Exception e) {
+            log.info("Exception occurred while parsing date for string : {}", stringDate);
+        }
+        return null;
+    }
 
     private void cacheLoanDetailsData(LoanDashboardResponse loanDashboardResponse) {
         try {
@@ -975,7 +1029,7 @@ public class LoanDashboardService {
     }
 
     private String getPreApprovedTag(Long merchantId){
-        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+        LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if(ObjectUtils.isEmpty(lendingRiskVariables)){
             return null;
         }
@@ -996,6 +1050,23 @@ public class LoanDashboardService {
             return PreApprovedLoanEnums.PRE_APPROVED_FRESH.name();
         }
         return null;
+    }
+
+    private String getDiwaliBannerType(Long merchantId) {
+        LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if(ObjectUtils.isEmpty(lendingRiskVariables)){
+            return "Default";
+        }
+        String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
+        if(ObjectUtils.isEmpty(pilotIdentifier)){
+            return "Default";
+        }
+
+        if(pilotIdentifier.contains(LoanDetailsConstant.DIWALI_BANNER_IDENTIFIER)){
+            log.info("loan request is pre-approved for {}", merchantId);
+            return "Interest";
+        }
+        return "Default";
     }
 
     private boolean percentScaleUp(Long merchantId, Integer percent) {
