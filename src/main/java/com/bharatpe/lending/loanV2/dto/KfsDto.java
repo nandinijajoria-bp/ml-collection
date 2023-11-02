@@ -37,6 +37,5 @@ public class KfsDto {
     private String nbfcId;
     private String locationLatLong;
     private boolean isTopUpLoan;
-    private long ediDays;
 
 }

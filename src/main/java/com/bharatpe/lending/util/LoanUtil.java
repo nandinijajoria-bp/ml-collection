@@ -1106,10 +1106,7 @@ public class LoanUtil {
 
 		Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
 
-		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
-				- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
-				+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
-				- advanceEdiAmount - excessCollectionBalance);
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount - excessCollectionBalance);
 	}
 
 	public int getForeclosureAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
@@ -1158,8 +1155,7 @@ public class LoanUtil {
 
 		logger.info("foreclosure amount picked for date : {} {}", dateString, foreclosureData);
 
-		double duePenalty = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
-		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount() + duePenalty;
+		prevLoanUnpaidAmount = foreclosureData.getTotalOutstandingAmount();
 		return prevLoanUnpaidAmount;
 	}
 

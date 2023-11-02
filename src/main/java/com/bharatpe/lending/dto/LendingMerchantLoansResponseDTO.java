@@ -1,6 +1,9 @@
 package com.bharatpe.lending.dto;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.bharatpe.common.entities.LendingApplication;
@@ -47,7 +50,6 @@ public class LendingMerchantLoansResponseDTO {
     private BankAccountDetails accountDetails;
 
     private Boolean contactSync = false;
-    private List<PenaltyConfig> penaltyConfig;
 
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -152,8 +154,6 @@ public class LendingMerchantLoansResponseDTO {
         @JsonProperty(value = "showCustomAmount")
         private boolean showCustomAmount = false;
         private String settlementStatus;
-        private double duePenalty;
-        private long ediDays;
 
         public Loan() {
         }
@@ -161,7 +161,7 @@ public class LendingMerchantLoansResponseDTO {
         public Loan(Long applicationId,Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
                 String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,
-                    Integer ediCount, String lender, String settlementStatus, double duePenalty) {
+                    Integer ediCount, String lender, String settlementStatus) {
             this.applicationId = applicationId;
             this.loanId = loanId;
             this.loanAmount = loanAmount;
@@ -182,7 +182,6 @@ public class LendingMerchantLoansResponseDTO {
             this.ediCount = ediCount;
             this.lender = lender;
             this.settlementStatus = settlementStatus;
-            this.duePenalty = duePenalty;
         }
 
         public Long getLoanId() {
@@ -454,14 +453,6 @@ public class LendingMerchantLoansResponseDTO {
 
     }
 
-    @Data
-    public static class PenaltyConfig {
-        private Long minAmount;
-        private Long maxAmount;
-        private Double penalty;
-    }
-
-
     public List<Loan> getLoans() {
         return loans;
     }
@@ -566,10 +557,8 @@ public class LendingMerchantLoansResponseDTO {
         String lender = lendingPaymentSchedule.getNbfc();
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
         Long applicationId = lendingPaymentSchedule.getApplicationId();
-        double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0d;
         return new Loan(applicationId, lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
-                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),
-                lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus, penaltyFee);
+                disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(), lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
     }
 
     public boolean getSuccess() {

@@ -12,11 +12,17 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
-import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
-import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -203,8 +209,6 @@ public class VerifyOTPService {
 
     @Autowired
     LoanDashboardService loanDashboardService;
-
-    PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -665,7 +669,6 @@ public class VerifyOTPService {
 
     private void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
 
-        double duePenalty = Objects.nonNull(previousLoan.getDuePenalty()) ? previousLoan.getDuePenalty() : 0;
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchantId(previousLoan.getMerchantId());
         lendingLedger.setLendingPaymentSchedule(previousLoan);
@@ -673,8 +676,7 @@ public class VerifyOTPService {
         lendingLedger.setAmount(previousAmount);
         lendingLedger.setDate(new Date());
         lendingLedger.setDescription("TOPUP LOAN ADJUSTMENT");
-        lendingLedger.setPenalty(duePenalty);
-        lendingLedger.setPrinciple(previousAmount - previousLoan.getDueInterest() - duePenalty);
+        lendingLedger.setPrinciple(previousAmount - previousLoan.getDueInterest());
         lendingLedger.setInterest(previousLoan.getDueInterest());
         lendingLedger.setAdjustmentMode(lendingApplication.getLoanType());
         lendingLedger.setTransferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name());
@@ -695,21 +697,13 @@ public class VerifyOTPService {
 
         previousLoan.setStatus("CLOSED");
         previousLoan.setClosingDate(new Date());
-        previousLoan.setPaidAmount(previousLoan.getPaidAmount() + previousAmount - duePenalty);
-        previousLoan.setPaidPrinciple(previousLoan.getPaidPrinciple() + previousAmount - previousLoan.getDueInterest() - duePenalty);
+        previousLoan.setPaidAmount(previousLoan.getPaidAmount() + previousAmount);
+        previousLoan.setPaidPrinciple(previousLoan.getPaidPrinciple() + previousAmount - previousLoan.getDueInterest());
         previousLoan.setPaidInterest(previousLoan.getPaidInterest() + previousLoan.getDueInterest());
         previousLoan.setDueAmount(0D);
         previousLoan.setDuePrinciple(0D);
         previousLoan.setDueInterest(0D);
-        previousLoan.setDuePenalty(previousLoan.getDuePenalty() + duePenalty);
-        previousLoan.setPaidPenalty(0D);
         lendingPaymentScheduleDao.save(previousLoan);
-
-        if (duePenalty > 0) {
-            PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(previousLoan.getMerchantId(), previousLoan.getId(),
-                    duePenalty, "TOPUP LOAN ADJUSTMENT", false, previousLoan.getNbfc());
-            penaltyFeeLedgerDao.save(penaltyFeeLedger);
-        }
 
         if (previousLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
             if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {

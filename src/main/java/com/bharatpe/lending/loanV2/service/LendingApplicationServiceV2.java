@@ -5,8 +5,6 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
-import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
@@ -237,9 +235,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
-
-    @Autowired
-    PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -2184,7 +2179,6 @@ public class LendingApplicationServiceV2 {
                     .lspContactEmail(KfsConstants.LSP_CONTACT_EMAIL)
                     .lspContactNumber(KfsConstants.LSP_CONTACT_NUMBER)
                     .nbfcId(lendingApplication.getNbfcId())
-                    .ediDays((lendingApplication.getPayableDays() % 30) == 0 ? 7 : 6)
                     .build();
             return new ApiResponse<>(kfsDto);
         }
@@ -2383,10 +2377,8 @@ public class LendingApplicationServiceV2 {
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
-            if(lender.equalsIgnoreCase(Lender.LDC.toString())){
+            if(lender.equalsIgnoreCase(Lender.LDC.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
-            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
-                filePath = "/templates/" + "KFS_P2P_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
@@ -2425,10 +2417,8 @@ public class LendingApplicationServiceV2 {
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
-            if(lender.equalsIgnoreCase(Lender.LDC.toString())){
+            if(lender.equalsIgnoreCase(Lender.LDC.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
-            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
-                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
@@ -2595,7 +2585,6 @@ public class LendingApplicationServiceV2 {
         if(ObjectUtils.isEmpty(dateTime)){
             dateTime  = dateTimeUtil.getCurrentDate();
         }
-        List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusOrderByMinAmountAsc(1D, true);
         Map<String, Object> data = new HashMap<>();
         data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
@@ -2688,15 +2677,6 @@ public class LendingApplicationServiceV2 {
             data.put("register_address_of_colender", kfsDto.getColenderBusinessAddress() + " (Co-Lender)");
             data.put("colender_text", "The loan is given under the Co-Lending model by the Lender & Co-Lender in the ratio of 20:80 respectively.");
         }
-        data.put("outstanding_amount_1", penaltyFeeConfigSlaveList.get(0).getMaxAmount());
-        data.put("penal_charges_1", penaltyFeeConfigSlaveList.get(0).getPenalty());
-        for (int i = 1; i < penaltyFeeConfigSlaveList.size(); i++) {
-            String value = String.valueOf((i+1));
-            data.put("outstanding_amount_min_"+value, penaltyFeeConfigSlaveList.get(i).getMinAmount());
-            data.put("outstanding_amount_max_"+value, penaltyFeeConfigSlaveList.get(i).getMaxAmount());
-            data.put("penal_charges_"+value, penaltyFeeConfigSlaveList.get(i).getPenalty());
-        }
-        data.put("edi_days", kfsDto.getEdiDays());
         log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }

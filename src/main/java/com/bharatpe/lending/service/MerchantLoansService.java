@@ -11,9 +11,6 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
-import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
-import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
-import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.query.dao.AutoPayUPISlaveDao;
@@ -193,10 +190,6 @@ public class MerchantLoansService {
 
     @Autowired
     AutoPayUPISlaveDao autoPayUPISlaveDao;
-
-    @Autowired
-    PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
-
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -398,7 +391,6 @@ public class MerchantLoansService {
                 loan.setPaidAmount((ObjectUtils.isEmpty(loan.getPaidAmount()) ? 0 : loan.getPaidAmount()) + advanceEdiAmount);
                 loan.setPendingAmount((ObjectUtils.isEmpty(loan.getPendingAmount()) ? 0 : loan.getPendingAmount()) - advanceEdiAmount);
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
-                loan.setEdiDays(loan.getEdiCount() % 30 == 0 ? 7 : 6);
 
                 if (loan.getStatus().equals("ACTIVE")) {
                     LendingPullPaymentSlave pullPayment = lendingPullPaymentDaoSlave.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
@@ -458,18 +450,6 @@ public class MerchantLoansService {
             }
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-            List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusOrderByMinAmountAsc(1D, true);
-
-            List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
-
-            for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
-                LendingMerchantLoansResponseDTO.PenaltyConfig penaltyConfig = new LendingMerchantLoansResponseDTO.PenaltyConfig();
-                penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
-                penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
-                penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
-                penaltyConfigs.add(penaltyConfig);
-            }
-            responseDTO.setPenaltyConfig(penaltyConfigs);
 
             if (lendingPaymentSchedule != null) {
                 Date date = new Date();
@@ -1439,13 +1419,9 @@ public class MerchantLoansService {
 
     private double getPreviousLoanAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
         double prevLoanUnpaidAmount = 0;
-        double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
         if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
             prevLoanUnpaidAmount = loanUtil.getForeclosureAmountForLdc(lendingPaymentSchedule);
-        } else {
-            prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple())
-                    + lendingPaymentSchedule.getDueInterest() + penaltyFee;
-        }
+        } else prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
 
         return prevLoanUnpaidAmount;
     }
