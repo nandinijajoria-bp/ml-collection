@@ -222,7 +222,7 @@ public class LoanDashboardService {
     @Autowired
     MileStoneDao mileStoneDao;
 
-    private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd hh:mm:ss";
+    private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
