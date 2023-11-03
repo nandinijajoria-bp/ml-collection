@@ -241,7 +241,7 @@ public class LoanDashboardService {
             }
 
             // hardcoding value for some testing
-            if(merchantId==9987300){
+            if(merchantId==9987300 || easyLoanUtil.isDummyMerchant(merchantId)){
                 loanDashboardApiVersion.setApiVersion("v1");
             }
             else if (loanUtil.isInternalMerchant(merchantId)){

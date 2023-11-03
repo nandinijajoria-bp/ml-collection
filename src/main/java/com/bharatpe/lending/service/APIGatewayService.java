@@ -1576,7 +1576,7 @@ public class APIGatewayService {
             }
         }
 
-        if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent)) {
+        if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent) && !easyLoanUtil.isDummyMerchant(merchantId)) {
             return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache, finalIsPincodeChanged);
         }
 
