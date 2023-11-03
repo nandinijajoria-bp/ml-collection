@@ -1607,7 +1607,6 @@ public class LiquiloansService {
                 logger.info("failure response from piramal get loan api");
                 return false;
             }
-            int installmentNo = 1;
             int ediCount = piramalGetLoanResponseDto.getLoanTenor();
             Double openingBalance = piramalGetLoanResponseDto.getLoanAmount().doubleValue();
             List<LendingEDISchedule> ediSchedules = new ArrayList<>();
@@ -1617,12 +1616,13 @@ public class LiquiloansService {
                 ediSchedules.add(createProcFeeSchedule(paymentSchedule, storeId));
             }
             Calendar calendar = Calendar.getInstance();
-            for (PiramalGetLoanResponseDto.LoanSchedule loanSchedule : piramalGetLoanResponseDto.getRepaymentSchedule()) {
+            for (int arr_i = 1; arr_i < piramalGetLoanResponseDto.getRepaymentSchedule().size(); arr_i++) {
+                PiramalGetLoanResponseDto.LoanSchedule loanSchedule = piramalGetLoanResponseDto.getRepaymentSchedule().get(arr_i);
                 LendingEDISchedule currentSchedule = new LendingEDISchedule();
                 calendar.setTimeInMillis(loanSchedule.getScheduledDate());
                 currentSchedule.setDate(calendar.getTime());
                 currentSchedule.setEdiType("Regular");
-                currentSchedule.setInstallmentNumber(installmentNo);
+                currentSchedule.setInstallmentNumber(arr_i);
                 currentSchedule.setOpeningBalance(loanSchedule.getEndBalance().doubleValue());
                 currentSchedule.setInterest(loanSchedule.getScheduledInterest().doubleValue());
                 currentSchedule.setPrinciple(loanSchedule.getScheduledPrincipal().doubleValue());
@@ -1634,7 +1634,6 @@ public class LiquiloansService {
                 currentSchedule.setLendingPaymentSchedule(paymentSchedule);
                 currentSchedule.setMerchantStoreId(storeId);
                 ediSchedules.add(currentSchedule);
-                installmentNo++;
             }
             lendingEDIScheduleDao.saveAll(ediSchedules);
             paymentSchedule.setInterest(piramalGetLoanResponseDto.getTotalInterestPayable().doubleValue());
