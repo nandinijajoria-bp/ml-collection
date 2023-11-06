@@ -70,6 +70,7 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
@@ -240,6 +241,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
+
+    @Value("${penalty.rollout.date:}")
+    String penalDate;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -2381,9 +2385,13 @@ public class LendingApplicationServiceV2 {
             Map<String, Object> data = new HashMap<>();
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
+            Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
             String html = "";
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
+                filePath = "/templates/" + "KFS_P2P" + ".html";
+            } else if (lendingApplication.getAgreementAt().before(penaltyDate) && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) ||
+                    lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "KFS_P2P_PC" + ".html";
@@ -2421,11 +2429,15 @@ public class LendingApplicationServiceV2 {
         }
         try {
             Map<String, Object> data = new HashMap<>();
+            Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
+                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
+            } else if (lendingApplication.getAgreementAt().before(penaltyDate) && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) ||
+                    lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_PC" + ".html";
