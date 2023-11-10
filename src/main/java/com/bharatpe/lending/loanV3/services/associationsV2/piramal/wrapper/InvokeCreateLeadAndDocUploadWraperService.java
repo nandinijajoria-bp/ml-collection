@@ -143,7 +143,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         {
             String shopType = dsHandler.fetchDsShopType(lendingGstDetail.getMerchantId());
             if(ObjectUtils.isEmpty(shopType)) {
-                lendingGstDetail.setShopType("Permanent");
+                return false;
             } else {
                 lendingGstDetail.setShopType(shopType);
             }

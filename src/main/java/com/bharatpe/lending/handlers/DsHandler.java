@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
@@ -251,9 +252,11 @@ public class DsHandler {
         try {
             DSMainResponse response = fetchDSMainVariables(merchantId, null);
             if(Objects.nonNull(response) && Objects.nonNull(response.getLocation()) && Objects.nonNull(response.getLocation().getInferredLat()) && Objects.nonNull(response.getLocation().getInferredLon())){
-                String shopType = response.getVisionResponse().getMeta().getShopFrontStructure().getClassifier().substring(0,1).toUpperCase()
-                        + response.getVisionResponse().getMeta().getShopFrontStructure().getClassifier().substring(1).toLowerCase();
-
+                String shopType = null;
+                if(!ObjectUtils.isEmpty(response.getVisionResponse().getMeta().getShopFrontStructure().getClassifier())) {
+                    shopType = response.getVisionResponse().getMeta().getShopFrontStructure().getClassifier();
+                }
+                shopType = shopType.substring(0,1).toUpperCase() +  shopType.substring(1).toLowerCase();
                 log.info("DSApiService: fetchDsShopType: response: {}", shopType);
                 return shopType;
             }
