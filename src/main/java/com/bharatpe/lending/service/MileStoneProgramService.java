@@ -19,6 +19,7 @@ import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -80,6 +81,9 @@ public class MileStoneProgramService {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    KycHandler kycHandler;
+
     //cache on API
     //read database calls
 
@@ -104,6 +108,10 @@ public class MileStoneProgramService {
             String offerCacheKey = LoanDetailsConstant.RTE_MILESTONE_OFFER_KEY + merchantId;
             log.info("deleting cached key of offer details in RTE for merchant: {}",merchantId);
             lendingCache.delete(offerCacheKey);
+
+            String dashboardDetailsCacheKey = "MILESTONE_DASHBOARD_" + merchantId;
+            log.info("deleting dashboard details in RTE for merchant: {}",merchantId);
+            lendingCache.delete(dashboardDetailsCacheKey);
         }
         catch(Exception e){
             log.info("unable to evict cache for : {}", merchantId);
@@ -118,12 +126,20 @@ public class MileStoneProgramService {
 
         String pinCodeColor = null;
         Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if (ObjectUtils.isEmpty(experian)) {
+            return new ApiResponse<>(false, "400", "PINCODE_NOT_FOUND");
+        }
         if (!ObjectUtils.isEmpty(experian.getPincode())) {
             LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(experian.getPincode());
             pinCodeColor = lendingPincodes.getColor().getValue();
         }
 
-        BureauResponseDTO responseDTO = mileStoneHelperService.calculateBureauScore(merchant);
+        String kycPancard = kycHandler.getPanNumber(merchant.getId());
+        if (ObjectUtils.isEmpty(kycPancard))
+        {
+            return new ApiResponse<>(false, "400", "PANCARD_NOT_FOUND");
+        }
+        BureauResponseDTO responseDTO = mileStoneHelperService.calculateBureauScore(kycPancard,merchant);
 
         log.info("bureau data {} for merchant id {} is :",responseDTO,merchant.getId());
 
@@ -203,33 +219,32 @@ public class MileStoneProgramService {
             return new ApiResponse<>(false, "400", "Entity Not Found");
         }
 
-        DSMileStoneAchievementResponse achievementResponse;
-        String milestoneDashboardCacheKey = "MILESTONE_DASHBOARD" + merchant.getId();
-        log.info("cache present for milestoneDashboard {} for merchant id {}", milestoneDashboardCacheKey, merchant.getId());
+        DSMileStoneAchievementResponse achievementResponse = null;
+        String milestoneDashboardCacheKey = "MILESTONE_DASHBOARD_" + merchant.getId();
+        Object dashboardDetailsCacheKey = lendingCache.get(milestoneDashboardCacheKey);
 
-        achievementResponse = objectMapper.convertValue(lendingCache.get(milestoneDashboardCacheKey), DSMileStoneAchievementResponse.class);
-        if (ObjectUtils.isEmpty(achievementResponse)) {
-            log.info("Dashboard details for merchantId: {}", merchant.getId());
-            achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
-            if (!ObjectUtils.isEmpty(achievementResponse)) {
-                AddCacheDto addCacheDto = new AddCacheDto();
-                addCacheDto.setKey(milestoneDashboardCacheKey);
-                addCacheDto.setValue(achievementResponse);
-                addCacheDto.setTtl(10);
-                lendingCache.add(addCacheDto, TimeUnit.MINUTES);
-                log.info("added key in cache");
+
+        if (!ObjectUtils.isEmpty(dashboardDetailsCacheKey)) {
+            try {
+                log.info("cache present for milestoneDashboard {} for merchant id {}", milestoneDashboardCacheKey, merchant.getId());
+                mileStoneDashboardDetails = objectMapper.convertValue(lendingCache.get(milestoneDashboardCacheKey), MileStoneDashboardDetails.class);
+                return new ApiResponse<>(mileStoneDashboardDetails);
             }
+            catch (Exception e)
+            {
+                log.info("exception in reading value from cache for RTE for merchant id {}",merchant.getId());
+            }
+
         }
+
+        log.info("Fetching Dashboard details from DE for merchantId: {} ", merchant.getId());
+        achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
 
 
         if (achievementResponse == null) {
             return new ApiResponse<>(false, "400","Achievement response is null");
         }
         DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
-
-       /* if (mileStoneResponse.target == null) {
-            return new ApiResponse<>(false, "Target Not Found");
-        }*/
 
         List<MileStoneDashboardData> mapList = new ArrayList<>();
 
@@ -287,6 +302,14 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setAchievementUniquePayer(0);
             mileStoneDashboardDetails.setTargetActiveDays(0);
             mileStoneDashboardDetails.setTargetUniquePayer(0);
+
+            log.info("achievement response added in cache");
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(milestoneDashboardCacheKey);
+            addCacheDto.setValue(mileStoneDashboardDetails);
+            addCacheDto.setTtl(10);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+            log.info("added key in cache");
             return new ApiResponse<>(mileStoneDashboardDetails);
         } else {
             for (DSMileStoneAchievementResponse.Achievement achievement : achievementResponse.achievement) {
@@ -312,6 +335,14 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setAchievementUniquePayer(achievementResponse.getTotal().getUnq_payer());
             mileStoneDashboardDetails.setTargetActiveDays(mileStoneResponse.getTotal_target().getActive_days());
             mileStoneDashboardDetails.setTargetUniquePayer(mileStoneResponse.getTotal_target().getUnq_payer());
+
+            log.info("achievement response added in cache");
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(milestoneDashboardCacheKey);
+            addCacheDto.setValue(mileStoneDashboardDetails);
+            addCacheDto.setTtl(10);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+            log.info("added key in cache");
 
             return new ApiResponse<>(mileStoneDashboardDetails);
         }

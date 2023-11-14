@@ -1,6 +1,8 @@
 package com.bharatpe.lending.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,7 +15,10 @@ public class DEPinCode {
     public int pincode;
     public double lat;
     public double lon;
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public String city;
+    @JsonIgnoreProperties(ignoreUnknown = true)
+
     public String state;
 
 }

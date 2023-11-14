@@ -20,6 +20,8 @@ public class LoanDetailsV3Request {
 
     private String resubmitReason;
     private boolean isIOS;
+    private Boolean rteFlag;
+
 
 //    private boolean isIOS = false;
 }

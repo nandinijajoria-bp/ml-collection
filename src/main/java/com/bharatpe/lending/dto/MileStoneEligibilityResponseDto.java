@@ -20,6 +20,8 @@ public class MileStoneEligibilityResponseDto {
     ProgramEligibleData programEligibleData;
     private Boolean isMileStoneExpiry;
     private String dsErrorMessage;
+    private Integer pinCode;
+    private String panCard;
 
     @Data
     public static class ProgramActiveData {

@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
@@ -8,6 +9,7 @@ import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCRTEDto;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -48,16 +50,27 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
     @Value("${kyc.deeplink}")
     String kycDeepLink;
 
+    @Autowired
+    LendingCache lendingCache;
+
     private KYCStateDTO initiateKyc(Long merchantId) {
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         List<KycDocType> docTypes = new ArrayList<>();
         docTypes.add(KycDocType.PAN_NO);
         docTypes.add(KycDocType.SELFIE);
         docTypes.add(KycDocType.EKYC);
-        String callBackURL = callback + "&wroute=program-summary&backFrom=kyc";
+//        String callBackURL = callback + "&wroute=program-summary&backFrom=kyc";
+        String callBackURL = callback + "&backFrom=kyc";
         Experian experian = experianDao.getByMerchantId(merchantId);
+
+        String panCard;
         if (experian == null || experian.getPancardNumber() == null) {
-            throw new LoanDetailsException(LoanDetailExceptionEnum.PANCARD_DOES_NOT_EXIST.getErrorCode(), LoanDetailExceptionEnum.PANCARD_DOES_NOT_EXIST.getErrorMessage());
+            log.info("Pan card set to null for merchantId {}",merchantId);
+            panCard=null;
+//            throw new LoanDetailsException(LoanDetailExceptionEnum.PANCARD_DOES_NOT_EXIST.getErrorCode(), LoanDetailExceptionEnum.PANCARD_DOES_NOT_EXIST.getErrorMessage());
+        }
+        else{
+            panCard=experian.getPancardNumber();
         }
 
         String uniqueID = UUID.randomUUID().toString();
@@ -65,7 +78,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
 //        String wroute =
         InitiateKycDTO initiateKycDTO = InitiateKycDTO.builder()
                 .referenceId(uniqueID)
-                .panNumber(experian.getPancardNumber())
+                .panNumber(panCard)
                 .callBackUrl(callBackURL)
                 .merchantId(merchantId.toString()).build();
         log.info("request for initiateKYC is {}", initiateKycDTO);
@@ -103,6 +116,11 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
             }
             initiateKycResponse.setKycStatus(doc.getKycStatus());
             initiateKycResponse.setShowKycPage(false);
+            String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + scopeDataArgs.getMerchant().getId();
+            Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
+            if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
+                lendingCache.delete(loanDetailsCacheKey);
+            }
             return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY,
                     LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY);
 

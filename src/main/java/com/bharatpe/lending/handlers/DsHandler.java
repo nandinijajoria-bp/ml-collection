@@ -31,6 +31,10 @@ public class DsHandler {
     @Value("${de.reference.base.url}")
     String deBaseUrl;
 
+
+    @Value("${ds.inferred.reference.base.url}")
+    String globalDsBaseUrl;
+
     @Value("${ds.api.url}")
     String dsApiUrl;
 
@@ -217,13 +221,14 @@ public class DsHandler {
             log.info("Request to get Pincode for merchantId:{} ", merchantId);
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
+            headers.add("content-type", MediaType.APPLICATION_JSON_VALUE);
 
             Map<String, Object> requestMap = new HashMap<>();
             requestMap.put("lat", latitude);
             requestMap.put("lon", longtitude);
             HttpEntity<Object> request = new HttpEntity<>(requestMap, headers);
 
-            String url = deBaseUrl + "/geo-info";
+            String url = globalDsBaseUrl + "/geo-info";
 
             log.info("Request for Inferred Pincode for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
             ResponseEntity<DEPinCode> responseEntity = null;

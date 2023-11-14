@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.EligibleLoan;
@@ -93,6 +94,9 @@ public class EligibilityV3Service {
     @Autowired
     CleverTapEventService cleverTapEventService;
 
+    @Autowired
+    LendingCache lendingCache;
+
     public boolean eligibilityBaseChecksSuccess(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) {
 
         String kycPancard = kycHandler.getPanNumber(eligibilityStateDTO.getMerchant().getId());
@@ -124,6 +128,23 @@ public class EligibilityV3Service {
                     (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D,
                     0,
                     Integer.valueOf(request.getPincode())));
+
+            if (Boolean.TRUE.equals(request.getRteFlag())) {
+                try {
+                    eligibilityStateDTO.setExperian(experian);
+                    refreshEligibility(request, eligibilityStateDTO);
+                    String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
+                    Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
+                    if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
+                        lendingCache.delete(loanDetailsCacheKey);
+                    }
+
+                } catch (BureauCallMaskedApiException e) {
+                    log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+                }
+            }
+
+
         } else if (request != null && request.getPancard() != null
                 && request.getPincode() != null
                 && !experian.getPancardNumber().equalsIgnoreCase(request.getPancard())) {
@@ -213,6 +234,8 @@ public class EligibilityV3Service {
 
     public void refreshEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {
         Eligibility eligibility = null;
+        log.info("eligibilityStateDTO.getMerchant().getId() {}", eligibilityStateDTO);
+        log.info("request is {}", request);
         GlobalLimitResponse globalLimitResponse = requestForEligibility(request, eligibilityStateDTO);
         MutableBoolean isDerog = new MutableBoolean(false);
         Double eligibleAmount = 0D;
