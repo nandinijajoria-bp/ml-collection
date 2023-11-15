@@ -1456,7 +1456,7 @@ public class LoanUtil {
 			resubmitTask.setResignDone(Boolean.FALSE);
 			resubmitTask.setResignReason("LENDER_CHANGE_FROM_" + lendingApplication.getLender() + "_TO_" + newLender);
 			Boolean renach = apiGatewayService.cancelEnach(lendingApplication.getMerchantId(), lendingApplication.getId());
-			if (!renach) return false;
+			
 
 			logger.info("changing lender from : {} to {}", lendingApplication.getLender(), newLender);
 			lendingApplication.setLender(newLender);
