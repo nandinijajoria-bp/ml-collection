@@ -568,7 +568,7 @@ public class LendingApplicationServiceV2 {
             }
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
         } catch (Exception e) {
-            log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), e);
+            log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
         }
     }
