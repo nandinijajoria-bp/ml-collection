@@ -789,6 +789,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
 				lendingRiskVariablesSnapshot.setBpScore(lendingRiskVariables.getBpScore());
 				lendingRiskVariablesSnapshot.setBbs(lendingRiskVariables.getBbs());
+				lendingRiskVariablesSnapshot.setBbs2(lendingRiskVariables.getBbs2());
 				lendingRiskVariablesSnapshot.setVintage(lendingRiskVariables.getVintage());
 				lendingRiskVariablesSnapshot.setBureauScore(lendingRiskVariables.getBureauScore());
 				lendingRiskVariablesSnapshot.setRiskColor(lendingRiskVariables.getRiskColor());
