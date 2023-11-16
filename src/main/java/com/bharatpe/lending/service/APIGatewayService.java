@@ -2162,8 +2162,8 @@ public class APIGatewayService {
         if (bankDetailsDtoOptional.isPresent())
             merchantBankDetail = bankDetailsDtoOptional.get();
         LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
-        String firstName;
-        String lastName;
+        String firstName = null;
+        String lastName = null;
         if (lendingPancard == null || lendingPancard.getName() == null || !lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
             try {
                 lendingPancard = loanEligibleService.fetchPanName(pancard, merchantId);
@@ -2175,12 +2175,16 @@ public class APIGatewayService {
             firstName = LoanUtil.getFirstName(lendingPancard.getName());
             lastName = LoanUtil.getLastName(lendingPancard.getName());
         } else {
-            firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName());
-            lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName());
+            if (!ObjectUtils.isEmpty(merchantBankDetail)) {
+                firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName());
+                lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName());
+            }
         }
+        String finalFirstName = firstName;
+        String finalLastName = lastName;
         return new HashMap<String, String>() {{
-            put("firstName", firstName);
-            put("lastName", lastName);
+            put("firstName", finalFirstName);
+            put("lastName", finalLastName);
         }};
     }
 
