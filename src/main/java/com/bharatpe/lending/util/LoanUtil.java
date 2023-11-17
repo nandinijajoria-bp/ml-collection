@@ -1362,7 +1362,9 @@ public class LoanUtil {
 	}
 
 	public boolean isNachToBeRefunded(LendingApplication lendingApplication) {
-		return lendingApplication.getNachLender().equals("BHARATPE");
+		if (!ObjectUtils.isEmpty(lendingApplication.getNachLender()))
+			return lendingApplication.getNachLender().equals("BHARATPE");
+		return false;
 	}
 
 	public static double roundUp(double loanAmount) {
