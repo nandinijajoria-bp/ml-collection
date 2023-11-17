@@ -139,18 +139,16 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     private boolean checkForGSTDetails(Long applicationId) {
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
         log.info("lendingGstDetails {}",lendingGstDetail);
-        if (!ObjectUtils.isEmpty(lendingGstDetail) && lendingGstDetail.getShopType()==null)
-        {
+        // TODO: Fallback of DS API will be lender change
+        lendingGstDetail.setShopType("Permanent");
+        if (!ObjectUtils.isEmpty(lendingGstDetail) && lendingGstDetail.getShopType() == null) {
             String shopType = dsHandler.fetchDsShopType(lendingGstDetail.getMerchantId());
-            if(ObjectUtils.isEmpty(shopType)) {
-                return false;
-            } else {
+            if(!ObjectUtils.isEmpty(shopType)) {
                 lendingGstDetail.setShopType(shopType);
             }
-            lendingGstDao.save(lendingGstDetail);
-            return true;
         }
-        return (lendingGstDetail != null && null != lendingGstDetail.getShopType());
+        lendingGstDao.save(lendingGstDetail);
+        return true;
     }
 
     public void runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
