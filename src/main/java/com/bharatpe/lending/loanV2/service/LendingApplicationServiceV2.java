@@ -2627,6 +2627,7 @@ public class LendingApplicationServiceV2 {
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
+        data.put("rate_of_interest_in_words",getAmountInWords(kfsDto.getInterestRate().toString()));
         data.put("apr", kfsDto.getApr());
         data.put("interest_charged_to_borrower", kfsDto.getRepaymentAmount() - kfsDto.getLoanAmount());
         data.put("interest_charged_to_borrower_in_words", getAmountInWords(data.get("interest_charged_to_borrower").toString()));
@@ -2636,6 +2637,7 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_disbursed_in_words", getAmountInWords(kfsDto.getDisbursalAmount().toString()));
         data.put("interest_equal_daily", kfsDto.getEdiAmount());
         data.put("edi_amount", kfsDto.getEdiAmount());
+        data.put("edi_amount_in_words", getAmountInWords(kfsDto.getEdiAmount().toString()));
         data.put("interest_equal_daily_in_words", getAmountInWords(kfsDto.getEdiAmount().toString()));
         data.put("no_of_edis", kfsDto.getEdiCount());
         data.put("repayment_frequency", Arrays.asList(Lender.PIRAMAL.name()).contains(kfsDto.getLender()) ? "Daily" : "");
@@ -2678,6 +2680,8 @@ public class LendingApplicationServiceV2 {
         data.put("product_name", Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender()) ? "ESB MCA PERSONAL LOAN" : "");
         data.put("repayment_mode", Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender()) ? "ACH" : "");
         data.put("pan_of_borrower", kycHandler.getPanNumber(merchant.getId()));
+        data.put("late_payment_charges",0);  //todo need to update
+        data.put("upfront_charges",0);      //todo need to update
         ApiResponse aadharAddressResponse = getAadhaarAddress(merchant, applicationId);
         if(aadharAddressResponse.isSuccess()){
             AadhaarAddressResponseDTO aadhaarAddressResponseDTO = (AadhaarAddressResponseDTO)aadharAddressResponse.getData();
