@@ -104,7 +104,7 @@ public class KycHandler {
                 return responseEntity.getBody().getData().getDocs();
             }
         } catch (Exception ex) {
-            log.error("Exception in getKycDoc for merchant:{}", merchantId, ex);
+            log.error("Exception in getKycDoc for merchant:{}, {}, {}", merchantId, ex, Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }
@@ -135,7 +135,7 @@ public class KycHandler {
                 return responseEntity.getBody().getData().getDocs();
             }
         } catch (Exception ex) {
-            log.error("Exception in getKycDoc for merchant:{}", merchantId, ex);
+            log.error("Exception in getKycDoc for merchant:{}, {}, {}", merchantId, ex, Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }
@@ -170,7 +170,7 @@ public class KycHandler {
                 return kycDocResponseDTO;
             }
         } catch (Exception ex) {
-            log.error("Exception in getKycDoc for merchant:{}", merchantId, ex);
+            log.error("Exception in getKycDoc for merchant:{}, {}, {}", merchantId, ex, Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }
@@ -201,7 +201,7 @@ public class KycHandler {
                 return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
             }
         } catch (Exception e) {
-            log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
+            log.error("Exception in getKycStatus for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
@@ -232,7 +232,7 @@ public class KycHandler {
                 return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
             }
         } catch (Exception e) {
-            log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
+            log.error("Exception in getKycStatus for merchant:{}. {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
@@ -261,7 +261,7 @@ public class KycHandler {
                 return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
             }
         } catch (Exception e) {
-            log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
+            log.error("Exception in getKycStatus for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
@@ -301,7 +301,7 @@ public class KycHandler {
             }
         } catch (Exception e) {
             responseObj.put("message", "Error initiating KYC");
-            log.error("Exception in initiateKyc for merchant:{}", merchantId, e);
+            log.error("Exception in initiateKyc for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return responseObj;
     }
@@ -349,7 +349,7 @@ public class KycHandler {
             }
         } catch (Exception e) {
             responseObj.put("message", "Error initiating KYC");
-            log.error("Exception in initiateKyc for merchant:{}", merchantId, e);
+            log.error("Exception in initiateKyc for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return responseObj;
     }
