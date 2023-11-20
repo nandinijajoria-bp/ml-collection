@@ -10,6 +10,8 @@ import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
@@ -78,6 +80,9 @@ public class UpdateLeadService {
 
     @Value("${default.vintage:false}")
     Boolean defaultVintageAssignment;
+
+    @Autowired
+    MerchantService merchantService;
 
     @Transactional
     public Boolean updateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -148,7 +153,8 @@ public class UpdateLeadService {
     private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(LendingApplication lendingApplication, LendingBBS lendingBBS,
                                                                       LendingGstDetail lendingGstDetail, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
 
-        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+//        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .customerId(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getCccId())
                 .businessInformation(CreateLeadRequestDTO.ApplicantsDetail.BusinessInformation.builder()
@@ -156,8 +162,10 @@ public class UpdateLeadService {
                         .businessType("PROPRIETORSHIP")
                         .monthlyIncome(Objects.nonNull(lendingBBS) ? lendingBBS.getIncome() : 0d)
                         .businessAddress(getAddress(lenderAssociationDetailsRequestDto.getLendingApplication(), "OFFICE"))
-                        .industry(converterUtils.parseData(lendingMerchantDetails.getBusinessCategory()))
-                        .subIndustry(lendingMerchantDetails.getBusinessSubCategory())
+                        .industry((Objects.nonNull(basicDetailsDto) && Objects.nonNull(basicDetailsDto.get().getBussinessCategory()) ?
+                                basicDetailsDto.get().getBussinessCategory() : "BUSINESS"))
+                        .subIndustry((Objects.nonNull(basicDetailsDto) && Objects.nonNull(basicDetailsDto.get().getSubCategory()))
+                                ? basicDetailsDto.get().getSubCategory() : "BUSINESS")
                         .businessAddressType("SELF_OWNED")
                         .isGstEligible(lendingGstDetail.getGst())
                         .gstNumber(ObjectUtils.isEmpty(lendingGstDetail.getGstNumber()) ? null : lendingGstDetail.getGstNumber())

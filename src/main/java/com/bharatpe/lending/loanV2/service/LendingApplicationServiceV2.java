@@ -39,8 +39,11 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.UpdateLeadAndRiskDecisionWrapperService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
@@ -71,8 +74,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
@@ -244,6 +249,10 @@ public class LendingApplicationServiceV2 {
 
     @Value("${penalty.rollout.date:}")
     String penalDate;
+
+    @Lazy
+    @Autowired
+    InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -772,9 +781,9 @@ public class LendingApplicationServiceV2 {
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(applicationRequest.getCurrentAddressSameAsPermanentAddress());
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
             // invoke bre for piramal
-            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-                invokeBreForPiramal(lendingGstDetail, lendingApplication);
-            }
+//            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
+//                invokeBreForPiramal(lendingGstDetail, lendingApplication);
+//            }
 
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -2962,8 +2971,16 @@ public class LendingApplicationServiceV2 {
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(sameAsAdhaar);
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
             // invoke bre for piramal
+//            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
+//                invokeBreForPiramal(lendingGstDetail, lendingApplication);
+//            }
             if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-                invokeBreForPiramal(lendingGstDetail, lendingApplication);
+                LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
+                lenderAssociationDetailsRequestDto.setApplicationId(lendingApplication.getId());
+                invokeCreateLeadAndDocUploadWraperService.runBaseChecksAndCreateRecord(lenderAssociationDetailsRequestDto);
+                log.info("base checks ran for {}", lendingApplication.getId());
+                lenderAssociationDetailsRequestDto.setManageState(true);
+                invokeCreateLeadAndDocUploadWraperService.checkForGSTDetailsAndInvokeBREWorkflow(lenderAssociationDetailsRequestDto);
             }
             funnelService.submitEvent(merchant.getId(), null, applicationId,
                     FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());

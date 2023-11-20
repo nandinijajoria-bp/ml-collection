@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -106,7 +107,8 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         MDC.clear();
     }
 
-    private void checkForGSTDetailsAndInvokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+    public void checkForGSTDetailsAndInvokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        log.info("entered for check gst and update lead bre flow: {} {}",lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lenderAssociationDetailsDto.getApplicationId());
         if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId()) &&
                 Boolean.TRUE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
@@ -123,7 +125,8 @@ public class InvokeCreateLeadAndDocUploadWraperService {
                     currStage,
                     Boolean.TRUE
             );
-        } else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
+        }
+        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
             log.info("modifying lender as permanent address is different that current address {}", lenderAssociationDetailsDto.getApplicationId());
             nbfcUtils.modifyLender(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), LenderAssociationStatus.BRE_HARD_FAILED);
         }
@@ -134,7 +137,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         return (lendingGstDetail != null && null != lendingGstDetail.getShopType());
     }
 
-    private void runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+    public void runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lenderAssociationDetailsDto.getApplicationId());
         log.info("lending app  {}", lendingApplication.get());
         if (!lendingApplication.isPresent()
@@ -151,7 +154,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
                 .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lenderAssociationDetailsDto.getApplicationId(), Status.ACTIVE.name(),Lender.PIRAMAL.name());
         if (Objects.nonNull(lendingApplicationLenderDetails) && Objects.nonNull(lendingApplicationLenderDetails.getLeadId())) {
             log.info("lead creation already done for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
-            return;
+//            return;
         }
         if (null == lendingApplicationLenderDetails) {
             lendingApplicationLenderDetails = createLenderRecord(lendingApplication.get(), LenderAssociationStages.KYC.name(), Status.ACTIVE.name());
