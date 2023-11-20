@@ -926,16 +926,16 @@ public class SupportService {
         switch (lendingApplicationPriority.getCurrentPriority()) {
             case "P0":
 
-                return tat < 1 ? SupportConstants.P0.replace(SupportConstants.P0, SupportConstants.TAT0_MESSAGE) : SupportConstants.P0.replace("<current_TaT>", tat + "-" + (tat + 2) + " Days");
+                return tat < 1 ? SupportConstants.P0.replace(SupportConstants.P0, SupportConstants.TAT0_MESSAGE) : SupportConstants.P0.replace("<current_TaT>", tat + "-" + (tat + 1) + " Days");
 
             case "P1":
-                return tat < 1 ? SupportConstants.P1.replace(SupportConstants.P1, SupportConstants.TAT0_MESSAGE) : SupportConstants.P1.replace("<current_TaT>", tat + "-" + (tat + 2) + " Days");
+                return tat < 1 ? SupportConstants.P1.replace(SupportConstants.P1, SupportConstants.TAT0_MESSAGE) : SupportConstants.P1.replace("<current_TaT>", tat + "-" + (tat + 1) + " Days");
 
             case "P2":
-                return tat < 1 ? SupportConstants.P2.replace(SupportConstants.P2, SupportConstants.TAT0_MESSAGE) : SupportConstants.P2.replace("<current_TaT>", tat + "-" + (tat + 2) + " Days");
+                return tat < 1 ? SupportConstants.P2.replace(SupportConstants.P2, SupportConstants.TAT0_MESSAGE) : SupportConstants.P2.replace("<current_TaT>", tat + "-" + (tat + 1) + " Days");
 
             case "P3":
-                return tat < 1 ? SupportConstants.P3.replace(SupportConstants.P3, SupportConstants.TAT0_MESSAGE) : SupportConstants.P3.replace("<current_TaT>", tat + "-" + (tat + 2) + " Days");
+                return tat < 1 ? SupportConstants.P3.replace(SupportConstants.P3, SupportConstants.TAT0_MESSAGE) : SupportConstants.P3.replace("<current_TaT>", tat + "-" + (tat + 1) + " Days");
 
             case "P4":
                 return SupportConstants.P4;

@@ -101,7 +101,7 @@ public class ApplicationStatusStageDataService implements IStageDataService<Appl
 
             if (applicationStatusStateDTO.getEnachDeeplink() == null && (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus()) || ApplicationStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getStatus()))) {
                 int tat = loanUtil.getApplicationTAT(lendingApplication.getId());
-                applicationStatusStateDTO.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
+                applicationStatusStateDTO.setTransferDays(tat < 1 ? "next few days." : tat + "-" + (tat + 1) + " Days");
             }
             Long reapplyTime = loanDetailsServiceV2.getReapplyTime(lendingApplication);
             if (Objects.nonNull(reapplyTime)) {

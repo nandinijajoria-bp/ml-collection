@@ -71,7 +71,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.BP_CLUB_MEMBERSHIP_KEY_PREFIX;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 @Service
 @Slf4j
@@ -575,7 +575,10 @@ public class LoanDashboardService {
                         applicationDetails.setApplicationStatus("RESIGN");
                     }
                 }
-            addApplicationStages(openApplication,applicationDetails);
+                addApplicationStages(openApplication,applicationDetails);
+                int tat = loanUtil.getApplicationTAT(openApplication.getId());
+
+                applicationDetails.setTransferDays(tat < 1 ? TAT_BREACH_TEXT : TRANSFER_DAYS_TEXT_PREFIX + tat + "-" + (tat + 1) + TRANSFER_DAYS_TEXT_SUFFIX);
             }
 
             if("rejected".equalsIgnoreCase(openApplication.getStatus())){

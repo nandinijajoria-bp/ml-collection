@@ -1960,7 +1960,7 @@ public class LendingApplicationService {
         applicationLoanDetailsDTO.setAmount(lendingApplication.get().getLoanAmount());
         applicationLoanDetailsDTO.setFailedMsg("");
         applicationLoanDetailsDTO.setOrderID(lendingApplication.get().getExternalLoanId());
-        applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Next Few Days" : tat + "-" + (tat + 2) + " Days");
+        applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Money transfer in the next few days." : tat + "-" + (tat + 1) + " Days");
         applicationLoanDetailsDTO.setLender(lendingApplication.get().getLender());
         applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
         applicationLoanDetailsDTO.setCovid(covid);

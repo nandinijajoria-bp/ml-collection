@@ -218,6 +218,9 @@ public class LoanUtil {
 
 	Map<Long, String> forceLendersForMerchants = new HashMap<>();
 
+	@Autowired
+	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -521,7 +524,25 @@ public class LoanUtil {
 		int tat = -1;
 		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
 		if (lendingApplicationPriority != null && lendingApplicationPriority.getTat() != null && lendingApplicationPriority.getTatStartTime() != null) {
-			tat = (int) (lendingApplicationPriority.getTat() - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
+			int adjustedTat = getDisbursalModeAdjustedTat(applicationId, lendingApplicationPriority.getMerchantId(), lendingApplicationPriority.getTat());
+			tat = (int) (adjustedTat - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
+		}
+		return tat;
+	}
+
+	public int getDisbursalModeAdjustedTat(Long applicationId, Long merchantId, int tat){
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+		if(ObjectUtils.isEmpty(lendingApplication))return tat;
+		if("approved".equalsIgnoreCase(lendingApplication.getNachStatus()) && Objects.nonNull(lendingApplication.getLmsStage())){
+			LendingDisbursalModeConfig lendingDisbursalModeConfig = lendingDisbursalModeConfigDao.findTop1ByLenderAndPlatformAndLoanTypeAndStatusOrderByIdDesc(
+					lendingApplication.getLender(), "LMS", lendingApplication.getLoanType(), "ACTIVE"
+			);
+			if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
+				return (int)Math.ceil((double)tat/2);
+			}
+		}
+		else if("approved".equalsIgnoreCase(lendingApplication.getStatus()) && Objects.isNull(lendingApplication.getLmsStage())){
+			return 2;
 		}
 		return tat;
 	}

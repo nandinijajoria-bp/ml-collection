@@ -1020,7 +1020,7 @@ public class LendingApplicationServiceV2 {
             applicationLoanDetailsDTO.setAmount(lendingApplication.getLoanAmount());
             applicationLoanDetailsDTO.setFailedMsg("");
             applicationLoanDetailsDTO.setOrderID(lendingApplication.getExternalLoanId());
-            applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Next Few Days" : tat + "-" + (tat + 2) + " Days");
+            applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "next few days." : tat + "-" + (tat + 1) + " Days");
             applicationLoanDetailsDTO.setLender(lendingApplication.getLender());
             applicationLoanDetailsDTO.setStatus(lendingApplication.getStatus());
             applicationLoanDetailsDTO.setCovid(false);

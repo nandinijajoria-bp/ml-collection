@@ -45,5 +45,11 @@ public class LoanDetailsConstant {
 
     public static String MULTIPLE_REPEAT_TOPUP_LOAN_IDENTIFIER = "multiple_repeat_top_up";
 
+    public static String TRANSFER_DAYS_TEXT_PREFIX = "Your application is getting reviewed by our NBFC partners, usually takes ";
+
+    public static String TAT_BREACH_TEXT = "Money transfer in the next few days.";
+
+    public static String TRANSFER_DAYS_TEXT_SUFFIX = " days.";
+
 }
 
