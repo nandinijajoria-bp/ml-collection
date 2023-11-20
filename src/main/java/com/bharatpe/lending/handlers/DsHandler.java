@@ -138,7 +138,7 @@ public class DsHandler {
         try {
             log.info("Request to fetch DS main variables for merchant:{}", merchantId);
             String url = dsApiUrl + "/" + merchantId;
-            if(Objects.nonNull(applicationId)) {
+            if (Objects.nonNull(applicationId)) {
                 url += "?application_id=" + applicationId;
             }
             long start = System.currentTimeMillis();
@@ -244,6 +244,22 @@ public class DsHandler {
         } catch (Exception e) {
             log.error("Exception while fetching Pincode for merchant: {} and error: {}", merchantId, e.getStackTrace());
 
+        }
+        return null;
+    }
+    public String fetchDsShopType(Long merchantId) {
+        try {
+            DSMainResponse response = fetchDSMainVariables(merchantId, null);
+            if(Objects.nonNull(response) && Objects.nonNull(response.getLocation()) && Objects.nonNull(response.getLocation().getInferredLat()) && Objects.nonNull(response.getLocation().getInferredLon())){
+                String shopType = response.getVisionResponse().getMeta().getShopFrontStructure().getClassifier().substring(0,1).toUpperCase()
+                        + response.getVisionResponse().getMeta().getShopFrontStructure().getClassifier().substring(1).toLowerCase();
+
+                log.info("DSApiService: fetchDsShopType: response: {}", shopType);
+                return shopType;
+            }
+        }
+        catch(Exception e){
+            log.info("Error in fetching Inferred Location from DS API for merchant:{}, {}, {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -67,6 +68,9 @@ public class InvokeCreateLeadAndDocUploadWraperService {
 
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    DsHandler dsHandler;
 
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
@@ -137,7 +141,13 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         log.info("lendingGstDetails {}",lendingGstDetail);
         if (!ObjectUtils.isEmpty(lendingGstDetail) && lendingGstDetail.getShopType()==null)
         {
-            lendingGstDetail.setShopType("Permanent");
+            String shopType = dsHandler.fetchDsShopType(lendingGstDetail.getMerchantId());
+            if(ObjectUtils.isEmpty(shopType)) {
+                lendingGstDetail.setShopType("Permanent");
+            } else {
+                lendingGstDetail.setShopType(shopType);
+            }
+            lendingGstDao.save(lendingGstDetail);
             return true;
         }
         return (lendingGstDetail != null && null != lendingGstDetail.getShopType());
