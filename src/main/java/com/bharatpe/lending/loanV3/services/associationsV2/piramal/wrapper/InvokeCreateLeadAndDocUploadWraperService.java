@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.CreateLeadService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalDocumentUploadService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +73,9 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     @Autowired
     DsHandler dsHandler;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
 
@@ -114,7 +118,8 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     public void checkForGSTDetailsAndInvokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         log.info("entered for check gst and update lead bre flow: {} {}",lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lenderAssociationDetailsDto.getApplicationId());
-        if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId()) &&
+        boolean gstDetails = checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId());
+        if (gstDetails &&
                 Boolean.TRUE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
             // push application to next stage
             //update lendingApplicationLenderDetails
@@ -130,7 +135,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
                     Boolean.TRUE
             );
         }
-        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
+        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()) || !gstDetails) {
             log.info("modifying lender as permanent address is different that current address {}", lenderAssociationDetailsDto.getApplicationId());
             nbfcUtils.modifyLender(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), LenderAssociationStatus.BRE_HARD_FAILED);
         }
@@ -139,15 +144,22 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     private boolean checkForGSTDetails(Long applicationId) {
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
         log.info("lendingGstDetails {}",lendingGstDetail);
-        // TODO: Fallback of DS API will be lender change
-        lendingGstDetail.setShopType("Permanent");
-        if (!ObjectUtils.isEmpty(lendingGstDetail) && lendingGstDetail.getShopType() == null) {
+        if(ObjectUtils.isEmpty(lendingGstDetail)) {
+            return false;
+        }
+        if (lendingGstDetail.getShopType() == null) {
             String shopType = dsHandler.fetchDsShopType(lendingGstDetail.getMerchantId());
             if(!ObjectUtils.isEmpty(shopType)) {
                 lendingGstDetail.setShopType(shopType);
+                lendingGstDao.save(lendingGstDetail);
+                return true;
             }
+            if(loanUtil.isInternalMerchant(lendingGstDetail.getMerchantId())) {
+                lendingGstDetail.setShopType("Permanent");
+                return true;
+            }
+            return false;
         }
-        lendingGstDao.save(lendingGstDetail);
         return true;
     }
 
