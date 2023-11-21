@@ -534,8 +534,12 @@ public class LoanUtil {
 		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
 		if(ObjectUtils.isEmpty(lendingApplication))return tat;
 		if("approved".equalsIgnoreCase(lendingApplication.getNachStatus()) && Objects.nonNull(lendingApplication.getLmsStage())){
+			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+			if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
+				return tat;
+			}
 			LendingDisbursalModeConfig lendingDisbursalModeConfig = lendingDisbursalModeConfigDao.findTop1ByLenderAndPlatformAndLoanTypeAndStatusOrderByIdDesc(
-					lendingApplication.getLender(), "LMS", lendingApplication.getLoanType(), "ACTIVE"
+					lendingApplication.getLender(), "LMS", lendingRiskVariablesSnapshot.getRiskSegment().name(), "ACTIVE"
 			);
 			if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
 				return (int)Math.ceil((double)tat/2);
