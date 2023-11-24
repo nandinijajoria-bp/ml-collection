@@ -545,9 +545,8 @@ public class LoanDashboardService {
                     }
                 }
                 addApplicationStages(openApplication,applicationDetails);
-                int tat = loanUtil.getApplicationTAT(openApplication.getId());
 
-                applicationDetails.setTransferDays(tat < 1 ? TAT_BREACH_TEXT : TRANSFER_DAYS_TEXT_PREFIX + tat + "-" + (tat + 1) + TRANSFER_DAYS_TEXT_SUFFIX);
+                applicationDetails.setTransferDays(loanUtil.getApplicationTatMessage(openApplication));
             }
 
             if("rejected".equalsIgnoreCase(openApplication.getStatus())){

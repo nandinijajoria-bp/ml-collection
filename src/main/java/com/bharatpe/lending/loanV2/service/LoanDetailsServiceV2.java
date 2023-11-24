@@ -978,7 +978,7 @@ public class LoanDetailsServiceV2 {
                     (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase
                             (openApplication.getStatus()) ||
                             ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()))) {
-                int tat = loanUtil.getApplicationTAT(openApplication.getId());
+                int tat = loanUtil.getApplicationTAT(openApplication);
                 applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
             }
             Long reapplyTime = getReapplyTime(openApplication);

@@ -96,6 +96,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 
 @Service
 @Slf4j
@@ -1023,13 +1024,13 @@ public class LendingApplicationServiceV2 {
             boolean diy = loanUtil.isDIY(merchantBasicDetailsDto);
             boolean showOrderQr = false;
             boolean isLowPriority = loanUtil.isLowPriority(lendingApplication.getId());
-            int tat = easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) ? 4 : loanUtil.getApplicationTAT(lendingApplication.getId());
+            String transferDays = easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) ? DUMMY_MERCHANT_TRANSFER_DAYS_TEXT : loanUtil.getApplicationTatMessage(lendingApplication);
             List<ApplicationDTO> applicationDTO = new ArrayList<>();
             ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
             applicationLoanDetailsDTO.setAmount(lendingApplication.getLoanAmount());
             applicationLoanDetailsDTO.setFailedMsg("");
             applicationLoanDetailsDTO.setOrderID(lendingApplication.getExternalLoanId());
-            applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "next few days." : tat + "-" + (tat + 1) + " Days");
+            applicationLoanDetailsDTO.setTransferDays(transferDays);
             applicationLoanDetailsDTO.setLender(lendingApplication.getLender());
             applicationLoanDetailsDTO.setStatus(lendingApplication.getStatus());
             applicationLoanDetailsDTO.setCovid(false);
@@ -1358,13 +1359,13 @@ public class LendingApplicationServiceV2 {
             boolean diy = loanUtil.isDIY(basicDetailsDto.get());
             boolean showOrderQr = false;
             boolean isLowPriority = loanUtil.isLowPriority(lendingApplication.getId());
-            int tat = easyLoanUtil.isDummyMerchant(basicDetailsDto.get().getId()) ? 4 : loanUtil.getApplicationTAT(lendingApplication.getId());
+            String transferDays = easyLoanUtil.isDummyMerchant(basicDetailsDto.get().getId()) ? DUMMY_MERCHANT_TRANSFER_DAYS_TEXT : loanUtil.getApplicationTatMessage(lendingApplication);
             List<ApplicationDTO> applicationDTO = new ArrayList<>();
             ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
             applicationLoanDetailsDTO.setAmount(lendingApplication.getLoanAmount());
             applicationLoanDetailsDTO.setFailedMsg("");
             applicationLoanDetailsDTO.setOrderID(lendingApplication.getExternalLoanId());
-            applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Next Few Days" : tat + "-" + (tat + 2) + " Days");
+            applicationLoanDetailsDTO.setTransferDays(transferDays);
             applicationLoanDetailsDTO.setLender(lendingApplication.getLender());
             applicationLoanDetailsDTO.setStatus(lendingApplication.getStatus());
             applicationLoanDetailsDTO.setCovid(false);

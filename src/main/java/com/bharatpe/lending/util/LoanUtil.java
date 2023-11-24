@@ -26,6 +26,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.enums.Lender;
@@ -63,6 +64,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 
 @Component
@@ -520,33 +522,59 @@ public class LoanUtil {
 //		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
 //	}
 
-	public int getApplicationTAT(Long applicationId) {
+
+	public String getApplicationTatMessage(LendingApplicationSlave lendingApplication){
+		if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
+				&& !NACH_STATUS_APPROVED.equalsIgnoreCase(lendingApplication.getNachStatus())
+		){
+			return PENDING_APPLICATION_TAT_TEXT;
+		}
+		int tat = getApplicationTAT(lendingApplication);
+		return tat < 1 ? TAT_BREACH_TEXT : TRANSFER_DAYS_TEXT_PREFIX + tat + "-" + (tat + 1) + TRANSFER_DAYS_TEXT_SUFFIX;
+	}
+
+	public String getApplicationTatMessage(LendingApplication lendingApplication){
+		if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
+				&& !NACH_STATUS_APPROVED.equalsIgnoreCase(lendingApplication.getNachStatus())
+		){
+			return PENDING_APPLICATION_TAT_TEXT;
+		}
+		int tat = getApplicationTAT(lendingApplication);
+		return tat < 1 ? TAT_BREACH_TEXT : TRANSFER_DAYS_TEXT_PREFIX + tat + "-" + (tat + 1) + TRANSFER_DAYS_TEXT_SUFFIX;
+	}
+
+	public int getApplicationTAT(LendingApplicationSlave lendingApplication) {
 		int tat = -1;
-		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(applicationId);
+		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
 		if (lendingApplicationPriority != null && lendingApplicationPriority.getTat() != null && lendingApplicationPriority.getTatStartTime() != null) {
-			int adjustedTat = getDisbursalModeAdjustedTat(applicationId, lendingApplicationPriority.getMerchantId(), lendingApplicationPriority.getTat());
+			int adjustedTat = lendingApplicationPriority.getTat();
+			if("approved".equalsIgnoreCase(lendingApplication.getNachStatus()) && Objects.nonNull(lendingApplication.getLmsStage())){
+				//for lms applications
+				adjustedTat = (int)Math.ceil((double)lendingApplicationPriority.getTat()/2 - 1);
+			}
+			else if("approved".equalsIgnoreCase(lendingApplication.getStatus()) && Objects.isNull(lendingApplication.getLmsStage())){
+				//for auto disbursal applications
+				adjustedTat = 2;
+			}
 			tat = (int) (adjustedTat - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
 		}
 		return tat;
 	}
 
-	public int getDisbursalModeAdjustedTat(Long applicationId, Long merchantId, int tat){
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-		if(ObjectUtils.isEmpty(lendingApplication))return tat;
-		if("approved".equalsIgnoreCase(lendingApplication.getNachStatus()) && Objects.nonNull(lendingApplication.getLmsStage())){
-			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
-			if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
-				return tat;
+	public int getApplicationTAT(LendingApplication lendingApplication) {
+		int tat = -1;
+		LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
+		if (lendingApplicationPriority != null && lendingApplicationPriority.getTat() != null && lendingApplicationPriority.getTatStartTime() != null) {
+			int adjustedTat = lendingApplicationPriority.getTat();
+			if("approved".equalsIgnoreCase(lendingApplication.getNachStatus()) && Objects.nonNull(lendingApplication.getLmsStage())){
+				//for lms applications
+				adjustedTat = (int)Math.ceil((double)lendingApplicationPriority.getTat()/2 - 1);
 			}
-			LendingDisbursalModeConfig lendingDisbursalModeConfig = lendingDisbursalModeConfigDao.findTop1ByLenderAndPlatformAndLoanTypeAndStatusOrderByIdDesc(
-					lendingApplication.getLender(), "LMS", lendingRiskVariablesSnapshot.getRiskSegment().name(), "ACTIVE"
-			);
-			if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
-				return (int)Math.ceil((double)tat/2);
+			else if("approved".equalsIgnoreCase(lendingApplication.getStatus()) && Objects.isNull(lendingApplication.getLmsStage())){
+				//for auto disbursal applications
+				adjustedTat = 2;
 			}
-		}
-		else if("approved".equalsIgnoreCase(lendingApplication.getStatus()) && Objects.isNull(lendingApplication.getLmsStage())){
-			return 2;
+			tat = (int) (adjustedTat - (getDateDiffInDays(lendingApplicationPriority.getTatStartTime(), new Date())));
 		}
 		return tat;
 	}
