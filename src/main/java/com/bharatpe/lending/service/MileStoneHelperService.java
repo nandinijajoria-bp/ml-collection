@@ -18,11 +18,9 @@ import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.entity.MileStoneReward;
-import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
-import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.common.util.MapperUtil;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -482,19 +480,22 @@ public class MileStoneHelperService {
             }
 
 
-            List exclusionReasonMilestoneList = Arrays.asList
-                    ("LIMIT BLOCKED: Offer set 0","LIMIT BLOCKED: Less than 10K offer",
-                    "Risk Segment Exclusion: RegularNTCReject:R2/R3&DRS<15&Cust<250",
-                    "RepeatReject-Previous loan NTC & BBS<750",
-                    "RiskSegmentExclusion:TopupR1Prev-LoanETC/NTC/Repeat&BBS<650",
-                    "Something went wrong - DS pan pin",
-                    "Something went wrong - Bureau",
-                    "LIMIT BLOCKED: Pending application",
-                    "Something went wrong - Experian", "NTC");
+        List inclusionReasonMilestoneList = Arrays.asList
+                ("Something went wrong - merchant_summary",
+                        "LIMIT BLOCKED: Offer set 0",
+                        "LIMIT BLOCKED: Less than 10K offer",
+                        "Risk Segment Exclusion: RegularNTCReject:R2/R3&DRS<15&Cust<250",
+                        "Something went wrong - DS pan pin",
+                        "Something went wrong - Bureau",
+                        "LIMIT BLOCKED: Pending application",
+                        "Something went wrong - Experian",
+                        "NTC",
+                        "Risk Segment Exclusion: NTB vintage less than 30",
+                        " Thin File ETC");
 
 
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
-            log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+        log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
 
 
         if (lessThan30 &&
@@ -502,7 +503,7 @@ public class MileStoneHelperService {
                         || (bureauResponseDTO.getIsNTC() == Boolean.FALSE))
                 && (Objects.isNull(lendingRiskVariables.getExperianRejection())
                        || lendingRiskVariables.getExperianRejection().isEmpty()
-                || exclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()))) {
+                || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()))) {
                 responseDto.setMilStoneEligibility(true);
                 log.info("entity for milestone {}", entity);
                 if ((ObjectUtils.isEmpty(entity)) ||
@@ -696,3 +697,4 @@ public class MileStoneHelperService {
     }
 
 }
+
