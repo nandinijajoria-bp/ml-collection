@@ -1489,7 +1489,7 @@ public class LoanUtil {
 			logger.info("changing lender from : {} to {}", lendingApplication.getLender(), newLender);
 			lendingApplication.setLender(newLender);
 			lendingApplication.setNachStatus(null);
-			lendingApplication.setNachLender(null);
+			lendingApplication.setNachLender(enachServiceLenderMapper(newLender));
 			lendingApplication.setStatus("pending_verification");
 			lendingApplicationDao.save(lendingApplication);
 			lendingResubmitTaskDao.save(resubmitTask);
