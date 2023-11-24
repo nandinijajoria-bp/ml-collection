@@ -1724,6 +1724,7 @@ public class APIGatewayService {
                 }
                 return globalLimitResponse;
             }
+            logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
         } catch (ResourceAccessException ex) {
             logger.info("Scenaptic Limit Api timed out for merchantId:{} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         } catch (Exception e) {
