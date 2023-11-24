@@ -120,6 +120,14 @@ public class MileStoneProgramService {
     }
 
     public ApiResponse<DSMileStoneResponse> programSummary(BasicDetailsDto merchant) {
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(),"IN_PROGRESS");
+
+        if (!ObjectUtils.isEmpty(entity)) {
+            log.info("milestone entity found for merchant {},entity {}", merchant.getId(), entity);
+            DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
+            return new ApiResponse<>(mileStoneResponse);
+        }
+
         log.info("RTE program Summary for Merchant Id is : {}", merchant.getId());
         DSMileStoneResponse response = null;
 

@@ -12,4 +12,6 @@ public interface MileStoneDao extends JpaRepository<MileStoneEntity, String> {
 
     MileStoneEntity findByMerchantIdAndSessionStatus(Long merchantId,String status);
 
+    MileStoneEntity findTop1ByMerchantIdAndSessionStatus(Long merchantId,String status);
+
 }
