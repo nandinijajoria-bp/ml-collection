@@ -707,7 +707,7 @@ public class VerifyOTPService {
         previousLoan.setDueAmount(0D);
         previousLoan.setDuePrinciple(0D);
         previousLoan.setDueInterest(0D);
-        previousLoan.setDuePenalty(previousLoan.getDuePenalty() + duePenalty);
+        previousLoan.setDuePenalty(duePenalty);
         previousLoan.setPaidPenalty(0D);
         lendingPaymentScheduleDao.save(previousLoan);
 
