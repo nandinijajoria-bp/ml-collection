@@ -123,10 +123,10 @@ public class BreRequestKafka {
             ) {
                 if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
                     log.info("marking breStatus BRE_FAILED and rejecting application for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
-                    lendingApplication.get().setStatus("rejected");
+                    //lendingApplication.get().setStatus("rejected");
                     lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                    lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    lendingApplicationDao.save(lendingApplication.get());
+                    //lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                    //lendingApplicationDao.save(lendingApplication.get());
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 } else {
                     log.info("request resulted in bre failure, modifying lender for {}", request);
@@ -177,10 +177,10 @@ public class BreRequestKafka {
                         return;
                     }
                     log.info("marking breStatus BRE_FAILED and deleting application for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
-                    lendingApplication.get().setStatus("rejected");
+                    //lendingApplication.get().setStatus("rejected");
                     existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                    existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    lendingApplicationDao.save(lendingApplication.get());
+                    //existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                    //lendingApplicationDao.save(lendingApplication.get());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                     return;
                 }
