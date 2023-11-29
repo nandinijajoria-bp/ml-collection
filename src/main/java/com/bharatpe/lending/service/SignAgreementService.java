@@ -705,6 +705,8 @@ public class SignAgreementService {
 
 		if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
 			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
+		} else if("ABFL".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
+			previousAmount = loanUtil.getForeClosureAmountForABFL(prevLendingSchedule);
 		} else previousAmount = loanUtil.getForeclosureAmount(prevLendingSchedule);
 
 		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())

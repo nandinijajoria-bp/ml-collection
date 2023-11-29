@@ -44,6 +44,7 @@ public class KycRequestApiDto {
         String kycType;
         String accountId;
         String cccId;
+        String productCode;
         String transactionId;
         String selfie;
         String okycXml;

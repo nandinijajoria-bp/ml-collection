@@ -28,10 +28,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 
-import static com.bharatpe.lending.enums.Lender.LDC;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P_OF;
+import static com.bharatpe.lending.enums.Lender.*;
 
 @Slf4j
 @Service
@@ -332,7 +329,7 @@ public class LenderAssignService implements ILenderAssignService {
                 return gstOfferLender;
             }
 
-            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
+            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender(), 731);
             if("REPEAT".equalsIgnoreCase(riskSegment) && Objects.nonNull(kycDetails)){
                 //skip KYC
                 log.info("merchant {}  can skip KYC done on:{} for lender:{}", lendingApplication.getMerchantId(),kycDetails.getConsentDate() ,lender.getLender());
@@ -631,6 +628,8 @@ public class LenderAssignService implements ILenderAssignService {
         if(LIQUILOANS_NBFC.toString().equals(prevLender)) return LIQUILOANS_NBFC.toString();
 
         if(LIQUILOANS_P2P.toString().equals(prevLender) || LIQUILOANS_P2P_OF.toString().equals(prevLender)) return LIQUILOANS_P2P.toString();
+
+        if(ABFL.name().equalsIgnoreCase(prevLender)) return ABFL.name();
         
         return null;
     }

@@ -51,6 +51,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import static com.bharatpe.lending.constant.LendingConstants.*;
+import static com.bharatpe.lending.enums.Lender.ABFL;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
@@ -196,6 +197,9 @@ public class MerchantLoansService {
 
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
+
+    @Value("${abfl.topup.rollout.percent:1}")
+    Integer abflTopupRolloutPercent;
 
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
@@ -775,6 +779,10 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
+            if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), abflTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                log.info("ABFL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
 
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
@@ -874,7 +882,7 @@ public class MerchantLoansService {
                     logger.info("paid ratio is between 60 to 95 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
                 }
-                if (paidRatio >= 0.5D && paidRatio < 0.60D) {
+                if (paidRatio >= 0.5D && paidRatio < 0.60D && (!ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()))) {
                     logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
                 }

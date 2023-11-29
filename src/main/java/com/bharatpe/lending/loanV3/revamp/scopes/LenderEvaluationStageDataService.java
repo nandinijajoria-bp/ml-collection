@@ -2,10 +2,15 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.LenderEvaluationStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -31,6 +36,12 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Autowired
     LoanUtilV3 loanUtilV3;
 
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -39,6 +50,29 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
         }
         else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.REFERENCE_PAGE);
+        }
+        LendingApplication lendingApplication = lendingApplicationDao.findById(scopeDataArgs.getApplicationId()).orElse(null);
+        if(ObjectUtils.isEmpty(lendingApplication)) {
+            return lendingStateDTO;
+        }
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+            if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                if(LenderAssociationStatus.BRE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
+                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
+                } else if(LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())){
+                    lendingStateDTO.getData().setIsRetryable(Boolean.TRUE);
+                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_EVALUATION_PAGE);
+                } else if (LenderAssociationStatus.KYC_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
+                } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_EVALUATION_PAGE);
+                }
+                else if (LenderAssociationStatus.KYC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+                }
+
+            }
         }
         return lendingStateDTO;
     }

@@ -38,7 +38,10 @@ import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.dto.AbflTopupRpsResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -236,6 +239,9 @@ public class LiquiloansService {
 
     @Value("${enable.backdated.loan:true}")
     Boolean backdatedLoanEnabled;
+
+    @Autowired
+    LenderAssociationStageFactory lenderAssociationStageFactory;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
@@ -741,6 +747,20 @@ public class LiquiloansService {
         }
         createEdiSchedule(lendingPaymentSchedule);
         createEdiException(lendingPaymentSchedule);
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
+            if (scheduleList.isEmpty()) {
+                lendingApplication.setLoanDisbursalStatus("RPS_CREATION_FAILED");
+                lendingApplicationDao.save(lendingApplication);
+                logger.error("RPS creation failed for abfl topup loan {}", postPayoutRequestDto.getApplicationId());
+                postPayoutResponseDto.setStatus("FAILED");
+                postPayoutResponseDto.setMessage("rps creation failed!");
+                postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                kafkaAudit.setData(postPayoutAuditDto);
+                pushKafkaAudit(kafkaAudit);
+                return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+            }
+        }
         if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
@@ -1475,6 +1495,13 @@ public class LiquiloansService {
                 flag = constructPiramalEDISchedule(paymentSchedule);
                 retry++;
             } while (!flag && retry < 3);
+        } else if ("ABFL".equalsIgnoreCase(paymentSchedule.getNbfc()) && LoanType.TOPUP.name().equalsIgnoreCase(paymentSchedule.getLoanApplication().getLoanType())) {
+            boolean flag;
+            int retry = 0;
+            do {
+                flag = constructAbflTopupEDISchedule(paymentSchedule);
+                retry++;
+            } while (!flag && retry < 3);
         } else {
             constructBharatPeEDISchedule(paymentSchedule);
         }
@@ -1645,6 +1672,79 @@ public class LiquiloansService {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
             return false;
         }
+    }
+
+    public Boolean constructAbflTopupEDISchedule(LendingPaymentSchedule paymentSchedule) {
+        try {
+            List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
+            if (scheduleList != null && !scheduleList.isEmpty()) {
+                logger.info("EDI schedule already exist for Loan ID {}.", paymentSchedule.getId());
+                return false;
+            }
+            logger.info("Creating EDI schedule for Loan ID {}.", paymentSchedule.getId());
+            AbflTopupRpsResponseDTO abflTopupRpsResponseDTO = new AbflTopupRpsResponseDTO();
+            ILenderAssociationService iLenderAssociationService =
+                    lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.RPS.name()).getLenderAssociationService(Lender.ABFL.name());
+            if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
+                Object abflTopupRpsResponse = iLenderAssociationService.invoke(paymentSchedule.getApplicationId(), new HashMap<>());
+                abflTopupRpsResponseDTO = objectMapper.convertValue(abflTopupRpsResponse, AbflTopupRpsResponseDTO.class);
+                logger.info("response from abfl repayment schedule api for application id : {} is : {}", paymentSchedule.getLoanApplication().getId(), abflTopupRpsResponse);
+            }
+            if (ObjectUtils.isEmpty(abflTopupRpsResponseDTO)) {
+                logger.info("failure response from abfl repayment schedule api");
+                return false;
+            }
+            List<LendingEDISchedule> ediSchedules = new ArrayList<>();
+            double procFee = paymentSchedule.getLoanApplication() == null ? 0D : paymentSchedule.getLoanApplication().getProcessingFee();
+            Long storeId = paymentSchedule.getMerchantStoreId() == null ? null : paymentSchedule.getMerchantStoreId();
+            if (procFee > 0D) {
+                ediSchedules.add(createProcFeeSchedule(paymentSchedule, storeId));
+            }
+            Date parsedDate = null;
+            Double totalInterestPayable = 0D;
+            for (int arr_i = 1; arr_i < abflTopupRpsResponseDTO.getData().getData().getInstallments().size(); arr_i++) {
+                AbflTopupRpsResponseDTO.Installment loanSchedule = abflTopupRpsResponseDTO.getData().getData().getInstallments().get(arr_i);
+                LendingEDISchedule currentSchedule = new LendingEDISchedule();
+                parsedDate = parseDate(loanSchedule.getDueDate(), "dd-MM-yyyy");
+                currentSchedule.setDate(parsedDate);
+                currentSchedule.setEdiType("Regular");
+                currentSchedule.setInstallmentNumber(arr_i);
+                currentSchedule.setOpeningBalance(Double.valueOf(loanSchedule.getPrincipalOutstanding()));
+                currentSchedule.setInterest(Double.valueOf(loanSchedule.getInterestComponent()));
+                currentSchedule.setPrinciple(Double.valueOf(loanSchedule.getPrincipalComponent()));
+                currentSchedule.setProcessingFee(0D);
+                currentSchedule.setTotalEdi(Integer.valueOf(loanSchedule.getInstallmentNumber()));
+                currentSchedule.setOtherCharges(0D);
+                currentSchedule.setMerchantId(paymentSchedule.getMerchantId());
+                currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+                currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+                currentSchedule.setMerchantStoreId(storeId);
+                ediSchedules.add(currentSchedule);
+                totalInterestPayable += currentSchedule.getInterest();
+            }
+            lendingEDIScheduleDao.saveAll(ediSchedules);
+            paymentSchedule.setInterest(totalInterestPayable);
+            paymentSchedule.setOtherCharges(0D);
+            paymentSchedule.setTentativeClosingDate(parsedDate);
+            lendingPaymentScheduleDao.save(paymentSchedule);
+            iLenderAssociationService =
+                    lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DIGI_SIGN.name()).getLenderAssociationService(Lender.ABFL.name());
+            logger.info("Invoking digiSign API for application : {}", paymentSchedule.getApplicationId());
+            iLenderAssociationService.invoke(paymentSchedule.getApplicationId(), new HashMap<>());
+            return true;
+        } catch (Exception ex) {
+            logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
+            return false;
+        }
+    }
+
+    Date parseDate(String date, String format) {
+        try {
+            return new SimpleDateFormat(format).parse(date);
+        } catch (Exception e) {
+            logger.info("Error Parsing Date : {} with format : {}", date, format);
+        }
+        return null;
     }
 
     public Integer getOffDayNumber(String dayOff) {

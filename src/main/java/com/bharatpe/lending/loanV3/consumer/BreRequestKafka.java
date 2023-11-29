@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
@@ -99,6 +100,7 @@ public class BreRequestKafka {
                 lendingApplicationLenderDetails.setStage(LenderAssociationStages.BRE.name());
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
+                lendingApplicationLenderDetails.setKycRetryCount(0);
                 DecimalFormat df = new DecimalFormat("#.##");
                 df.setRoundingMode(RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
@@ -119,8 +121,17 @@ public class BreRequestKafka {
                     ObjectUtils.isEmpty(breApiResponseDto.getData()) ||
                     !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(breApiResponseDto.getData().getResponseStatus())
             ) {
-                log.info("request resulted in bre failure, modifying lender for {}", request);
-                nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                    log.info("marking breStatus BRE_FAILED and rejecting application for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
+                    lendingApplication.get().setStatus("rejected");
+                    lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+                    lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                    lendingApplicationDao.save(lendingApplication.get());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                } else {
+                    log.info("request resulted in bre failure, modifying lender for {}", request);
+                    nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
+                }
             }
             else {
                 lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_IN_PROGRESS.name());
@@ -158,6 +169,21 @@ public class BreRequestKafka {
                 return;
             }
             if (Boolean.FALSE.equals(breCallbackResponseDto.getSuccess())) {
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                    if(breCallbackResponseDto.getData().getIsRetryable()) {
+                        log.info("marking breStatus as BRE_RETRY as bre Callback resulted in bre retry true for: {}", lendingApplication.get().getId());
+                        existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_RETRY.name());
+                        lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                        return;
+                    }
+                    log.info("marking breStatus BRE_FAILED and deleting application for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
+                    lendingApplication.get().setStatus("rejected");
+                    existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+                    existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                    lendingApplicationDao.save(lendingApplication.get());
+                    lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                    return;
+                }
                 log.info("modifying lender as bre callback resulted in failure for  {}", lendingApplication.get().getId());
                 nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
                 return;
@@ -208,7 +234,7 @@ public class BreRequestKafka {
                     (name.lastIndexOf(" ") == -1 ? name :
                             name.substring(name.lastIndexOf(" ") + 1).trim())
                     : cKycResponseDto.getLastName().trim();
-
+            String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -242,7 +268,7 @@ public class BreRequestKafka {
                                                             .build())
                                                     .build()
                                     )
-                                    .productCode("BharatPe")
+                                    .productCode(productCode)
                                     .source("BharatPe")
                                     .loanSegment(RiskEngineUtil.loanRiskMapping(lendingRiskVariablesSnapshot.getRiskSegment().name()))
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())

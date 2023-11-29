@@ -211,6 +211,9 @@ public class VerifyOTPService {
     @Autowired
     CleverTapEventService cleverTapEventService;
 
+    @Autowired
+    PaymentService paymentService;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -714,6 +717,9 @@ public class VerifyOTPService {
         if (previousLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
             if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
                 nbfcService.pushCloseLoanEventToKafka(previousLoan.getApplicationId());
+            }
+            if("ABFL".equalsIgnoreCase(previousLoan.getLoanApplication().getLender())) {
+                //paymentService.sendForeclosureEvent(previousLoan.getApplicationId(), lendingApplication.getAlternateMobile(), lendingLedger);
             }
         }
         lendingCollectionAuditService.sendCollectionAudit(lendingLedger, previousLoan);
