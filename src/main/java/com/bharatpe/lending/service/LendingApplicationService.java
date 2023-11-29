@@ -1953,14 +1953,13 @@ public class LendingApplicationService {
         boolean diy = (merchantBasicDetails.getMerchantType() != null && "DIY".equals(merchantBasicDetails.getMerchantType())) || merchantBasicDetails.getReferalCode() == null;
         boolean showOrderQr = false;
         boolean isLowPriority = lendingApplicationPriority != null && (lendingApplicationPriority.getCurrentPriority().equals("P4") || lendingApplicationPriority.getCurrentPriority().equals("P5") || lendingApplicationPriority.getCurrentPriority().equals("P6"));
-        int tat = loanUtil.getApplicationTAT(lendingApplication.get().getId());
         boolean covid = isCovidEffectedLoan(lendingApplication.get().getPincode(), merchantBasicDetails, lendingApplication.get().getLoanType());
         List<ApplicationDTO> applicationDTO = new ArrayList<>();
         ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO applicationLoanDetailsDTO = new ApplicationStatusResponseDTO.ApplicationLoanDetailsDTO();
         applicationLoanDetailsDTO.setAmount(lendingApplication.get().getLoanAmount());
         applicationLoanDetailsDTO.setFailedMsg("");
         applicationLoanDetailsDTO.setOrderID(lendingApplication.get().getExternalLoanId());
-        applicationLoanDetailsDTO.setTransferDays(tat < 1 ? "Money transfer in the next few days." : tat + "-" + (tat + 1) + " Days");
+        applicationLoanDetailsDTO.setTransferDays(loanUtil.getApplicationTatMessage(lendingApplication.get()));
         applicationLoanDetailsDTO.setLender(lendingApplication.get().getLender());
         applicationLoanDetailsDTO.setStatus(lendingApplication.get().getStatus());
         applicationLoanDetailsDTO.setCovid(covid);

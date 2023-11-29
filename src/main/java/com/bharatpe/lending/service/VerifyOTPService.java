@@ -193,6 +193,12 @@ public class VerifyOTPService {
     LendingCollectionAuditService lendingCollectionAuditService;
 
     @Autowired
+    LendingCollectionExcessDao lendingCollectionExcessDao;
+
+    @Autowired
+    LendingRefundAuditDao lendingRefundAuditDao;
+
+    @Autowired
     PiramalAdditionalDocUploadService piramalAdditionalDocUploadService;
 
     @Autowired
@@ -704,7 +710,7 @@ public class VerifyOTPService {
         previousLoan.setDueAmount(0D);
         previousLoan.setDuePrinciple(0D);
         previousLoan.setDueInterest(0D);
-        previousLoan.setDuePenalty(previousLoan.getDuePenalty() + duePenalty);
+        previousLoan.setDuePenalty(duePenalty);
         previousLoan.setPaidPenalty(0D);
         lendingPaymentScheduleDao.save(previousLoan);
 
@@ -718,11 +724,37 @@ public class VerifyOTPService {
             if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
                 nbfcService.pushCloseLoanEventToKafka(previousLoan.getApplicationId());
             }
+            putCollectionExcessAmountInRefund(previousLoan);
             if("ABFL".equalsIgnoreCase(previousLoan.getLoanApplication().getLender())) {
                 //paymentService.sendForeclosureEvent(previousLoan.getApplicationId(), lendingApplication.getAlternateMobile(), lendingLedger);
             }
         }
+
         lendingCollectionAuditService.sendCollectionAudit(lendingLedger, previousLoan);
+    }
+
+    private void putCollectionExcessAmountInRefund(LendingPaymentSchedule lendingPaymentSchedule) {
+        logger.info("putting excess amount in refund for loanId : {}", lendingPaymentSchedule.getId());
+        try {
+            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId(), "ACTIVE");
+            for (LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList) {
+                if (lendingCollectionExcess.getAmount() > 0) {
+                    LendingRefundAudit lendingRefundAudit = new LendingRefundAudit();
+                    lendingRefundAudit.setDueAmount(0d);
+                    lendingRefundAudit.setLoanId(lendingPaymentSchedule.getId());
+                    lendingRefundAudit.setMerchantId(lendingPaymentSchedule.getMerchantId());
+                    lendingRefundAudit.setMode("EXCESS_NACH");
+                    lendingRefundAudit.setBankRefNo(lendingCollectionExcess.getTerminalOrderId());
+                    lendingRefundAudit.setRefundAmount(lendingCollectionExcess.getAmount());
+                    lendingRefundAuditDao.save(lendingRefundAudit);
+                }
+                lendingCollectionExcess.setStatus("CLOSED_REFUND_TOPUP");
+                lendingCollectionExcessDao.save(lendingCollectionExcess);
+
+            }
+        } catch (Exception e) {
+            logger.error("Error occurred while putting leftover excess collection amount in refund for loanId : {} {} {}" , lendingPaymentSchedule.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 
     public Map<String, Object> closePreviousLoanAfterSuccessfulTopupCreation(Long applicationId) {

@@ -229,44 +229,13 @@ public class LoanDashboardService {
     currently we are deciding this feature on the basis of internal/external merchant only
      */
     public LoanDashboardApiVersion getLoanDashboardApiVersion(Long merchantId) {
-        log.info("Getting loan dashboard api version details for merchantId:{}", merchantId);
         LoanDashboardApiVersion loanDashboardApiVersion = new LoanDashboardApiVersion();
-        try{
-            String versionDetailCacheKey = LoanDetailsConstant.LENDING_VERSION_KEY_PREFIX + merchantId;
-            Object versionDetailCacheResponse = lendingCache.get(versionDetailCacheKey);
-            if (!ObjectUtils.isEmpty(versionDetailCacheResponse)) {
-                log.info("returning version from cache for {}", merchantId);
-                loanDashboardApiVersion = objectMapper.readValue((String) versionDetailCacheResponse, LoanDashboardApiVersion.class);
-                return loanDashboardApiVersion;
-            }
-
-            // hardcoding value for some testing
-            if(merchantId==9987300 || easyLoanUtil.isDummyMerchant(merchantId)){
-                loanDashboardApiVersion.setApiVersion("v1");
-            }
-            else if (loanUtil.isInternalMerchant(merchantId)){
-                loanDashboardApiVersion.setApiVersion("v2");
-            }
-            else if(percentScaleUp(merchantId, screenRedesignRolloutPercent)){
-                LendingApplicationSlave lendingApplication = lendingApplicationServiceV3.getLendingApplicationSlave(null, merchantId);
-                if(!ObjectUtils.isEmpty(lendingApplication)){
-                    Date thresholdDate = getThresholdDate(merchantId);
-                    if(lendingApplication.getCreatedAt().after(thresholdDate)) loanDashboardApiVersion.setApiVersion("v2");
-                    else loanDashboardApiVersion.setApiVersion("v1");
-                }
-                else loanDashboardApiVersion.setApiVersion("v2");
-            }
-            else
-                loanDashboardApiVersion.setApiVersion("v1");
-            cacheVersionDetails(loanDashboardApiVersion, merchantId);
-            log.info("Returning loan dashboard api version detail for merchantId:{}, details:{}", merchantId, loanDashboardApiVersion);
-            return loanDashboardApiVersion;
-        }
-        catch(Exception e){
-            log.error("Exception in fetching version for merchant:{}, {}, {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        if(easyLoanUtil.isDummyMerchant(merchantId)){
             loanDashboardApiVersion.setApiVersion("v1");
             return loanDashboardApiVersion;
         }
+        loanDashboardApiVersion.setApiVersion("v2");
+        return loanDashboardApiVersion;
     }
 
     public LoanDashboardApiVersion getLoanDashboardApiVersion(Long merchantId, LendingApplication lendingApplication) {
@@ -576,9 +545,8 @@ public class LoanDashboardService {
                     }
                 }
                 addApplicationStages(openApplication,applicationDetails);
-                int tat = loanUtil.getApplicationTAT(openApplication.getId());
 
-                applicationDetails.setTransferDays(tat < 1 ? TAT_BREACH_TEXT : TRANSFER_DAYS_TEXT_PREFIX + tat + "-" + (tat + 1) + TRANSFER_DAYS_TEXT_SUFFIX);
+                applicationDetails.setTransferDays(loanUtil.getApplicationTatMessage(openApplication));
             }
 
             if("rejected".equalsIgnoreCase(openApplication.getStatus())){

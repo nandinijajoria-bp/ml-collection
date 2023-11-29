@@ -45,11 +45,18 @@ public class LoanDetailsConstant {
 
     public static String MULTIPLE_REPEAT_TOPUP_LOAN_IDENTIFIER = "multiple_repeat_top_up";
 
-    public static String TRANSFER_DAYS_TEXT_PREFIX = "Your application is getting reviewed by our NBFC partners, usually takes ";
+
+    public static String NACH_STATUS_APPROVED = "APPROVED";
+
+    public static String PENDING_APPLICATION_TAT_TEXT = "Please complete your application to get a loan from Bharatpe.";
+
+    public static String TRANSFER_DAYS_TEXT_PREFIX = "Once approved, money transfer in ";
 
     public static String TAT_BREACH_TEXT = "Money transfer in the next few days.";
 
     public static String TRANSFER_DAYS_TEXT_SUFFIX = " days.";
+
+    public static String DUMMY_MERCHANT_TRANSFER_DAYS_TEXT = "Once approved, money transfer in 4-5 days.";
 
 }
 

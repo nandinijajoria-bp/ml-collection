@@ -120,8 +120,15 @@ public class MileStoneProgramService {
     }
 
     public ApiResponse<DSMileStoneResponse> programSummary(BasicDetailsDto merchant) {
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(),"IN_PROGRESS");
 
-        log.info("Merchant Id is : {}", merchant.getId());
+        if (!ObjectUtils.isEmpty(entity)) {
+            log.info("milestone entity found for merchant {},entity {}", merchant.getId(), entity);
+            DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
+            return new ApiResponse<>(mileStoneResponse);
+        }
+
+        log.info("RTE program Summary for Merchant Id is : {}", merchant.getId());
         DSMileStoneResponse response = null;
 
         String pinCodeColor = null;
@@ -165,7 +172,7 @@ public class MileStoneProgramService {
                     pinCodeColor);
             response = dsHandler.fetchMileStoneData(merchant.getId(), responseDTO.getVariables().getBureauScore(),
                     responseDTO.getVariables().getBbs(), pinCodeColor);
-            if (!ObjectUtils.isEmpty(response)) {
+            if (!ObjectUtils.isEmpty(response) && !ObjectUtils.isEmpty(response.getTarget())) {
                 return new ApiResponse<>(response);
             }
         }

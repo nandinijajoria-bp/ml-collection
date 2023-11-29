@@ -921,7 +921,7 @@ public class SupportService {
             return SupportConstants.DEFAULT_PRIORITY;
         }
 
-        Integer tat = loanUtil.getApplicationTAT(lendingApplication.getId());
+        Integer tat = loanUtil.getApplicationTAT(lendingApplication);
 
         switch (lendingApplicationPriority.getCurrentPriority()) {
             case "P0":

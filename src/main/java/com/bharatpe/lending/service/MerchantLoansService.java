@@ -1247,6 +1247,7 @@ public class MerchantLoansService {
         if (!activeLoans.isEmpty()) {
             for (LendingPaymentScheduleSlave activeLoan : activeLoans) {
                 dueAmount += activeLoan.getDueAmount();
+                dueAmount += Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0d;
             }
         }
 
