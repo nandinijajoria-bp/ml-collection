@@ -106,7 +106,8 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 initiateKycResponse.setTopup(true);
                 log.info("setting topup {} for {} {}", initiateKycResponse.isTopup(), scopeDataArgs.getMerchant().getId(), lendingApplication.getId());
-                if(!Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(lendingApplication.getLender())){
+                if(!Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(lendingApplication.getLender())
+                   && !Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
                     log.info("Sending kyc approved for merchant Id:{} for lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
                     if (!KycStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getCkycStatus())) {
                         log.info("Updating ckyc status for merchant Id:{} and lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
