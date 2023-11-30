@@ -15,4 +15,5 @@ public class KYCStateDTO {
     private Boolean lenderAssc;
     private boolean isTopup;
     private boolean isFreshKyc;
+    private boolean isSelfieResumit;
 }

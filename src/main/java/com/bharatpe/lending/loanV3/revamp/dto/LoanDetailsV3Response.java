@@ -71,6 +71,7 @@ public class LoanDetailsV3Response {
 
     private String mobile;
     private String kycDeeplink;
+    private Boolean isSelfieResumit;
     private Boolean isPreapprovedRepeatLoan;
 
 
@@ -159,6 +160,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycStatus(kycStateDTO.getKycStatus());
         loanDetailsV3Response.setKycDeeplink(kycStateDTO.getDeeplink());
         loanDetailsV3Response.setShowKycPage(kycStateDTO.getShowKycPage());
+        loanDetailsV3Response.setIsSelfieResumit(kycStateDTO.isSelfieResumit());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());

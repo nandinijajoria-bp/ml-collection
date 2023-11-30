@@ -398,8 +398,9 @@ public class LendingApplicationServiceV2 {
             if (!StringUtils.isEmpty(initiateKycRequest.getWroute())) {
                 callBackURL += "&wroute=" + initiateKycRequest.getWroute();
             }
+            String kycInitReferenceId = initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId());
             InitiateKycDTO initiateKycDTO = InitiateKycDTO.builder()
-                    .referenceId(initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId()))
+                    .referenceId(kycInitReferenceId)
                     .panNumber(experian.getPancardNumber())
                     .callBackUrl(callBackURL)
                     .merchantId(String.valueOf(merchant.getId())).build();
@@ -1687,6 +1688,17 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
                 lendingAuditTrial.setUserId(0L);
                 lendingAuditTrialDao.save(lendingAuditTrial);
+
+                if(resubmitApplicationDTO.getResubmitReason().contains("INCORRECT_SELFIE")) {
+                    LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+                    if(!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                        log.info("Updating lending application kyc details for selfie resubmit : {}", lendingApplication.getId());
+                        lendingApplicationKycDetails.setConsentDate(null);
+                        lendingApplicationKycDetails.setSelfieApprovedAt(null);
+                        lendingApplicationKycDetails.setSelfieUrl(null);
+                        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+                    }
+                }
 
             }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
