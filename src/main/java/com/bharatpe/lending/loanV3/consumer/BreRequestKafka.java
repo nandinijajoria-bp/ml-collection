@@ -122,11 +122,8 @@ public class BreRequestKafka {
                     !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(breApiResponseDto.getData().getResponseStatus())
             ) {
                 if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
-                    log.info("marking breStatus BRE_FAILED and rejecting application for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
-                    //lendingApplication.get().setStatus("rejected");
+                    log.info("marking breStatus BRE_FAILED for topup application as bre resulted in failure for  {}", lendingApplication.get().getId());
                     lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                    //lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    //lendingApplicationDao.save(lendingApplication.get());
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 } else {
                     log.info("request resulted in bre failure, modifying lender for {}", request);
@@ -171,16 +168,13 @@ public class BreRequestKafka {
             if (Boolean.FALSE.equals(breCallbackResponseDto.getSuccess())) {
                 if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
                     if(breCallbackResponseDto.getData().getIsRetryable()) {
-                        log.info("marking breStatus as BRE_RETRY as bre Callback resulted in bre retry true for: {}", lendingApplication.get().getId());
+                        log.info("marking breStatus as BRE_RETRY as bre Callback resulted in failure with retry true for: {}", lendingApplication.get().getId());
                         existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_RETRY.name());
                         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                         return;
                     }
-                    log.info("marking breStatus BRE_FAILED and deleting application for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
-                    //lendingApplication.get().setStatus("rejected");
+                    log.info("marking breStatus BRE_FAILED for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
                     existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                    //existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    //lendingApplicationDao.save(lendingApplication.get());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                     return;
                 }

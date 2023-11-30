@@ -118,10 +118,7 @@ public class KycRequestKafka {
                         || lendingApplicationLenderDetails.getAnnualRoi() > 50) {
                 if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
                     log.info("marking kycStatus KYC_FAILED for topup application as kyc resulted in failure for  {}", lendingApplication.get().getId());
-                    //lendingApplication.get().setStatus("rejected");
                     lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
-                    //lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    //lendingApplicationDao.save(lendingApplication.get());
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 } else {
                     log.info("request resulted in kyc failure, modifying lender for {}", request);
@@ -167,16 +164,13 @@ public class KycRequestKafka {
             if (Boolean.FALSE.equals(kycCallbackResponseDto.getSuccess())) {
                 if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
                     if(existingLendingApplicationLenderDetails.getKycRetryCount() < 3) {
-                        log.info("marking kycStatus KYC_FAILED for topup application as kyc callback resulted in failure after 3 retry for  {}", lendingApplication.get().getId());
+                        log.info("marking kycStatus KYC_retry for topup application as kyc callback resulted in failure for  {}", lendingApplication.get().getId());
                         existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
                         existingLendingApplicationLenderDetails.setKycRetryCount(existingLendingApplicationLenderDetails.getKycRetryCount() + 1);
                         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                     }
                     log.info("marking kycStatus KYC_FAILED for topup application as kyc callback resulted in failure after 3 retry for  {}", lendingApplication.get().getId());
-                    //lendingApplication.get().setStatus("rejected");
                     existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
-                    //existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    //lendingApplicationDao.save(lendingApplication.get());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                     return;
                 }

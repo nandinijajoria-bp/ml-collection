@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
@@ -59,11 +60,21 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
             if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 if(LenderAssociationStatus.BRE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
+                    log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as BRE_FAILED for applicationId: {}", lendingApplication.getId());
+                    lendingApplication.setStatus("rejected");
+                    lendingApplicationDao.save(lendingApplication);
+                    lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                     lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
                 } else if(LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())){
                     lendingStateDTO.getData().setIsRetryable(Boolean.TRUE);
                     lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_EVALUATION_PAGE);
                 } else if (LenderAssociationStatus.KYC_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as KYC_FAILED for applicationId: {}", lendingApplication.getId());
+                    lendingApplication.setStatus("rejected");
+                    lendingApplicationDao.save(lendingApplication);
+                    lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                     lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
                 } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                     lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_EVALUATION_PAGE);
