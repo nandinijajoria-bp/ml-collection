@@ -1661,6 +1661,7 @@ public class LendingApplicationServiceV2 {
                 }
             }
 
+            LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if(Objects.isNull(lendingResubmitTask)){
                 lendingResubmitTask = new LendingResubmitTask();
                 lendingResubmitTask.setMerchantId(resubmitApplicationDTO.getMerchantId());
@@ -1673,6 +1674,9 @@ public class LendingApplicationServiceV2 {
                 lendingResubmitTask.setResubmitTimestamp(new Date());
 
                 createLendingResubmitReasonCountRecord(lendingApplication, resubmitApplicationDTO.getResubmitReason(), resubmitApplicationDTO.getResubmitCount());
+                if(!ObjectUtils.isEmpty(lendingApplicationPriority)){
+                    lendingApplicationPriority.setTatStartTime(new Date());
+                }
 
                 LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
                 lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
@@ -1699,6 +1703,9 @@ public class LendingApplicationServiceV2 {
                         lendingApplication.setLmsStage(LendingConstants.CUSTOM_OFFER_DOWNGRADE);
                     }
                     lendingApplicationDao.save(lendingApplication);
+                    if(!ObjectUtils.isEmpty(lendingApplicationPriority)){
+                        lendingApplicationPriority.setTatStartTime(new Date());
+                    }
                 }else if(!downGradeStatus) {
                     lendingApplication.setManualKyc("REJECTED");
                     lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
@@ -1713,6 +1720,7 @@ public class LendingApplicationServiceV2 {
                 }
             }
             lendingResubmitTaskDao.save(lendingResubmitTask);
+            lendingApplicationPriorityDao.save(lendingApplicationPriority);
 
             loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
             return new ApiResponse<>(true,"Application Submitted Successfully");
