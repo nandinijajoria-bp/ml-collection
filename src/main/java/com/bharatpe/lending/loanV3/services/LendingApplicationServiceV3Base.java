@@ -85,13 +85,7 @@ public abstract class LendingApplicationServiceV3Base {
                     .build());
         }
         else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            log.info("lead creation triggered ! Please retry for status in few minutes");
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.BRE_PENDING)
-                    .stage(LenderAssociationStages.BRE)
-                    .ediModelModified(false)
-                    .lender(currentDraftApplication.getLender())
-                    .build());
+            return new ApiResponse<>(false,"lead creation triggered ! Please retry for status in few minutes");
         } else {
             if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
@@ -251,7 +245,13 @@ public abstract class LendingApplicationServiceV3Base {
             initLenderAssociation(invokeLenderAssociationRequest);
         }
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            return new ApiResponse<>(false, "lead creation triggered ! Please retry for status in few minutes");
+            log.info("lead creation triggered ! Please retry for status in few minutes");
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.BRE_PENDING)
+                    .stage(LenderAssociationStages.BRE)
+                    .ediModelModified(false)
+                    .lender(currentDraftApplication.getLender())
+                    .build());
         } else if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
