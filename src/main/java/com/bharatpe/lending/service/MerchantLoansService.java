@@ -201,6 +201,9 @@ public class MerchantLoansService {
     @Value("${abfl.topup.rollout.percent:1}")
     Integer abflTopupRolloutPercent;
 
+    @Value("${abfl.topup.rejection.banner.tat:5}")
+    Long abflTopupRejectionBannerTat;
+
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -506,6 +509,9 @@ public class MerchantLoansService {
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                             responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
                         }
+                        if("ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                            responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId()));
+                        }
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
@@ -534,6 +540,26 @@ public class MerchantLoansService {
             responseDTO.setSuccess(true);
         }
         return responseDTO;
+    }
+
+    private Boolean checkForTopupRejection(Long merchantId) {
+        try {
+            LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(prevApplication)) {
+                if(LoanType.TOPUP.name().equalsIgnoreCase(prevApplication.getLoanType()) && "rejected".equalsIgnoreCase(prevApplication.getStatus())) {
+                    log.info("latest application with topup loanType for merchantId : {}", prevApplication);
+                    Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - prevApplication.getCreatedAt().getTime()) / 60000;
+                    if(minutes < abflTopupRejectionBannerTat) {
+                        log.info("topup application rejected for merchantId : {} less than {} minutes ago", merchantId, abflTopupRejectionBannerTat);
+                        return Boolean.TRUE;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.info("Exception in checking topup rejection for merchantId : {}, {}, {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return false;
     }
 
     private Boolean isContactSyncRequired(LendingPaymentScheduleSlave lendingPaymentSchedule) {
