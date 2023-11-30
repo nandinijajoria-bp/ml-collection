@@ -383,16 +383,12 @@ public class MileStoneHelperService {
         if (!ObjectUtils.isEmpty(bureauResponseDTO)) {
                 if (bureauResponseDTO.getIsNTC() == Boolean.TRUE)
                 {
+                    DSMileStoneResponse fetchMileStoneData;
                     BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
-                    if (ObjectUtils.isEmpty(bureauResponseDTO.getVariables())) {
-                        variables.setBbs(0D);
-                        variables.setBureauScore(0D);
-                    }
-
-                    DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(),
-                            variables.getBbs(), pinCodeColor);
-
-                    log.info("milestone data {} for merchant id {}",fetchMileStoneData,merchant.getId());
+                    variables.setBbs(0D);
+                    variables.setBureauScore(0D);
+                    fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(), variables.getBbs(), pinCodeColor);
+                    log.info("milestone data {} for merchant id {}", fetchMileStoneData, merchant.getId());
 
                     if (fetchMileStoneData == null) {
                         String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();

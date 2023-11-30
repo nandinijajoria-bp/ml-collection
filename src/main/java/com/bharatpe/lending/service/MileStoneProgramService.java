@@ -153,10 +153,8 @@ public class MileStoneProgramService {
         if (responseDTO.getIsNTC() == Boolean.TRUE)
         {
             BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
-            if (ObjectUtils.isEmpty(responseDTO.getVariables())) {
-                variables.setBbs(0D);
-                variables.setBureauScore(0D);
-            }
+            variables.setBbs(0D);
+            variables.setBureauScore(0D);
             response = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(),
                     variables.getBbs(), pinCodeColor);
 
