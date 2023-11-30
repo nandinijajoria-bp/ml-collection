@@ -427,7 +427,8 @@ public class MileStoneHelperService {
                         return responseDto;
                     }
                 }
-                if (!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
+                if (bureauResponseDTO.getIsNTC() != Boolean.TRUE
+                        &&!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
                         (bureauResponseDTO.getVariables().getBureauScore() != null
                                 && bureauResponseDTO.getVariables().getBbs() != null)) {
 
