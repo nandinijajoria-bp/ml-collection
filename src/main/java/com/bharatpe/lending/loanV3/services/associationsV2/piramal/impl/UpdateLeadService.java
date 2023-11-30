@@ -179,7 +179,7 @@ public class UpdateLeadService {
         List<CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList> auditTrailLists = new ArrayList<>();
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList cibilAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
                 .auditCode("BRTPE_BUREAU_CONSENT")
-                .auditName("I agree to avail the loan facilitation services offered by Resilient Innovations Private Limited (RIPL) through RBI registered NBFC/Banks and further authorize and appoint RIPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RIPL to obtain my credit information from the credit bureaus")
+                .auditName("I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus")
                 .ipAddress(lendingApplication.getIp())
                 .timeStamp(DateTimeUtil.getDateInFormat(lendingApplication.getCreatedAt(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                 .build();

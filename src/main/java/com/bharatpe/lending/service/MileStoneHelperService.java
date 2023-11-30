@@ -383,16 +383,12 @@ public class MileStoneHelperService {
         if (!ObjectUtils.isEmpty(bureauResponseDTO)) {
                 if (bureauResponseDTO.getIsNTC() == Boolean.TRUE)
                 {
+                    DSMileStoneResponse fetchMileStoneData;
                     BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
-                    if (ObjectUtils.isEmpty(bureauResponseDTO.getVariables())) {
-                        variables.setBbs(0D);
-                        variables.setBureauScore(0D);
-                    }
-
-                    DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(),
-                            variables.getBbs(), pinCodeColor);
-
-                    log.info("milestone data {} for merchant id {}",fetchMileStoneData,merchant.getId());
+                    variables.setBbs(0D);
+                    variables.setBureauScore(0D);
+                    fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(), variables.getBbs(), pinCodeColor);
+                    log.info("milestone data {} for merchant id {}", fetchMileStoneData, merchant.getId());
 
                     if (fetchMileStoneData == null) {
                         String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
@@ -431,7 +427,8 @@ public class MileStoneHelperService {
                         return responseDto;
                     }
                 }
-                if (!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
+                if (bureauResponseDTO.getIsNTC() != Boolean.TRUE
+                        &&!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
                         (bureauResponseDTO.getVariables().getBureauScore() != null
                                 && bureauResponseDTO.getVariables().getBbs() != null)) {
 
@@ -491,7 +488,7 @@ public class MileStoneHelperService {
                         "Something went wrong - Experian",
                         "NTC",
                         "Risk Segment Exclusion: NTB vintage less than 30",
-                        " Thin File ETC");
+                        "Thin File ETC");
 
 
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
