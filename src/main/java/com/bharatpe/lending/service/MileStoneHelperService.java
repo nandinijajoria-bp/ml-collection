@@ -488,7 +488,7 @@ public class MileStoneHelperService {
                         "Something went wrong - Experian",
                         "NTC",
                         "Risk Segment Exclusion: NTB vintage less than 30",
-                        " Thin File ETC");
+                        "Thin File ETC");
 
 
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
