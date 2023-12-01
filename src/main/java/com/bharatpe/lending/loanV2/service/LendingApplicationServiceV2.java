@@ -2420,8 +2420,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
-            } else if (lendingApplication.getAgreementAt().before(penaltyDate) && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) ||
-                    lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
+                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "KFS_P2P_PC" + ".html";
@@ -2466,8 +2466,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
-            } else if (lendingApplication.getAgreementAt().before(penaltyDate) && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) ||
-                    lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
+                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_PC" + ".html";
