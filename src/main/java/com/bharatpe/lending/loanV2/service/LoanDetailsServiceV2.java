@@ -171,10 +171,6 @@ public class LoanDetailsServiceV2 {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
-    @Value("${gst3b.ineligible.source:LOW_TRANSACTION}")
-    List<String> gst3bIneligibleSourceList;
-
-
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
 
@@ -1873,7 +1869,7 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong while posting iframe consumption event");
     }
 
-    public ApiResponse<?> underwritingDocsEligibility(Long merchantId, String docType, boolean statusCheck, String event,String source) {
+    public ApiResponse<?> underwritingDocsEligibility(Long merchantId, String docType, boolean statusCheck, String event) {
         try {
             log.info("UnderWritingDoc eligibility for merchantId : {}, docType : {} ", merchantId, docType);
             UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO = UnderwritingDocEligibilityDTO.builder()
@@ -1885,14 +1881,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(underwritingDocEligibilityDTO);
             }
             underwritingDocEligibilityDTO = checkBankStatementEligibility(merchantId, underwritingDocEligibilityDTO, statusCheck, docType);
-
             underwritingDocEligibilityDTO = checkGst3bEligibility(merchantId, underwritingDocEligibilityDTO, statusCheck, docType);
-
-            if (!ObjectUtils.isEmpty(source) && gst3bIneligibleSourceList.contains(source)) {
-                log.info("GST3b is ineligible for source {} for merchant id{} ",source,merchantId);
-                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
-            }
-
             if(!underwritingDocEligibilityDTO.getBankStatement().getActive() && !underwritingDocEligibilityDTO.getGst3b().getActive()) {
                 return new ApiResponse<>(underwritingDocEligibilityDTO);
             }
@@ -2284,7 +2273,7 @@ public class LoanDetailsServiceV2 {
     private UnderwritingDocEligibilityDTO underWritingAnalysis(BankStatementSessionDetails bankStatementSessionDetails, Gst3bSessionDetails gst3bSessionDetails, UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO, String docType, Long merchantId, String orderId, String bsSessionType) {
         try {
             Double currentLimit = 0D;
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(bankStatementSessionDetails.getMerchantId());
             if(!ObjectUtils.isEmpty(lendingRiskVariables)) {
                 currentLimit = lendingRiskVariables.getFinalOffer();
             }
@@ -2294,12 +2283,12 @@ public class LoanDetailsServiceV2 {
                 if (globalLimitResponse.getData().getBankAffectedOffer() || globalLimitResponse.getData().getGst3bAffectedOffer()) {
                     if (globalLimitResponse.getData().getGlobalLimit() > currentLimit) {
                         Double eligibleAmount = 0D;
-                        log.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
+                        log.info("Global limit for merchant:{} is {}", bankStatementSessionDetails.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
                         eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                         if (eligibleAmount > 0D) {
-                            log.info("Eligibility found for merchant:{}", merchantId);
-                            recomputeEligibleLoan(globalLimitResponse, null, merchantId);
-                            evictLoanDetailV2Cache(merchantId);
+                            log.info("Eligibility found for merchant:{}", bankStatementSessionDetails.getMerchantId());
+                            recomputeEligibleLoan(globalLimitResponse, null, bankStatementSessionDetails.getMerchantId());
+                            evictLoanDetailV2Cache(bankStatementSessionDetails.getMerchantId());
                         }
                         underwritingDocEligibilityDTO.setActivityStatus(BankStatementSessionStatus.SUCCESS.name());
                         if (docType.equalsIgnoreCase("BANK_STATEMENT")) {
@@ -2348,12 +2337,8 @@ public class LoanDetailsServiceV2 {
                 gst3bSessionDetails.setRejectReason(BankStatementRejectReason.GLOBAL_LIMIT_EXCEPTION.name());
             }
         }
-        if (!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
-            bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-        }
-        if (!ObjectUtils.isEmpty(gst3bSessionDetails)) {
-            gst3bSessionDetailsDao.save(gst3bSessionDetails);
-        }
+        bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+        gst3bSessionDetailsDao.save(gst3bSessionDetails);
         return underwritingDocEligibilityDTO;
     }
 

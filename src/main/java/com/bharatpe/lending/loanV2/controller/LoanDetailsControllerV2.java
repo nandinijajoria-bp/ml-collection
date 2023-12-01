@@ -189,9 +189,8 @@ public class LoanDetailsControllerV2 {
             @RequestParam(name = "type") String docType,
             @RequestParam(name = "statusCheck", required = false) boolean statusCheck,
             @RequestParam(name = "event", required = false) String event,
-            @RequestParam(name = "source", required = false) String source,
             @RequestAttribute BasicDetailsDto merchant
     ) {
-        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck, event,source));
+        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck, event));
     }
 }
