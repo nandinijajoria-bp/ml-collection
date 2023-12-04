@@ -281,6 +281,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     BankStatementService bankStatementService;
 
+    @Autowired
+    LendingPancardDao lendingPancardDao;
+
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
@@ -736,6 +739,11 @@ public class LoanDetailsServiceV2 {
         }
 
         EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
+        String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
+        if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
+            eligibilityRefreshWindow = 0;
+            lendingCache.delete(bureauConsentKey);
+        }
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
         log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
@@ -2419,5 +2427,69 @@ public class LoanDetailsServiceV2 {
             log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
             loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
         }
+    }
+
+    public ApiResponse<BureauConsentDTO.Data> getConsent(BasicDetailsDto merchant, String pancard) {
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if (Objects.isNull(experian)) {
+            log.info("no data found in experian table for: {}", merchant.getId());
+            return new ApiResponse<>(Boolean.FALSE, "no experian data found");
+        }
+        BureauConsentDTO.Data bureauConsentDTO = BureauConsentDTO.Data.builder()
+                .pincode(experian.getPincode())
+                .pan(experian.getPancardNumber())
+                .merchantId(merchant.getId())
+                .mobile(merchant.getMobile())
+                .consent_expired(Boolean.TRUE)
+                .build();
+        BureauConsentDTO.Data consentResponse = apiGatewayService.getBureauConsent(bureauConsentDTO);
+        if (Objects.nonNull(consentResponse)) {
+            if(consentResponse.isConsent_expired()) {
+                consentResponse.setPincode(experian.getPincode());
+                consentResponse.setPan(experian.getPancardNumber());
+            }
+            consentResponse.setMerchantId(merchant.getId());
+            return new ApiResponse<>(consentResponse);
+        }
+        return new ApiResponse<>(bureauConsentDTO);
+    }
+
+    public ApiResponse<BureauConsentDTO.Data> updateConsent(BasicDetailsDto merchant, String pancard, Integer pinCode,Boolean consent) {
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if (Objects.isNull(consent)) {
+            consent = Boolean.TRUE;
+        }
+        if (Objects.isNull(experian)) {
+            log.info("no data found in experian table for: {}", merchant.getId());
+            return new ApiResponse<>(Boolean.FALSE, "no experian data found");
+        }
+        if(!ObjectUtils.isEmpty(pinCode)) {
+            log.info("updating pinCode to {} for merchant : {} ", pinCode, merchant.getId());
+            experian.setPincode(pinCode);
+            experianDao.save(experian);
+        }
+        BureauConsentDTO.Data bureauConsentDTO = BureauConsentDTO.Data.builder()
+                .pincode(experian.getPincode())
+                .pan(pancard)
+                .merchantId(merchant.getId())
+                .mobile(merchant.getMobile())
+                .consent_expired(!consent)
+                .build();
+        BureauConsentDTO.Data consentResponse = apiGatewayService.updateConsent(bureauConsentDTO);
+        if (Objects.nonNull(consentResponse)) {
+            if (!consentResponse.isConsent_expired()) {
+                String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + bureauConsentDTO.getMerchantId();
+                log.info("deleting cached key of loan dashboard api for merchant: {}",bureauConsentDTO.getMerchantId());
+                lendingCache.delete(loanDetailsCacheKey);
+
+                AddCacheDto addCacheDto = new AddCacheDto();
+                addCacheDto.setKey(LendingConstants.BUREAU_CONSENT_KEY_PREFIX + bureauConsentDTO.getMerchantId());
+                addCacheDto.setTtl(1);
+                addCacheDto.setValue(true);
+                lendingCache.add(addCacheDto);
+            }
+            return new ApiResponse<>(consentResponse);
+        }
+        return new ApiResponse<>(Boolean.FALSE, "could not update consent, retry!");
     }
 }

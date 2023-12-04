@@ -769,6 +769,11 @@ public class LoanDashboardService {
 //                loanDashboardResponse.setEdiDaysModel(iEdiModelAssignment.assignModel(merchant.getId()).getNoOfEdiDaysInAWeek());
 //            }
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
+            String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
+            if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
+                eligibilityRefreshWindow = 0;
+                lendingCache.delete(bureauConsentKey);
+            }
             Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
 //            Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
 //            log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
