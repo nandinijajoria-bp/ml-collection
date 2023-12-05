@@ -220,6 +220,9 @@ public class VerifyOTPService {
     @Autowired
     PaymentService paymentService;
 
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -459,6 +462,13 @@ public class VerifyOTPService {
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 if(topupLoans.contains(lendingApplication.getLoanType())) {
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                        LenderAssociationStages nextStage =
+                                LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
+                        lendingApplicationLenderDetails.setStage(nextStage.name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                    }
                     nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
                             LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
                     logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
