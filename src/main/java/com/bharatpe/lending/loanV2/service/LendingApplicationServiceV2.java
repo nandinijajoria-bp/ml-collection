@@ -42,6 +42,8 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.UpdateLeadAndRiskDecisionWrapperService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -247,6 +249,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
+
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
 
     @Value("${penalty.rollout.date:}")
     String penalDate;
@@ -1921,6 +1926,8 @@ public class LendingApplicationServiceV2 {
 
                 lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
+
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
 
                 // update tat start time on resubmit
                 LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());

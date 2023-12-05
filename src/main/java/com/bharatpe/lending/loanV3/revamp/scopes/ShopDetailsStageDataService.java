@@ -11,9 +11,12 @@ import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
+import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
@@ -44,6 +47,9 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
 
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
+
     @Override
     public LendingStateDTO<ShopDetailsStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ShopDetailsStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -51,7 +57,7 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_DETAILS_PAGE);
         }
         else lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_PICTURES_PAGE);
-        if(Objects.nonNull(scopeDataArgs.getApplicationId())){
+        if(Objects.nonNull(scopeDataArgs.getApplicationId()) && !lendingStateDTO.getData().isResubmitState()){
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.SHOP_DETAILS_PAGE);
         }
         return lendingStateDTO;
@@ -77,6 +83,17 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
         if (ObjectUtils.isEmpty(lendingApplication)) {
             log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
             return new LendingStateDTO<>(shopDetailsStateDTO , LendingViewStates.SHOP_DETAILS_PAGE, LendingViewStates.SHOP_DETAILS_PAGE);
+        }
+        else if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())){
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(lendingApplication.getId(), lendingApplication.getMerchantId());
+            if(ObjectUtils.isEmpty(lendingResubmitTask) || Objects.isNull(lendingResubmitTask.getResubmitDone()) ||
+                    (Objects.nonNull(lendingResubmitTask.getResubmitDone()) && lendingResubmitTask.getResubmitDone())
+            ){
+                throw new LoanDetailsException(LoanDetailExceptionEnum.INVALID_REQUEST.getErrorCode(),LoanDetailExceptionEnum.INVALID_REQUEST.getErrorMessage());
+            }
+            else if(lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
+                shopDetailsStateDTO.setResubmitState(true);
+            }
         }
         shopDetailsStateDTO.setApplicationId(lendingApplication.getId());
         shopDetailsStateDTO.setApplicationStatus(lendingApplication.getStatus().toLowerCase());

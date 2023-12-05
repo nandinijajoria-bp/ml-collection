@@ -30,7 +30,9 @@ public enum LoanDetailExceptionEnum {
 
     DRAFT_APPLICATION_NOT_FOUND("LEN0003", "Draft Application not found"),
 
-    PREVIOUS_APPLICATION_NOT_FOUND_FOR_TOPUP("LEN0009", "Previous disbursed application not found");
+    PREVIOUS_APPLICATION_NOT_FOUND_FOR_TOPUP("LEN0009", "Previous disbursed application not found"),
+
+    INVALID_REQUEST("LEN0010", "Request conflicting application status");
 
 
 

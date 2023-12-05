@@ -480,8 +480,6 @@ public class VerifyOTPService {
                 return finalResponse;
             }
         }
-        lendingApplication.setStatus("pending_verification");
-        lendingApplicationDao.save(lendingApplication);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(lendingApplication.getMerchantId(), lendingApplication);
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
@@ -514,6 +512,9 @@ public class VerifyOTPService {
             return finalResponse;
         }
 
+        lendingApplication.setStatus("pending_verification");
+        lendingApplicationDao.save(lendingApplication);
+
         LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
         lendingAuditTrial.setApplicationId(lendingApplication.getId());
         lendingAuditTrial.setMerchantId(merchantBasicDetailsDto.getId());
@@ -524,6 +525,8 @@ public class VerifyOTPService {
         lendingAuditTrial.setType("APP_STATUS");
 
         lendingAuditTrialDao.save(lendingAuditTrial);
+
+        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
 
         if (easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) || merchantBasicDetailsDto.getId() == 10407700L) {
             // skipping enach for dummy merchant
@@ -560,8 +563,6 @@ public class VerifyOTPService {
 //			if (lendingApplication.getLoanAmount() <= 200000)
 //				sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
 //		}
-
-        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
 
         finalResponse.put("success", true);
         finalResponse.put("agreement_verified", true);

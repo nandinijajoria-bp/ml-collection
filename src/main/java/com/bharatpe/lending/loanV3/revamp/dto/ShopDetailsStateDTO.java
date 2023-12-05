@@ -17,4 +17,5 @@ public class ShopDetailsStateDTO {
     private String applicationStatus;
     private String resubmitReason;
     private Boolean resubmitDone;
+    private boolean resubmitState = false;
 }
