@@ -45,7 +45,7 @@ public interface KfsConstants {
 
 
     String LSP_CONTACT_NAME = "Mr. Ankit Parnami";
-    String LSP_CONTACT_EMAIL = "nodalofficer@bharatpe.com";
+    String LSP_CONTACT_EMAIL = "nodalofficer@bharatpemoney.com";
     String LSP_CONTACT_NUMBER = "+91-7289000552";
 
     Double PROCESSING_FEE_PERCENTAGE = 2.0;
