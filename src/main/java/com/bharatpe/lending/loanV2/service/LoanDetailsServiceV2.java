@@ -76,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import static java.util.Objects.nonNull;
 
 @Data
 @Service
@@ -2492,4 +2493,51 @@ public class LoanDetailsServiceV2 {
         }
         return new ApiResponse<>(Boolean.FALSE, "could not update consent, retry!");
     }
+
+    public ApiResponse<MerchantLoanEligibilityResponseDto> fetchMerchantEligibilityForLoan(Long merchantId) {
+        try {
+            MerchantLoanEligibilityResponseDto response = new MerchantLoanEligibilityResponseDto();
+
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+            log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentSchedule);
+
+            LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchantId);
+            log.info("lendingApplication for merchantId : {} is {}", merchantId, lendingApplication);
+
+            String status = nonNull(lendingPaymentSchedule) ? lendingPaymentSchedule.getStatus() : null;
+            response.setIsActive("ACTIVE".equalsIgnoreCase(status) ? Boolean.TRUE : Boolean.FALSE);
+
+            if(nonNull(lendingApplication)){
+                String applicationStatus = lendingApplication.getStatus();
+                Double loanAmount = lendingApplication.getLoanAmount();
+                response.setApplicationStatus(applicationStatus);
+                response.setLoanAmount(loanAmount);
+            } else {
+                response.setEligibleLimit(fetchMerchantEligibleAmount(merchantId));
+            }
+            return new ApiResponse<>(response);
+        } catch(Exception e){
+            log.error("unable to find eligibility for merchantId : {} {} {} ", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(Boolean.FALSE, "could not fetch eligibility for merchant, retry!");
+    }
+
+    private Double fetchMerchantEligibleAmount(Long merchantId){
+        try {
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+            log.info("lendingRiskVariables for merchantId : {} is {}", merchantId, lendingRiskVariables);
+            if (nonNull(lendingRiskVariables)) {
+                return lendingRiskVariables.getFinalOffer();
+            }
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+            log.info("globalLimitResponse for merchantId : {} is {}", merchantId, globalLimitResponse);
+            if(nonNull(globalLimitResponse.getData())){
+                return globalLimitResponse.getData().getGlobalLimit();
+            }
+        } catch(Exception e){
+            log.error("unable to find eligible amount for merchantId : {} {} {} ", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
 }

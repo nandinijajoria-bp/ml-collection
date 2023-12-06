@@ -217,4 +217,10 @@ public class LoanDetailsControllerV2 {
         }
         return ResponseEntity.ok(loanDetailsServiceV2.updateConsent(merchant, pancard, pinCode, consent));
     }
+
+    @GetMapping(value = "/merchant/eligibility")
+    public ResponseEntity<ApiResponse<?>> fetchMerchantEligibilityForLoan(@RequestParam Long merchantId) {
+        return ResponseEntity.ok(loanDetailsServiceV2.fetchMerchantEligibilityForLoan(merchantId));
+    }
+
 }
