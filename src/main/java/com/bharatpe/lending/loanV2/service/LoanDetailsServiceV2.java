@@ -2526,7 +2526,7 @@ public class LoanDetailsServiceV2 {
         try {
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
             log.info("lendingRiskVariables for merchantId : {} is {}", merchantId, lendingRiskVariables);
-            if (nonNull(lendingRiskVariables)) {
+            if (nonNull(lendingRiskVariables) && nonNull(lendingRiskVariables.getFinalOffer())) {
                 return lendingRiskVariables.getFinalOffer();
             }
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
