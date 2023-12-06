@@ -670,10 +670,12 @@ public class VerifyOTPService {
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             lendingApplicationDao.save(lendingApplication);
 
-            if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
+            if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())
+                && !Lender.ABFL.name().equalsIgnoreCase(activeLoan.getNbfc())) {
                 ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
             }
-            else {
+            else{
+                // TODO Need to skip this for abfl topup in case repayment of old active loan
                 // flow for LDC topup loans on liquiloan_nbfc
 
                 // we mark the loan inactive here so that we stop the further collection of amount on this loan
