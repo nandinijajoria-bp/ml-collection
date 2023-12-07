@@ -2501,17 +2501,18 @@ public class LoanDetailsServiceV2 {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentSchedule);
 
+            if(nonNull(lendingPaymentSchedule)) {
+                String status = lendingPaymentSchedule.getStatus();
+                response.setIsActive("ACTIVE".equalsIgnoreCase(status) || "INACTIVE".equalsIgnoreCase(status));
+                return new ApiResponse<>(response);
+            }
+
             LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchantId);
             log.info("lendingApplication for merchantId : {} is {}", merchantId, lendingApplication);
 
-            String status = nonNull(lendingPaymentSchedule) ? lendingPaymentSchedule.getStatus() : null;
-            response.setIsActive("ACTIVE".equalsIgnoreCase(status) ? Boolean.TRUE : Boolean.FALSE);
-
             if(nonNull(lendingApplication)){
-                String applicationStatus = lendingApplication.getStatus();
-                Double loanAmount = lendingApplication.getLoanAmount();
-                response.setApplicationStatus(applicationStatus);
-                response.setLoanAmount(loanAmount);
+                response.setApplicationStatus(lendingApplication.getStatus());
+                response.setLoanAmount(lendingApplication.getLoanAmount());
             } else {
                 response.setEligibleLimit(fetchMerchantEligibleAmount(merchantId));
             }
