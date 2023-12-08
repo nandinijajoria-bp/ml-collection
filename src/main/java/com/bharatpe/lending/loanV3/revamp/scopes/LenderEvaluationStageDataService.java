@@ -77,7 +77,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                     lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
                 } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
-                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_EVALUATION_PAGE);
+                    lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
                 }
                 else if (LenderAssociationStatus.KYC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                     lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
