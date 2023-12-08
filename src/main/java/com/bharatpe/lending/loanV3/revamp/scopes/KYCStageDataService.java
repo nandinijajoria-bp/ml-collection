@@ -204,11 +204,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                         return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
                     }
                     if(kycRetry) {
-                        if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                            lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
-                            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                        }
-                        new Thread(()-> nbfcUtils.retryApplicationStage(lendingApplication.getId(), lendingApplication.getLender(), lendingApplicationDetails.getStage())).start();
+                        nbfcUtils.retryApplicationStage(lendingApplication.getId(), lendingApplication.getLender(), lendingApplicationDetails.getStage());
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
