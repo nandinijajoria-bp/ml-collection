@@ -130,7 +130,7 @@ public class NbfcUtils {
 
         public void retryApplicationStage(Long applicationId, String lender, String lenderAssociationStage) {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-            if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            if(!ObjectUtils.isEmpty(lendingApplicationDetails)) {
                 lendingApplicationDetails.setStage(lenderAssociationStage);
                 lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
                 lendingApplicationDetailsDao.save(lendingApplicationDetails);
