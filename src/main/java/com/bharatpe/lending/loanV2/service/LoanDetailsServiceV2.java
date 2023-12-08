@@ -2501,9 +2501,10 @@ public class LoanDetailsServiceV2 {
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentSchedule);
 
-            if(nonNull(lendingPaymentSchedule)) {
-                String status = lendingPaymentSchedule.getStatus();
-                response.setIsActive("ACTIVE".equalsIgnoreCase(status) || "INACTIVE".equalsIgnoreCase(status));
+            String status = nonNull(lendingPaymentSchedule) ? lendingPaymentSchedule.getStatus() : null;
+            response.setIsActive("ACTIVE".equalsIgnoreCase(status) || "INACTIVE".equalsIgnoreCase(status) ||
+                    "INACTIVE_TOPUP".equalsIgnoreCase(status));
+            if(response.getIsActive()) {
                 return new ApiResponse<>(response);
             }
 
