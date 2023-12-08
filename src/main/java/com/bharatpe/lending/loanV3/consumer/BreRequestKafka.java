@@ -171,7 +171,9 @@ public class BreRequestKafka {
                         log.info("marking breStatus as BRE_RETRY as bre Callback resulted in failure with retry true for: {}", lendingApplication.get().getId());
                         existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_RETRY.name());
                         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-                        nbfcUtils.retryApplicationStage(lendingApplication.get().getId(), lendingApplication.get().getLender(), LenderAssociationStages.BRE.name());
+                        Long applicationId = lendingApplication.get().getId();
+                        String lender = lendingApplication.get().getLender();
+                        new Thread(() ->nbfcUtils.retryApplicationStage(applicationId, lender, LenderAssociationStages.BRE.name())).start();
                         return;
                     }
                     log.info("marking breStatus BRE_FAILED for topup application as bre callback resulted in failure for  {}", lendingApplication.get().getId());
