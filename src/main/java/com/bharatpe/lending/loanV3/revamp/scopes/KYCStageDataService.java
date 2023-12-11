@@ -191,9 +191,10 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 // check the status for already created entry in table
+                Date validAfter = kycRetry ? new Date() : lendingApplication.getCreatedAt();
                boolean kycVerified=updateApplicationKycDetails(
                        lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
-                       lendingApplication.getCreatedAt(), initiateKycResponse
+                       validAfter, initiateKycResponse
                );
                 if(kycVerified){
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
