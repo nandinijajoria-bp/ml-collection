@@ -285,6 +285,11 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LendingPancardDao lendingPancardDao;
 
+    @Value("${gold.loan.merchant.eligibilty.response.expiry.in.hours:6}")
+    private Integer goldLoanMerchantEligibilityResponseExpiry;
+
+    private final String redisTokenKey = "gl_eligibilty_for_merchant_";
+
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
@@ -2496,8 +2501,10 @@ public class LoanDetailsServiceV2 {
 
     public ApiResponse<MerchantLoanEligibilityResponseDto> fetchMerchantEligibilityForLoan(Long merchantId) {
         try {
-            MerchantLoanEligibilityResponseDto response = new MerchantLoanEligibilityResponseDto();
-
+            MerchantLoanEligibilityResponseDto response = (MerchantLoanEligibilityResponseDto) getMerchantEligibilityResponseFromCache(merchantId);
+            if(nonNull(response)){
+                return new ApiResponse<>(response);
+            }
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentSchedule);
 
@@ -2505,6 +2512,7 @@ public class LoanDetailsServiceV2 {
             response.setIsActive("ACTIVE".equalsIgnoreCase(status) || "INACTIVE".equalsIgnoreCase(status) ||
                     "INACTIVE_TOPUP".equalsIgnoreCase(status));
             if(response.getIsActive()) {
+                setMerchantEligibilityResponseInCache(merchantId,response);
                 return new ApiResponse<>(response);
             }
 
@@ -2517,6 +2525,7 @@ public class LoanDetailsServiceV2 {
             } else {
                 response.setEligibleLimit(fetchMerchantEligibleAmount(merchantId));
             }
+            setMerchantEligibilityResponseInCache(merchantId,response);
             return new ApiResponse<>(response);
         } catch(Exception e){
             log.error("unable to find eligibility for merchantId : {} {} {} ", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -2541,5 +2550,26 @@ public class LoanDetailsServiceV2 {
         }
         return null;
     }
+    public Object getMerchantEligibilityResponseFromCache(Long merchantId) throws Exception {
+        String key = redisTokenKey + merchantId.toString();
+        Object response = lendingCache.get(key);
+        if (nonNull(response)) {
+            return response;
+        } else {
+            log.info("response doesn't exist, generating new");
+            return null;
+        }
+    }
+
+    public void setMerchantEligibilityResponseInCache(Long merchantId, MerchantLoanEligibilityResponseDto response) {
+        String key = redisTokenKey + merchantId.toString();
+        AddCacheDto addCacheDto = new AddCacheDto();
+        addCacheDto.setKey(key);
+        addCacheDto.setValue(response);
+        addCacheDto.setTtl(goldLoanMerchantEligibilityResponseExpiry);
+        lendingCache.add(addCacheDto, TimeUnit.HOURS);
+        log.info("setting response into cache {}", addCacheDto);
+    }
+
 
 }
