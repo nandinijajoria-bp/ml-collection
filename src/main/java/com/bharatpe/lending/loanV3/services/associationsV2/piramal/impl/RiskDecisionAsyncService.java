@@ -84,6 +84,13 @@ public class RiskDecisionAsyncService {
                 lendingApplicationLenderDetails.setTenure(riskDecisionResponseDto.getRiskDecision().getLoanTenor());
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
+                if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.getLoanAmount()) {
+                    log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
+                            lendingApplication.getId(),lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt(), lendingApplication.getLoanAmount());
+                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_COMPLETED);
+                    return;
+                }
+
                 //pushing to next stage
                 String currStage =  lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getStage();
                 LenderAssociationStages nextStage =
