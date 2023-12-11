@@ -205,8 +205,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 // check the status for already created entry in table
-               Date validAfter = isResubmittedApplication ? lendingResubmitReasonCount.getResubmitTimestamp() : lendingApplication.getCreatedAt();
-                Date validAfter = kycRetry ? new Date() : lendingApplication.getCreatedAt();
+               Date validAfter = isResubmittedApplication ? lendingResubmitReasonCount.getResubmitTimestamp() : kycRetry ? lendingApplicationLenderDetails.getUpdatedAt() : lendingApplication.getCreatedAt();;
                boolean kycVerified=updateApplicationKycDetails(
                        lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
                        validAfter, initiateKycResponse, isResubmittedApplication
