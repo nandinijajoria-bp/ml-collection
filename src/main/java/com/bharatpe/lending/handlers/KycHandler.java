@@ -140,14 +140,13 @@ public class KycHandler {
         return null;
     }
 
-    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider) {
+    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider, String docs) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         KycDocResponseDTO kycDocResponseDTO = new KycDocResponseDTO();
         try {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
             sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
             String validAfter = sdf.format(validAfterDate);
-            String docs = "PAN_NO,SELFIE,POA";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("validAfter", validAfter);

@@ -86,6 +86,8 @@ public interface LendingConstants {
 	String UPI = "UPI";
 
 	String PENNYDROP_LOCK_PREFIX = "LENDING_PENNYDROP_";
+    String BUREAU_CONSENT_KEY_PREFIX="BUREAU_CONSENT_DETAILS_";
+	String LENDING_SOURCE = "EASY_LOANS";
 
 }
 

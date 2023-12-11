@@ -171,6 +171,10 @@ public class LoanDetailsServiceV2 {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
+    @Value("${gst3b.ineligible.source:LOW_TRANSACTION}")
+    List<String> gst3bIneligibleSourceList;
+
+
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
 
@@ -276,6 +280,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     BankStatementService bankStatementService;
+
+    @Autowired
+    LendingPancardDao lendingPancardDao;
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
@@ -732,6 +739,11 @@ public class LoanDetailsServiceV2 {
         }
 
         EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
+        String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
+        if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
+            eligibilityRefreshWindow = 0;
+            lendingCache.delete(bureauConsentKey);
+        }
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
         Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
         log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
@@ -1869,7 +1881,7 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong while posting iframe consumption event");
     }
 
-    public ApiResponse<?> underwritingDocsEligibility(Long merchantId, String docType, boolean statusCheck, String event) {
+    public ApiResponse<?> underwritingDocsEligibility(Long merchantId, String docType, boolean statusCheck, String event,String source) {
         try {
             log.info("UnderWritingDoc eligibility for merchantId : {}, docType : {} ", merchantId, docType);
             UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO = UnderwritingDocEligibilityDTO.builder()
@@ -1881,7 +1893,14 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(underwritingDocEligibilityDTO);
             }
             underwritingDocEligibilityDTO = checkBankStatementEligibility(merchantId, underwritingDocEligibilityDTO, statusCheck, docType);
+
             underwritingDocEligibilityDTO = checkGst3bEligibility(merchantId, underwritingDocEligibilityDTO, statusCheck, docType);
+
+            if (!ObjectUtils.isEmpty(source) && gst3bIneligibleSourceList.contains(source)) {
+                log.info("GST3b is ineligible for source {} for merchant id{} ",source,merchantId);
+                underwritingDocEligibilityDTO.getGst3b().setActive(Boolean.FALSE);
+            }
+
             if(!underwritingDocEligibilityDTO.getBankStatement().getActive() && !underwritingDocEligibilityDTO.getGst3b().getActive()) {
                 return new ApiResponse<>(underwritingDocEligibilityDTO);
             }
@@ -2273,7 +2292,7 @@ public class LoanDetailsServiceV2 {
     private UnderwritingDocEligibilityDTO underWritingAnalysis(BankStatementSessionDetails bankStatementSessionDetails, Gst3bSessionDetails gst3bSessionDetails, UnderwritingDocEligibilityDTO underwritingDocEligibilityDTO, String docType, Long merchantId, String orderId, String bsSessionType) {
         try {
             Double currentLimit = 0D;
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(bankStatementSessionDetails.getMerchantId());
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
             if(!ObjectUtils.isEmpty(lendingRiskVariables)) {
                 currentLimit = lendingRiskVariables.getFinalOffer();
             }
@@ -2283,12 +2302,12 @@ public class LoanDetailsServiceV2 {
                 if (globalLimitResponse.getData().getBankAffectedOffer() || globalLimitResponse.getData().getGst3bAffectedOffer()) {
                     if (globalLimitResponse.getData().getGlobalLimit() > currentLimit) {
                         Double eligibleAmount = 0D;
-                        log.info("Global limit for merchant:{} is {}", bankStatementSessionDetails.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
+                        log.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
                         eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                         if (eligibleAmount > 0D) {
-                            log.info("Eligibility found for merchant:{}", bankStatementSessionDetails.getMerchantId());
-                            recomputeEligibleLoan(globalLimitResponse, null, bankStatementSessionDetails.getMerchantId());
-                            evictLoanDetailV2Cache(bankStatementSessionDetails.getMerchantId());
+                            log.info("Eligibility found for merchant:{}", merchantId);
+                            recomputeEligibleLoan(globalLimitResponse, null, merchantId);
+                            evictLoanDetailV2Cache(merchantId);
                         }
                         underwritingDocEligibilityDTO.setActivityStatus(BankStatementSessionStatus.SUCCESS.name());
                         if (docType.equalsIgnoreCase("BANK_STATEMENT")) {
@@ -2337,8 +2356,12 @@ public class LoanDetailsServiceV2 {
                 gst3bSessionDetails.setRejectReason(BankStatementRejectReason.GLOBAL_LIMIT_EXCEPTION.name());
             }
         }
-        bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
-        gst3bSessionDetailsDao.save(gst3bSessionDetails);
+        if (!ObjectUtils.isEmpty(bankStatementSessionDetails)) {
+            bankStatementSessionDetailsDao.save(bankStatementSessionDetails);
+        }
+        if (!ObjectUtils.isEmpty(gst3bSessionDetails)) {
+            gst3bSessionDetailsDao.save(gst3bSessionDetails);
+        }
         return underwritingDocEligibilityDTO;
     }
 
@@ -2405,5 +2428,69 @@ public class LoanDetailsServiceV2 {
             log.info("Kyc status for application: {} is {}", openApplication.getId(), loanDetailsResponse.getKycStatus());
             loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
         }
+    }
+
+    public ApiResponse<BureauConsentDTO.Data> getConsent(BasicDetailsDto merchant, String pancard) {
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if (Objects.isNull(experian)) {
+            log.info("no data found in experian table for: {}", merchant.getId());
+            return new ApiResponse<>(Boolean.FALSE, "no experian data found");
+        }
+        BureauConsentDTO.Data bureauConsentDTO = BureauConsentDTO.Data.builder()
+                .pincode(experian.getPincode())
+                .pan(experian.getPancardNumber())
+                .merchantId(merchant.getId())
+                .mobile(merchant.getMobile())
+                .consent_expired(Boolean.TRUE)
+                .build();
+        BureauConsentDTO.Data consentResponse = apiGatewayService.getBureauConsent(bureauConsentDTO);
+        if (Objects.nonNull(consentResponse)) {
+            if(consentResponse.isConsent_expired()) {
+                consentResponse.setPincode(experian.getPincode());
+                consentResponse.setPan(experian.getPancardNumber());
+            }
+            consentResponse.setMerchantId(merchant.getId());
+            return new ApiResponse<>(consentResponse);
+        }
+        return new ApiResponse<>(bureauConsentDTO);
+    }
+
+    public ApiResponse<BureauConsentDTO.Data> updateConsent(BasicDetailsDto merchant, String pancard, Integer pinCode,Boolean consent) {
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if (Objects.isNull(consent)) {
+            consent = Boolean.TRUE;
+        }
+        if (Objects.isNull(experian)) {
+            log.info("no data found in experian table for: {}", merchant.getId());
+            return new ApiResponse<>(Boolean.FALSE, "no experian data found");
+        }
+        if(!ObjectUtils.isEmpty(pinCode)) {
+            log.info("updating pinCode to {} for merchant : {} ", pinCode, merchant.getId());
+            experian.setPincode(pinCode);
+            experianDao.save(experian);
+        }
+        BureauConsentDTO.Data bureauConsentDTO = BureauConsentDTO.Data.builder()
+                .pincode(experian.getPincode())
+                .pan(pancard)
+                .merchantId(merchant.getId())
+                .mobile(merchant.getMobile())
+                .consent_expired(!consent)
+                .build();
+        BureauConsentDTO.Data consentResponse = apiGatewayService.updateConsent(bureauConsentDTO);
+        if (Objects.nonNull(consentResponse)) {
+            if (!consentResponse.isConsent_expired()) {
+                String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + bureauConsentDTO.getMerchantId();
+                log.info("deleting cached key of loan dashboard api for merchant: {}",bureauConsentDTO.getMerchantId());
+                lendingCache.delete(loanDetailsCacheKey);
+
+                AddCacheDto addCacheDto = new AddCacheDto();
+                addCacheDto.setKey(LendingConstants.BUREAU_CONSENT_KEY_PREFIX + bureauConsentDTO.getMerchantId());
+                addCacheDto.setTtl(1);
+                addCacheDto.setValue(true);
+                lendingCache.add(addCacheDto);
+            }
+            return new ApiResponse<>(consentResponse);
+        }
+        return new ApiResponse<>(Boolean.FALSE, "could not update consent, retry!");
     }
 }

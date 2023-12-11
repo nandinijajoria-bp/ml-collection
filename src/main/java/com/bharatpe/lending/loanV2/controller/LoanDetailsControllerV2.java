@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV2.controller;
 
+import com.bharatpe.common.entities.Merchant;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
@@ -189,8 +190,31 @@ public class LoanDetailsControllerV2 {
             @RequestParam(name = "type") String docType,
             @RequestParam(name = "statusCheck", required = false) boolean statusCheck,
             @RequestParam(name = "event", required = false) String event,
+            @RequestParam(name = "source", required = false) String source,
             @RequestAttribute BasicDetailsDto merchant
     ) {
-        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck, event));
+        return ResponseEntity.ok(loanDetailsServiceV2.underwritingDocsEligibility(merchant.getId(), docType, statusCheck, event,source));
+    }
+
+    @GetMapping(value = "/getConsent")
+    public ResponseEntity<ApiResponse<?>> getConsent(@RequestAttribute BasicDetailsDto merchant,
+                                                     @RequestParam(required = false) String pancard) {
+        if (Objects.isNull(merchant)) {
+            log.info("no merchant found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        return ResponseEntity.ok(loanDetailsServiceV2.getConsent(merchant, pancard));
+    }
+
+    @PostMapping(value = "/updateConsent")
+    public ResponseEntity<ApiResponse<?>> updateConsent(@RequestAttribute BasicDetailsDto merchant,
+                                                        @RequestParam(required = false) String pancard,
+                                                        @RequestParam(required = false) Integer pinCode,
+                                                        @RequestParam(required = false) Boolean consent) {
+        if (Objects.isNull(merchant)) {
+            log.info("no merchant found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        return ResponseEntity.ok(loanDetailsServiceV2.updateConsent(merchant, pancard, pinCode, consent));
     }
 }

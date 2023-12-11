@@ -42,6 +42,8 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.UpdateLeadAndRiskDecisionWrapperService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -248,6 +250,9 @@ public class LendingApplicationServiceV2 {
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
+
     @Value("${penalty.rollout.date:}")
     String penalDate;
 
@@ -398,8 +403,9 @@ public class LendingApplicationServiceV2 {
             if (!StringUtils.isEmpty(initiateKycRequest.getWroute())) {
                 callBackURL += "&wroute=" + initiateKycRequest.getWroute();
             }
+            String kycInitReferenceId = initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId());
             InitiateKycDTO initiateKycDTO = InitiateKycDTO.builder()
-                    .referenceId(initiateKycRequest.getApplicationId() != null ? String.valueOf(initiateKycRequest.getApplicationId()) : String.valueOf(merchant.getId()))
+                    .referenceId(kycInitReferenceId)
                     .panNumber(experian.getPancardNumber())
                     .callBackUrl(callBackURL)
                     .merchantId(String.valueOf(merchant.getId())).build();
@@ -1688,6 +1694,17 @@ public class LendingApplicationServiceV2 {
                 lendingAuditTrial.setUserId(0L);
                 lendingAuditTrialDao.save(lendingAuditTrial);
 
+                if(resubmitApplicationDTO.getResubmitReason().contains("INCORRECT_SELFIE")) {
+                    LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+                    if(!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                        log.info("Updating lending application kyc details for selfie resubmit : {}", lendingApplication.getId());
+                        lendingApplicationKycDetails.setConsentDate(null);
+                        lendingApplicationKycDetails.setSelfieApprovedAt(null);
+                        lendingApplicationKycDetails.setSelfieUrl(null);
+                        lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+                    }
+                }
+
             }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
@@ -1909,6 +1926,8 @@ public class LendingApplicationServiceV2 {
 
                 lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
+
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
 
                 // update tat start time on resubmit
                 LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
@@ -2408,8 +2427,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
-            } else if (lendingApplication.getAgreementAt().before(penaltyDate) && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) ||
-                    lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
+                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "KFS_P2P_PC" + ".html";
@@ -2454,8 +2473,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
-            } else if (lendingApplication.getAgreementAt().before(penaltyDate) && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) ||
-                    lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
+                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_PC" + ".html";
