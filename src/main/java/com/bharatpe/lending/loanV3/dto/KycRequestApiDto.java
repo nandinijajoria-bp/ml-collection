@@ -33,6 +33,7 @@ public class KycRequestApiDto {
     public static class Identifier {
         String accountId;
         String cccId;
+        String productCode;
     }
 
     @Data
@@ -44,7 +45,6 @@ public class KycRequestApiDto {
         String kycType;
         String accountId;
         String cccId;
-        String productCode;
         String transactionId;
         String selfie;
         String okycXml;

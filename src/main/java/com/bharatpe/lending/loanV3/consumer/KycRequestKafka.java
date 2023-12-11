@@ -221,9 +221,9 @@ public class KycRequestKafka {
                     .productName("LENDING")
                     .identifier(KycRequestApiDto.Identifier.builder()
                             .accountId(lendingApplication.get().getExternalLoanId())
-                            .cccId(lendingApplicationLenderDetails.getCccId()).build())
+                            .cccId(lendingApplicationLenderDetails.getCccId())
+                            .productCode(productCode).build())
                     .payload(KycRequestApiDto.Payload.builder()
-                            .productCode(productCode)
                             .accountId(lendingApplication.get().getExternalLoanId())
                             .declaredAddress((ObjectUtils.isEmpty(cKycResponseDto.getAddress()) ? "" : cKycResponseDto.getAddress()) + ", " +
                                     (ObjectUtils.isEmpty(cKycResponseDto.getCity()) ? "" : cKycResponseDto.getCity()) + ", " +
