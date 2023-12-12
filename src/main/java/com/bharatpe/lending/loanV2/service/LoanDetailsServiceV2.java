@@ -2541,7 +2541,7 @@ public class LoanDetailsServiceV2 {
 
     private Double fetchMerchantEligibleAmount(Long merchantId){
         try {
-            LendingRiskVariablesSlave lendingRiskVariablesSlave= lendingRiskVariablesDaoSlave.findByMerchantId(merchantId);
+            LendingRiskVariablesSlave lendingRiskVariablesSlave= lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             log.info("lendingRiskVariables for merchantId : {} is {}", merchantId, lendingRiskVariablesSlave);
             if (nonNull(lendingRiskVariablesSlave) && nonNull(lendingRiskVariablesSlave.getFinalOffer())) {
                 return lendingRiskVariablesSlave.getFinalOffer();
