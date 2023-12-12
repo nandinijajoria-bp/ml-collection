@@ -18,7 +18,9 @@ import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -188,6 +190,8 @@ public class LoanDetailsServiceV2 {
     @Autowired
     MerchantSummaryHandler merchantSummaryHandler;
 
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Value("${club.eligible.loan.cache:true}")
     Boolean clubEligibleLoanCache;
@@ -2507,10 +2511,10 @@ public class LoanDetailsServiceV2 {
             }
 
             response = new MerchantLoanEligibilityResponseDto();
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
-            log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentSchedule);
+            LendingPaymentScheduleSlave lendingPaymentScheduleSlave = lendingPaymentScheduleDaoSlave.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+            log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentScheduleSlave);
 
-            String status = nonNull(lendingPaymentSchedule) ? lendingPaymentSchedule.getStatus() : null;
+            String status = nonNull(lendingPaymentScheduleSlave) ? lendingPaymentScheduleSlave.getStatus() : null;
             response.setIsActive("ACTIVE".equalsIgnoreCase(status) || "INACTIVE".equalsIgnoreCase(status) ||
                     "INACTIVE_TOPUP".equalsIgnoreCase(status));
             if(response.getIsActive()) {
@@ -2518,12 +2522,12 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(response);
             }
 
-            LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchantId);
-            log.info("lendingApplication for merchantId : {} is {}", merchantId, lendingApplication);
+            LendingApplicationSlave lendingApplicationSlave = lendingApplicationDaoSlave.getLatestPendingApplication(merchantId);
+            log.info("lendingApplication for merchantId : {} is {}", merchantId, lendingApplicationSlave);
 
-            if(nonNull(lendingApplication)){
-                response.setApplicationStatus(lendingApplication.getStatus());
-                response.setLoanAmount(lendingApplication.getLoanAmount());
+            if(nonNull(lendingApplicationSlave)){
+                response.setApplicationStatus(lendingApplicationSlave.getStatus());
+                response.setLoanAmount(lendingApplicationSlave.getLoanAmount());
             } else {
                 response.setEligibleLimit(fetchMerchantEligibleAmount(merchantId));
             }
@@ -2537,10 +2541,10 @@ public class LoanDetailsServiceV2 {
 
     private Double fetchMerchantEligibleAmount(Long merchantId){
         try {
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-            log.info("lendingRiskVariables for merchantId : {} is {}", merchantId, lendingRiskVariables);
-            if (nonNull(lendingRiskVariables) && nonNull(lendingRiskVariables.getFinalOffer())) {
-                return lendingRiskVariables.getFinalOffer();
+            LendingRiskVariablesSlave lendingRiskVariablesSlave= lendingRiskVariablesDaoSlave.findByMerchantId(merchantId);
+            log.info("lendingRiskVariables for merchantId : {} is {}", merchantId, lendingRiskVariablesSlave);
+            if (nonNull(lendingRiskVariablesSlave) && nonNull(lendingRiskVariablesSlave.getFinalOffer())) {
+                return lendingRiskVariablesSlave.getFinalOffer();
             }
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             log.info("globalLimitResponse for merchantId : {} is {}", merchantId, globalLimitResponse);
