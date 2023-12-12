@@ -548,7 +548,7 @@ public class MerchantLoansService {
             if(!ObjectUtils.isEmpty(prevApplication)) {
                 if(LoanType.TOPUP.name().equalsIgnoreCase(prevApplication.getLoanType()) && "rejected".equalsIgnoreCase(prevApplication.getStatus())) {
                     log.info("latest application with topup loanType for merchantId : {}", prevApplication);
-                    Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - prevApplication.getCreatedAt().getTime()) / 60000;
+                    Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - prevApplication.getUpdatedAt().getTime()) / 60000;
                     if(minutes < abflTopupRejectionBannerTat) {
                         log.info("topup application rejected for merchantId : {} less than {} minutes ago", merchantId, abflTopupRejectionBannerTat);
                         return Boolean.TRUE;
