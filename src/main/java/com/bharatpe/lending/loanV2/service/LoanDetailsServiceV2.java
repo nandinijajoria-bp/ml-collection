@@ -285,8 +285,8 @@ public class LoanDetailsServiceV2 {
     @Autowired
     LendingPancardDao lendingPancardDao;
 
-    @Value("${gold.loan.merchant.eligibilty.response.expiry.in.hours:6}")
-    private Integer goldLoanMerchantEligibilityResponseExpiry;
+    @Value("${gold.loan.merchant.eligibilty.ttl:5}")
+    private Integer goldLoanMerchantEligibilityTTL;
 
     private final String glEligibilityRedisTokenKey = "gl_eligibilty_";
 
@@ -2570,8 +2570,8 @@ public class LoanDetailsServiceV2 {
         AddCacheDto addCacheDto = new AddCacheDto();
         addCacheDto.setKey(key);
         addCacheDto.setValue(response);
-        addCacheDto.setTtl(goldLoanMerchantEligibilityResponseExpiry);
-        lendingCache.add(addCacheDto, TimeUnit.HOURS);
+        addCacheDto.setTtl(goldLoanMerchantEligibilityTTL);
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
         log.info("setting response into cache {}", addCacheDto);
     }
 
