@@ -288,7 +288,7 @@ public class LoanDetailsServiceV2 {
     @Value("${gold.loan.merchant.eligibilty.response.expiry.in.hours:6}")
     private Integer goldLoanMerchantEligibilityResponseExpiry;
 
-    private final String redisTokenKey = "gl_eligibilty_for_merchant_";
+    private final String glEligibilityRedisTokenKey = "gl_eligibilty_";
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
@@ -2501,10 +2501,12 @@ public class LoanDetailsServiceV2 {
 
     public ApiResponse<MerchantLoanEligibilityResponseDto> fetchMerchantEligibilityForLoan(Long merchantId) {
         try {
-            MerchantLoanEligibilityResponseDto response = (MerchantLoanEligibilityResponseDto) getMerchantEligibilityResponseFromCache(merchantId);
+            MerchantLoanEligibilityResponseDto response = getMerchantEligibilityResponseFromCache(merchantId);
             if(nonNull(response)){
                 return new ApiResponse<>(response);
             }
+
+            response = new MerchantLoanEligibilityResponseDto();
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findLatestLendingPaymentScheduleByMerchantId(merchantId);
             log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentSchedule);
 
@@ -2545,16 +2547,18 @@ public class LoanDetailsServiceV2 {
             if(nonNull(globalLimitResponse.getData())){
                 return globalLimitResponse.getData().getGlobalLimit();
             }
+            throw new Exception("error while fetching global limit response for " + merchantId);
         } catch(Exception e){
             log.error("unable to find eligible amount for merchantId : {} {} {} ", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
-    public Object getMerchantEligibilityResponseFromCache(Long merchantId) throws Exception {
-        String key = redisTokenKey + merchantId.toString();
+    public MerchantLoanEligibilityResponseDto getMerchantEligibilityResponseFromCache(Long merchantId) throws Exception {
+        String key = glEligibilityRedisTokenKey + merchantId.toString();
         Object response = lendingCache.get(key);
-        if (nonNull(response)) {
-            return response;
+        MerchantLoanEligibilityResponseDto merchantLoanEligibilityResponseDto = new ObjectMapper().convertValue(response, MerchantLoanEligibilityResponseDto.class);
+        if (nonNull(merchantLoanEligibilityResponseDto)) {
+            return merchantLoanEligibilityResponseDto;
         } else {
             log.info("response doesn't exist, generating new");
             return null;
@@ -2562,7 +2566,7 @@ public class LoanDetailsServiceV2 {
     }
 
     public void setMerchantEligibilityResponseInCache(Long merchantId, MerchantLoanEligibilityResponseDto response) {
-        String key = redisTokenKey + merchantId.toString();
+        String key = glEligibilityRedisTokenKey + merchantId.toString();
         AddCacheDto addCacheDto = new AddCacheDto();
         addCacheDto.setKey(key);
         addCacheDto.setValue(response);
