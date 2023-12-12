@@ -2544,15 +2544,15 @@ public class LoanDetailsServiceV2 {
             }
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
             log.info("globalLimitResponse for merchantId : {} is {}", merchantId, globalLimitResponse);
-            if(nonNull(globalLimitResponse.getData())){
+            if(nonNull(globalLimitResponse) && nonNull(globalLimitResponse.getData())){
                 return globalLimitResponse.getData().getGlobalLimit();
             }
-            throw new Exception("error while fetching global limit response for " + merchantId);
+            throw new RuntimeException("error while fetching global limit response for " + merchantId);
         } catch(Exception e){
-            log.error("unable to find eligible amount for merchantId : {} {} {} ", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            throw new RuntimeException("unable to find eligible amount for merchantId : " + merchantId);
         }
-        return null;
     }
+
     public MerchantLoanEligibilityResponseDto getMerchantEligibilityResponseFromCache(Long merchantId) throws Exception {
         String key = glEligibilityRedisTokenKey + merchantId.toString();
         Object response = lendingCache.get(key);
