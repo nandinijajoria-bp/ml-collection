@@ -26,6 +26,7 @@ import com.bharatpe.lending.common.util.MapperUtil;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +61,9 @@ public class MileStoneHelperService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Value("${milestone.program.visibility.days:180}")
+    private long milestoneProgramVisibilityDays;
 
     @Value("${milestone.deeplink}")
     private String deepLink;
@@ -108,6 +112,7 @@ public class MileStoneHelperService {
 
     @Autowired
     LoanDashboardService loanDashboardService;
+
 
     public BureauResponseDTO calculateBureauScore(String panNumber,BasicDetailsDto merchant) {
         return bureauHandler.getBureauData(panNumber, merchant.getId(), merchant.getMobile(),
@@ -266,17 +271,24 @@ public class MileStoneHelperService {
         }
 
         boolean lessThan30 = false;
-        Calendar calendar = Calendar.getInstance();
+      /*  Calendar calendar = Calendar.getInstance();
         calendar.setTime(merchant.getCreatedAt());
-        calendar.add(Calendar.MONTH, 1);
+//        calendar.add(Calendar.MONTH, 1);
         if (new Date().compareTo(calendar.getTime()) <= 0) {
+            lessThan30 = true;
+        }*/
+
+        Date currentDate = new Date();
+        if (DateUtils.calculateAgeOfMerchantInDays(merchant.getCreatedAt(), currentDate) <= milestoneProgramVisibilityDays) {
+            log.info("merchant created at {}",merchant.getCreatedAt());
+            log.info("current date {}",currentDate);
             lessThan30 = true;
         }
 
-        log.info("less Than 30 is {}",lessThan30);
+        log.info("less Than days is {}",lessThan30);
         if (!lessThan30)
         {
-            log.info("lesstThan 30 flag is {}",lessThan30);
+            log.info("lesstThan days flag is {}",lessThan30);
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
             return responseDto;
