@@ -18,7 +18,9 @@ import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -76,6 +78,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import static java.util.Objects.nonNull;
 
 @Data
 @Service
@@ -187,6 +190,8 @@ public class LoanDetailsServiceV2 {
     @Autowired
     MerchantSummaryHandler merchantSummaryHandler;
 
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Value("${club.eligible.loan.cache:true}")
     Boolean clubEligibleLoanCache;
@@ -283,6 +288,11 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     LendingPancardDao lendingPancardDao;
+
+    @Value("${gold.loan.merchant.eligibilty.ttl:5}")
+    private Integer goldLoanMerchantEligibilityTTL;
+
+    private final String glEligibilityRedisTokenKey = "gl_eligibilty_";
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
@@ -2492,4 +2502,82 @@ public class LoanDetailsServiceV2 {
         }
         return new ApiResponse<>(Boolean.FALSE, "could not update consent, retry!");
     }
+
+    public ApiResponse<MerchantLoanEligibilityResponseDto> fetchMerchantEligibilityForLoan(Long merchantId) {
+        try {
+            MerchantLoanEligibilityResponseDto response = getMerchantEligibilityResponseFromCache(merchantId);
+            if(nonNull(response)){
+                return new ApiResponse<>(response);
+            }
+
+            response = new MerchantLoanEligibilityResponseDto();
+            LendingPaymentScheduleSlave lendingPaymentScheduleSlave = lendingPaymentScheduleDaoSlave.findLatestLendingPaymentScheduleByMerchantId(merchantId);
+            log.info("lendingPaymentSchedule for merchantId : {} is {}", merchantId, lendingPaymentScheduleSlave);
+
+            String status = nonNull(lendingPaymentScheduleSlave) ? lendingPaymentScheduleSlave.getStatus() : null;
+            response.setIsActive("ACTIVE".equalsIgnoreCase(status) || "INACTIVE".equalsIgnoreCase(status) ||
+                    "INACTIVE_TOPUP".equalsIgnoreCase(status));
+            if(response.getIsActive()) {
+                setMerchantEligibilityResponseInCache(merchantId,response);
+                return new ApiResponse<>(response);
+            }
+
+            LendingApplicationSlave lendingApplicationSlave = lendingApplicationDaoSlave.getLatestPendingApplication(merchantId);
+            log.info("lendingApplication for merchantId : {} is {}", merchantId, lendingApplicationSlave);
+
+            if(nonNull(lendingApplicationSlave)){
+                response.setApplicationStatus(lendingApplicationSlave.getStatus());
+                response.setLoanAmount(lendingApplicationSlave.getLoanAmount());
+            } else {
+                response.setEligibleLimit(fetchMerchantEligibleAmount(merchantId));
+            }
+            setMerchantEligibilityResponseInCache(merchantId,response);
+            return new ApiResponse<>(response);
+        } catch(Exception e){
+            log.error("unable to find eligibility for merchantId : {} {} {} ", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(Boolean.FALSE, "could not fetch eligibility for merchant, retry!");
+    }
+
+    private Double fetchMerchantEligibleAmount(Long merchantId){
+        try {
+            LendingRiskVariablesSlave lendingRiskVariablesSlave= lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            log.info("lendingRiskVariables for merchantId : {} is {}", merchantId, lendingRiskVariablesSlave);
+            if (nonNull(lendingRiskVariablesSlave) && nonNull(lendingRiskVariablesSlave.getFinalOffer())) {
+                return lendingRiskVariablesSlave.getFinalOffer();
+            }
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+            log.info("globalLimitResponse for merchantId : {} is {}", merchantId, globalLimitResponse);
+            if(nonNull(globalLimitResponse) && nonNull(globalLimitResponse.getData())){
+                return globalLimitResponse.getData().getGlobalLimit();
+            }
+            throw new RuntimeException("error while fetching global limit response for " + merchantId);
+        } catch(Exception e){
+            throw new RuntimeException("unable to find eligible amount for merchantId : " + merchantId);
+        }
+    }
+
+    public MerchantLoanEligibilityResponseDto getMerchantEligibilityResponseFromCache(Long merchantId) throws Exception {
+        String key = glEligibilityRedisTokenKey + merchantId.toString();
+        Object response = lendingCache.get(key);
+        MerchantLoanEligibilityResponseDto merchantLoanEligibilityResponseDto = new ObjectMapper().convertValue(response, MerchantLoanEligibilityResponseDto.class);
+        if (nonNull(merchantLoanEligibilityResponseDto)) {
+            return merchantLoanEligibilityResponseDto;
+        } else {
+            log.info("response doesn't exist, generating new");
+            return null;
+        }
+    }
+
+    public void setMerchantEligibilityResponseInCache(Long merchantId, MerchantLoanEligibilityResponseDto response) {
+        String key = glEligibilityRedisTokenKey + merchantId.toString();
+        AddCacheDto addCacheDto = new AddCacheDto();
+        addCacheDto.setKey(key);
+        addCacheDto.setValue(response);
+        addCacheDto.setTtl(goldLoanMerchantEligibilityTTL);
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        log.info("setting response into cache {}", addCacheDto);
+    }
+
+
 }
