@@ -2673,7 +2673,7 @@ public class SupportService {
                 supportDto.setProgramStartDate(entity.getProgramStartDate());
                 DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
                 supportDto.setMileStoneResponse(mileStoneResponse);
-                supportDto.setMerchantOnboardingDate(basicDetailsDto.get().getCreated_at());
+                supportDto.setMerchantOnboardingDate(basicDetailsDto.get().getCreatedAt());
                 DSMileStoneAchievementResponse achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
                 if (ObjectUtils.isEmpty(achievementResponse)) {
                     logger.info("achievementResponse is null");
