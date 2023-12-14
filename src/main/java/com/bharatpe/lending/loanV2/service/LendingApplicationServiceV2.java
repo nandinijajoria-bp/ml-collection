@@ -256,6 +256,9 @@ public class LendingApplicationServiceV2 {
     @Value("${penalty.rollout.date:}")
     String penalDate;
 
+    @Value("${penalty.rollout.date.trillion:}")
+    String penalDateTrillion;
+
     @Lazy
     @Autowired
     InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
@@ -2423,6 +2426,7 @@ public class LendingApplicationServiceV2 {
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
+            Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             String html = "";
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
@@ -2436,8 +2440,16 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL.html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
+                && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+                filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
-            else filePath = "/templates/" + "KFS_NONP2P" + ".html";
+            else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+                filePath = "/templates/KFS_TRILLION_PC.html";
+            }
+            else {
+                filePath = "/templates/" + "KFS_NONP2P" + ".html";
+            }
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
             Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
             html = scanner.hasNext() ? scanner.next() : "";;
@@ -2467,6 +2479,7 @@ public class LendingApplicationServiceV2 {
         try {
             Map<String, Object> data = new HashMap<>();
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
+            Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             String html = "";
@@ -2484,8 +2497,17 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL.html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
+                    && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
-            else filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
+            else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC.html";
+            }
+            else {
+                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
+            }
+
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
             Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
             html = scanner.hasNext() ? scanner.next() : "";;
