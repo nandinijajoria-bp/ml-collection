@@ -779,8 +779,8 @@ public class LiquiloansService {
                     lendingApplicationLenderDetails.setESignedSanc(true);
                 }
                 else{
-                    lendingApplicationLenderDetails.setESignedKfs(true);
-                    lendingApplicationLenderDetails.setESignedSanc(true);
+                    lendingApplicationLenderDetails.setESignedKfs(false);
+                    lendingApplicationLenderDetails.setESignedSanc(false);
                 }
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
             }
