@@ -149,10 +149,19 @@ public class PiramalLoanCallbackService {
     }
 
     private ApiResponse handleSuccessCallback(NbfcResponseDto nbfcResponseDto, PiramalDisbursalResponse piramalDisbursalResponse, LendingApplicationLenderDetails lendingApplicationLenderDetails, Optional<LendingApplication> lendingApplication) {
+        Date disbursalDate = Calendar.getInstance().getTime();
+        if(!ObjectUtils.isEmpty(piramalDisbursalResponse.getDisbursementDate())) {
+            try {
+                disbursalDate = new Date(piramalDisbursalResponse.getDisbursementDate());
+            } catch (Exception e) {
+                log.error("Exception in parsing disbursal date : {}", e.getMessage());
+                disbursalDate = Calendar.getInstance().getTime();
+            }
+        }
         PostPayoutResponseDto postPayoutResponseDto =  liquiloansService.populatePostPayoutSchedule(
                 PostPayoutRequestDto.builder()
                         .applicationId(String.valueOf(lendingApplication.get().getExternalLoanId()))
-                        .disbursalDate(new Date())
+                        .disbursalDate(disbursalDate)
                         .lender(nbfcResponseDto.getLender())
                         .loanDisbursalStatus("DISBURSED")
                         .nbfcId(lendingApplication.get().getNbfcId())
@@ -164,7 +173,7 @@ public class PiramalLoanCallbackService {
         }
         lendingApplicationLenderDetails.setUtrNo(piramalDisbursalResponse.getUtrNumber());
         lendingApplicationLenderDetails.setLan(piramalDisbursalResponse.getLoanAccountNumber());
-        lendingApplicationLenderDetails.setLoanCreationTimestamp(new Date());
+        lendingApplicationLenderDetails.setLoanCreationTimestamp(disbursalDate);
         lendingApplicationLenderDetails.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_COMPLETED.name());
         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         return new ApiResponse(true, "loan created successfully");
