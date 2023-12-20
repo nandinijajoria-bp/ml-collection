@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitReasonCount;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.KycConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -88,6 +89,9 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
     @Autowired
     LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
 
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
 
     @Override
     public LendingStateDTO<KYCStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -115,6 +119,13 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         if (!ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus()) && !isResubmittedApplication) {
             log.info("draft application not found for {}", scopeDataArgs.getMerchant().getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.DRAFT_APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.DRAFT_APPLICATION_NOT_FOUND.getErrorMessage());
+        }
+        if(easyLoanUtil.isDummyMerchant(lendingApplication.getMerchantId())) {
+            initiateKycResponse.setDummyMerchant(true);
+            initiateKycResponse.setKycStatus(KycStatus.APPROVED);
+            initiateKycResponse.setShowKycPage(false);
+            log.info("Returning from kyc stage for merchant Id:{}, kyc skipped for dummy merchant", scopeDataArgs.getMerchant().getId());
+            return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
         }
         try {
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
