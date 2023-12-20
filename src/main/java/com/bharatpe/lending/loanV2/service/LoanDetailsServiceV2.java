@@ -1546,7 +1546,7 @@ public class LoanDetailsServiceV2 {
             }
             List<MerchantReference> validatedData = dsHandler.validateMerchantReferences(merchantId, referenceList);
             if (Objects.isNull(validatedData)) {
-                return new ApiResponse<>(false, "Something Went Wrong from DS api while validating merchant references!");
+                return new ApiResponse<>(false, "Something went wrong. Please retry.");
             }
             MerchantReferencesResponseDto responseDto = MerchantReferencesResponseDto.builder().references(validatedData).minScore(minScore).build();
 
