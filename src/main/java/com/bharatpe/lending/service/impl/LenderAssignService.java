@@ -220,7 +220,9 @@ public class LenderAssignService implements ILenderAssignService {
             throw new RuntimeException("Application not found for merchant:" + application.getMerchantId());
         }
         String decidedLender = null;
-        decidedLender = checkForcefulAssignedLenderForMerchant(application);
+
+//        decidedLender = checkForcefulAssignedLenderForMerchant(application);
+
         if(!ObjectUtils.isEmpty(decidedLender)) {
             saveLenderChangeAudit(application, decidedLender);
             String oldLender = application.getLender();
