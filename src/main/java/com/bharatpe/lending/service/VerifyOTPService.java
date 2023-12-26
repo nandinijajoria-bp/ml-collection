@@ -56,6 +56,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -652,7 +653,10 @@ public class VerifyOTPService {
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             lendingApplicationDao.save(lendingApplication);
 
-            if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
+            activeLoan.setStatus("INACTIVE_TOPUP");
+            lendingPaymentScheduleDao.save(activeLoan);
+
+           /* if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
                 ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
             }
             else {
@@ -662,7 +666,7 @@ public class VerifyOTPService {
                 // and once the topup is successfully created on liquiloans we can mark this loan as closed with appropriate ledger entries
                 activeLoan.setStatus("INACTIVE_TOPUP");
                 lendingPaymentScheduleDao.save(activeLoan);
-            }
+            }*/
         } catch (Exception ex) {
             logger.error("Exception IN TOPUP LOANS Ledger for application:{}", lendingApplication.getId(), ex);
         }
@@ -670,7 +674,7 @@ public class VerifyOTPService {
         return true;
     }
 
-    private void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
+    public void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
 
         double duePenalty = Objects.nonNull(previousLoan.getDuePenalty()) ? previousLoan.getDuePenalty() : 0;
         LendingLedger lendingLedger = new LendingLedger();
@@ -754,6 +758,7 @@ public class VerifyOTPService {
 
     public Map<String, Object> closePreviousLoanAfterSuccessfulTopupCreation(Long applicationId) {
 
+        logger.info("in close previous Loan flow {}",applicationId);
         Map<String, Object> finalResponse = new LinkedHashMap<>();
         Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
 
@@ -768,7 +773,6 @@ public class VerifyOTPService {
         }
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplicationOptional.get().getId());
-
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             finalResponse.put("message", "lending application details not found");
             return finalResponse;
