@@ -809,9 +809,7 @@ public class LendingApplicationServiceV2 {
                 !ObjectUtils.isEmpty(lendingGstDetail.getShopType())
                 && lendingApplicationLenderDetails.getStage().equals(LenderAssociationStages.KYC.name())
                 && lendingApplicationLenderDetails.getKycStatus().equals(LenderAssociationStatus.SELFIE_UPLOAD_SUCCESS.name())
-                && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus())
-                && Boolean.TRUE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())
-        ) {
+                && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus())) {
             log.info("criteria met to invoke bre for piramal for {}", lendingApplication.getId());
 
             String currStage =  lendingApplicationLenderDetails.getStage();
@@ -825,10 +823,11 @@ public class LendingApplicationServiceV2 {
                     currStage,
                     Boolean.TRUE
             );
-        } else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
-            log.info("lender changed as current address not same as permanent address for {}", lendingApplication.getId());
-            nbfcUtils.modifyLender(lendingApplication,lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
         }
+//        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
+//           log.info("lender changed as current address not same as permanent address for {}", lendingApplication.getId());
+//            nbfcUtils.modifyLender(lendingApplication,lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
+//        }
     }
 
     public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
@@ -3023,10 +3022,7 @@ public class LendingApplicationServiceV2 {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(sameAsAdhaar);
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            // invoke bre for piramal
-//            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-//                invokeBreForPiramal(lendingGstDetail, lendingApplication);
-//            }
+            /*
             if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
                 LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
                 lenderAssociationDetailsRequestDto.setApplicationId(lendingApplication.getId());
@@ -3035,6 +3031,7 @@ public class LendingApplicationServiceV2 {
                 lenderAssociationDetailsRequestDto.setManageState(true);
                 invokeCreateLeadAndDocUploadWraperService.checkForGSTDetailsAndInvokeBREWorkflow(lenderAssociationDetailsRequestDto);
             }
+             */
             funnelService.submitEvent(merchant.getId(), null, applicationId,
                     FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             return new ApiResponse<>(true, "Current Address updated successfully!");
