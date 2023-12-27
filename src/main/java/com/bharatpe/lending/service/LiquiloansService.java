@@ -95,9 +95,6 @@ public class LiquiloansService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
-    LendingApplicationDetailsDao lendingApplicationDetailsDao;
-
-    @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
@@ -117,9 +114,6 @@ public class LiquiloansService {
 
     @Autowired
     ObjectMapper objectMapper;
-
-    @Autowired
-    VerifyOTPService verifyOTPService;
 
 //    @Autowired
 //    SmsServiceHandler smsServiceHandler;
@@ -472,30 +466,7 @@ public class LiquiloansService {
         return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
 
-    public LendingPaymentSchedule updatePreviousLoan(LendingApplication lendingApplication) {
-        Optional<LendingApplication> previousLendingApplicationOptional = null;
-        LendingApplicationDetails lendingApplicationDetails = null;
-        LendingPaymentSchedule prevLendingPaymentSchedule = null;
-        //Top-Up ApplicationId
-        long applicationId = lendingApplication.getId();
-
-        //Fetch LendingApplicationDetails on the basis of top-up request
-        lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-
-        if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
-            //Fetch previous ApplicationId of that Topup Request
-            previousLendingApplicationOptional = lendingApplicationDao.findById(lendingApplicationDetails.getPrevAppId());
-            if (!ObjectUtils.isEmpty(previousLendingApplicationOptional)) {
-                prevLendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(previousLendingApplicationOptional.get().getMerchantId(), previousLendingApplicationOptional.get().getId());
-                logger.info("prevLendingPaymentSchedule {}", prevLendingPaymentSchedule);
-                return prevLendingPaymentSchedule;
-            }
-        }
-        return null;
-    }
-
     public ResponseEntity<PostPayoutResponseDto> populatePostPayoutSchedule(PostPayoutRequestDto postPayoutRequestDto) {
-
         if (ObjectUtils.isEmpty(postPayoutRequestDto) || ObjectUtils.isEmpty(postPayoutRequestDto.getApplicationId())
           || ObjectUtils.isEmpty(postPayoutRequestDto.getNbfcId())
           || ObjectUtils.isEmpty(postPayoutRequestDto.getLender())
@@ -518,7 +489,6 @@ public class LiquiloansService {
         LendingApplication lendingApplication = null;
         LendingPaymentSchedule lendingPaymentSchedule = null;
         BasicDetailsDto basicDetailsDto = null;
-        LendingPaymentSchedule prevLendingPaymentSchedule=null;
 //        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(Long.valueOf(postPayoutRequestDto.getMerchantId()));
         try {
 //            logger.info("Fetching merchant for the merchant id {}", postPayoutRequestDto.getMerchantId());
@@ -531,15 +501,15 @@ public class LiquiloansService {
             lendingApplication =
               lendingApplicationDao.findByExternalLoanId(postPayoutRequestDto.getApplicationId());
 
-            prevLendingPaymentSchedule = updatePreviousLoan(lendingApplication);
-            logger.info("prevLendingPaymentSchedule {}",prevLendingPaymentSchedule);
+
+//    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
+//    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
+//    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
+//    		}
+
             if (lendingApplication == null) {
                 logger.error("Loan application for loanId {} not found.", postPayoutRequestDto.getApplicationId());
                 postPayoutResponseDto.setStatus("FAILED");
-                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                    prevLendingPaymentSchedule.setStatus("ACTIVE");
-                    lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-                }
                 postPayoutResponseDto.setMessage("Invalid applicationId");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
@@ -557,10 +527,6 @@ public class LiquiloansService {
             if (!basicDetailsDtoOptional.isPresent()) {
                 logger.error("Merchant details or gst details not found for the merchant id {}  and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
-                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                    prevLendingPaymentSchedule.setStatus("ACTIVE");
-                    lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-                }
                 postPayoutResponseDto.setMessage("Invalid data");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
@@ -601,10 +567,6 @@ public class LiquiloansService {
                 logger.error("lender mismatch or loan not found for {}", lendingApplication.getMerchantId());
                 postPayoutResponseDto.setStatus("FAILED");
                 postPayoutResponseDto.setMessage("lender mismatch or loan not found");
-                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                    prevLendingPaymentSchedule.setStatus("ACTIVE");
-                    lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-                }
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
@@ -612,7 +574,6 @@ public class LiquiloansService {
             }
 
             if ("DISBURSED".equalsIgnoreCase(disbursalStage)) {
-                logger.info("status of application is {}", disbursalStage);
 
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (lendingPaymentSchedule != null) {
@@ -647,7 +608,6 @@ public class LiquiloansService {
                 lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
 
                 lendingApplicationDao.save(lendingApplication);
-
 
                 LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(lendingApplication.getMerchantId(), lendingApplication);
                 if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
@@ -714,32 +674,16 @@ public class LiquiloansService {
                 Date tenativeLoanEndDate = getDateAfterNMonths(lendingApplication.getDisburseTimestamp(), lendingApplication.getTenureInMonths());
                 if (tenativeLoanEndDate == null) {
                     postPayoutResponseDto.setStatus("FAILED");
-                    if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                        prevLendingPaymentSchedule.setStatus("ACTIVE");
-                        lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-                    }
                     postPayoutResponseDto.setMessage("unable to compute tentative closing date");
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-                if (prevLendingPaymentSchedule.getStatus().equalsIgnoreCase("INACTIVE_TOPUP")) {
-                    try {
-                        logger.info("while closing loan for previous loan for id {}",lendingApplication.getId());
-                        verifyOTPService.closePreviousLoanAfterSuccessfulTopupCreation(lendingApplication.getId());
-                    } catch (Exception e) {
-                        logger.error("exception while closing previous loan while making Top-up application {}, active lps is {}, e{}", lendingApplication.getId(),prevLendingPaymentSchedule.getId(), Arrays.asList(e.getStackTrace()));
-                    }
-                }
             }
 
             else if ("UNKNOWN".equalsIgnoreCase(disbursalStage)) {
                 logger.info("unknown application status {} for the application id {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getId());
                 postPayoutResponseDto.setStatus("FAILED");
-                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                    prevLendingPaymentSchedule.setStatus("ACTIVE");
-                    lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-                }
                 postPayoutResponseDto.setMessage("UNKNOWN status code");
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
@@ -758,10 +702,6 @@ public class LiquiloansService {
                 lendingApplication.setLoanDisbursalStatus(disbursalStage);
                 lendingApplicationDao.save(lendingApplication);
                 logger.info("known application status {} for the application id {} is set to {}", postPayoutRequestDto.getLoanDisbursalStatus(), lendingApplication.getId(), lendingApplication.getLoanDisbursalStatus());
-                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                    prevLendingPaymentSchedule.setStatus("ACTIVE");
-                    lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-                }
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
@@ -779,10 +719,6 @@ public class LiquiloansService {
             }
             postPayoutResponseDto.setStatus("FAILED");
             postPayoutResponseDto.setMessage("Error occurred while populating data into lending_payment_schedule table" + Arrays.toString(e.getStackTrace()));
-            if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
-                prevLendingPaymentSchedule.setStatus("ACTIVE");
-                lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
-            }
             postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
             kafkaAudit.setData(postPayoutAuditDto);
             pushKafkaAudit(kafkaAudit);
