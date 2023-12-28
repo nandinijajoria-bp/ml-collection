@@ -28,8 +28,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
+import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.enums.Lender.LDC;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
@@ -130,6 +132,12 @@ public class LenderAssignService implements ILenderAssignService {
     Gst3bSessionDetailsDao gst3bSessionDetailsDao;
 
     @Autowired
+    LmsFieldValuesDao lmsFieldValuesDao;
+
+    @Autowired
+    LenderBusinessCategoryDao lenderBusinessCategoryDao;
+
+    @Autowired
     FunnelService funnelService;
 
     @Override
@@ -190,6 +198,10 @@ public class LenderAssignService implements ILenderAssignService {
                             log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
                             iterator.remove();
                         }
+                        if(!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)){
+                            log.info("skipping {} due to business category check failure for {}", lender, application.getId());
+                            iterator.remove();
+                        }
                     }
                 }
             } catch (Exception exception) {
@@ -209,6 +221,70 @@ public class LenderAssignService implements ILenderAssignService {
             String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId());
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
                 return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean negativeCategoryAndLoanAmountCheckPassed(LendingApplication lendingApplication, String riskSegment, String lender){
+        if(RiskSegment.REPEAT.name().equalsIgnoreCase(riskSegment)){
+            LendingApplication lastLmsDisbursedApplication = lendingApplicationDao.getLastLmsDisbursedLoan(lendingApplication.getMerchantId());
+            List<Long> lmsFieldIds = new ArrayList<>();
+            lmsFieldIds.add(BUSINESS_CATEGORY_LMS_FIELD_ID);
+            lmsFieldIds.add(BUSINESS_SUBCATEGORY_LMS_FIELD_ID);
+            List<LmsFieldValues> lmsFieldValuesList = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(
+                    lastLmsDisbursedApplication.getId(), lmsFieldIds
+            );
+            if(ObjectUtils.isEmpty(lmsFieldValuesList)){
+                log.info("business category not available from last disbursed app {}", lendingApplication.getId());
+                return true;
+            }
+            String businessCategory = null;
+            String businessSubcategory = null;
+            for(LmsFieldValues lmsFieldValues : lmsFieldValuesList){
+                if(lmsFieldValues.getFieldId() == BUSINESS_CATEGORY_LMS_FIELD_ID){
+                    businessCategory = lmsFieldValues.getFieldDropdownValue();
+                }
+                else if (lmsFieldValues.getFieldId() == BUSINESS_SUBCATEGORY_LMS_FIELD_ID){
+                    businessSubcategory = lmsFieldValues.getFieldDropdownValue();
+                }
+            }
+
+            LenderBusinessCategory lendingLenderBusinessCategory = lenderBusinessCategoryDao.findBusinessCategoryChecks(
+                    lender, businessCategory, businessSubcategory
+            );
+            if(ObjectUtils.isEmpty(lendingLenderBusinessCategory)){
+                log.info("business category not available for {}, {}", lendingApplication.getId(), lender);
+                return true;
+            }
+            if("INACTIVE".equalsIgnoreCase(lendingLenderBusinessCategory.getStatus())){
+                log.info("skipping lender {} due to negative category for {}", lender, lendingApplication.getId());
+                funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                        FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_CATEGORY, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                return false;
+            }
+            else if ("ACTIVE".equalsIgnoreCase(lendingLenderBusinessCategory.getStatus())){
+                if(Objects.nonNull(lendingLenderBusinessCategory.getMaxAmount()) &&
+                        (lendingApplication.getLoanAmount() > lendingLenderBusinessCategory.getMaxAmount())
+                ){
+                    funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                            FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_CATEGORY_AMOUNT_LIMIT, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                    log.info("skipping {} due to breach of business category amount limit for {}", lender, lendingApplication.getId());
+                    return false;
+                }
+            }
+        }
+        else{
+            List<LendingApplication> rejectedApplicationList = lendingApplicationDao.getLastThreeRejectedApplications(lendingApplication.getMerchantId());
+            for(LendingApplication rejectedApplication : rejectedApplicationList){
+                if(rejectedApplication.getLender().equalsIgnoreCase(lender)){
+                    if(NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(rejectedApplication.getManualKycReason()) ||
+                            NEGATIVE_BUSINESS_CATEGORY_REJECTION.equalsIgnoreCase(rejectedApplication.getPhysicalReason())
+                    ){
+                        log.info("skipping lender {} due to last rejected application on negative category for {}", lender, lendingApplication.getId());
+                        return false;
+                    }
+                }
             }
         }
         return true;

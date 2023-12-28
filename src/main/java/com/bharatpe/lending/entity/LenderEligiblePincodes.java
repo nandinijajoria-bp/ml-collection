@@ -29,4 +29,11 @@ public class LenderEligiblePincodes extends BaseEntity {
         ACTIVE, INACTIVE;
     }
 
+    public LenderEligiblePincodesStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(LenderEligiblePincodesStatus status) {
+        this.status = status;
+    }
 }

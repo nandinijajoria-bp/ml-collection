@@ -103,6 +103,12 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
     @Query(value="select * from lending_application where merchant_id=:merchantId and status='approved' and loan_disbursal_status='DISBURSED' order by id desc limit 1", nativeQuery = true)
     LendingApplication getLastDisbursedLoan(Long merchantId);
 
+	@Query(value="select * from lending_application where merchant_id=:merchantId and status='approved' and loan_disbursal_status='DISBURSED' and lms_stage is not null order by id desc limit 1", nativeQuery = true)
+	LendingApplication getLastLmsDisbursedLoan(Long merchantId);
+
+	@Query(value="select * from lending_application where merchant_id=:merchantId and status='rejected' order by id desc limit 3", nativeQuery = true)
+	List<LendingApplication> getLastThreeRejectedApplications(Long merchantId);
+
 	@Query(value="select * from lending_application where merchant_id=:merchantId and created_at>=:createdAt and status != 'deleted' and (loan_disbursal_status not in ('REJECTED','DISBURSED') or loan_disbursal_status is null) order by id desc limit 1", nativeQuery = true)
 	LendingApplication getRepeatLoanApplication(Long merchantId, Date createdAt);
 
