@@ -205,7 +205,7 @@ public class LenderAssignService implements ILenderAssignService {
                     }
                 }
             } catch (Exception exception) {
-                log.error("exception while custom pincode check for lender for application id : {}", application.getId(), exception);
+                log.error("exception while custom pincode check for lender for application id : {}, {}", application.getId(), Arrays.asList(exception.getStackTrace()));
             }
             decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
             log.info("lender to be assigned: {} {}", decidedLender, application.getId());
@@ -229,6 +229,10 @@ public class LenderAssignService implements ILenderAssignService {
     private boolean negativeCategoryAndLoanAmountCheckPassed(LendingApplication lendingApplication, String riskSegment, String lender){
         if(RiskSegment.REPEAT.name().equalsIgnoreCase(riskSegment)){
             LendingApplication lastLmsDisbursedApplication = lendingApplicationDao.getLastLmsDisbursedLoan(lendingApplication.getMerchantId());
+            if(ObjectUtils.isEmpty(lastLmsDisbursedApplication)){
+                log.info("last lms disbursed application not available for checks on app {}", lendingApplication.getId());
+                return true;
+            }
             List<Long> lmsFieldIds = new ArrayList<>();
             lmsFieldIds.add(BUSINESS_CATEGORY_LMS_FIELD_ID);
             lmsFieldIds.add(BUSINESS_SUBCATEGORY_LMS_FIELD_ID);
