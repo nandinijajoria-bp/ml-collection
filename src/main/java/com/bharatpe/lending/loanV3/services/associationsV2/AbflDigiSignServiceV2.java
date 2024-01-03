@@ -93,6 +93,7 @@ public class AbflDigiSignServiceV2 {
                         .sanction_letter(lendingKfs.getSanctionLoanAgreementDocUrl())
                         .merged_pdf_flag(false)
                         .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile())
+                        .email(String.format("%s@bharatpe.com",merchantDetailsDto.getMerchantDetail().getMobile()))
                         .build())
                 .build();
     }

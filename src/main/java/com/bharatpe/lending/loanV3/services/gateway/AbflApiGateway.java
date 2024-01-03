@@ -50,7 +50,7 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.foreclosureamt.api:api/v3/lender/foreclosure-details}")
     String nbfcForeClosureAmtUrl;
 
-    @Value("${nbfc.rps.api:api/v3/lender/digi-sign}")
+    @Value("${nbfc.rps.api:api/v3/lender/digital-sign}")
     String nbfcRpsUrl;
 
     @Autowired

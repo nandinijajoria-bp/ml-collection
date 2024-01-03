@@ -773,15 +773,8 @@ public class LiquiloansService {
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
                 AbflDigiSignResponseDTO responseDTO = (AbflDigiSignResponseDTO) iLenderAssociationService.invoke(finalLendingApplication.getId(), new HashMap<>());
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(finalLendingApplication.getId(), "ACTIVE");
-                if (responseDTO.getSuccess()){
-                    lendingApplicationLenderDetails.setStage(LenderAssociationStages.DIGI_SIGN.name());
-                    lendingApplicationLenderDetails.setESignedKfs(true);
-                    lendingApplicationLenderDetails.setESignedSanc(true);
-                }
-                else{
-                    lendingApplicationLenderDetails.setESignedKfs(false);
-                    lendingApplicationLenderDetails.setESignedSanc(false);
-                }
+                lendingApplicationLenderDetails.setESignedKfs(!ObjectUtils.isEmpty(responseDTO) &&  responseDTO.getSuccess());
+                lendingApplicationLenderDetails.setESignedSanc(!ObjectUtils.isEmpty(responseDTO) &&  responseDTO.getSuccess());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
             }
         }
