@@ -86,6 +86,12 @@ public class EligibilityV3Service {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
+    @Value("${new.eligibility.refresh.window:1}")
+    int newEligibilityRefreshWindow;
+
+    @Value("${new.eligibility.refresh.window.rollout.percent:0}")
+    Integer newEligibilityRefreshWindowRolloutPercent;
+
     @Value("${club.eligible.loan.cache:true}")
     Boolean clubEligibleLoanCache;
 
@@ -213,8 +219,13 @@ public class EligibilityV3Service {
     }
 
     private void fetchPreComputedEligibility(EligibilityStateDTO eligibilityStateDTO) {
+        int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(eligibilityStateDTO.getMerchant().getId(), newEligibilityRefreshWindowRolloutPercent) ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
+        if(updatedEligibilityRefreshWindow <= 0){
+            log.info("not picking offer from eligible loan for {}", eligibilityStateDTO.getMerchant().getId());
+            return;
+        }
         EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(eligibilityStateDTO.getMerchant().getId());
-        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
         log.info("merchant is: {} clubV2 member: {}", eligibilityStateDTO.getMerchant().getId(), eligibilityStateDTO.getClubV2Member());
         Eligibility eligibility = null;
         if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow) && !(eligibilityStateDTO.getClubV2Member() && clubEligibleLoanCache)) {

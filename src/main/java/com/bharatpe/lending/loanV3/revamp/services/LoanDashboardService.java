@@ -150,6 +150,12 @@ public class LoanDashboardService {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
+    @Value("${new.eligibility.refresh.window:1}")
+    int newEligibilityRefreshWindow;
+
+    @Value("${new.eligibility.refresh.window.rollout.percent:0}")
+    Integer newEligibilityRefreshWindowRolloutPercent;
+
     @Autowired
     private DateTimeUtil dateTimeUtil;
 
@@ -770,11 +776,12 @@ public class LoanDashboardService {
 //            }
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
             String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
+            int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(merchant.getId(), newEligibilityRefreshWindowRolloutPercent) ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
             if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
-                eligibilityRefreshWindow = 0;
+                updatedEligibilityRefreshWindow = 0;
                 lendingCache.delete(bureauConsentKey);
             }
-            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
 //            Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
 //            log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
 //            loanDashboardResponse.setClubV2Member(isClubV2);

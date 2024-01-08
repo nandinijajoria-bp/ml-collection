@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.query.dao.ExternalGatewayDaoSlave;
 import com.bharatpe.lending.common.query.entity.ExternalGatewaySlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -151,12 +152,21 @@ public class LoanEligibleService {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
+    @Value("${new.eligibility.refresh.window:1}")
+    int newEligibilityRefreshWindow;
+
+    @Value("${new.eligibility.refresh.window.rollout.percent:0}")
+    Integer newEligibilityRefreshWindowRolloutPercent;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     MerchantService merchantService;
 
     @Autowired
     KycHandler kycHandler;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
@@ -165,7 +175,8 @@ public class LoanEligibleService {
 
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
 
-        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+        int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(merchantId, newEligibilityRefreshWindowRolloutPercent) ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
 
         List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
           Sort.by(Sort.Direction.DESC, "id"));
@@ -225,7 +236,7 @@ public class LoanEligibleService {
     public ResponseDTO updateEligibleLoan(Long merchantId, EligibleLoanUpdateRequestDTO body) {
         ResponseDTO responseDTO = new ResponseDTO();
         // todo final fix this later
-        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 );
         if (loanUtil.isInternalMerchant(merchantId)) {
             body.setEdiDays( body.getEdiDays() == null ? body.getTenure() * 30 : body.getEdiDays());
 //            dateWindow = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -5);
