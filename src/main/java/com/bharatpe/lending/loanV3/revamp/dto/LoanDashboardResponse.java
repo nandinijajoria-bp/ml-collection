@@ -38,10 +38,10 @@ public class LoanDashboardResponse {
     private Double excessCollectionAdjusted;
     private Double excessCollectionBalance;
     private String preApprovedTag;
-    private String panNumber;
+    /*private String panNumber;
     private Integer pinCode;
     private Boolean isMileStoneProgramExpired;
-    private MileStoneEligibilityResponseDto routeToEligibilityData;
+    private MileStoneEligibilityResponseDto routeToEligibilityData;*/
     private String diwaliBannerType;
     private String diwaliBannerEndDate;
 

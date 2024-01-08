@@ -22,7 +22,8 @@ import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
-import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -87,7 +88,7 @@ public class MileStoneProgramService {
     //cache on API
     //read database calls
 
-    public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant)  {
+    public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant) {
         log.info("checking milestone eligibility for merchant id {}", merchant.getId());
         MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto;
         mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchant);
@@ -100,20 +101,24 @@ public class MileStoneProgramService {
     }
 
     @Async
-    public void evictCache( Long merchantId) {
-        if(Objects.isNull(merchantId)){
+    public void evictCache(Long merchantId) {
+        if (Objects.isNull(merchantId)) {
             log.info("merchant id empty");
         }
-        try{
-            String offerCacheKey = LoanDetailsConstant.RTE_MILESTONE_OFFER_KEY + merchantId;
-            log.info("deleting cached key of offer details in RTE for merchant: {}",merchantId);
+        try {
+            String offerCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchantId;
+            log.info("deleting cached key of offer details in RTE for merchant: {}", merchantId);
             lendingCache.delete(offerCacheKey);
 
-            String dashboardDetailsCacheKey = "MILESTONE_DASHBOARD_" + merchantId;
-            log.info("deleting dashboard details in RTE for merchant: {}",merchantId);
+            String dashboardDetailsCacheKey = RTEConstants.RTE_MILESTONE_DASHBOARD + merchantId;
+            log.info("deleting dashboard details in RTE for merchant: {}", merchantId);
             lendingCache.delete(dashboardDetailsCacheKey);
-        }
-        catch(Exception e){
+
+
+            String eligibilityCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchantId;
+            log.info("deleting cached key of eligibility details in RTE for merchant: {}", merchantId);
+            lendingCache.delete(eligibilityCacheKey);
+        } catch (Exception e) {
             log.info("unable to evict cache for : {}", merchantId);
         }
 
@@ -182,7 +187,7 @@ public class MileStoneProgramService {
 
     public ApiResponse<?> createSession(BasicDetailsDto merchant, DSMileStoneResponse dsMileStoneResponse) {
         log.info("start creating session for merchant {}", merchant.getId());
-        MileStoneEntity entity = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "IN_PROGRESS");
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(), "IN_PROGRESS");
         if (!ObjectUtils.isEmpty(entity)) {
             if (("IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus()))) {
                 log.info("milestone journey is already in-progress for merchant id {}", entity.getMerchantId());
@@ -196,18 +201,17 @@ public class MileStoneProgramService {
                 entity = mileStoneHelperService.createMileStoneSession(merchant.getId(), dsMileStoneResponse, dsMileStoneResponse.getTarget_duration_days());
                 log.info("created an entry for mileStone Entry {}", entity);
 
-                String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
-                Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-                if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-                    lendingCache.delete(loanDetailsCacheKey);
+                String mileStoneProgramCache = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+                Object mileStoneCacheResponse = lendingCache.get(mileStoneProgramCache);
+                if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                    lendingCache.delete(mileStoneProgramCache);
                 }
 
-                funnelService.submitEvent(merchant.getId(), null,null,
+                funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.RTE_SESSION_CREATED, "RTE Session Creation");
                 return new ApiResponse<>(true, "200", "OK");
             }
-        }catch (Exception e)
-        {
+        } catch (Exception e) {
             log.info("exception is", e.getMessage());
         }
         return new ApiResponse<>(false, "400", "eligibility is false");
@@ -225,7 +229,7 @@ public class MileStoneProgramService {
         }
 
         DSMileStoneAchievementResponse achievementResponse = null;
-        String milestoneDashboardCacheKey = "MILESTONE_DASHBOARD_" + merchant.getId();
+        String milestoneDashboardCacheKey = RTEConstants.RTE_MILESTONE_DASHBOARD + merchant.getId();
         Object dashboardDetailsCacheKey = lendingCache.get(milestoneDashboardCacheKey);
 
 
@@ -234,21 +238,20 @@ public class MileStoneProgramService {
                 log.info("cache present for milestoneDashboard {} for merchant id {}", milestoneDashboardCacheKey, merchant.getId());
                 mileStoneDashboardDetails = objectMapper.convertValue(lendingCache.get(milestoneDashboardCacheKey), MileStoneDashboardDetails.class);
                 return new ApiResponse<>(mileStoneDashboardDetails);
-            }
-            catch (Exception e)
-            {
-                log.info("exception in reading value from cache for RTE for merchant id {}",merchant.getId());
+            } catch (Exception e) {
+                log.info("exception in reading value from cache for RTE for merchant id {}", merchant.getId());
             }
 
         }
 
         log.info("Fetching Dashboard details from DE for merchantId: {} ", merchant.getId());
         achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
-
-
         if (achievementResponse == null) {
-            return new ApiResponse<>(false, "400","Achievement response is null");
+            return new ApiResponse<>(false, "400", "Achievement response is null");
         }
+
+        dsHandler.pushMilestoneAchievementData(merchant.getId(),achievementResponse);
+
         DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
 
         List<MileStoneDashboardData> mapList = new ArrayList<>();
@@ -355,10 +358,10 @@ public class MileStoneProgramService {
 
     public ApiResponse<?> milestoneOffer(BasicDetailsDto merchant, MileStoneOfferRequest request) {
 
-        String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
-        Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-        if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-            lendingCache.delete(loanDetailsCacheKey);
+        String mileStoneProgramCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+        Object mileStoneProgCacheResponse = lendingCache.get(mileStoneProgramCacheKey);
+        if (!ObjectUtils.isEmpty(mileStoneProgCacheResponse)) {
+            lendingCache.delete(mileStoneProgramCacheKey);
         }
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 
@@ -393,4 +396,45 @@ public class MileStoneProgramService {
         return new ApiResponse<>(false, "400", "merchant data not found");
     }
 
+
+    private void cacheLoanDetailsData(RTEProgramDetailsDto rteProgramDetailsDto,Long merchantId) {
+        try {
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(RTEConstants.RTE_PROGRAM_DETAILS_CACHE+merchantId);
+            addCacheDto.setValue(objectMapper.writeValueAsString(rteProgramDetailsDto));
+            addCacheDto.setTtl(15);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("exception occurred while caching rte program details for {} !!", RTEConstants.RTE_PROGRAM_DETAILS_CACHE+merchantId);
+        }
+    }
+    public ApiResponse<Object>programDetails(BasicDetailsDto merchant) {
+
+        String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+        Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
+        RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
+
+        if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+            try {
+                log.info("returning rte details response from cache for {}", merchant.getId());
+                rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
+                if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getRouteToEligibilityData())) {
+                    return new ApiResponse<>(rteProgramDetailsDto);
+                }
+            } catch (Exception e) {
+                log.info("exception while fetching response is: {}", e.getMessage());
+            }
+        }
+        MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(merchant);
+        log.info("response dto is--->{}", responseDto);
+        rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
+        if (Boolean.FALSE.equals(responseDto.getMilStoneEligibility())) {
+            return new ApiResponse<>(rteProgramDetailsDto);
+        }
+
+        KycStatusDTO doc = kycHandler.getKycStatus(merchant.getId());
+        rteProgramDetailsDto.setKycStatus(doc.getKycStatus());
+        cacheLoanDetailsData(rteProgramDetailsDto, merchant.getId());
+        return new ApiResponse<>(rteProgramDetailsDto);
+    }
 }

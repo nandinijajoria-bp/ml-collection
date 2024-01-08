@@ -139,6 +139,10 @@ public class LoanDetailsV3Response {
                     setKYCRouteToEligibilityResponse((KYCRTEDto) lendingStateDTO.getData(),loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
+                case RTE_PIN_PAGE:
+                    setRTEPinPageResponse((EligibilityStateDTO) lendingStateDTO.getData(),loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
 
                 default:
 
@@ -166,6 +170,15 @@ public class LoanDetailsV3Response {
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
+
+    private static void setRTEPinPageResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response)
+    {
+        loanDetailsV3Response.setPancard(eligibilityStateDTO.getPancard());
+        loanDetailsV3Response.setPincode(eligibilityStateDTO.getPincode());
+        loanDetailsV3Response.setHasExperian(eligibilityStateDTO.isHasExperian());
+        loanDetailsV3Response.setMerchantName(eligibilityStateDTO.getMerchantName());
+    }
+
 
     private static void setKYCRouteToEligibilityResponse(KYCRTEDto kycStateDTO, LoanDetailsV3Response loanDetailsV3Response)
 

@@ -62,7 +62,20 @@ public class MileStoneProgramController {
             @RequestParam(name = "rewardClaimedStatus") Boolean rewardClaimedStatus) {
 
         return mileStoneProgramService.claimReward(merchant, rewardName, rewardClaimedStatus);
-
     }
 
+
+    @GetMapping(value = "/program-details")
+    public ApiResponse<Object>programAssignment(@RequestAttribute BasicDetailsDto merchant)
+    {
+         return mileStoneProgramService.programDetails(merchant);
+    }
+
+
+
+    @GetMapping(value = "/evictCache")
+    public void evictCache(@RequestParam Long merchantId)
+    {
+        mileStoneProgramService.evictCache(merchantId);
+    }
 }

@@ -15,7 +15,6 @@ public class LoanDetailsConstant {
 
     public static String LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX="LENDING_DASHBOARD_DETAILS_V3_";
 
-    public static String RTE_MILESTONE_OFFER_KEY = "RTE_MILESTONE_OFFER_";
 
     public static String LENDING_VERSION_KEY_PREFIX="LENDING_VERSION_V2_";
     public static String LENDING_LOAN_DETAILS_KEY_PREFIX="LENDING_LOAN_DETAILS_";

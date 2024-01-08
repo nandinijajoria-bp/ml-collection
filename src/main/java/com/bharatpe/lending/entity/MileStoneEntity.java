@@ -15,34 +15,35 @@ import java.util.Date;
 @Table(name = "milestone_entity")
 public class MileStoneEntity extends BaseEntity {
 
-    @Column(name="sessionId")
+    @Column(name = "sessionId")
     private String sessionId;
 
-    @Column(name="merchant_id")
+    @Column(name = "merchant_id")
     private Long merchantId;
 
-    @Column(name="response")
+    @Column(name = "response")
     private String response;
 
-    @Column(name="expiryDate")
+    @Column(name = "expiryDate")
     private Date expiryDate;
 
-    @Column(name="sessionStatus")
+    @Column(name = "sessionStatus")
     private String sessionStatus;
 
-    @Column(name="milestoneOffer")
+    @Column(name = "milestoneOffer")
     private Boolean milestoneOffer;
 
-    @Column(name="programStartDate")
+    @Column(name = "programStartDate")
     private Date programStartDate;
 
-    @Column(name="programDuration")
+    @Column(name = "programDuration")
     private int programDuration;
 
-    @Column(name="kycStatus")
+    @Column(name = "kycStatus")
     private String kycStatus;
 
     @Column(name = "graphData")
     private Double graphData;
+
 
 }

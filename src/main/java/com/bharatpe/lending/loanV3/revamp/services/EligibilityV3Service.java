@@ -20,6 +20,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Request;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -139,15 +140,14 @@ public class EligibilityV3Service {
                 try {
                     eligibilityStateDTO.setExperian(experian);
                     refreshEligibility(request, eligibilityStateDTO);
-                    String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
-                    Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-                    if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-                        lendingCache.delete(loanDetailsCacheKey);
+                    String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+                    Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
+                    if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                        lendingCache.delete(mileStoneCacheKey);
                     }
 
                 } catch (BureauCallMaskedApiException e) {
-                    log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
-                }
+                        log.error("exception in setting Experian data for merchantId {} in milestone journey, e{}",merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));                }
             }
 
 

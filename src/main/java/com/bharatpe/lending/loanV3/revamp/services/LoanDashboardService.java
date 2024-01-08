@@ -71,7 +71,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.BP_CLUB_MEMBERSHIP_KEY_PREFIX;
 
 @Service
 @Slf4j
@@ -381,7 +381,7 @@ public class LoanDashboardService {
             funnelService.submitEvent(merchantDetails.getId(), null, null,
                     FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TEN_LAKH_LOAN_PAGE, LocalDateTime.now().toString());
         }
-        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchantDetails);
+      /*  MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchantDetails);
         loanDashboardResponse.setRouteToEligibilityData(mileStoneEligibilityResponseDto);
 
         if (Boolean.TRUE.equals(mileStoneEligibilityResponseDto.getMilStoneEligibility())) {
@@ -399,8 +399,8 @@ public class LoanDashboardService {
             else {
                 loanDashboardResponse.setPanNumber(null);
             }
-           /* loanDashboardResponse.setPinCode(Integer.valueOf(mileStoneEligibilityResponseDto.getPinCode()));
-            loanDashboardResponse.setPanNumber(mileStoneEligibilityResponseDto.getPanCard());*/
+           *//* loanDashboardResponse.setPinCode(Integer.valueOf(mileStoneEligibilityResponseDto.getPinCode()));
+            loanDashboardResponse.setPanNumber(mileStoneEligibilityResponseDto.getPanCard());*//*
         }
         KycStatusDTO doc = kycHandler.getKycStatus(merchantDetails.getId());
         loanDashboardResponse.setKycStatus(doc.getKycStatus());
@@ -408,7 +408,7 @@ public class LoanDashboardService {
         {
             String kycPancard = kycHandler.getPanNumber(merchantDetails.getId());
             loanDashboardResponse.setPanNumber(kycPancard);
-        }
+        }*/
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
         return loanDashboardResponse;
