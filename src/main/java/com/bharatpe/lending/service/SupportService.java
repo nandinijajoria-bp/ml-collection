@@ -676,7 +676,13 @@ public class SupportService {
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
                 experian = experianDao.getByMerchantId(supportApiResponseDto.getMerchantId());
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(supportApiResponseDto.getMerchantId());
-                if (experian.getRejected() && !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) && lendingRiskVariables.getFinalOffer() == 0) {
+                logger.info("lendingRiskVariables.getExperianRejection() {}",lendingRiskVariables.getExperianRejection());
+                logger.info("supportApiResponseDto.getApplicationStage() {}",supportApiResponseDto.getApplicationStage());
+
+                if (!ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())&&
+                        !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) &&
+                        (ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) || (!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() == 0)))
+                {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
                     supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(lendingRiskVariables.getExperianRejection(), RejectionStage.EXPERIAN));
                     supportApiResponseDto.setEligible(Boolean.FALSE);
