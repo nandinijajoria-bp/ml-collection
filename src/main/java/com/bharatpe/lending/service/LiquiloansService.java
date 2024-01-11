@@ -699,7 +699,8 @@ public class LiquiloansService {
                 }
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-                if (prevLendingPaymentSchedule.getStatus().equalsIgnoreCase("INACTIVE_TOPUP")) {
+                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)
+                        && prevLendingPaymentSchedule.getStatus().equalsIgnoreCase("INACTIVE_TOPUP")) {
                     try {
                         logger.info("while closing loan for previous loan for id {}",lendingApplication.getId());
                         verifyOTPService.closePreviousLoanAfterSuccessfulTopupCreation(lendingApplication.getId());
