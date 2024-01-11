@@ -473,23 +473,15 @@ public class LiquiloansService {
     }
 
     public LendingPaymentSchedule updatePreviousLoan(LendingApplication lendingApplication) {
-        Optional<LendingApplication> previousLendingApplicationOptional = null;
-        LendingApplicationDetails lendingApplicationDetails = null;
-        LendingPaymentSchedule prevLendingPaymentSchedule = null;
-        //Top-Up ApplicationId
-        long applicationId = lendingApplication.getId();
 
-        //Fetch LendingApplicationDetails on the basis of top-up request
-        lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+        LendingApplication previousDisbursedApplication=lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
 
-        if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
-            //Fetch previous ApplicationId of that Topup Request
-            previousLendingApplicationOptional = lendingApplicationDao.findById(lendingApplicationDetails.getPrevAppId());
-            if (!ObjectUtils.isEmpty(previousLendingApplicationOptional)) {
-                prevLendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(previousLendingApplicationOptional.get().getMerchantId(), previousLendingApplicationOptional.get().getId());
-                logger.info("prevLendingPaymentSchedule {}", prevLendingPaymentSchedule);
-                return prevLendingPaymentSchedule;
-            }
+        logger.info("previousDisbursedApplication {} for an application id {}",previousDisbursedApplication,lendingApplication.getId());
+
+        if (!ObjectUtils.isEmpty(previousDisbursedApplication)) {
+            LendingPaymentSchedule  prevLendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(previousDisbursedApplication.getId());
+            logger.info("previous LPS {} of an application id {}",prevLendingPaymentSchedule,lendingApplication.getId());
+            return prevLendingPaymentSchedule;
         }
         return null;
     }
@@ -531,8 +523,6 @@ public class LiquiloansService {
             lendingApplication =
               lendingApplicationDao.findByExternalLoanId(postPayoutRequestDto.getApplicationId());
 
-            prevLendingPaymentSchedule = updatePreviousLoan(lendingApplication);
-            logger.info("prevLendingPaymentSchedule {}",prevLendingPaymentSchedule);
             if (lendingApplication == null) {
                 logger.error("Loan application for loanId {} not found.", postPayoutRequestDto.getApplicationId());
                 postPayoutResponseDto.setStatus("FAILED");
@@ -542,6 +532,9 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
+
+            prevLendingPaymentSchedule = updatePreviousLoan(lendingApplication);
+            logger.info("prevLendingPaymentSchedule {}",prevLendingPaymentSchedule);
 
 
             // save the utr if the request contains it, saving beforehand so that in case of some error we have the UTR to keep track of it
