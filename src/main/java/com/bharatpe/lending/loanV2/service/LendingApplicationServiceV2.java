@@ -1746,6 +1746,9 @@ public class LendingApplicationServiceV2 {
                     lendingApplication.setLmsStage(LendingConstants.PENDING_DISBURSAL);
                     lendingApplicationDao.save(lendingApplication);
                     loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
+
+                    loanUtil.checkForPendingDisbursalStageSkip(lendingApplication, MDC.get("requestId"));
+
                     return new ApiResponse<>(true,"Application Submitted Successfully");
                 }
             }

@@ -25,7 +25,9 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.LmsStageHistoryDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -222,6 +224,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
+
+	@Autowired
+	LmsStageHistoryDao lmsStageHistoryDao;
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1822,5 +1827,53 @@ public class LoanUtil {
 		return forceLendersForMerchants;
 	}
 
+	public void checkForPendingDisbursalStageSkip(LendingApplication lendingApplication, String requestId){
+		try{
+			if (LendingConstants.PENDING_DISBURSAL.equalsIgnoreCase(lendingApplication.getLmsStage())) {
+				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+				if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
+					logger.info("lending_risk_variable_snapshot not found for {}", lendingApplication.getId());
+					return;
+				}
+				LendingDisbursalModeConfig lendingDisbursalModeConfig = lendingDisbursalModeConfigDao.findTop1ByLenderAndPlatformAndLoanTypeAndStatusOrderByIdDesc(
+						lendingApplication.getLender(), "LMS", lendingRiskVariablesSnapshot.getRiskSegment().name(), "ACTIVE"
+				);
+				if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
+					logger.info("skipping PENDING_DISBURSAL stage for {}", lendingApplication.getId());
+					publishForDisbursal(lendingApplication, false, requestId);
+
+					LmsStageHistory lmsStageHistory = new LmsStageHistory();
+					lmsStageHistory.setLendingApplicationId(lendingApplication.getId());
+					lmsStageHistory.setLmsStage(LendingConstants.PENDING_DISBURSAL_SKIPPED);
+					LmsStageHistory stageSavedEntity = lmsStageHistoryDao.saveAndFlush(lmsStageHistory);
+
+					lendingApplication.setLmsStage(LendingConstants.SEND_TO_NBFC);
+					lendingApplicationDao.save(lendingApplication);
+				}
+			}
+		}
+		catch(Exception e){
+			logger.error("error on Pending disbursal skip check for {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+	}
+
+	public void publishForDisbursal(LendingApplication lendingApplication,
+									Boolean generateReportFlag, String requestId){
+
+		LoanDisbursalDto loanDisbursalDto = new LoanDisbursalDto();
+		logger.info("Publishing application_id: {} of loan pending for disbursal to kafka "
+						+ "requestId: {}, generateReportFlg: {}",
+				lendingApplication.getId(), requestId, generateReportFlag);
+		loanDisbursalDto.setApplicationId(lendingApplication.getId());
+		loanDisbursalDto.setMerchantId(lendingApplication.getMerchantId());
+		loanDisbursalDto.setGenerateReport(generateReportFlag);
+		loanDisbursalDto.setRequestId(requestId);
+		logger.info("loanDisbursalDto for {} : {}", lendingApplication.getId(), loanDisbursalDto);
+		kafkaTemplate.send(
+				Objects.requireNonNull(LendingConstants.PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC),
+				lendingApplication.getId().toString(),
+				loanDisbursalDto
+		);
+	}
 }
 

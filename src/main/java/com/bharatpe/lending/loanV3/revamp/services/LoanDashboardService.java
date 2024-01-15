@@ -910,7 +910,7 @@ public class LoanDashboardService {
         loanApplicationStage.setStatus(LoanDetailsConstant.STATUS_PENDING);
         // in case of auto disbursal lmsStage will be null, so checking if application status is approved or not.
         if(ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()) &&
-                (Objects.isNull(openApplication.getLmsStage()) || "PENDING_DISBURSAL".equalsIgnoreCase(openApplication.getLmsStage()))
+                (Objects.isNull(openApplication.getLmsStage()) || LendingConstants.SEND_TO_NBFC.equalsIgnoreCase(openApplication.getLmsStage()))
         ){
             loanApplicationStage.setStatus(LoanDetailsConstant.STATUS_SUCCESS);
         }

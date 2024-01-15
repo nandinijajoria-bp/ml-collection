@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.LoanDisbursalDto;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
@@ -31,6 +32,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -54,6 +56,7 @@ import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -309,6 +312,8 @@ public class VerifyOTPService {
                     lendingDisbursalStage.setCallStage("YES");
                     lendingDisbursalStage.setCallTimestamp(currentDate);
                     lendingDisbursalStageDao.save(lendingDisbursalStage);
+
+                    loanUtil.checkForPendingDisbursalStageSkip(lendingApplication, MDC.get("requestId"));
                 }
 
                 finalResponse.put("success", true);
