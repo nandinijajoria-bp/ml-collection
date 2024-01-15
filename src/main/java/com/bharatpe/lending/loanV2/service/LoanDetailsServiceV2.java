@@ -2480,15 +2480,15 @@ public class LoanDetailsServiceV2 {
         }
         if (Objects.isNull(experian)) {
             log.info("no data found in experian table for: {}", merchant.getId());
-            return new ApiResponse<>(Boolean.FALSE, "no experian data found");
+            //return new ApiResponse<>(Boolean.FALSE, "no experian data found");
         }
-        if(!ObjectUtils.isEmpty(pinCode)) {
+        if(!ObjectUtils.isEmpty(pinCode) && !ObjectUtils.isEmpty(experian)) {
             log.info("updating pinCode to {} for merchant : {} ", pinCode, merchant.getId());
             experian.setPincode(pinCode);
             experianDao.save(experian);
         }
         BureauConsentDTO.Data bureauConsentDTO = BureauConsentDTO.Data.builder()
-                .pincode(experian.getPincode())
+                .pincode(pinCode)
                 .pan(pancard)
                 .merchantId(merchant.getId())
                 .mobile(merchant.getMobile())
