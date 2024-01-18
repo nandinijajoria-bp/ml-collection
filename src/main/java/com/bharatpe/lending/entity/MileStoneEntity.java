@@ -45,5 +45,9 @@ public class MileStoneEntity extends BaseEntity {
     @Column(name = "graphData")
     private Double graphData;
 
+    @Column(name="comment")
+    private String comment;
+
+
 
 }

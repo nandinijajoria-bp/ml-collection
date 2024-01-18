@@ -127,6 +127,7 @@ public class MileStoneHelperService {
         entity.setMilestoneOffer(false);
         entity.setKycStatus("APPROVED");
         entity.setGraphData(0D);
+        entity.setComment(null);
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(entity.getCreatedAt());
         if (days == 28) {

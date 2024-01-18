@@ -454,7 +454,7 @@ public class LoanDashboardService {
         }
     }
 
-    private BankAccountDetails getBankName(Long merchantId){
+    public BankAccountDetails getBankName(Long merchantId){
         log.info("Getting bank account details for merchant:{}", merchantId);
         try {
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
@@ -497,7 +497,7 @@ public class LoanDashboardService {
         }
     }
 
-    private Boolean isClubV2Member(Long merchantId){
+    public Boolean isClubV2Member(Long merchantId){
         String clubV2MembershipKey = LoanDetailsConstant.CLUB_V2_MEMBERSHIP_KEY_PREFIX + merchantId;
         Object clubV2Response = lendingCache.get(clubV2MembershipKey);
         if (ObjectUtils.isEmpty(clubV2Response)) {
@@ -996,7 +996,7 @@ public class LoanDashboardService {
         }
     }
 
-    private String getPreApprovedTag(Long merchantId){
+    public String getPreApprovedTag(Long merchantId){
         LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if(ObjectUtils.isEmpty(lendingRiskVariables)){
             return null;
