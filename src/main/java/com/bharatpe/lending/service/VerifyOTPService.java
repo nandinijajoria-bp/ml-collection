@@ -176,6 +176,7 @@ public class VerifyOTPService {
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
+    @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
