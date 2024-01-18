@@ -26,7 +26,6 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LmsStageHistoryDao;
-import com.bharatpe.lending.dao.LmsStageHistoryDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.ApplicationStatus;
@@ -207,6 +206,8 @@ public class LoanUtil {
 
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
+	List<Long> derogMerchants = new ArrayList();
+
 	List<Long> customEnabledMerchants = new ArrayList();
 
 	List<Long> rteEligibleMerchants = new ArrayList();
@@ -224,10 +225,21 @@ public class LoanUtil {
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
-    @Autowired
-    LmsStageHistoryDao lmsStageHistoryDao;
+	@Autowired
+	LmsStageHistoryDao lmsStageHistoryDao;
 
-    public List<Long> customEnabledTopupMerchants() {
+	public List<Long> loadDerogEffectedMerchants() {
+		if (!ObjectUtils.isEmpty(derogMerchants)) {
+			return derogMerchants;
+		}
+
+		String filePath = "/MerchantList/derog_merchant";
+
+		derogMerchants = readCsvFile(filePath);
+		return derogMerchants;
+	}
+
+	public List<Long> customEnabledTopupMerchants() {
 		if (!ObjectUtils.isEmpty(customEnabledMerchants)) {
 			return customEnabledMerchants;
 		}
