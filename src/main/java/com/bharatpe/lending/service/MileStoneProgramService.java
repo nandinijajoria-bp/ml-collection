@@ -562,7 +562,10 @@ public class MileStoneProgramService {
         KycStatusDTO doc = kycHandler.getKycStatus(merchant.getId());
         rteProgramDetailsDto.setKycStatus(doc.getKycStatus());
         checkEligibility(rteProgramDetailsDto, merchant);
-        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantId(merchant.getId());
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(),"IN_PROGRESS");
+        log.info("entity is {} for merchant id {}",entity,merchant.getId());
+        log.info("loanEligibility {} of a merchant is {}",rteProgramDetailsDto.getLoanEligibility(),merchant.getId());
+
         if (rteProgramDetailsDto.getLoanEligibility().equals(Boolean.TRUE) &&
                 "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             updateEntity(merchant);
