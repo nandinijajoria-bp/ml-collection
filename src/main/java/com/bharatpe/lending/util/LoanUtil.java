@@ -77,6 +77,9 @@ public class LoanUtil {
 	MongoPublisher mongoPublisher;
 
 	@Autowired
+	BQPublisherUtil bqPublisherUtil;
+
+	@Autowired
 	LendingCovidCitiesDao lendingCovidCitiesDao;
 
 	@Autowired
@@ -505,9 +508,7 @@ public class LoanUtil {
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
 			experianAuditTrail.setId(System.nanoTime());
-			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>() {{
-				add(experianAuditTrail);
-			}});
+			bqPublisherUtil.publish("lending","experian_audit_trail", experianAuditTrail);
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
 		}
