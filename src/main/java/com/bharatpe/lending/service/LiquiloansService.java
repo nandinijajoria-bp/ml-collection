@@ -732,7 +732,9 @@ public class LiquiloansService {
                 lendingApplication.setLoanDisbursalStatus(disbursalStage);
                 lendingApplicationDao.save(lendingApplication);
                 logger.info("known application status {} for the application id {} is set to {}", postPayoutRequestDto.getLoanDisbursalStatus(), lendingApplication.getId(), lendingApplication.getLoanDisbursalStatus());
-                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule) && "FAILED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())) {
+                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule) && "INACTIVE_TOPUP".equalsIgnoreCase(prevLendingPaymentSchedule.getStatus())
+                        && "FAILED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())
+                        && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
                     prevLendingPaymentSchedule.setStatus("ACTIVE");
                     lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
                 }
