@@ -992,7 +992,7 @@ public class SupportService {
                 if (!Objects.isNull(lendingPaymentSchedule1)) {
                     logger.info("loan found in LPS for merchant:{} with status:{}", merchantId, lendingPaymentSchedule1.getStatus());
                     List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
-                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDesc(lendingPaymentSchedule1);
+                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule1);
                     Double dueAmount = 0D;
                     for (LendingLedger lendingLedger1 : lendingLedgerList) {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
@@ -1009,7 +1009,7 @@ public class SupportService {
                             lendingLedgerDetail.put("paidAmount", paidAmount);
                         }
                         lendingLedgerDetail.put("dueAmount", dueAmount);
-                        lendingLedgerDetailList.add(lendingLedgerDetail);
+                        lendingLedgerDetailList.add(0, lendingLedgerDetail);
                     }
 
                     SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
