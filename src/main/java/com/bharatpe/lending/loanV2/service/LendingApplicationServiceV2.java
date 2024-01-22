@@ -2389,7 +2389,7 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.LIQUILOANS_NBFC.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2817,8 +2817,12 @@ public class LendingApplicationServiceV2 {
         if(lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
             logoUrl = "https://d36q81tf33qni.cloudfront.net/LiquiLoans.png";
         }
+        else if(lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) && applicationDocType.equals(ApplicationDocType.LIQUILOANS_NBFC_FOOTER))
+        {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trliions_Footer-1705915638774.png";
+        }
         else if(lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/TrillionLogoKFS.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trillions_Header-1705913991462.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";

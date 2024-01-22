@@ -21,12 +21,13 @@ public interface KfsConstants {
     String LENDER_CONTACT_EMAIL_LDC = "cs@lendenclub.com";
     String LENDER_CONTACT_NUMBER_LDC = "022 48913091";
     String LENDER_GRIEVANCE_TIME_LDC = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
-    String LENDER_CORPORATE_NAME_LL_NBFC = "Trillionloans Fintech Private Limited";
-    String LENDER_BUSINESS_ADDRESS_LL_NBFC = "1st Floor, B-104, The Qube having C.T.S. No. 1498, A/2, M.V. Road, Marol, Andheri (East) Mumbai MH 400059";
-    String LENDER_CONTACT_NAME_LL_NBFC = "Sabyasachi Senapati";
-    String LENDER_CONTACT_EMAIL_LL_NBFC = "grievances@trillionloans.com";
-    String LENDER_CONTACT_NUMBER_LL_NBFC = "";
+    String LENDER_CORPORATE_NAME_LL_NBFC = "For,Trillionloans Fintech Private Limited";
+    String LENDER_BUSINESS_ADDRESS_LL_NBFC = "7th Floor, Unit No. B2, 705, in Building Kanakia Boomerang situated at Yadav Nagar, Chandivali, Powai, Mumbai - 400072, Maharashtra";
+    String LENDER_CONTACT_NAME_LL_NBFC = "Hardik Nandani";
+    String LENDER_CONTACT_EMAIL_LL_NBFC = "nodalofficer@trillionloans.com";
+    String LENDER_CONTACT_NUMBER_LL_NBFC = "02246191245";
     String LENDER_GRIEVANCE_TIME_LL_NBFC = "9:30am-6pm, Monday to Friday";
+    String LENDER_GRIEVANCE_REDRESSAL_POLICY_LL_NBFC = "https://www.trillionloans.com/policies-codes.html";
 
     String LENDER_CORPORATE_NAME_MAMTA = "Mamta Projects Private Limited";
     String LENDER_BUSINESS_ADDRESS_MAMTA = "The Nodal Officer, Mamta Projects Pvt. Ltd., \n" +
