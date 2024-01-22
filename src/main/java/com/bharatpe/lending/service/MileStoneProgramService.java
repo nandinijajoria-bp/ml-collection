@@ -566,7 +566,8 @@ public class MileStoneProgramService {
         log.info("entity is {} for merchant id {}",entity,merchant.getId());
         log.info("loanEligibility {} of a merchant is {}",rteProgramDetailsDto.getLoanEligibility(),merchant.getId());
 
-        if (rteProgramDetailsDto.getLoanEligibility().equals(Boolean.TRUE) &&
+        if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getLoanEligibility()) &&
+                rteProgramDetailsDto.getLoanEligibility().equals(Boolean.TRUE) &&
                 "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             updateEntity(merchant);
         }
