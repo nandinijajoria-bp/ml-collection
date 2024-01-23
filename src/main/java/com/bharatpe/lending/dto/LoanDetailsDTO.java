@@ -61,5 +61,7 @@ public class LoanDetailsDTO {
     private String ediModel;
     @JsonProperty("refundDetails")
     private List<Map<String, Object>> refundDetails;
+    @JsonProperty("penaltyLedger")
+    private List<Map<String, Object>> penaltyLedger;
 
 }
