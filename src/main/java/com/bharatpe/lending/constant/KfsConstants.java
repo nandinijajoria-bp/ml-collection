@@ -21,7 +21,7 @@ public interface KfsConstants {
     String LENDER_CONTACT_EMAIL_LDC = "cs@lendenclub.com";
     String LENDER_CONTACT_NUMBER_LDC = "022 48913091";
     String LENDER_GRIEVANCE_TIME_LDC = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
-    String LENDER_CORPORATE_NAME_LL_NBFC = "For,Trillionloans Fintech Private Limited";
+    String LENDER_CORPORATE_NAME_LL_NBFC = "Trillionloans Fintech Private Limited";
     String LENDER_BUSINESS_ADDRESS_LL_NBFC = "7th Floor, Unit No. B2, 705, in Building Kanakia Boomerang situated at Yadav Nagar, Chandivali, Powai, Mumbai - 400072, Maharashtra";
     String LENDER_CONTACT_NAME_LL_NBFC = "Hardik Nandani";
     String LENDER_CONTACT_EMAIL_LL_NBFC = "nodalofficer@trillionloans.com";

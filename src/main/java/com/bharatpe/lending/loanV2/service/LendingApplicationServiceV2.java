@@ -2298,7 +2298,7 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.LIQUILOANS_NBFC.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
