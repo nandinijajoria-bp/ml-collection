@@ -710,6 +710,12 @@ public class SignAgreementService {
 		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())
 		? eligibleLoan.getAmount() - previousAmount : eligibleLoan.getAmount();
 
+		if (disbursalAmount <= 0) {
+			logger.error("Disbursal amount less than <= 0 for merchantId {}", merchant.getId());
+			response.put("message","Invalid loan application");
+			return response;
+		}
+
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
 			processingFee = 0D;
 		}else {
