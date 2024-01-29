@@ -166,13 +166,12 @@ public class MileStoneHelperService {
     }
 
     public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant) {
-
         MileStoneEligibilityResponseDto responseDto = new MileStoneEligibilityResponseDto();
         responseDto.setShowHomeWidgets(milestoneWidgetVisible);
         responseDto.setShowSplashBanner(milestoneSplashVisible);
         responseDto.setShowRTELoansFlow(milestoneEasyLoanVisible);
 
-
+        try {
         List<Long> rteEligibleMerchants = loanUtil.rteEligibleMerchant();
         if (!easyLoanUtil.percentScaleUp(merchant.getId(), milestoneTargetUser)
                 && !rteEligibleMerchants.contains(merchant.getId())) {
@@ -692,11 +691,23 @@ public class MileStoneHelperService {
             log.info("responseDto--->{}",responseDto);
             return responseDto;
 
-        }
-        responseDto.setMilStoneEligibility(false);
-        responseDto.setEnrollState(false);
+            }
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
+            return responseDto;
 
-        return responseDto;
+        }
+        catch (Exception e)
+        {
+            log.error("exception in calculate Eligibility flow for merchant id: {} and exception is {} ",merchant.getId(),Arrays.asList(e.getStackTrace()));
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
+            responseDto.setShowHomeWidgets(milestoneWidgetVisible);
+            responseDto.setShowSplashBanner(milestoneSplashVisible);
+            responseDto.setShowRTELoansFlow(milestoneEasyLoanVisible);
+            return responseDto;
+        }
+
     }
 
 
