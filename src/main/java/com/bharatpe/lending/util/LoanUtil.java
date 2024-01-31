@@ -899,6 +899,11 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setComputeSource(lendingRiskVariables.getComputeSource());
 				lendingRiskVariablesSnapshot.setAggregateId(lendingRiskVariables.getAggregateId());
 				lendingRiskVariablesSnapshot.setMonthlyIncome(lendingRiskVariables.getMonthlyIncome());
+				lendingRiskVariablesSnapshot.setGst3bBasedAffectedOffer(lendingRiskVariables.getGst3bBasedAffectedOffer());
+				lendingRiskVariablesSnapshot.setAaBasedAffectedOffer(lendingRiskVariables.getAaBasedAffectedOffer());
+				lendingRiskVariablesSnapshot.setAaBasedOffer(lendingRiskVariables.getAaBasedOffer());
+				lendingRiskVariablesSnapshot.setBankBasedAffectedOffer(lendingRiskVariables.getBankBasedAffectedOffer());
+				lendingRiskVariablesSnapshot.setApprovalRate(lendingRiskVariables.getApprovalRate());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
