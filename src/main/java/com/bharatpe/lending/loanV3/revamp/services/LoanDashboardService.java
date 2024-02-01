@@ -949,6 +949,12 @@ public class LoanDashboardService {
                 log.info("Derog merchant:{}", merchantId);
                 return IneligibleType.DEROG.name();
             }
+
+            if (!loanUtil.isEnachBank(merchantId)) {
+                log.info("Not an enach bank for the  merchantId:{}", merchantId);
+                return IneligibleType.CHANGE_BANK_ACCOUNT.name();
+            }
+
         } catch (Exception e) {
             log.error("Exception in getIneligibleReason for merchant:{}", merchantId, e);
         }

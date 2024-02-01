@@ -97,6 +97,8 @@ public interface LendingConstants {
 
 	String NEGATIVE_BUSINESS_CATEGORY_REJECTION = "Negative category as per lender";
 
+	String PAYTM = "PAYTM";
+
 }
 
 
