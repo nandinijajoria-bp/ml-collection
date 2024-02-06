@@ -103,6 +103,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
 
 @Service
 @Slf4j
@@ -575,6 +576,13 @@ public class LendingApplicationServiceV2 {
             }
             LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
+
+            final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
+
+            if (rejected) {
+                return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
+            }
+
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
@@ -601,6 +609,25 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
         }
+    }
+
+
+    private boolean checkAndRejectPilotIdentifierApplication(LendingApplication lendingApplication) {
+
+        boolean rejected = false;
+
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        if(Objects.nonNull(lendingRiskVariablesSnapshot) && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getPilotIdentifier())
+            && lendingRiskVariablesSnapshot.getPilotIdentifier().contains(F_TPV_PILOT_IDENTIFIER)) {
+            log.info("rejecting applications with pilot indetifier F_TPV");
+            lendingApplication.setStatus("rejected");
+            lendingApplication.setManualCibil("REJECTED");
+            lendingApplication.setManualCibilReason("credit assesment failed : F_TPV");
+            lendingApplication.setCibilApprovedDate(new Date());
+            rejected = true;
+        }
+        lendingApplicationDao.save(lendingApplication);
+        return rejected;
     }
 
     private AddressValidationDto getAddressValidationScore(CreateApplicationRequest createApplicationRequest) {
@@ -931,6 +958,7 @@ public class LendingApplicationServiceV2 {
             log.info("Already an ongoing loan exists for the merchant : {}", merchant.getId());
             return "Already an ongoing loan exists";
         }
+
         return null;
     }
 

@@ -38,6 +38,8 @@ public class LoanDetailsConstant {
 
     public static String PREAPPROVED_REPEAT_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_REPEAT";
 
+    public static String F_TPV_PILOT_IDENTIFIER = "F_TPV";
+
     public static String PREAPPROVED_TOPUP_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_TOPUP";
 
     public static String DIWALI_BANNER_IDENTIFIER = "REDUCED_INTEREST_RATE";
