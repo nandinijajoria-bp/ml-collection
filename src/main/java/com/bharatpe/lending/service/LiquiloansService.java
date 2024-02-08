@@ -20,6 +20,7 @@ import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -249,6 +250,9 @@ public class LiquiloansService {
 
     @Autowired
     private PiramalGetLoanDetails piramalGetLoanDetails;
+
+    @Autowired
+    private SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
     public void publishForDisbursal(Long lendingAppId) {
 
@@ -511,6 +515,7 @@ public class LiquiloansService {
         LendingPaymentSchedule lendingPaymentSchedule = null;
         BasicDetailsDto basicDetailsDto = null;
         LendingPaymentSchedule prevLendingPaymentSchedule=null;
+        boolean loanStatusFlag = false;
 //        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(Long.valueOf(postPayoutRequestDto.getMerchantId()));
         try {
 //            logger.info("Fetching merchant for the merchant id {}", postPayoutRequestDto.getMerchantId());
@@ -708,6 +713,8 @@ public class LiquiloansService {
                         logger.error("exception while closing previous loan while making Top-up application {}, active lps is {}, e{}", lendingApplication.getId(),prevLendingPaymentSchedule.getId(), Arrays.asList(e.getStackTrace()));
                     }
                 }
+                loanStatusFlag = true;
+                logger.info("setting loan flag status as true in populatePostPayoutSchedule for merchantId : {}",lendingPaymentSchedule.getMerchantId());
             }
 
             else if ("UNKNOWN".equalsIgnoreCase(disbursalStage)) {
@@ -823,6 +830,13 @@ public class LiquiloansService {
             prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
         }
         loanUtil.publishApplicationEvent(lendingApplication);
+
+        if(loanStatusFlag)
+        {
+                Long merchantId = lendingPaymentSchedule.getMerchantId();
+                logger.info("sending loan flag status in populatePostPayoutSchedule for merchantId : {}",merchantId);
+                sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, lendingPaymentSchedule.getStatus());
+        }
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
     }
 

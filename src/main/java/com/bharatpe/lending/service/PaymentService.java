@@ -18,10 +18,7 @@ import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
-import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.common.service.LendingNotificationService;
-import com.bharatpe.lending.common.service.NBFCService;
-import com.bharatpe.lending.common.service.PaymentSettlementService;
+import com.bharatpe.lending.common.service.*;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -234,6 +231,9 @@ public class PaymentService {
 
     @Autowired
     PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
+    @Autowired
+    SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -942,6 +942,7 @@ public class PaymentService {
 
         boolean excessCollectionAdjusted = false;
         double penaltyFee = 0;
+        boolean loanStatusFlag = false;
 
         logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), (principalDueAmount + ediHolidayInterestAmount));
         logger.info("Advance EDI amount for loanId:{} is:{}", activeLoan.getId(), advanceEdiAmount);
@@ -990,6 +991,8 @@ public class PaymentService {
                 lendingPrepayment.setAdvanceEdiAmount(0D);
                 lendingPrepaymentDao.save(lendingPrepayment);
             }
+            loanStatusFlag=true;
+            log.info("setting loan flag as true at AdjustLoanBalance for merchantId :{}",activeLoan.getMerchantId());
         }
         else {
             double balance=amount;
@@ -1177,6 +1180,13 @@ public class PaymentService {
                 sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
         }else if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()) && !ObjectUtils.isEmpty(lendingLedger)){
             postForeclosureReceiptPiramal(activeLoan,lendingLedger);
+        }
+
+        if(loanStatusFlag)
+        {
+            Long merchantId = activeLoan.getMerchantId();
+            log.info("sending loan flag event in adjustLoanBalance for merchantId : {}",merchantId);
+            sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
         }
 
 //		if(isLoanClosed) {
@@ -1744,6 +1754,7 @@ public class PaymentService {
                 excessCollectionBalance += lendingCollectionExcess.getAmount();
             }
         }
+        boolean loanStatusFlag = false;
 
         logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), foreclosureAmount);
@@ -1783,6 +1794,8 @@ public class PaymentService {
             activeLoan.setClosingDate(new Date());
             preclosure = true;
             if(excessCollectionBalance > 0D)excessCollectionAdjusted = true;
+            loanStatusFlag=true;
+            log.info("setting loan flag as true at AdjustLoanBalanceEdiByEdi for merchantId :{}",activeLoan.getMerchantId());
         }
         else {
             final SettleLoanPaymentDTO settleLoanPaymentDTO = paymentSettlementService.settleLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), remainingBalance);
@@ -1859,6 +1872,12 @@ public class PaymentService {
             lendingRefundAudit.setRefundAmount(remainingBalance);
             lendingRefundAudit.setOrderAmount(amount);
             lendingRefundAuditDao.save(lendingRefundAudit);
+        }
+        if(loanStatusFlag)
+        {
+            Long merchantId = activeLoan.getMerchantId();
+            log.info("sending loan flag status in adjustLoanBalanceEdiByEdi for merchantId : {} ",merchantId);
+            sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
         }
     }
 
