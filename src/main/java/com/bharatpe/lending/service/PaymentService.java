@@ -143,6 +143,9 @@ public class PaymentService {
     LoanDpdDaoSlave loanDpdDaoSlave;
 
     @Autowired
+    ExcessNachService excessNachService;
+
+    @Autowired
     LendingNotificationService lendingNotificationService;
 
     @Autowired
@@ -258,7 +261,10 @@ public class PaymentService {
         Integer overdueAmount = activeLoan.getDueAmount().intValue();
         Integer penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty().intValue() : 0;
         Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
-        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
+
+        Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(activeLoan.getMerchantId(), activeLoan.getId());
+
+        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         boolean isPayable = true;
         if(overdueDays < 2) {
@@ -277,6 +283,7 @@ public class PaymentService {
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
             netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+            netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
         }
         principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
         logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());

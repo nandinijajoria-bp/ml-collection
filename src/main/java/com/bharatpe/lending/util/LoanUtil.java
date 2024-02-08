@@ -1178,6 +1178,21 @@ public class LoanUtil {
 				- advanceEdiAmount - excessCollectionBalance);
 	}
 
+
+	public int getForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule, Double excessCollectionBalance) {
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return 0;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+
+
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
+		- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
+		+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
+		- advanceEdiAmount - excessCollectionBalance);
+	}
+
 	public int getForeclosureAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
 		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
 			return 0;
