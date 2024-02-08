@@ -424,19 +424,23 @@ public class LenderAssignService implements ILenderAssignService {
                 return gstOfferLender;
             }
 
-            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
-            if("REPEAT".equalsIgnoreCase(riskSegment) && Objects.nonNull(kycDetails)){
-                //skip KYC
-                log.info("merchant {}  can skip KYC done on:{} for lender:{}", lendingApplication.getMerchantId(),kycDetails.getConsentDate() ,lender.getLender());
-                kycSkippableLender=lender;
-                flag=true;
-            }
-            if(loanUtil.isEligibleForNachSkip(lendingApplication, lender.getLender())){
-                //skip NACH
-                log.info("merchant {}  can skip NACH for lender:{}", lendingApplication.getMerchantId(), lender.getLender());
-                nachSkippableLender=lender;
-                flag = true;
-            }
+            // START remove giving preference to already kyc done lender
+//            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
+//            if("REPEAT".equalsIgnoreCase(riskSegment) && Objects.nonNull(kycDetails)){
+//                //skip KYC
+//                log.info("merchant {}  can skip KYC done on:{} for lender:{}", lendingApplication.getMerchantId(),kycDetails.getConsentDate() ,lender.getLender());
+//                kycSkippableLender=lender;
+//                flag=true;
+//            }
+            // END remove giving preference to already kyc done lender
+
+
+//            if(loanUtil.isEligibleForNachSkip(lendingApplication, lender.getLender())){
+//                //skip NACH
+//                log.info("merchant {}  can skip NACH for lender:{}", lendingApplication.getMerchantId(), lender.getLender());
+//                nachSkippableLender=lender;
+//                flag = true;
+//            }
             
             if(Objects.nonNull(nachSkippableLender) && Objects.nonNull(kycSkippableLender) && nachSkippableLender.equals(kycSkippableLender)){
                 log.info("merchant {} can skip both KYC and NACH for lender: {}", lendingApplication.getMerchantId(), kycSkippableLender);
@@ -447,7 +451,7 @@ public class LenderAssignService implements ILenderAssignService {
         if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
             //new flow
             if(ObjectUtils.isEmpty(assignedLender)){
-                assignedLender = flag ? (ObjectUtils.isEmpty(nachSkippableLender)?kycSkippableLender:nachSkippableLender):toBeAssignedLenders.get(0);
+                assignedLender = flag ? (ObjectUtils.isEmpty(nachSkippableLender) ? kycSkippableLender : nachSkippableLender) : toBeAssignedLenders.get(0);
                 LendingApplicationDetails lendingApplicationDetails=lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
                 if(ObjectUtils.isEmpty(lendingApplicationDetails)){
                     lendingApplicationDetails = new LendingApplicationDetails();
@@ -456,7 +460,7 @@ public class LenderAssignService implements ILenderAssignService {
                 lendingApplicationDetails.setIsKycSkip(Objects.nonNull(kycSkippableLender) && assignedLender.equals(kycSkippableLender));
             }
         } else{
-            assignedLender=toBeAssignedLenders.get(0);
+            assignedLender = toBeAssignedLenders.get(0);
         }
 
         updateLenderLimits(assignedLender, lendingApplication);
