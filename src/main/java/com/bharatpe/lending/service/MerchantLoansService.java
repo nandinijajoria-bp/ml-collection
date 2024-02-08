@@ -878,13 +878,6 @@ public class MerchantLoansService {
                     logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
                 }
-
-                final List<LoanEligibilityDTO> eligibilityDTOS = computeEligibility(lendingPaymentSchedule);
-
-                if (!eligibilityDTOS.isEmpty() && paidRatio >= 0.05D && checkForMultipleRepeatTopupOffer(lendingPaymentSchedule.getMerchantId()) ) {
-                    logger.info("multiple repeat topup eligible and paid ratio >= 0.05 : {}", lendingPaymentSchedule.getMerchantId());
-                    return eligibilityDTOS;
-                }
             }
         } catch (Exception e) {
             logger.error("Exception occurred while checking eligibility for topup", e);

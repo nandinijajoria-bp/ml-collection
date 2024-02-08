@@ -755,12 +755,7 @@ public class LoanDashboardService {
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
-            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
 
-            if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
-                funnelService.submitEvent(merchant.getId(), null, null,
-                        FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
-            }
 //            loanDashboardResponse.setPancard(experian.getPancardNumber());
 //            loanDashboardResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
 //            loanDashboardResponse.setHasExperian(true);
@@ -823,6 +818,15 @@ public class LoanDashboardService {
                     eligibility = createEligibility(merchant.getId(),eligibleLoan);
                 }
             }
+
+            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
+
+            if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
+                funnelService.submitEvent(merchant.getId(), null, null,
+                FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
+            }
+
+
             if (eligibility != null) {
                 loanDashboardResponse.setEligibility(eligibility);
                 return;
