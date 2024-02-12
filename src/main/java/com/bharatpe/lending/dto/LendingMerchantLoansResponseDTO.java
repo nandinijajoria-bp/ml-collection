@@ -1,10 +1,5 @@
 package com.bharatpe.lending.dto;
 
-import java.util.*;
-import java.util.stream.Collectors;
-
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.enums.Lender;
@@ -17,8 +12,12 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.springframework.util.ObjectUtils;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -127,6 +126,8 @@ public class LendingMerchantLoansResponseDTO {
         private Double loanAmount;
         private Double ediAmount;
         private Double dueAmount;
+        private Double todayEdi;
+        private Double pendingEdi;
         private Double interestRate;
         private Double processingFee;
         private Double disbursedAmount;
