@@ -36,6 +36,7 @@ import static com.bharatpe.lending.enums.Lender.LDC;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P_OF;
+import static com.bharatpe.lending.enums.Lender.*;
 
 @Slf4j
 @Service
@@ -124,6 +125,12 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${piramal.rollout.percent:1}")
     Integer piramalRolloutPercentage;
+
+    @Value("${usfb.rollout.percent:1}")
+    Integer usfbRolloutPercentage;
+
+    @Value("${trillionLoans.rollout.percent:1}")
+    Integer trillionLoansRolloutPercentage;
 
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
@@ -595,7 +602,7 @@ public class LenderAssignService implements ILenderAssignService {
         List<String> ageCheckLenderList = Arrays.asList(ageCheckLenders.split(","));
         Integer age = apiGatewayService.getMerchantAge(merchantId);
         log.info("lender assignment rules: {}", lenderAssignmentRules);
-        log.info("is internal merchant", loanUtil.isInternalMerchant(merchantId));
+        log.info("is internal merchant {}", loanUtil.isInternalMerchant(merchantId));
         for(LenderAssignmentRules rule:lenderAssignmentRules){
             String lender = rule.getLender();
             log.info("running skip check for lender {} for  {}", lender, merchantId);
@@ -619,11 +626,37 @@ public class LenderAssignService implements ILenderAssignService {
                     log.info("removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
                     continue;
                 }
+                if(lenderRolloutFailedCheck(lender, merchantId)) {
+                    continue;
+                }
                 eligibleLenders.add(lender);
             }
         }
         log.info("Eligible Lenders: {}", eligibleLenders);
         return eligibleLenders;
+    }
+
+    private boolean lenderRolloutFailedCheck(String lender, Long merchantId) {
+        List<Lender> skipRolloutCheckForLenders = Arrays.asList(LDC, MAMTA, HINDON, LIQUILOANS, LIQUILOANS_NBFC, LIQUILOANS_P2P, LIQUILOANS_P2P_OF, MAMTA0, MAMTA1, MAMTA2, ABFL,PIRAMAL);
+        if(skipRolloutCheckForLenders.contains(Lender.valueOf(lender))) {
+            return false;
+        }
+        Integer rolloutPercent = 0;
+        switch (lender) {
+            case "USFB":
+                rolloutPercent = usfbRolloutPercentage;
+                break;
+            case "TRILLIONLOANS":
+                rolloutPercent = trillionLoansRolloutPercentage;
+                break;
+            default:
+                rolloutPercent = 0;
+        }
+        if(!loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, rolloutPercent)) {
+            log.info("removing {} from eligible lender list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, rolloutPercent);
+            return true;
+        }
+        return false;
     }
 
     public Lender modifyLender(Long applicationId){

@@ -66,4 +66,6 @@ public interface KfsConstants {
     String LENDER_CONTACT_EMAIL_PIRAMAL = "nodal.officer@piramal.com";
     String LENDER_CONTACT_NUMBER_PIRAMAL = "022-69181439";
     String LENDER_GRIEVANCE_TIME_ABFL = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
+    String ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX = "ESigned_Sanction_Cum_Loan_Agreement_";
+    String ESIGNED_KFS_S3_KEY_PREFIX = "ESigned_Key_Facts_Statement_";
 }

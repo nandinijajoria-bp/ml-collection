@@ -2228,6 +2228,13 @@ public class LendingApplicationServiceV2 {
                 lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MAMTA;
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MAMTA;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MAMTA;
+            } else if (lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LL_NBFC;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LL_NBFC;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LL_NBFC;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LL_NBFC;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LL_NBFC;
+                lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LL_NBFC;
             }
             if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
                 colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA1;
@@ -2325,8 +2332,9 @@ public class LendingApplicationServiceV2 {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
-            if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.LIQUILOANS_NBFC.name()).contains(lendingKfs.getLender())) {
+            if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
+                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2417,7 +2425,7 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),Lender.LIQUILOANS_NBFC.name()).contains(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2482,14 +2490,15 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL.html";
-            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
-                && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+            } else if(lender.equalsIgnoreCase(Lender.USFB.name())) {
+                filePath = "/templates/" + "KFS_NONP2P_USFB" + ".html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
-            }
-            else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/KFS_TRILLION_PC.html";
-            }
-            else {
+            } else if (lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/KFS_TRILLIONLOANS_PC.html";
+            } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2562,14 +2571,15 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
-            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
-                    && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+            } else if (lender.equalsIgnoreCase(Lender.USFB.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_USFB.html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
-            }
-            else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC.html";
-            }
-            else {
+            } else if (lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLIONLOANS_PC.html";
+            } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
 
@@ -2844,15 +2854,12 @@ public class LendingApplicationServiceV2 {
         String logoUrl = "";
         if(lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
             logoUrl = "https://d36q81tf33qni.cloudfront.net/LiquiLoans.png";
-        }
-        else if(lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) && applicationDocType.equals(ApplicationDocType.LIQUILOANS_NBFC_FOOTER))
-        {
+        } else if((lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender))
+                && applicationDocType.equals(ApplicationDocType.LIQUILOANS_NBFC_FOOTER)) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trliions_Footer-1705915638774.png";
-        }
-        else if(lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
+        } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender)) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trillions_Header-1705913991462.png";
-        }
-        else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)){
+        } else if (lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)) {
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding_1.png";
         }

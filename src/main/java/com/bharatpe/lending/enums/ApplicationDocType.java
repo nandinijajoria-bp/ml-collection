@@ -23,6 +23,7 @@ public enum ApplicationDocType {
             case PIRAMAL:
                 return PIRAMAL_LETTERHEAD_FOOTER;
             case LIQUILOANS_NBFC:
+            case TRILLIONLOANS:
                 return LIQUILOANS_NBFC_FOOTER;
         }
         return null;

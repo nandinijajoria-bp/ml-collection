@@ -1,10 +1,12 @@
 package com.bharatpe.lending.loanV3.services.stages;
 
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationServiceFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.associations.AbflKycService;
 import com.bharatpe.lending.loanV3.services.associations.OldModelService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CreateLeadAndDocUploadInitService;
+import com.bharatpe.lending.loanV3.services.associations.CreateLeadAndDocUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +22,9 @@ public class KycStageAssociationSvcFactory extends LenderAssociationServiceFacto
     @Autowired
     CreateLeadAndDocUploadInitService createLeadAndDocUploadInitService;
 
+    @Autowired
+    CreateLeadAndDocUploadService createLeadAndDocUploadService;
+
     @Override
     public ILenderAssociationService getLenderAssociationService(String lender) {
         switch (lender) {
@@ -27,6 +32,9 @@ public class KycStageAssociationSvcFactory extends LenderAssociationServiceFacto
                 return abflKycService;
             case "PIRAMAL":
                 return createLeadAndDocUploadInitService;
+            case "USFB":
+            case "TRILLIONLOANS":
+                return createLeadAndDocUploadService;
             default:
                 return oldModelService;
         }

@@ -1420,7 +1420,7 @@ public class LoanUtil {
 		if (lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")) {
 			finalLender = Lender.LIQUILOANS.name();
 		}
-		if (lender.equals("LIQUILOANS_NBFC")) {
+		if (lender.equals("LIQUILOANS_NBFC") || "TRILLIONLOANS".equalsIgnoreCase(lender)) {
 			finalLender = "TRILLIONS";
 		}
 		if (lender.equals("LIQUILOANS_P2P_OF")) {

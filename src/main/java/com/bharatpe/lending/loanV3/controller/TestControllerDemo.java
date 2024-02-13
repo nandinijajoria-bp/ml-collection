@@ -5,6 +5,7 @@ import com.bharatpe.lending.loanV3.dto.LoanReceiptResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.AbflReceiptService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.impl.EdiModelAssignmentV1;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -51,6 +52,12 @@ public class TestControllerDemo {
     @RequestMapping(value = "/ldc-foreclosure_details", method = RequestMethod.GET)
     public ResponseEntity<?> ldcTopConsent(@RequestParam(name = "application_id") Long applicationId){
         return ResponseEntity.ok(apiGatewayService.getLdcForeclosureDetails(applicationId));
+    }
+
+    @RequestMapping(value = "/generate-short-url", method = RequestMethod.POST)
+    public ResponseEntity<?> generateShortUrl(@RequestBody JsonNode request) {
+        log.info("create short url for given url {}", request.get("url").textValue());
+        return ResponseEntity.ok(apiGatewayService.getShortUrl(request.get("url").textValue()));
     }
 
 }

@@ -18,6 +18,7 @@ public class BureauResponseDTO {
     private String mobile;
     private String pancard;
     private JsonNode bureauData;
+    private JsonNode bureauTradeLineData;
     private Boolean isNTC;
     private BureauVariables variables;
 
