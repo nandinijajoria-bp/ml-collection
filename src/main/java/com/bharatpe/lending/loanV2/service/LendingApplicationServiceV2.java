@@ -41,14 +41,12 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.UpdateLeadAndRiskDecisionWrapperService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
@@ -79,7 +77,6 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
-import org.joda.time.DateTime;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -2188,7 +2185,8 @@ public class LendingApplicationServiceV2 {
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LIQUILOANS;
                 lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LIQUILOANS;
             }
-            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString()) ||
+                    lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LL_NBFC;
                 lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LL_NBFC;
                 lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LL_NBFC;
@@ -2228,13 +2226,6 @@ public class LendingApplicationServiceV2 {
                 lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MAMTA;
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MAMTA;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MAMTA;
-            } else if (lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
-                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LL_NBFC;
-                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LL_NBFC;
-                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LL_NBFC;
-                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_LL_NBFC;
-                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LL_NBFC;
-                lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LL_NBFC;
             }
             if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())){
                 colenderCorporateName = KfsConstants.COLENDER_CORPORATE_NAME_MAMTA1;
@@ -2494,10 +2485,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_USFB" + ".html";
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
-            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
-                filePath = "/templates/KFS_TRILLION_PC.html";
-            } else if (lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath = "/templates/KFS_TRILLIONLOANS_PC.html";
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/KFS_TRILLION_PC_v2.html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -2575,10 +2564,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_USFB.html";
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
-            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC.html";
-            } else if (lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLIONLOANS_PC.html";
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
