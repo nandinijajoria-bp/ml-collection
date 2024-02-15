@@ -200,7 +200,7 @@ public class TLDocUploadService {
                 key = lendingKfs.getKfsDocFile();
                 break;
             case "LOAN_AGREEMENT":
-                key = lendingKfs.getSignedSanctionDocFile();
+                key = lendingKfs.getSanctionLoanAgreementDocFile();
                 break;
             default:
                 return null;

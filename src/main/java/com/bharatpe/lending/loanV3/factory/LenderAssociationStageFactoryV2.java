@@ -35,9 +35,8 @@ public class LenderAssociationStageFactoryV2 {
             case ASSC_COMPLETED:
                 switch (lender) {
                     case USFB:
-                        return LenderAssociationStages.DOC_UPLOAD;
                     case TRILLIONLOANS:
-                        return LenderAssociationStages.DIGI_SIGN;
+                        return LenderAssociationStages.DOC_UPLOAD;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
                 }
@@ -66,13 +65,13 @@ public class LenderAssociationStageFactoryV2 {
                         return LenderAssociationStages.OLD_MODEL;
                 }
 
-            case DIGI_SIGN:
-                switch (lender) {
-                    case TRILLIONLOANS:
-                        return LenderAssociationStages.DOC_UPLOAD;
-                    default:
-                        return LenderAssociationStages.OLD_MODEL;
-                }
+//            case DIGI_SIGN:
+//                switch (lender) {
+//                    case TRILLIONLOANS:
+//                        return LenderAssociationStages.DOC_UPLOAD;
+//                    default:
+//                        return LenderAssociationStages.OLD_MODEL;
+//                }
             default:
                 switch (lender) {
                     case USFB:
@@ -141,13 +140,13 @@ public class LenderAssociationStageFactoryV2 {
                     default:
                         return Boolean.FALSE;
                 }
-            case DIGI_SIGN:
-                switch (lender) {
-                    case TRILLIONLOANS:
-                        return Boolean.TRUE;
-                    default:
-                        return Boolean.FALSE;
-                }
+//            case DIGI_SIGN:
+//                switch (lender) {
+//                    case TRILLIONLOANS:
+//                        return Boolean.TRUE;
+//                    default:
+//                        return Boolean.FALSE;
+//                }
             default:
                 return Boolean.FALSE;
         }

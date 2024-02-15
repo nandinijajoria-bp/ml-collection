@@ -1,7 +1,6 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -16,7 +15,6 @@ import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateL
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sun.tools.javac.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,6 +22,7 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Objects;
 
 @Slf4j
@@ -43,9 +42,6 @@ public class TLCreateLeadService {
 
     @Autowired
     ObjectMapper objectMapper;
-
-    @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -116,9 +112,9 @@ public class TLCreateLeadService {
                             .graceOnInterestCharged(0.00)
                             .amountForUpfrontCollection(0.00)
                             .build())
-                    .charges(List.of(TLCreateLeadRequestDto.Charge.builder()
-                                    .chargeId(2L)
-                                    .amount(String.format("%.2f",(lendingApplication.getProcessingFee() / lendingApplication.getLoanAmount()) * 100))
+                    .charges(Collections.singletonList(TLCreateLeadRequestDto.Charge.builder()
+                            .chargeId(2L)
+                            .amount(String.format("%.2f", (lendingApplication.getProcessingFee() / lendingApplication.getLoanAmount()) * 100))
                             .build()))
                     .build();
             return NBFCRequestDTO.builder()
