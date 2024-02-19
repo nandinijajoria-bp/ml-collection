@@ -967,6 +967,14 @@ public class PaymentService {
         logger.info("Advance EDI amount for loanId:{} is:{}", activeLoan.getId(), advanceEdiAmount);
         logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
+
+        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if (Objects.nonNull(source) && waiverList.contains(source) &&
+                (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+            waiverSettlement(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
+            return;
+        }
+
         if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
@@ -1842,6 +1850,12 @@ public class PaymentService {
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
 
 
+        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if (Objects.nonNull(source) && waiverList.contains(source) &&
+                (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+            waiverSettlement(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
+            return;
+        }
         if(foreclosureAmount - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
@@ -1969,6 +1983,31 @@ public class PaymentService {
             log.info("sending loan flag status in adjustLoanBalanceEdiByEdi for merchantId : {} ",merchantId);
             sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
         }
+    }
+
+    private void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
+                                  String transferType, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList) {
+
+        createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
+                0d, "PREPAYMENT", source, transferType, terminalOrderId, 0d);
+        activeLoan.setStatus("CLOSED");
+        activeLoan.setClosingDate(new Date());
+        //settle excess collection balance only
+        if(excessCollectionBalance > 0D) {
+            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + excessCollectionBalance);
+            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + excessCollectionBalance);
+
+            logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
+            createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
+            settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
+
+        }
+        LendingLedger lendingLedger = createLendingLedger(
+                activeLoan,  amount + excessCollectionBalance,
+                amount + excessCollectionBalance, 0d,  getDescription(bankRefNo, true), source,
+                transferType, terminalOrderId, 0d);
+
+        lendingPaymentScheduleDao.save(activeLoan);
     }
 
     public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId,String externalLoanId) {
