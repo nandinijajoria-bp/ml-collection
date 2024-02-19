@@ -353,7 +353,7 @@ public class Gst3bService {
                         eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                         if (eligibleAmount > 0D) {
                             log.info("Eligibility found for merchant:{}", gst3bSessionDetails.getMerchantId());
-                            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, gst3bSessionDetails.getMerchantId());
+                            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, gst3bSessionDetails.getMerchantId(), false);
                             evictLoanDetailV2Cache(gst3bSessionDetails.getMerchantId());
                         }
                         gst3bSessionDetails.setStatus(Gst3bSessionStatus.SUCCESS);

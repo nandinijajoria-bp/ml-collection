@@ -139,7 +139,7 @@ public class EligibilityV3Service {
             if (Boolean.TRUE.equals(request.getRteFlag())) {
                 try {
                     eligibilityStateDTO.setExperian(experian);
-                    refreshEligibility(request, eligibilityStateDTO);
+                    refreshEligibility(request, eligibilityStateDTO, false);
                     String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
                     Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
                     if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
@@ -166,7 +166,7 @@ public class EligibilityV3Service {
             experianDao.save(experian);
             checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
             try {
-                refreshEligibility(request, eligibilityStateDTO);
+                refreshEligibility(request, eligibilityStateDTO, false);
             } catch (BureauCallMaskedApiException e) {
                 log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
             }
@@ -181,7 +181,7 @@ public class EligibilityV3Service {
                 checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
                 try {
                     eligibilityStateDTO.setPincodeChanged(true);
-                    refreshEligibility(request, eligibilityStateDTO);
+                    refreshEligibility(request, eligibilityStateDTO, false);
                 } catch (BureauCallMaskedApiException e) {
                     log.error("bureau call masked api ex {}, {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
                 }
@@ -231,7 +231,7 @@ public class EligibilityV3Service {
         if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow) && !(eligibilityStateDTO.getClubV2Member() && clubEligibleLoanCache)) {
             log.info("Eligible offers exist for merchant:{}", eligibilityStateDTO.getMerchant().getId());
             // make new method and eligible loan
-            eligibility = loanDetailsServiceV2.createEligibility(eligibilityStateDTO.getMerchant().getId());
+            eligibility = loanDetailsServiceV2.createEligibility(eligibleLoan, eligibilityStateDTO.getMerchant().getId());
             if (eligibility != null) {
                 log.info("eligibility is not null for merchant: {}", eligibilityStateDTO.getMerchant().getId());
                 eligibilityStateDTO.setEligibility(eligibility);
@@ -243,7 +243,7 @@ public class EligibilityV3Service {
         }
     }
 
-    public void refreshEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {
+    public void refreshEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO, boolean skipEligibleLoanDbEntryCreation) throws BureauCallMaskedApiException {
         Eligibility eligibility = null;
         log.info("eligibilityStateDTO.getMerchant().getId() {}", eligibilityStateDTO);
         log.info("request is {}", request);
@@ -263,8 +263,8 @@ public class EligibilityV3Service {
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
-            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId());
-            eligibility = loanDetailsServiceV2.createEligibility(eligibilityStateDTO.getMerchant().getId());
+            EligibleLoan eligibleLoan = loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId(), skipEligibleLoanDbEntryCreation);
+            eligibility = loanDetailsServiceV2.createEligibility(eligibleLoan, eligibilityStateDTO.getMerchant().getId());
         }
         if (eligibility != null) {
             eligibilityStateDTO.setEligibility(eligibility);
@@ -285,8 +285,8 @@ public class EligibilityV3Service {
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
-            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId());
-            eligibility = loanDetailsServiceV2.createEligibility(eligibilityStateDTO.getMerchant().getId());
+            EligibleLoan eligibleLoan = loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId(), true);
+            eligibility = loanDetailsServiceV2.createEligibility(eligibleLoan, eligibilityStateDTO.getMerchant().getId());
         }
         if (eligibility != null) {
             eligibilityStateDTO.setEligibility(eligibility);
@@ -330,7 +330,7 @@ public class EligibilityV3Service {
             setEdiModel(eligibilityStateDTO);
             return;
         }
-        refreshEligibility(request, eligibilityStateDTO);
+        refreshEligibility(request, eligibilityStateDTO, false);
         if (null != eligibilityStateDTO.getEligibility()) {
             setEdiModel(eligibilityStateDTO);
         }
@@ -346,7 +346,7 @@ public class EligibilityV3Service {
             return;
         }
         try {
-            refreshEligibility(request, eligibilityStateDTO);
+            refreshEligibility(request, eligibilityStateDTO, true);
         } catch (BureauCallMaskedApiException e) {
             log.error("bureau call masked api ex {}", e);
         }

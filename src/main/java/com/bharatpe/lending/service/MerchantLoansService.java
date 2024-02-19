@@ -974,7 +974,7 @@ public class MerchantLoansService {
                     }
                 }
 
-                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
+                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId(), false);
                 eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);
@@ -1130,7 +1130,7 @@ public class MerchantLoansService {
                     }
                 }
 
-                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
+                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId(), false);
                 eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);
@@ -1401,7 +1401,7 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
+                loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId(), false);
                 eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 Experian experian = experianDao.getByMerchantId(lendingPaymentSchedule.getMerchantId());
                 experian.setEligibleAmount(eligibleAmount);

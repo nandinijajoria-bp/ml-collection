@@ -298,6 +298,9 @@ public class LoanDetailsServiceV2 {
     @Value("${bank-statement.session.limit.for.day:5}")
     Integer bankStatementSessionLimitForDay;
 
+    @Value("${eligibleLoan.creation.skip.rollout:0}")
+    Integer eligibleLoanCreationSkipRollout;
+
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
@@ -768,7 +771,7 @@ public class LoanDetailsServiceV2 {
         log.info("eligibility check begins !!! {}", merchant.getId());
         if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow) && !(isClubV2 && clubEligibleLoanCache)) {
             log.info("Eligible offers exist for merchant:{}", merchant.getId());
-            eligibility = createEligibility(merchant.getId());
+            eligibility = createEligibility(eligibleLoan, merchant.getId());
             if (eligibility != null) {
                 log.info("eligibility is not null for merchant: {}", merchant.getId());
                 loanDetailsResponse.setEligibility(eligibility);
@@ -791,8 +794,8 @@ public class LoanDetailsServiceV2 {
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
-            recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
-            eligibility = createEligibility(merchant.getId());
+            EligibleLoan eligibleLoan1 = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId(), false);
+            eligibility = createEligibility(eligibleLoan1, merchant.getId());
         }
         if (eligibility != null) {
             loanDetailsResponse.setEligibility(eligibility);
@@ -804,14 +807,15 @@ public class LoanDetailsServiceV2 {
     }
 
 
-    public void recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId) {
+    public EligibleLoan recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId, boolean skipEligibleLoanDbEntryCreation) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
             log.info("Global Limit not found");
-            return;
+            return null;
         }
         Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
         String loanType = globalLimitResponse.getData().getLoanType();
         Double version = globalLimitResponse.getData().getVersion();
+        EligibleLoan eligibleLoan = null;
         try {
 //            eligibleLoanDao.deleteByMerchantId(merchantId);
             List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
@@ -819,16 +823,18 @@ public class LoanDetailsServiceV2 {
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
                 log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
                 if (Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getLoanAmount()) {
-                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
+                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version, skipEligibleLoanDbEntryCreation);
                 }
                 if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= (offerDetail.getLoanAmount())) {
-                    loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
+                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version, skipEligibleLoanDbEntryCreation);
                 }
             }
 //            eligibleLoanDao.deleteGreaterOffersByMerchantId(merchantId, finalLimit);
         } catch (Exception e) {
             log.error("Exception while recomputing eligible loan for merchant:{}", merchantId, e);
         }
+
+        return eligibleLoan;
     }
 
     private Integer fetchPincode(Long merchantId) {
@@ -884,9 +890,16 @@ public class LoanDetailsServiceV2 {
 //        return null;
 //    }
 
-    public Eligibility createEligibility(Long merchantId) {
+    public Eligibility createEligibility(EligibleLoan eligibleLoan, Long merchantId) {
         try {
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchantId);
+            if(easyLoanUtil.percentScaleUp(merchantId, eligibleLoanCreationSkipRollout)){
+                if (ObjectUtils.isEmpty(eligibleLoan) || "TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
+                    return null;
+                }
+            }
+            else{
+                eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchantId);
+            }
             if (ObjectUtils.isEmpty(eligibleLoan)) {
                 return null;
             }
@@ -906,7 +919,7 @@ public class LoanDetailsServiceV2 {
                     .uniqueKey(eligibleLoan.getId())
                     .build();
         } catch (Exception e) {
-            log.error("Exception in createEligibility for merchant:{}", merchantId, e);
+            log.error("Exception in createEligibility for merchant:{}, {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
@@ -2325,7 +2338,7 @@ public class LoanDetailsServiceV2 {
                         eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                         if (eligibleAmount > 0D) {
                             log.info("Eligibility found for merchant:{}", merchantId);
-                            recomputeEligibleLoan(globalLimitResponse, null, merchantId);
+                            recomputeEligibleLoan(globalLimitResponse, null, merchantId, false);
                             evictLoanDetailV2Cache(merchantId);
                         }
                         underwritingDocEligibilityDTO.setActivityStatus(BankStatementSessionStatus.SUCCESS.name());

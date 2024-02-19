@@ -198,7 +198,7 @@ public class LoanEligibleService {
                 logger.info("query amount: {}, global calculated offer: {}", queryAmount, globalLimitResponse.getData().getGlobalLimit());
                 queryAmount = queryAmount > globalLimitResponse.getData().getGlobalLimit() ? globalLimitResponse.getData().getGlobalLimit() : queryAmount;
             }
-            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId);
+            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId, false);
             eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
                     Sort.by(Sort.Direction.DESC, "id"));
         }

@@ -21,6 +21,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -230,6 +231,12 @@ public class LoanUtil {
 
 	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
+
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
+
+	@Value("${eligibleLoan.creation.skip.rollout:0}")
+	Integer eligibleLoanCreationSkipRollout;
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1316,7 +1323,10 @@ public class LoanUtil {
 	}
 
 
-	public EligibleLoan calculateLoanBreakup(GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
+	public EligibleLoan calculateLoanBreakup(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version, boolean skipEligibleLoanDbEntryCreation
+	) {
 
 		Integer ediAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / tenureDetail.getEdiCount());
 		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
@@ -1371,6 +1381,10 @@ public class LoanUtil {
 				.build();
 		eligibleLoanList.add(eligibleLoan);
 		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		if(easyLoanUtil.percentScaleUp(merchantId, eligibleLoanCreationSkipRollout) && skipEligibleLoanDbEntryCreation){
+			logger.info("skipping eligible_loan entry creation for {}", merchantId);
+			return sevenDayEligibleLoanOffer;
+		}
 		eligibleLoanDao.saveAll(eligibleLoanList);
 		eligibleLoanDao.flush();
 		return sevenDayEligibleLoanOffer;
