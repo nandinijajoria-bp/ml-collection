@@ -19,6 +19,7 @@ import java.util.Objects;
 @Slf4j
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoanDetailsV3Response {
+    private String applicationStatus;
     private Boolean hasExperian;
     private KycStatus kycStatus;
     private KycStatus kycPanStatus;
@@ -252,6 +253,7 @@ public class LoanDetailsV3Response {
 
     private static void setReferencesResponse(ReferenceStateDTO referenceStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setDummyMerchant(referenceStateDTO.isDummyMerchant());
+        loanDetailsV3Response.setApplicationStatus(referenceStateDTO.getApplicationStatus());
     }
 
     private static void setLenderEvaluationResponse(LenderEvaluationStateDTO lenderEvaluationStateDTO, LoanDetailsV3Response loanDetailsV3Response){

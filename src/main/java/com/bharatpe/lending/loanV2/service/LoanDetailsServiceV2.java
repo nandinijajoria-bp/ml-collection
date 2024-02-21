@@ -1688,6 +1688,7 @@ public class LoanDetailsServiceV2 {
     public Integer getToBeShownReferences(Long referencesLimit) {
         try {
             HashMap<Long, Integer> requiredToShownMap = new HashMap<>();
+            requiredToShownMap.put(0L, 0);
             requiredToShownMap.put(3L, 10);
             requiredToShownMap.put(5L, 7);
             requiredToShownMap.put(10L, 15);
