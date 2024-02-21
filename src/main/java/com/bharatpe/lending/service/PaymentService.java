@@ -1800,7 +1800,7 @@ public class PaymentService {
         try{
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                logger.info("no lending app details record found for the app {}", applicationId);
+                logger.info("TrillionLoans: no lending app details record found for the app {}", applicationId);
                 return;
             }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
@@ -1820,8 +1820,14 @@ public class PaymentService {
                             .chargeDiscountDetails(new ArrayList<>())
                             .waiveCharges(new ArrayList<>())
                     .build()).build();
-            logger.info("foreclosure event sent {}", trillionForeclosureRequestDto);
+            logger.info("TrillionLoans: foreclosure event sent {}", trillionForeclosureRequestDto);
             kafkaTemplate.send(nbfcTrillionForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(trillionForeclosureRequestDto), new TypeReference<Map<String, Object>>() {}));
+
+            logger.info("TrillionLoans: updating LCA for foreclosed event for application id : {} ", lendingApplicationLenderDetails.getApplicationId());
+            LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+            lendingCollectionAudit.setStatus("SUCCESS");
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
         }

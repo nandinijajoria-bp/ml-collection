@@ -164,6 +164,6 @@ public class TLNachMandateService {
         else if ("SAVINGS".equalsIgnoreCase(accountType))
             return "SB";
         else
-            return "INVALID";
+            return "Other";
     }
 }
