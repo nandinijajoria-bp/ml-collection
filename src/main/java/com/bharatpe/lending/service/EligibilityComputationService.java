@@ -35,7 +35,7 @@ public class EligibilityComputationService {
             if (!basicDetailsDto.isPresent())
                 return false;
             merchant = basicDetailsDto.get();
-            loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, null);
+            loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, null, true);
             log.info("successfully computed eligibility for merchant: {}", dto);
             return true;
         } catch (Exception e) {
