@@ -1705,6 +1705,10 @@ public class LendingApplicationServiceV2 {
                 }
             }
 
+            if (LendingResubmitEnum.DOWNGRADE.equals(resubmitApplicationDTO.getType()) && lendingApplication.getLender().equalsIgnoreCase("TRILLIONLOANS")) {
+                return new ApiResponse<>(false,"offer downgrade disabled for lender : TRILLIONLOANS");
+            }
+
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if(Objects.isNull(lendingResubmitTask)){
                 lendingResubmitTask = new LendingResubmitTask();
@@ -1743,7 +1747,7 @@ public class LendingApplicationServiceV2 {
                     }
                 }
 
-            }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
+            } else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
