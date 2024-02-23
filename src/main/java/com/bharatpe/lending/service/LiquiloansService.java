@@ -1533,6 +1533,9 @@ public class LiquiloansService {
                 flag = constructPiramalEDISchedule(paymentSchedule);
                 retry++;
             } while (!flag && retry < 3);
+            if(!flag) {
+                constructBharatPeEDISchedule(paymentSchedule);
+            }
         } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS").contains(paymentSchedule.getNbfc()))  {
             constructLenderEDISchedule(paymentSchedule);
         } else {
