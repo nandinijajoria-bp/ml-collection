@@ -132,6 +132,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${trillionLoans.rollout.percent:1}")
     Integer trillionLoansRolloutPercentage;
 
+    @Value("${is.gst.offer.enabled:false}")
+    boolean isGstOfferEnabled;
+
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
 
@@ -358,8 +361,9 @@ public class LenderAssignService implements ILenderAssignService {
                     return application;
                 }
             }
-            decidedLender = lenderAssignmentHandler(application, ediModel, merchantDetails);
-            if (Lender.ABFL.name().equals(decidedLender)) {
+
+            decidedLender = lenderAssignmentHandler(application, ediModel);
+            if (isGstOfferEnabled && Lender.ABFL.name().equals(decidedLender)) {
                 decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
             }
         }
@@ -369,8 +373,8 @@ public class LenderAssignService implements ILenderAssignService {
             EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
             log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
             // ModifyEdiModel
-            decidedLender = lenderAssignmentHandler(application, modifiedEdiModel, merchantDetails);
-            if(Lender.ABFL.name().equals(decidedLender)) {
+            decidedLender = lenderAssignmentHandler(application, modifiedEdiModel);
+            if(isGstOfferEnabled && Lender.ABFL.name().equals(decidedLender)) {
                 decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
             }
             if(ObjectUtils.isEmpty(decidedLender)){
