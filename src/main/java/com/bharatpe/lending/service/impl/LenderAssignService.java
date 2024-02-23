@@ -362,7 +362,7 @@ public class LenderAssignService implements ILenderAssignService {
                 }
             }
 
-            decidedLender = lenderAssignmentHandler(application, ediModel);
+            decidedLender = lenderAssignmentHandler(application, ediModel, merchantDetails);
             if (isGstOfferEnabled && Lender.ABFL.name().equals(decidedLender)) {
                 decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
             }
@@ -373,7 +373,7 @@ public class LenderAssignService implements ILenderAssignService {
             EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
             log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
             // ModifyEdiModel
-            decidedLender = lenderAssignmentHandler(application, modifiedEdiModel);
+            decidedLender = lenderAssignmentHandler(application, modifiedEdiModel, merchantDetails);
             if(isGstOfferEnabled && Lender.ABFL.name().equals(decidedLender)) {
                 decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
             }
