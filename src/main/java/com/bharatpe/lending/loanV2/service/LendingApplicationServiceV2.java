@@ -254,6 +254,7 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
+
     @Value("${penalty.rollout.date:}")
     String penalDate;
 
@@ -556,6 +557,11 @@ public class LendingApplicationServiceV2 {
     private ApiResponse<?> createNewApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
+            LendingApplication inProgressLoanApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+            if (!ObjectUtils.isEmpty(inProgressLoanApplication)) {
+                log.error("application already exist for this merchant id {}",inProgressLoanApplication);
+                return new ApiResponse<>(true,"Application already exist for this merchant id");
+            }
             checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
 
             AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
@@ -935,11 +941,11 @@ public class LendingApplicationServiceV2 {
             log.info("pincode not found in createNewApplication for merchant:{}", merchant.getId());
             return "pincode not found";
         }
-        LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+       /* LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
         if (openApplication != null) {
             log.info("Already open application found for merchant:{}", merchant.getId());
-            return "found existing application";
-        }
+            return "Application already exist for this merchant id";
+        }*/
         Integer pincode = Integer.valueOf(applicationRequest.getAddressDetails().getPincode());
         if (loanUtil.isOGL(pincode)) {
             log.info("OGL pincode found for merchant:{}", merchant.getId());
