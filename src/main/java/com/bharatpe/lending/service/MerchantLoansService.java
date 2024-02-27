@@ -578,7 +578,7 @@ public class MerchantLoansService {
     public boolean showRenachBanner(Long merchantId, String lender, boolean showChangeBankAccountBanner) {
         final List<Long> reNachEnabledMerchants = loanUtil.reNachEnabledMerchants();
         if (reNachEnabledMerchants.contains(merchantId)) {
-            MerchantNachDetailsResponseDTO successEnach = enachHandler.findByMerchantIdAndLender(merchantId, lender);
+            MerchantNachDetailsResponseDTO successEnach = enachHandler.findByMerchantIdAndLender(merchantId, loanUtil.enachServiceLenderMapper(lender));
             if (successEnach != null &&
               !ObjectUtils.isEmpty(successEnach.getBankName()) && successEnach.getBankName().contains(PAYTM) &&
               !ObjectUtils.isEmpty(showChangeBankAccountBanner) && !showChangeBankAccountBanner) {
