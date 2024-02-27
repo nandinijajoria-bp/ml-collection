@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.dto.PayloadDTO;
 
+import com.bharatpe.lending.util.BQPublisherUtil;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -51,6 +52,9 @@ public class MerchantUpdateService {
 
 	@Autowired
 	MongoPublisher mongoPublisher;
+
+	@Autowired
+	BQPublisherUtil bqPublisherUtil;
 
 	@PostConstruct
     public void init() {
@@ -131,8 +135,8 @@ public class MerchantUpdateService {
 
 			request.put("body", data);
 			request.put("date", new Date());
-
-			mongoPublisher.publish("Lending", "algo360_logs", merchant.getId().toString(), new ArrayList<Map>(){{add(request);}});
+			logger.info("push data to BQ for save algo 360 logs for merchant id {}",merchant.getId());
+			bqPublisherUtil.publish("Lending", "algo360_logs", new ArrayList<Map>(){{add(request);}});
 
 		}catch (Exception ex){
 			logger.error("Error Occurred while processing logs: {} for merchant_id: ", merchant.getId(), ex);

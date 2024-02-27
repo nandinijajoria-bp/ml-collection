@@ -19,6 +19,7 @@ import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.revamp.controller.LoanDashboardController;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -117,6 +118,9 @@ public class ENachService {
 
     @Value("${v3.easyloan.deeplink}")
     public String v3EasyloanDeeplink;
+
+    @Autowired
+    LenderAssociationStageFactoryV2 lenderAssociationStageFactoryV2;
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider, String nachMode){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -251,7 +255,7 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
                     lendingApplicationLenderDetailsDao.
                             findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                     (lendingApplication.getId(), Status.ACTIVE.name());
@@ -260,14 +264,21 @@ public class ENachService {
                     LenderAssociationStages.ASSC_COMPLETED.name()
                             .equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
                 {
+                    Boolean autoInvokeNextStage;
+                    if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
+                        autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                    } else {
+                        autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                    }
                 nbfcUtils.pushApplicationToNextStage
                         (lendingApplication.getId(), lendingApplication.getLender(),
                                 LenderAssociationStages.ASSC_COMPLETED.name(),
-                        LenderAssociationStageFactory
-                                .autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),
-                                        LenderAssociationStages.ASSC_COMPLETED));
+                                autoInvokeNextStage
+                       );
                 logger.info("invoked sanction workflow for application {}", lendingApplication.getId());}
             }
+
+
 //            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //            if (lendingPennydrop == null) {
 //                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());

@@ -13,4 +13,7 @@ import lombok.ToString;
 @NoArgsConstructor
 public class ReferenceStateDTO {
     private boolean isDummyMerchant;
+
+    private String applicationStatus;
+
 }

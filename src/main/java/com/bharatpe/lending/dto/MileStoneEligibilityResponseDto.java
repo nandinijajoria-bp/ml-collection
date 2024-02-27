@@ -22,6 +22,7 @@ public class MileStoneEligibilityResponseDto {
     private String dsErrorMessage;
     private Integer pinCode;
     private String panCard;
+    private Boolean isEligibleForReapply;
 
     @Data
     public static class ProgramActiveData {

@@ -20,6 +20,7 @@ import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
 import com.bharatpe.lending.common.enums.VpaTrackingStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -38,6 +39,7 @@ import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
 import com.bharatpe.lending.loanV3.dto.AbflDigiSignResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -45,6 +47,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
@@ -99,6 +102,9 @@ public class LiquiloansService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
@@ -118,6 +124,9 @@ public class LiquiloansService {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    VerifyOTPService verifyOTPService;
 
 //    @Autowired
 //    SmsServiceHandler smsServiceHandler;
@@ -247,6 +256,12 @@ public class LiquiloansService {
 
     @Autowired
     private PiramalGetLoanDetails piramalGetLoanDetails;
+
+    @Autowired
+    private SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
+
+    @Autowired
+    AssociationServiceUtil associationServiceUtil;
 
     @Autowired
     private LenderAssociationStageFactory lenderAssociationStageFactory;
@@ -476,7 +491,22 @@ public class LiquiloansService {
         return new ResponseEntity<>("Ok", HttpStatus.OK);
     }
 
+    public LendingPaymentSchedule updatePreviousLoan(LendingApplication lendingApplication) {
+
+        LendingApplication previousDisbursedApplication=lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
+
+        logger.info("previousDisbursedApplication {} for an application id {}",previousDisbursedApplication,lendingApplication.getId());
+
+        if (!ObjectUtils.isEmpty(previousDisbursedApplication)) {
+            LendingPaymentSchedule  prevLendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(previousDisbursedApplication.getId());
+            logger.info("previous LPS {} of an application id {}",prevLendingPaymentSchedule,lendingApplication.getId());
+            return prevLendingPaymentSchedule;
+        }
+        return null;
+    }
+
     public ResponseEntity<PostPayoutResponseDto> populatePostPayoutSchedule(PostPayoutRequestDto postPayoutRequestDto) {
+
         if (ObjectUtils.isEmpty(postPayoutRequestDto) || ObjectUtils.isEmpty(postPayoutRequestDto.getApplicationId())
           || ObjectUtils.isEmpty(postPayoutRequestDto.getNbfcId())
           || ObjectUtils.isEmpty(postPayoutRequestDto.getLender())
@@ -499,6 +529,8 @@ public class LiquiloansService {
         LendingApplication lendingApplication = null;
         LendingPaymentSchedule lendingPaymentSchedule = null;
         BasicDetailsDto basicDetailsDto = null;
+        LendingPaymentSchedule prevLendingPaymentSchedule=null;
+        boolean loanStatusFlag = false;
 //        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(Long.valueOf(postPayoutRequestDto.getMerchantId()));
         try {
 //            logger.info("Fetching merchant for the merchant id {}", postPayoutRequestDto.getMerchantId());
@@ -511,12 +543,6 @@ public class LiquiloansService {
             lendingApplication =
               lendingApplicationDao.findByExternalLoanId(postPayoutRequestDto.getApplicationId());
 
-
-//    		if(lendingApplication==null || !lendingApplication.getLoanDisbursalStatus().equals("PROCESSING") || !lendingApplication.getDisbursalPartner().equals("BHARATPE")){
-//    			logger.error("Loan application for loanId {} and merchantId {} not found.",postPayoutRequestDto.getApplicationId(),merchant);
-//    			return new ResponseEntity<>("Invalid applicationId", HttpStatus.BAD_REQUEST);
-//    		}
-
             if (lendingApplication == null) {
                 logger.error("Loan application for loanId {} not found.", postPayoutRequestDto.getApplicationId());
                 postPayoutResponseDto.setStatus("FAILED");
@@ -526,6 +552,9 @@ public class LiquiloansService {
                 pushKafkaAudit(kafkaAudit);
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
+
+            prevLendingPaymentSchedule = updatePreviousLoan(lendingApplication);
+            logger.info("prevLendingPaymentSchedule {}",prevLendingPaymentSchedule);
 
 
             // save the utr if the request contains it, saving beforehand so that in case of some error we have the UTR to keep track of it
@@ -584,6 +613,7 @@ public class LiquiloansService {
             }
 
             if ("DISBURSED".equalsIgnoreCase(disbursalStage)) {
+                logger.info("status of application is {}", disbursalStage);
 
                 lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
                 if (lendingPaymentSchedule != null) {
@@ -615,7 +645,7 @@ public class LiquiloansService {
 
                 lendingApplication.setLoanDisbursalStatus("DISBURSED");
                 lendingApplication.setDisburseTimestamp(getDisburseTimestamp(postPayoutRequestDto.getDisbursalDate(), new Date()));
-                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
+                lendingApplication.setAccountType("HINDON".equals(lendingApplication.getLender()) || "MAMTA".equals(lendingApplication.getLender()) || "LIQUILOANS_NBFC".equals(lendingApplication.getLender()) || "TRILLIONLOANS".equals(lendingApplication.getLender()) ? "NBFC_FUNDS" : "INVESTOR_FUNDS");
 
                 lendingApplicationDao.save(lendingApplication);
 
@@ -659,7 +689,8 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setOffDay(lendingApplication.getPayableDays() % 30 == 0 ?
                         LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 
-                if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
+                        || Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
 
@@ -689,6 +720,17 @@ public class LiquiloansService {
                 }
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)
+                        && prevLendingPaymentSchedule.getStatus().equalsIgnoreCase("INACTIVE_TOPUP")) {
+                    try {
+                        logger.info("while closing loan for previous loan for id {}",lendingApplication.getId());
+                        verifyOTPService.closePreviousLoanAfterSuccessfulTopupCreation(lendingApplication.getId());
+                    } catch (Exception e) {
+                        logger.error("exception while closing previous loan while making Top-up application {}, active lps is {}, e{}", lendingApplication.getId(),prevLendingPaymentSchedule.getId(), Arrays.asList(e.getStackTrace()));
+                    }
+                }
+                loanStatusFlag = true;
+                logger.info("setting loan flag status as true in populatePostPayoutSchedule for merchantId : {}",lendingPaymentSchedule.getMerchantId());
             }
 
             else if ("UNKNOWN".equalsIgnoreCase(disbursalStage)) {
@@ -701,7 +743,8 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             else {
-                if ("DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus()) && !"FAILED".equalsIgnoreCase(disbursalStage)) {
+                if ("DISBURSED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus()) &&
+                        !"FAILED".equalsIgnoreCase(disbursalStage)) {
                     logger.info("Loan already marked disbursed for application : {}", lendingApplication.getId());
                     postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                     kafkaAudit.setData(postPayoutAuditDto);
@@ -712,6 +755,12 @@ public class LiquiloansService {
                 lendingApplication.setLoanDisbursalStatus(disbursalStage);
                 lendingApplicationDao.save(lendingApplication);
                 logger.info("known application status {} for the application id {} is set to {}", postPayoutRequestDto.getLoanDisbursalStatus(), lendingApplication.getId(), lendingApplication.getLoanDisbursalStatus());
+                if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule) && "INACTIVE_TOPUP".equalsIgnoreCase(prevLendingPaymentSchedule.getStatus())
+                        && "FAILED".equalsIgnoreCase(lendingApplication.getLoanDisbursalStatus())
+                        && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+                    prevLendingPaymentSchedule.setStatus("ACTIVE");
+                    lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
+                }
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
@@ -743,8 +792,9 @@ public class LiquiloansService {
         } catch (Exception e) {
             logger.error("exception occurred while computing diff days for {} {}", lendingApplication.getId(), e.getMessage());
         }
-        if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
-                diffInDisbursalDates > 0) {
+        if ((Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
+                || Lender.TRILLIONLOANS.name().equalsIgnoreCase((lendingPaymentSchedule.getNbfc())))
+                && backdatedLoanEnabled && diffInDisbursalDates > 0) {
             lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
             lendingApplication = lendingApplicationDao.save(lendingApplication);
             logger.info("adjusting LPS as this is a backdated disbursal loan {}", lendingPaymentSchedule.getId());
@@ -809,6 +859,13 @@ public class LiquiloansService {
             prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
         }
         loanUtil.publishApplicationEvent(lendingApplication);
+
+        if(loanStatusFlag)
+        {
+                Long merchantId = lendingPaymentSchedule.getMerchantId();
+                logger.info("sending loan flag status in populatePostPayoutSchedule for merchantId : {}",merchantId);
+                sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, lendingPaymentSchedule.getStatus());
+        }
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
     }
 
@@ -1498,6 +1555,11 @@ public class LiquiloansService {
                 flag = constructPiramalEDISchedule(paymentSchedule);
                 retry++;
             } while (!flag && retry < 3);
+            if(!flag) {
+                constructBharatPeEDISchedule(paymentSchedule);
+            }
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS").contains(paymentSchedule.getNbfc()))  {
+            constructLenderEDISchedule(paymentSchedule);
         } else {
             constructBharatPeEDISchedule(paymentSchedule);
         }
@@ -1666,6 +1728,68 @@ public class LiquiloansService {
             return true;
         } catch (Exception ex) {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
+            return false;
+        }
+    }
+
+    public boolean constructLenderEDISchedule(LendingPaymentSchedule paymentSchedule) {
+        try {
+            List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
+            if (scheduleList != null && !scheduleList.isEmpty()) {
+                logger.info("EDI schedule already exist for Loan ID {}.", paymentSchedule.getId());
+                return true;
+            }
+            logger.info("Creating EDI schedule of {} for Loan ID {}.", paymentSchedule.getNbfc(), paymentSchedule.getId());
+            LenderEdIScheduleResponseDTO lenderEdIScheduleResponse = null;
+            int retry = 0;
+            do {
+                lenderEdIScheduleResponse = associationServiceUtil.invokeRepaymentScheduleService(paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId());
+                retry++;
+            } while (ObjectUtils.isEmpty(lenderEdIScheduleResponse) && retry < 3);
+            logger.info("response from {} repayment schedule for application id : {} is : {}", paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId(), lenderEdIScheduleResponse);
+            if (ObjectUtils.isEmpty(lenderEdIScheduleResponse)) {
+                logger.info("failure response from {} repayment schedule api for {}", paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId());
+                return false;
+            }
+            List<LendingEDISchedule> ediSchedules = new ArrayList<>();
+            double procFee = paymentSchedule.getLoanApplication() == null ? 0D : paymentSchedule.getLoanApplication().getProcessingFee();
+            Long storeId = paymentSchedule.getMerchantStoreId() == null ? null : paymentSchedule.getMerchantStoreId();
+            if (procFee > 0D) {
+                ediSchedules.add(createProcFeeSchedule(paymentSchedule, storeId));
+            }
+            for (int arr_i = 1; arr_i < lenderEdIScheduleResponse.getRepaymentSchedule().size(); arr_i++) {
+                LenderEdIScheduleResponseDTO.RepaymentSchedule loanSchedule = lenderEdIScheduleResponse.getRepaymentSchedule().get(arr_i);
+                LendingEDISchedule currentSchedule = new LendingEDISchedule();
+                currentSchedule.setDate(loanSchedule.getDueDate());
+                currentSchedule.setEdiType("Regular");
+                currentSchedule.setInstallmentNumber(arr_i);
+                currentSchedule.setOpeningBalance(loanSchedule.getOpeningBalance());
+                currentSchedule.setInterest(loanSchedule.getInterest());
+                currentSchedule.setPrinciple(loanSchedule.getPrincipal());
+                currentSchedule.setProcessingFee(0D);
+                currentSchedule.setTotalEdi(loanSchedule.getTotalEdi());
+                currentSchedule.setOtherCharges(0D);
+                currentSchedule.setMerchantId(paymentSchedule.getMerchantId());
+                currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
+                currentSchedule.setLendingPaymentSchedule(paymentSchedule);
+                currentSchedule.setMerchantStoreId(storeId);
+                ediSchedules.add(currentSchedule);
+            }
+            lendingEDIScheduleDao.saveAll(ediSchedules);
+            paymentSchedule.setInterest(lenderEdIScheduleResponse.getTotalInterestPayable());
+            paymentSchedule.setOtherCharges(0D);
+            paymentSchedule.setTentativeClosingDate(lenderEdIScheduleResponse.getLoanMaturityDate());
+            if (paymentSchedule.getNbfc().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                LendingApplication lendingApplication = paymentSchedule.getLoanApplication();
+                Double totalPayableAmount = lendingApplication.getLoanAmount() + lenderEdIScheduleResponse.getTotalInterestPayable();
+                paymentSchedule.setTotalPayableAmount(totalPayableAmount);
+                lendingApplication.setRepayment(totalPayableAmount);
+                lendingApplicationDao.save(lendingApplication);
+            }
+            lendingPaymentScheduleDao.save(paymentSchedule);
+            return true;
+        } catch (Exception ex) {
+            logger.error("Exception while creating schedule of {} for Loan ID {}, Exception is {}", paymentSchedule.getNbfc(), paymentSchedule.getId(), ex);
             return false;
         }
     }

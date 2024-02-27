@@ -2,16 +2,17 @@ package com.bharatpe.lending.loanV3.controller;
 
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.consumer.*;
-import com.bharatpe.lending.loanV3.dto.BreCallbackResponseDto;
-import com.bharatpe.lending.loanV3.dto.DrawdownCallbackResponseDto;
-import com.bharatpe.lending.loanV3.dto.KycCallbackResponseDto;
-import com.bharatpe.lending.loanV3.dto.SanctionCallbackResponseDto;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.BreCallbackWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.DigitalSignCallbackWrapperService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.DisbursalCallbackWrapperService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.ESignDocService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalLoanCallbackService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.RiskDecisionAsyncService;
 
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.KycCallbackWrapperService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,18 @@ public class NbfcCallbackControllerV3 {
 
     @Autowired
     ESignDocService eSignDocService;
+
+    @Autowired
+    DisbursalCallbackWrapperService disbursalCallbackWrapperService;
+
+    @Autowired
+    BreCallbackWrapperService breCallbackWrapperService;
+
+    @Autowired
+    KycCallbackWrapperService kycCallbackWrapperService;
+
+    @Autowired
+    DigitalSignCallbackWrapperService digitalSignCallbackWrapperService;
 
 
     @PostMapping("bre")
@@ -128,6 +141,33 @@ public class NbfcCallbackControllerV3 {
         log.info("estamp doc callback received via controller {}", nbfcResponseDto);
         ApiResponse<?> response = eSignDocService.persistAndSendCommunicationForESignDoc(nbfcResponseDto);
         return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
+    }
 
+    @PostMapping("bre-decision")
+    public ResponseEntity<?> breCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) {
+        log.info("bre-decision callback received via controller {}", nbfcResponseDTO);
+        breCallbackWrapperService.breCallback(nbfcResponseDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"bre async callback handled"));
+    }
+
+    @PostMapping("drawdown-decision")
+    public ResponseEntity<?> drawdownCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) {
+        log.info("drawdown-decision callback received via controller {}", nbfcResponseDTO);
+        disbursalCallbackWrapperService.disbursalCallback(nbfcResponseDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"drawdown async callback handled"));
+    }
+
+    @PostMapping("kyc-callback")
+    public ResponseEntity<ApiResponse<?>> KycCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
+        log.info("kyc-callback received via controller {}", nbfcResponseDTO);
+        kycCallbackWrapperService.kycCallback(nbfcResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
+    }
+
+    @PostMapping("digital-sign-callback")
+    public ResponseEntity<ApiResponse<?>> digitalSignCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
+        log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
+        digitalSignCallbackWrapperService.digitalSignCallback(nbfcResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
     }
 }

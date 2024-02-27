@@ -44,4 +44,11 @@ public class ApiResponse<T> {
         this.errorCode = statusCode;
 
     }
+
+    public ApiResponse(boolean success, T data , String message)
+    {
+        this.success = success;
+        this.data = data;
+        this.message = message;
+    }
 }

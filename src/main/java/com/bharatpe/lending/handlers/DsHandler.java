@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-
+import com.bharatpe.lending.dto.DSfetchMilestoneAchievementsAudit;
 import java.util.*;
 
 @Slf4j
@@ -214,7 +214,23 @@ public class DsHandler {
         }
         return null;
     }
+    public void pushMilestoneAchievementData(Long merchantId, DSMileStoneAchievementResponse dSMileStoneAchievementResponse)
+    {
+        try {
+            if(!dSMileStoneAchievementResponse.getAchievement().isEmpty()) {
+                DSfetchMilestoneAchievementsAudit auditData = new DSfetchMilestoneAchievementsAudit(merchantId, dSMileStoneAchievementResponse);
+                KafkaAudit<DSfetchMilestoneAchievementsAudit> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "de_milestone_achievements_response_audit", null);
+                kafkaAudit.setData(auditData);
+                pushKafkaAudit(kafkaAudit);
+                log.info("DE Get Milestone Achievements for merchantId: {}, response : {} ", merchantId, dSMileStoneAchievementResponse);
+            }
+        }
+        catch(Exception e)
+        {
+            log.error("Exception while pushing Milestone Achievement data for merchantId {} {}",merchantId , Arrays.asList(e.getStackTrace()));
+        }
 
+    }
 
     public DEPinCode getInferredPinCode(Long merchantId, Double latitude, Double longtitude) {
 

@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.LoanDisbursalDto;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
@@ -31,6 +32,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -43,6 +45,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -54,8 +57,10 @@ import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -172,6 +177,7 @@ public class VerifyOTPService {
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
+    @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Value("${kafka.topic.postChecks:lending_post_application_submission_checks}")
@@ -308,6 +314,8 @@ public class VerifyOTPService {
                     lendingDisbursalStage.setCallStage("YES");
                     lendingDisbursalStage.setCallTimestamp(currentDate);
                     lendingDisbursalStageDao.save(lendingDisbursalStage);
+
+                    loanUtil.checkForPendingDisbursalStageSkip(lendingApplication, MDC.get("requestId"));
                 }
 
                 finalResponse.put("success", true);
@@ -506,6 +514,11 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
+            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {
+                nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                        LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
+                logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
+            }
         }
         catch(Exception e){
             logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -603,6 +616,7 @@ public class VerifyOTPService {
     private Boolean topUpLoans(LendingApplication lendingApplication) {
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            logger.info("In topupLoans function is for active Loan id {}", activeLoan.getId());
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
@@ -652,7 +666,13 @@ public class VerifyOTPService {
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             lendingApplicationDao.save(lendingApplication);
 
-            if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
+            logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
+            activeLoan.setStatus("INACTIVE_TOPUP");
+            lendingPaymentScheduleDao.save(activeLoan);
+            logger.info("active loan marked as INACTIVE_TOP_UP for loanid {}",activeLoan.getId());
+
+
+           /* if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
                 ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
             }
             else {
@@ -662,7 +682,7 @@ public class VerifyOTPService {
                 // and once the topup is successfully created on liquiloans we can mark this loan as closed with appropriate ledger entries
                 activeLoan.setStatus("INACTIVE_TOPUP");
                 lendingPaymentScheduleDao.save(activeLoan);
-            }
+            }*/
         } catch (Exception ex) {
             logger.error("Exception IN TOPUP LOANS Ledger for application:{}", lendingApplication.getId(), ex);
         }
@@ -670,7 +690,7 @@ public class VerifyOTPService {
         return true;
     }
 
-    private void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
+    public void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
 
         double duePenalty = Objects.nonNull(previousLoan.getDuePenalty()) ? previousLoan.getDuePenalty() : 0;
         LendingLedger lendingLedger = new LendingLedger();
@@ -754,6 +774,7 @@ public class VerifyOTPService {
 
     public Map<String, Object> closePreviousLoanAfterSuccessfulTopupCreation(Long applicationId) {
 
+        logger.info("in close previous Loan flow {}",applicationId);
         Map<String, Object> finalResponse = new LinkedHashMap<>();
         Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
 
@@ -768,7 +789,6 @@ public class VerifyOTPService {
         }
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplicationOptional.get().getId());
-
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             finalResponse.put("message", "lending application details not found");
             return finalResponse;

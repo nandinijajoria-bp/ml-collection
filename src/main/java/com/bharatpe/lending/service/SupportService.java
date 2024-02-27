@@ -229,6 +229,9 @@ public class SupportService {
     @Autowired
     DsHandler dsHandler;
 
+    @Autowired
+    PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -676,7 +679,13 @@ public class SupportService {
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
                 experian = experianDao.getByMerchantId(supportApiResponseDto.getMerchantId());
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(supportApiResponseDto.getMerchantId());
-                if (experian.getRejected() && !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) && lendingRiskVariables.getFinalOffer() == 0) {
+                logger.info("lendingRiskVariables.getExperianRejection() {}",lendingRiskVariables.getExperianRejection());
+                logger.info("supportApiResponseDto.getApplicationStage() {}",supportApiResponseDto.getApplicationStage());
+
+                if (!ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())&&
+                        !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) &&
+                        (ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) || (!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() == 0)))
+                {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
                     supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(lendingRiskVariables.getExperianRejection(), RejectionStage.EXPERIAN));
                     supportApiResponseDto.setEligible(Boolean.FALSE);
@@ -986,7 +995,7 @@ public class SupportService {
                 if (!Objects.isNull(lendingPaymentSchedule1)) {
                     logger.info("loan found in LPS for merchant:{} with status:{}", merchantId, lendingPaymentSchedule1.getStatus());
                     List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
-                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDesc(lendingPaymentSchedule1);
+                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule1);
                     Double dueAmount = 0D;
                     for (LendingLedger lendingLedger1 : lendingLedgerList) {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
@@ -1003,8 +1012,13 @@ public class SupportService {
                             lendingLedgerDetail.put("paidAmount", paidAmount);
                         }
                         lendingLedgerDetail.put("dueAmount", dueAmount);
-                        lendingLedgerDetailList.add(lendingLedgerDetail);
+                        lendingLedgerDetail.put("penaltyAmount", lendingLedger1.getPenalty());
+
+                        lendingLedgerDetailList.add(0, lendingLedgerDetail);
                     }
+                    List<Map<String, Object>> penaltyLedgerList = new ArrayList<>();
+                    penaltyLedgerList = populatePenaltyLedger(lendingPaymentSchedule1, penaltyLedgerList);
+
 
                     SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
 
@@ -1043,7 +1057,16 @@ public class SupportService {
                     if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
                         lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(application.getId(), application.getLender());
                     }
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LoanUtil.getEdiModal(application).name(), refundDetails);
+                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(),
+                            application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(),
+                            lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(),
+                            lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(),
+                            lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(),
+                            null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(),
+                            lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null,
+                            lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo(),
+                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList);
+
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
                     loanDetailsDTO.setRepayment(application.getRepayment());
@@ -1060,6 +1083,23 @@ public class SupportService {
             supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
         }
         return supportLoanResponseDTO;
+    }
+
+    private List<Map<String, Object>> populatePenaltyLedger(LendingPaymentSchedule lendingPaymentSchedule1, List<Map<String, Object>> penaltyLedgerList) {
+        List<PenaltyFeeLedger> penaltyLedgers = penaltyFeeLedgerDao.findByLoanIdOrderByCreatedAtDesc(lendingPaymentSchedule1.getId());
+
+        for (PenaltyFeeLedger penaltyLedger : penaltyLedgers) {
+            Map<String, Object> penaltyLedgerDetail = new HashMap<>();
+            penaltyLedgerDetail.put("createdAt", penaltyLedger.getCreatedAt());
+            penaltyLedgerDetail.put("id", penaltyLedger.getId());
+            penaltyLedgerDetail.put("transactionType", penaltyLedger.getDescription());
+            penaltyLedgerDetail.put("amount", penaltyLedger.getAmount());
+            penaltyLedgerDetail.put("isWaveOff", penaltyLedger.getIsWaveOff());
+            penaltyLedgerList.add(penaltyLedgerDetail);
+
+        }
+        logger.info("size of penalty ledger list: {}, for loan: {}", penaltyLedgerList.size(), lendingPaymentSchedule1.getId());
+        return penaltyLedgerList;
     }
 
         /*LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.APPROVED.name());

@@ -13,6 +13,9 @@ public class StageServiceFactory {
     KFSStageService kfsStageService;
 
     @Autowired
+    RTEPinService rtePinService;
+
+    @Autowired
     PANPINStageService panpinStageService;
 
     @Autowired
@@ -76,6 +79,8 @@ public class StageServiceFactory {
                 return enachStageService;
             case KYC_ROUTE_TO_ELIGIBILITY:
                 return kycRouteToEligibilityService;
+            case RTE_PIN_PAGE:
+                return rtePinService;
             default:
                 return null;
         }

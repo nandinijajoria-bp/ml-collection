@@ -41,14 +41,12 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.UpdateLeadAndRiskDecisionWrapperService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
@@ -79,7 +77,6 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
 import org.apache.commons.lang.StringUtils;
-import org.joda.time.DateTime;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,6 +100,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
 
 @Service
 @Slf4j
@@ -256,6 +254,7 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
+
     @Value("${penalty.rollout.date:}")
     String penalDate;
 
@@ -558,6 +557,11 @@ public class LendingApplicationServiceV2 {
     private ApiResponse<?> createNewApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
         log.info("creating new application for merchant:{}", merchant.getId());
         try {
+            LendingApplication inProgressLoanApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+            if (!ObjectUtils.isEmpty(inProgressLoanApplication)) {
+                log.error("application already exist for this merchant id {}",inProgressLoanApplication);
+                return new ApiResponse<>(true,"Application already exist for this merchant id");
+            }
             checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
 
             AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
@@ -575,6 +579,13 @@ public class LendingApplicationServiceV2 {
             }
             LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
+
+            final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
+
+            if (rejected) {
+                return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
+            }
+
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
@@ -601,6 +612,25 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in createNewApplication for merchant:{} {} {}", merchant.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Something went wrong");
         }
+    }
+
+
+    private boolean checkAndRejectPilotIdentifierApplication(LendingApplication lendingApplication) {
+
+        boolean rejected = false;
+
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        if(Objects.nonNull(lendingRiskVariablesSnapshot) && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getPilotIdentifier())
+            && lendingRiskVariablesSnapshot.getPilotIdentifier().contains(F_TPV_PILOT_IDENTIFIER)) {
+            log.info("rejecting applications with pilot indetifier F_TPV");
+            lendingApplication.setStatus("rejected");
+            lendingApplication.setManualCibil("REJECTED");
+            lendingApplication.setManualCibilReason("credit assesment failed : F_TPV");
+            lendingApplication.setCibilApprovedDate(new Date());
+            rejected = true;
+        }
+        lendingApplicationDao.save(lendingApplication);
+        return rejected;
     }
 
     private AddressValidationDto getAddressValidationScore(CreateApplicationRequest createApplicationRequest) {
@@ -911,11 +941,11 @@ public class LendingApplicationServiceV2 {
             log.info("pincode not found in createNewApplication for merchant:{}", merchant.getId());
             return "pincode not found";
         }
-        LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
+       /* LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
         if (openApplication != null) {
             log.info("Already open application found for merchant:{}", merchant.getId());
-            return "found existing application";
-        }
+            return "Application already exist for this merchant id";
+        }*/
         Integer pincode = Integer.valueOf(applicationRequest.getAddressDetails().getPincode());
         if (loanUtil.isOGL(pincode)) {
             log.info("OGL pincode found for merchant:{}", merchant.getId());
@@ -931,6 +961,7 @@ public class LendingApplicationServiceV2 {
             log.info("Already an ongoing loan exists for the merchant : {}", merchant.getId());
             return "Already an ongoing loan exists";
         }
+
         return null;
     }
 
@@ -1680,6 +1711,10 @@ public class LendingApplicationServiceV2 {
                 }
             }
 
+            if (LendingResubmitEnum.DOWNGRADE.equals(resubmitApplicationDTO.getType()) && lendingApplication.getLender().equalsIgnoreCase("TRILLIONLOANS")) {
+                return new ApiResponse<>(false,"offer downgrade disabled for lender : TRILLIONLOANS");
+            }
+
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if(Objects.isNull(lendingResubmitTask)){
                 lendingResubmitTask = new LendingResubmitTask();
@@ -1718,7 +1753,7 @@ public class LendingApplicationServiceV2 {
                     }
                 }
 
-            }else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
+            } else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
@@ -1746,6 +1781,9 @@ public class LendingApplicationServiceV2 {
                     lendingApplication.setLmsStage(LendingConstants.PENDING_DISBURSAL);
                     lendingApplicationDao.save(lendingApplication);
                     loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
+
+                    loanUtil.checkForPendingDisbursalStageSkip(lendingApplication, MDC.get("requestId"));
+
                     return new ApiResponse<>(true,"Application Submitted Successfully");
                 }
             }
@@ -2157,7 +2195,8 @@ public class LendingApplicationServiceV2 {
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_LIQUILOANS;
                 lenderGrievanceTime = LENDER_GRIEVANCE_TIME_LIQUILOANS;
             }
-            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString()) ||
+                    lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LL_NBFC;
                 lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_LL_NBFC;
                 lenderContactName = KfsConstants.LENDER_CONTACT_NAME_LL_NBFC;
@@ -2294,8 +2333,9 @@ public class LendingApplicationServiceV2 {
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
-            if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
+            if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
+                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2386,7 +2426,7 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2451,14 +2491,13 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL.html";
-            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
-                && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+            } else if(lender.equalsIgnoreCase(Lender.USFB.name())) {
+                filePath = "/templates/" + "KFS_NONP2P_USFB" + ".html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
-            }
-            else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
-                filePath = "/templates/KFS_TRILLION_PC.html";
-            }
-            else {
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/KFS_TRILLION_PC_v2.html";
+            } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
@@ -2531,14 +2570,13 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
-            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
-                    && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+            } else if (lender.equalsIgnoreCase(Lender.USFB.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_USFB.html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
-            }
-            else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC.html";
-            }
-            else {
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+            } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
 
@@ -2813,11 +2851,12 @@ public class LendingApplicationServiceV2 {
         String logoUrl = "";
         if(lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
             logoUrl = "https://d36q81tf33qni.cloudfront.net/LiquiLoans.png";
-        }
-        else if(lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString())){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/TrillionLogoKFS.png";
-        }
-        else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)){
+        } else if((lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender))
+                && applicationDocType.equals(ApplicationDocType.LIQUILOANS_NBFC_FOOTER)) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trliions_Footer-1705915638774.png";
+        } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender)) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trillions_Header-1705913991462.png";
+        } else if (lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)) {
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding_1.png";
         }

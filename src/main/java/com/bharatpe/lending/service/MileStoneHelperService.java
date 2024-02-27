@@ -23,10 +23,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.common.util.MapperUtil;
-import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
-import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
-import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
-import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -35,12 +32,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
 public class MileStoneHelperService {
+
     @Autowired
     private MileStoneDaoSlave mileStoneDaoSlave;
 
@@ -62,9 +62,6 @@ public class MileStoneHelperService {
     @Autowired
     LoanUtil loanUtil;
 
-    @Value("${milestone.program.visibility.days:180}")
-    private long milestoneProgramVisibilityDays;
-
     @Value("${milestone.deeplink}")
     private String deepLink;
 
@@ -81,7 +78,7 @@ public class MileStoneHelperService {
     private Boolean milestoneWidgetVisible;
 
     @Value("${rte.program.visible}")
-    private Boolean showRTEProgram=true;
+    private Boolean showRTEProgram = true;
 
     @Value("${milestone.easyLoan.visible}")
     private Boolean milestoneEasyLoanVisible;
@@ -104,19 +101,16 @@ public class MileStoneHelperService {
     @Autowired
     LendingPincodesDao lendingPincodesDao;
 
-    @Value("${merchant.milestone.target.user}")
+    @Value("${merchant.milestone.target.user:100}")
     Integer milestoneTargetUser;
 
     @Autowired
     KycHandler kycHandler;
 
-    @Autowired
-    LoanDashboardService loanDashboardService;
 
-
-    public BureauResponseDTO calculateBureauScore(String panNumber,BasicDetailsDto merchant) {
+    public BureauResponseDTO calculateBureauScore(String panNumber, BasicDetailsDto merchant) {
         return bureauHandler.getBureauData(panNumber, merchant.getId(), merchant.getMobile(),
-                bureauScorePullDays,"RTE");
+                bureauScorePullDays, "RTE");
     }
 
 
@@ -133,6 +127,7 @@ public class MileStoneHelperService {
         entity.setMilestoneOffer(false);
         entity.setKycStatus("APPROVED");
         entity.setGraphData(0D);
+        entity.setComment(null);
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(entity.getCreatedAt());
         if (days == 28) {
@@ -170,42 +165,35 @@ public class MileStoneHelperService {
         return programEligibleData;
     }
 
- /*   public MileStoneEligibilityResponseDto fetchTargetMileStone(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, String pinCodeColor) {
-        MileStoneEligibilityResponseDto milestoneEligibleResp = new MileStoneEligibilityResponseDto();
-
-        DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), bureauResponseDTO.getVariables().getBureauScore(),
-                bureauResponseDTO.getVariables().getBbs(), pinCodeColor);
-
-        if (fetchMileStoneData.getTarget().isEmpty()) {
-            milestoneEligibleResp.setMilStoneEligibility(false);
-            milestoneEligibleResp.setEnrollState(false);
-            return milestoneEligibleResp;
-        }
-        return milestoneEligibleResp;
-    }*/
-
     public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant) {
-
-
         MileStoneEligibilityResponseDto responseDto = new MileStoneEligibilityResponseDto();
-
         responseDto.setShowHomeWidgets(milestoneWidgetVisible);
         responseDto.setShowSplashBanner(milestoneSplashVisible);
         responseDto.setShowRTELoansFlow(milestoneEasyLoanVisible);
 
-
+        try {
         List<Long> rteEligibleMerchants = loanUtil.rteEligibleMerchant();
         if (!easyLoanUtil.percentScaleUp(merchant.getId(), milestoneTargetUser)
                 && !rteEligibleMerchants.contains(merchant.getId())) {
-            log.info("ineligible due to not present in percent scale up or not in list for merchant id {}",merchant.getId());
+            log.info("ineligible due to not present in percent scale up or not in list for merchant id {}", merchant.getId());
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
             return responseDto;
         }
 
+        List<MileStoneEntity> entityList = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "COMPLETED");
+        log.info("entityList is {}", entityList.size());
+
+        if (entityList.size() >= 3) {
+            log.info("merchant has been enrolled in this program for 3 times");
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
+            responseDto.setIsEligibleForReapply(false);
+            return responseDto;
+        }
+
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         log.info("entity for milestone journey {} for merchantId {}", entity, merchant.getId());
-
 
         if (!showRTEProgram && !"IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             log.info("RTE program {} is disable for merchant {}", showRTEProgram, merchant.getId());
@@ -214,7 +202,6 @@ public class MileStoneHelperService {
             return responseDto;
         }
 
-
         if (rteEligibleMerchants.contains(merchant.getId())) {
             log.info("setting up date");
             merchant.setCreatedAt(new Date());
@@ -222,11 +209,10 @@ public class MileStoneHelperService {
             log.info("merchant id {}, createdAt {}", merchant.getId(), merchant.getCreatedAt());
         }
 
-
-        String mileStoneOfferCacheKey = LoanDetailsConstant.RTE_MILESTONE_OFFER_KEY + merchant.getId();
+        String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
         Object mileStoneOfferResponse = lendingCache.get(mileStoneOfferCacheKey);
-
-        if (!ObjectUtils.isEmpty(mileStoneOfferResponse)) {
+        if (Objects.nonNull(mileStoneOfferResponse) &&
+                !ObjectUtils.isEmpty(mileStoneOfferResponse)) {
             try {
                 log.info("returning milestone offer response from cache for {}", merchant.getId());
                 responseDto = objectMapper.readValue((String) mileStoneOfferResponse, MileStoneEligibilityResponseDto.class);
@@ -236,34 +222,35 @@ public class MileStoneHelperService {
             }
         }
 
-
-        if (!ObjectUtils.isEmpty(entity) && Boolean.TRUE.equals(entity.getMilestoneOffer())) {
+        if (ObjectUtils.isEmpty(mileStoneOfferResponse)
+                && !ObjectUtils.isEmpty(entity)
+                && Boolean.TRUE.equals(entity.getMilestoneOffer())) {
             log.info("mileStoneOffer flag {}", entity.getMilestoneOffer());
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
+            responseDto.setIsEligibleForReapply(false);
             try {
                 AddCacheDto addCacheDto = new AddCacheDto();
-                addCacheDto.setKey(LoanDetailsConstant.RTE_MILESTONE_OFFER_KEY + merchant.getId());
+                addCacheDto.setKey(RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId());
                 addCacheDto.setValue(objectMapper.writeValueAsString(responseDto));
                 addCacheDto.setTtl(24);
                 lendingCache.add(addCacheDto, TimeUnit.HOURS);
             } catch (Exception e) {
-                log.error("exception occurred while caching RTE details {} !!", LoanDetailsConstant.RTE_MILESTONE_OFFER_KEY + merchant.getId());
+                log.error("exception occurred while caching RTE details {} !!", RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId());
             }
             return responseDto;
         }
 
-
-        String mileStoneCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
+        String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
         Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
 
-        LoanDashboardResponse loanDashboardResponse = null;
+        RTEProgramDetailsDto rteProgramDetailsDto = null;
         if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
             try {
-                log.info("returning loan details response from cache for {}", merchant.getId());
-                loanDashboardResponse = objectMapper.readValue((String) mileStoneCacheResponse, LoanDashboardResponse.class);
-                if (!ObjectUtils.isEmpty(loanDashboardResponse.getRouteToEligibilityData())) {
-                    return loanDashboardResponse.getRouteToEligibilityData();
+                log.info("returning rte details response from cache for {}", merchant.getId());
+                rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
+                if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getRouteToEligibilityData())) {
+                    return rteProgramDetailsDto.getRouteToEligibilityData();
                 }
             } catch (Exception e) {
                 log.info("exception while fetching response is: {}", e.getMessage());
@@ -271,222 +258,256 @@ public class MileStoneHelperService {
         }
 
         boolean lessThan30 = false;
-      /*  Calendar calendar = Calendar.getInstance();
+        Calendar calendar = Calendar.getInstance();
+        /*Date date1=null;
+        try {
+            date1 = new SimpleDateFormat("YYYY-MM-DD").parse("2023-09-11");
+        } catch (ParseException e) {
+            log.info("error is {}",Arrays.asList(e.getStackTrace()));
+        }
+        merchant.setCreatedAt(date1);
+        merchant.setCreated_at(date1);*/
+       /* merchant.setCreated_at(new Date());
+        merchant.setCreatedAt(new Date());*/
         calendar.setTime(merchant.getCreatedAt());
-//        calendar.add(Calendar.MONTH, 1);
+        calendar.add(Calendar.MONTH, 1);
         if (new Date().compareTo(calendar.getTime()) <= 0) {
-            lessThan30 = true;
-        }*/
-
-        Date currentDate = new Date();
-        if (DateUtils.calculateAgeOfMerchantInDays(merchant.getCreatedAt(), currentDate) <= milestoneProgramVisibilityDays) {
-            log.info("merchant created at {}",merchant.getCreatedAt());
-            log.info("current date {}",currentDate);
             lessThan30 = true;
         }
 
-        log.info("less Than days is {}",lessThan30);
-        if (!lessThan30)
-        {
-            log.info("lesstThan days flag is {}",lessThan30);
+        if (!lessThan30 && (ObjectUtils.isEmpty(entity)) || entityList.size()>=3) {
+            log.info("less Than 30 flag is {} for merchantId {} with no session present or session exceeds", lessThan30,merchant.getId());
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
             return responseDto;
         }
 
-        String pinCodeColor = null;
-        Experian experian = experianDao.getByMerchantId(merchant.getId());
-        if (lessThan30 && ObjectUtils.isEmpty(experian)) {
-            log.info("experian is {} for merchant id {} ",experian,merchant.getId());
-            responseDto.setEnrollState(false);
-            responseDto.setMilStoneEligibility(true);
-            responseDto.setGraphData(null);
-            responseDto.setWeekCount(null);
-            responseDto.setProgramEligibleData(setProgramEligibleData());
-            responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-            responseDto.setIsMileStoneExpiry(false);
-            responseDto.setDeepLinkUrl(deepLink);
-            responseDto.setPinCode(0);
-            responseDto.setPanCard(null);
-            return responseDto;
-        }
 
-        if (lessThan30 && !ObjectUtils.isEmpty(experian)) {
-            if (experian.getPincode() != null) {
-                responseDto.setPinCode(experian.getPincode());
+        String pinCodeColor = null;
+        String kycPancard = null;
+        int pincode = 0;
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        kycPancard = kycHandler.getPanNumber(merchant.getId());
+        if (ObjectUtils.isEmpty(entity) || !("IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus()))) {
+            if (ObjectUtils.isEmpty(kycPancard)) {
+                log.info("panCard is empty for merchant", merchant.getId());
+                responseDto.setEnrollState(false);
+                responseDto.setMilStoneEligibility(true);
+                responseDto.setGraphData(null);
+                responseDto.setWeekCount(null);
+                responseDto.setProgramEligibleData(setProgramEligibleData());
+                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                responseDto.setIsMileStoneExpiry(false);
+                responseDto.setDeepLinkUrl(deepLink);
+                responseDto.setPanCard(null);
+                responseDto.setPinCode(pincode);
+                responseDto.setIsEligibleForReapply(true);
+                return responseDto;
+            }
+
+            if (!ObjectUtils.isEmpty(experian) &&
+                    entityList.size() >= 1 && experian.getPincode() != null) {
+                pincode = experian.getPincode();
+                responseDto.setPinCode(pincode);
                 LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(experian.getPincode());
                 if (!ObjectUtils.isEmpty(lendingPincodes)) {
                     log.info("pincode entity is {}", lendingPincodes);
                     pinCodeColor = lendingPincodes.getColor().getValue();
                 }
+
+            }
+            if (lessThan30 && ObjectUtils.isEmpty(experian)) {
+                log.info("experian is {} for merchant id {} ", experian, merchant.getId());
+                responseDto.setEnrollState(false);
+                responseDto.setMilStoneEligibility(true);
+                responseDto.setGraphData(null);
+                responseDto.setWeekCount(null);
+                responseDto.setProgramEligibleData(setProgramEligibleData());
+                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                responseDto.setIsMileStoneExpiry(false);
+                responseDto.setDeepLinkUrl(deepLink);
+                responseDto.setPinCode(pincode);
+                responseDto.setPanCard(kycPancard);
+                responseDto.setIsEligibleForReapply(true);
+                return responseDto;
             }
 
-           if(ObjectUtils.isEmpty(experian.getPincode())
-                   && !ObjectUtils.isEmpty(experian.getLatitude()) &&
-                   !ObjectUtils.isEmpty(experian.getLongitude())) {
-                DEPinCode pinCodeResponse = dsHandler.getInferredPinCode(merchant.getId(), experian.getLatitude(), experian.getLongitude());
-                if ((lessThan30 && (pinCodeResponse.getPincode() == -1 || ObjectUtils.isEmpty(pinCodeResponse))))
-
-                {
-                    log.info("pincode is -1 from de response for merchant {}",merchant.getId(),merchant.getId());
-                    responseDto.setEnrollState(false);
-                    responseDto.setMilStoneEligibility(true);
-                    responseDto.setGraphData(null);
-                    responseDto.setWeekCount(null);
-                    responseDto.setProgramEligibleData(setProgramEligibleData());
-                    responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                    responseDto.setIsMileStoneExpiry(false);
-                    responseDto.setDeepLinkUrl(deepLink);
-                    responseDto.setPinCode(0);
-                    responseDto.setPanCard(null);
-                    return responseDto;
-                }
-                if (lessThan30 && !ObjectUtils.isEmpty(pinCodeResponse) && pinCodeResponse.getPincode()!=-1) {
-                    responseDto.setPinCode(pinCodeResponse.getPincode());
-                    LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pinCodeResponse.getPincode());
-                    log.info("pincode entity is {} ", lendingPincodes);
+            if (lessThan30 && !ObjectUtils.isEmpty(experian) && entityList.size()==0) {
+                if (experian.getPincode() != null) {
+                    pincode = experian.getPincode();
+                    responseDto.setPinCode(pincode);
+                    LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(experian.getPincode());
                     if (!ObjectUtils.isEmpty(lendingPincodes)) {
                         log.info("pincode entity is {}", lendingPincodes);
                         pinCodeColor = lendingPincodes.getColor().getValue();
                     }
                 }
+
+                if (ObjectUtils.isEmpty(experian.getPincode())
+                        && !ObjectUtils.isEmpty(experian.getLatitude()) &&
+                        !ObjectUtils.isEmpty(experian.getLongitude())) {
+                    log.info("pincode is empty for merchant id {}",merchant.getId());
+                    DEPinCode pinCodeResponse = dsHandler.getInferredPinCode(merchant.getId(), experian.getLatitude(), experian.getLongitude());
+                    log.info("pincodeResponse is {}",pinCodeResponse);
+                    if ((lessThan30 && (pinCodeResponse.getPincode() == -1 || ObjectUtils.isEmpty(pinCodeResponse)))) {
+                        log.info("pincode is -1 from de response for merchant {}", merchant.getId(), merchant.getId());
+                        responseDto.setEnrollState(false);
+                        responseDto.setMilStoneEligibility(true);
+                        responseDto.setGraphData(null);
+                        responseDto.setWeekCount(null);
+                        responseDto.setProgramEligibleData(setProgramEligibleData());
+                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setIsMileStoneExpiry(false);
+                        responseDto.setDeepLinkUrl(deepLink);
+                        responseDto.setPinCode(pincode);
+                        responseDto.setPanCard(kycPancard);
+                        responseDto.setIsEligibleForReapply(true);
+                        return responseDto;
+                    }
+                    if (lessThan30 && !ObjectUtils.isEmpty(pinCodeResponse) && pinCodeResponse.getPincode() != -1) {
+                        log.info("pincode is not -1");
+                        pincode = pinCodeResponse.getPincode();
+                        responseDto.setPinCode(pincode);
+                        experian.setPincode(pincode);
+                        experianDao.save(experian);
+                        LendingPincodes lendingPincodes = lendingPincodesDao.findByPincode(pinCodeResponse.getPincode());
+                        log.info("pincode entity is {} ", lendingPincodes);
+                        if (!ObjectUtils.isEmpty(lendingPincodes)) {
+                            log.info("pincode entity is {}", lendingPincodes);
+                            pinCodeColor = lendingPincodes.getColor().getValue();
+                        }
+                    }
+                }
+            }
+
+            if (ObjectUtils.isEmpty(pinCodeColor) || Objects.isNull(pinCodeColor)) {
+                log.info("pincode color is empty or null");
+                responseDto.setEnrollState(false);
+                responseDto.setMilStoneEligibility(false);
+                return responseDto;
+            }
+
+        }
+
+        BureauResponseDTO bureauResponseDTO=null;
+//        MileStoneEntity inProgressEntity = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "IN_PROGRESS");
+        String sessionStatus=null;
+        if (!ObjectUtils.isEmpty(entity)) {
+        sessionStatus  = entity.getSessionStatus();
+        }
+        if (ObjectUtils.isEmpty(entity) ||!"IN_PROGRESS".equalsIgnoreCase(sessionStatus))
+        {
+            bureauResponseDTO = calculateBureauScore(kycPancard, merchant);
+
+            if ((ObjectUtils.isEmpty(bureauResponseDTO)
+                    || ObjectUtils.isEmpty(bureauResponseDTO.getVariables()))
+                    && bureauResponseDTO.getIsNTC() != Boolean.TRUE) {
+                log.info("bureau response {} for merchant id {}", bureauResponseDTO, merchant.getId());
+                responseDto.setMilStoneEligibility(false);
+                responseDto.setEnrollState(false);
+                return responseDto;
             }
         }
 
-
-        if (ObjectUtils.isEmpty(pinCodeColor) || Objects.isNull(pinCodeColor)) {
-            log.info("pincode color is empty or null");
-            responseDto.setEnrollState(false);
-            responseDto.setMilStoneEligibility(false);
-            return responseDto;
-        }
-
-        String kycPancard = kycHandler.getPanNumber(merchant.getId());
-        if (ObjectUtils.isEmpty(kycPancard))
-        {
-            log.info("panCard is empty for merchant",merchant.getId());
-            responseDto.setEnrollState(false);
-            responseDto.setMilStoneEligibility(true);
-            responseDto.setGraphData(null);
-            responseDto.setWeekCount(null);
-            responseDto.setProgramEligibleData(setProgramEligibleData());
-            responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-            responseDto.setIsMileStoneExpiry(false);
-            responseDto.setDeepLinkUrl(deepLink);
-            responseDto.setPanCard(null);
-            responseDto.setPinCode(experian.getPincode());
-            return responseDto;
-        }
-        BureauResponseDTO bureauResponseDTO = calculateBureauScore(kycPancard,merchant);
-
-        if ((ObjectUtils.isEmpty(bureauResponseDTO)
-                || ObjectUtils.isEmpty(bureauResponseDTO.getVariables()))
-                && bureauResponseDTO.getIsNTC() != Boolean.TRUE) {
-            log.info("bureau response {} for merchant id {}", bureauResponseDTO, merchant.getId());
-            responseDto.setMilStoneEligibility(false);
-            responseDto.setEnrollState(false);
-            return responseDto;
-        }
 
         log.info("bureauResponse {} for merchant {}", bureauResponseDTO, merchant.getId());
 
-        MileStoneEntity inProgressEntity = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "IN_PROGRESS");
 
-        if (!ObjectUtils.isEmpty(bureauResponseDTO)) {
-                if (bureauResponseDTO.getIsNTC() == Boolean.TRUE)
-                {
-                    DSMileStoneResponse fetchMileStoneData;
-                    BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
-                    variables.setBbs(0D);
-                    variables.setBureauScore(0D);
-                    fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(), variables.getBbs(), pinCodeColor);
-                    log.info("milestone data {} for merchant id {}", fetchMileStoneData, merchant.getId());
+        if (!"IN_PROGRESS".equalsIgnoreCase(sessionStatus) && !ObjectUtils.isEmpty(bureauResponseDTO)) {
+            if (bureauResponseDTO.getIsNTC() == Boolean.TRUE) {
+                DSMileStoneResponse fetchMileStoneData;
+                BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
+                variables.setBbs(0D);
+                variables.setBureauScore(0D);
+                fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(), variables.getBbs(), pinCodeColor);
+                log.info("milestone data {} for merchant id {}", fetchMileStoneData, merchant.getId());
 
-                    if (fetchMileStoneData == null) {
-                        String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
-                        Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-                        if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-                            lendingCache.delete(loanDetailsCacheKey);
-                        }
+                if (fetchMileStoneData == null) {
 
-                        if (ObjectUtils.isEmpty(inProgressEntity)) {
-                            responseDto.setMilStoneEligibility(false);
-                            responseDto.setEnrollState(false);
-                            return responseDto;
-                        }
-                        else{
-                            log.info("milestone data is null for merchant id {}", merchant.getId());
-                            responseDto.setMilStoneEligibility(true);
-                            responseDto.setEnrollState(true);
-                            responseDto.setDsErrorMessage("error in target ds api");
-                            responseDto.setProgramEligibleData(setProgramEligibleData());
-                            responseDto.setGraphData(null);
-                            responseDto.setWeekCount(null);
-                            responseDto.setPinCode(experian.getPincode());
-                            responseDto.setPanCard(kycPancard);
-                            responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                            responseDto.setDeepLinkUrl(deepLink);
-                            return responseDto;
-                        }
-
+                    if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                        lendingCache.delete(mileStoneCacheKey);
                     }
 
-                    log.info("milestone response for new user merchant id {}",merchant.getId());
-                    if (fetchMileStoneData.getTarget().isEmpty()) {
-                        log.info("targets are null for merchantId {}",merchant.getId());
+//                    if (ObjectUtils.isEmpty(inProgressEntity)) {
+                    if (ObjectUtils.isEmpty(!"IN_PROGRESS".equalsIgnoreCase(sessionStatus)))
+                    {
                         responseDto.setMilStoneEligibility(false);
                         responseDto.setEnrollState(false);
                         return responseDto;
+                    } else {
+                        log.info("milestone data is null for merchant id {}", merchant.getId());
+                        responseDto.setMilStoneEligibility(true);
+                        responseDto.setEnrollState(true);
+                        responseDto.setDsErrorMessage("error in target ds api");
+                        responseDto.setProgramEligibleData(setProgramEligibleData());
+                        responseDto.setGraphData(null);
+                        responseDto.setWeekCount(null);
+                        responseDto.setPinCode(experian.getPincode());
+                        responseDto.setPanCard(kycPancard);
+                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setDeepLinkUrl(deepLink);
+                        responseDto.setIsEligibleForReapply(true);
+                        return responseDto;
                     }
+
                 }
-                if (bureauResponseDTO.getIsNTC() != Boolean.TRUE
-                        &&!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
-                        (bureauResponseDTO.getVariables().getBureauScore() != null
-                                && bureauResponseDTO.getVariables().getBbs() != null)) {
 
-                    DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), bureauResponseDTO.getVariables().getBureauScore(),
-                            bureauResponseDTO.getVariables().getBbs(), pinCodeColor);
-
-                    log.info("milestone data {} for merchant id {}",fetchMileStoneData,merchant.getId());
-
-                    if (fetchMileStoneData == null) {
-                        String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
-                        Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-                        if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-                            lendingCache.delete(loanDetailsCacheKey);
-                        }
-                        if (ObjectUtils.isEmpty(inProgressEntity)) {
-                            responseDto.setMilStoneEligibility(false);
-                            responseDto.setEnrollState(false);
-                            return responseDto;
-
-                        } else {
-                            log.info("milestone data is null for merchant id {}", merchant.getId());
-                            responseDto.setMilStoneEligibility(true);
-                            responseDto.setEnrollState(true);
-                            responseDto.setDsErrorMessage("error in target ds api");
-                            responseDto.setProgramEligibleData(setProgramEligibleData());
-                            responseDto.setGraphData(null);
-                            responseDto.setWeekCount(null);
-                            responseDto.setPinCode(experian.getPincode());
-                            responseDto.setPanCard(kycPancard);
-                            responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                            responseDto.setDeepLinkUrl(deepLink);
-                            return responseDto;
-                        }
-
-                    }
-
-                    log.info("milestone response for old user merchant id {}",merchant.getId());
-
-                    if (fetchMileStoneData.getTarget().isEmpty()) {
-                        log.info("targets are null for merchantId {}",merchant.getId());
-                        responseDto.setMilStoneEligibility(false);
-                        responseDto.setEnrollState(false);
-                        return responseDto;
-                    }
+                log.info("milestone response for new user merchant id {}", merchant.getId());
+                if (fetchMileStoneData.getTarget().isEmpty()) {
+                    log.info("targets are null for merchantId {}", merchant.getId());
+                    responseDto.setMilStoneEligibility(false);
+                    responseDto.setEnrollState(false);
+                    return responseDto;
                 }
             }
+            if (bureauResponseDTO.getIsNTC() != Boolean.TRUE
+                    && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
+                    (bureauResponseDTO.getVariables().getBureauScore() != null
+                            && bureauResponseDTO.getVariables().getBbs() != null)) {
+
+                DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneData(merchant.getId(), bureauResponseDTO.getVariables().getBureauScore(),
+                        bureauResponseDTO.getVariables().getBbs(), pinCodeColor);
+
+                log.info("milestone data {} for merchant id {}", fetchMileStoneData, merchant.getId());
+
+                if (fetchMileStoneData == null) {
+                    if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                        lendingCache.delete(mileStoneCacheKey);
+                    }
+//                    if (ObjectUtils.isEmpty(inProgressEntity)) {
+                    if (ObjectUtils.isEmpty(!"IN_PROGRESS".equalsIgnoreCase(sessionStatus)))
+                    {
+                        responseDto.setMilStoneEligibility(false);
+                        responseDto.setEnrollState(false);
+                        return responseDto;
+
+                    } else {
+                        log.info("milestone data is null for merchant id {}", merchant.getId());
+                        responseDto.setMilStoneEligibility(true);
+                        responseDto.setEnrollState(true);
+                        responseDto.setDsErrorMessage("error in target ds api");
+                        responseDto.setProgramEligibleData(setProgramEligibleData());
+                        responseDto.setGraphData(null);
+                        responseDto.setWeekCount(null);
+                        responseDto.setPinCode(experian.getPincode());
+                        responseDto.setPanCard(kycPancard);
+                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setDeepLinkUrl(deepLink);
+                        responseDto.setIsEligibleForReapply(true);
+                        return responseDto;
+                    }
+
+                }
+
+                log.info("milestone response for old user merchant id {}", merchant.getId());
+                if (fetchMileStoneData.getTarget().isEmpty()) {
+                    log.info("targets are null for merchantId {}", merchant.getId());
+                    responseDto.setMilStoneEligibility(false);
+                    responseDto.setEnrollState(false);
+                    return responseDto;
+                }
+            }
+        }
 
 
         List inclusionReasonMilestoneList = Arrays.asList
@@ -507,166 +528,186 @@ public class MileStoneHelperService {
         log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
 
 
-        if (lessThan30 &&
-                ((bureauResponseDTO.getIsNTC() == Boolean.TRUE)
-                        || (bureauResponseDTO.getIsNTC() == Boolean.FALSE))
-                && (Objects.isNull(lendingRiskVariables.getExperianRejection())
-                       || lendingRiskVariables.getExperianRejection().isEmpty()
+        if ((ObjectUtils.isEmpty(entity)
+        || !ObjectUtils.isEmpty(entity) && !"CLOSED".equalsIgnoreCase(entity.getSessionStatus()))
+                && !ObjectUtils.isEmpty(lendingRiskVariables)
+                && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
                 || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()))) {
-                responseDto.setMilStoneEligibility(true);
-                log.info("entity for milestone {}", entity);
-                if ((ObjectUtils.isEmpty(entity)) ||
-                        ("COMPLETED".equalsIgnoreCase(entity.getSessionStatus()))) {
-                    responseDto.setEnrollState(false);
+            responseDto.setMilStoneEligibility(true);
+            log.info("entity for milestone {}", entity);
+            if ((ObjectUtils.isEmpty(entity)) ||
+                    (!ObjectUtils.isEmpty(entity) && "COMPLETED".equalsIgnoreCase(entity.getSessionStatus()))) {
+                log.info("------test----{}",responseDto);
+                responseDto.setEnrollState(false);
+                responseDto.setGraphData(null);
+                responseDto.setWeekCount(null);
+                responseDto.setPinCode(experian.getPincode());
+                responseDto.setPanCard(kycPancard);
+                responseDto.setProgramEligibleData(setProgramEligibleData());
+                responseDto.setIsEligibleForReapply(true);
+                responseDto.setDeepLinkUrl(deepLink);
+                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+
+                if (!ObjectUtils.isEmpty(entity) && "COMPLETED".equalsIgnoreCase(entity.getSessionStatus())) {
+                    responseDto.setIsMileStoneExpiry(true);
+                    responseDto.setGraphData(entity.getGraphData());
+                } else {
+                    responseDto.setIsMileStoneExpiry(false);
+                }
+                log.info("------test1----{}",responseDto);
+            }
+            else {
+                DSMileStoneResponse response = fetchTarget(entity);
+                log.info("fetch Target data {} for merchant {}", response, merchant.getId());
+
+                DSMileStoneAchievementResponse achievementResponse;
+
+                achievementResponse = dsHandler.fetchMilestoneAchievements(entity.getMerchantId(), entity.getSessionId());
+                log.info("achievementResponse is {}", achievementResponse);
+
+                if (achievementResponse == null && (!ObjectUtils.isEmpty(rteProgramDetailsDto))) {
+                    try {
+                        log.info("returning response from cache for when achievements are null for merchant id {}", merchant.getId());
+                        rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
+                        return rteProgramDetailsDto.getRouteToEligibilityData();
+                    } catch (Exception e) {
+                        log.info("exception while fetching response is: {}", e.getMessage());
+                    }
+                }
+
+                if (achievementResponse == null && (ObjectUtils.isEmpty(rteProgramDetailsDto))) {
+                    log.info("achievement response is null for merchant id {}", merchant.getId());
+                    responseDto.setDsErrorMessage("achievement response is null");
+                    responseDto.setMilStoneEligibility(true);
+                    responseDto.setEnrollState(true);
+                    responseDto.setProgramEligibleData(setProgramEligibleData());
                     responseDto.setGraphData(null);
                     responseDto.setWeekCount(null);
                     responseDto.setPinCode(experian.getPincode());
                     responseDto.setPanCard(kycPancard);
-                    responseDto.setProgramEligibleData(setProgramEligibleData());
                     responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-
-                    if(!ObjectUtils.isEmpty(entity) && "COMPLETED".equalsIgnoreCase(entity.getSessionStatus()))
-                    {
-                        responseDto.setIsMileStoneExpiry(true);
-                        responseDto.setGraphData(entity.getGraphData());
-                    }
-                    else {
-                        responseDto.setIsMileStoneExpiry(false);
-                    }
-
-
+                    responseDto.setDeepLinkUrl(deepLink);
+                    responseDto.setIsEligibleForReapply(true);
+                    return responseDto;
                 }
-                else {
-                    DSMileStoneResponse response = fetchTarget(entity);
-                    log.info("fetch Target data {} for merchant {}", response, merchant.getId());
 
-                    DSMileStoneAchievementResponse achievementResponse;
+                int value = 100 / response.getTarget().size();
+                double graph = 0d;
+                String daysCount = null;
+                HashMap<Integer, Target> targetMileStoneNoMap = new HashMap<>();
 
-                    achievementResponse = dsHandler.fetchMilestoneAchievements(entity.getMerchantId(), entity.getSessionId());
-                    log.info("achievementResponse is {}", achievementResponse);
+                for (Target target : response.target)
+                    targetMileStoneNoMap.put(target.getMilestone_no(), target);
 
-                    if (achievementResponse == null && (!ObjectUtils.isEmpty(loanDashboardResponse))) {
-                        try {
-                            log.info("returning loan details response from cache for {}", merchant.getId());
-                            loanDashboardResponse = objectMapper.readValue((String) mileStoneCacheResponse, LoanDashboardResponse.class);
-                            return loanDashboardResponse.getRouteToEligibilityData();
-                        } catch (Exception e) {
-                            log.info("exception while fetching response is: {}", e.getMessage());
+                int days = response.getTarget_duration_days();
+
+                if (!ObjectUtils.isEmpty(achievementResponse)) {
+                    for (DSMileStoneAchievementResponse.Achievement response1 : achievementResponse.achievement) {
+                        Date date = new Date();
+                        if (days == 56) {
+                            if ((date.after(response1.getMilestone_start_time())) && date.before(response1.getMilestone_end_time())) {
+                                daysCount = "Milestone" + " " + response1.getMilestone_no();
+                            }
+                        }
+                        if (days == 28) {
+                            if ((date.after(response1.getMilestone_start_time()))
+                                    && date.before(response1.getMilestone_end_time())) {
+                                daysCount = "Week" + " " + response1.getMilestone_no();
+                            }
+
+                        } else {
+                            daysCount = "COMPLETED";
+                        }
+
+                        Target target = targetMileStoneNoMap.get(response1.getMilestone_no());
+                        double activeDays = ((double) value / 2) * ((double) response1.getActive_days() / target.getActive_days());
+                        double uniquePayers = ((double) value / 2) * ((double) response1.getUnq_payer() / target.getUnq_payer());
+
+                        if (activeDays > (double) value / 2) {
+                            activeDays = (double) value / 2;
+                        }
+
+                        if (uniquePayers > (double) value / 2) {
+                            uniquePayers = (double) value / 2;
+                        }
+
+                        graph = graph + ((activeDays + uniquePayers) / 100);
+                        log.info("graph data {} for milestone:{}", graph, target.getMilestone_no());
+                    }
+                }
+                responseDto.setEnrollState(true);
+
+                if (daysCount == null) {
+                    daysCount = days == 28 ? "Week 1" : "Milestone 1";
+                }
+
+                boolean isMileStoneExpiry = false;
+                if (!ObjectUtils.isEmpty(entity)) {
+                    Date date = new Date();
+                    isMileStoneExpiry = entity.getExpiryDate().getTime() < date.getTime();
+                    if (isMileStoneExpiry == Boolean.TRUE) {
+                        if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                            lendingCache.delete(mileStoneCacheKey);
                         }
                     }
+                    log.info("milestone Expiry is {}", isMileStoneExpiry);
+                    if (isMileStoneExpiry && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
+                        entity.setSessionStatus("COMPLETED");
+                        entity.setGraphData(graph);
+                        mileStoneDao.save(entity);
+                        List<MileStoneEntity> completedEntity = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "COMPLETED");
+                        if (completedEntity.size() == 3) {
+                            responseDto.setMilStoneEligibility(false);
+                            responseDto.setEnrollState(false);
+                            responseDto.setIsEligibleForReapply(false);
+                            return responseDto;
+                        }
 
-                    if (achievementResponse == null && (ObjectUtils.isEmpty(loanDashboardResponse))) {
-                        log.info("achievement response is null for merchant id {}",merchant.getId());
-                        responseDto.setDsErrorMessage("achievement response is null");
-                        responseDto.setMilStoneEligibility(true);
-                        responseDto.setEnrollState(true);
+                        responseDto.setIsMileStoneExpiry(true);
+                        responseDto.setEnrollState(false);
                         responseDto.setProgramEligibleData(setProgramEligibleData());
-                        responseDto.setGraphData(null);
-                        responseDto.setWeekCount(null);
+                        responseDto.setGraphData(graph);
+                        responseDto.setWeekCount(daysCount);
                         responseDto.setPinCode(experian.getPincode());
                         responseDto.setPanCard(kycPancard);
                         responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
                         responseDto.setDeepLinkUrl(deepLink);
+                        responseDto.setIsEligibleForReapply(true);
+                        responseDto.setMilStoneEligibility(responseDto.getIsEligibleForReapply());
                         return responseDto;
                     }
-
-                    int value = 100 / response.getTarget().size();
-                    double graph = 0d;
-                    String daysCount = null;
-                    HashMap<Integer, Target> targetMileStoneNoMap = new HashMap<>();
-
-                    for (Target target : response.target)
-                        targetMileStoneNoMap.put(target.getMilestone_no(), target);
-
-                    int days = response.getTarget_duration_days();
-
-                    if (!ObjectUtils.isEmpty(achievementResponse)) {
-                        for (DSMileStoneAchievementResponse.Achievement response1 : achievementResponse.achievement) {
-                            Date date = new Date();
-                            if (days == 56) {
-                                if ((date.after(response1.getMilestone_start_time())) && date.before(response1.getMilestone_end_time())) {
-                                    daysCount = "Milestone" + " " + response1.getMilestone_no();
-                                }
-                            }
-                            if (days == 28) {
-                                if ((date.after(response1.getMilestone_start_time()))
-                                        && date.before(response1.getMilestone_end_time())) {
-                                    daysCount = "Week" + " " + response1.getMilestone_no();
-                                }
-
-                            } else {
-                                daysCount = "COMPLETED";
-                            }
-
-                            Target target = targetMileStoneNoMap.get(response1.getMilestone_no());
-                            double activeDays = ((double) value / 2) * ((double) response1.getActive_days() / target.getActive_days());
-                            double uniquePayers = ((double) value / 2) * ((double) response1.getUnq_payer() / target.getUnq_payer());
-
-                            if (activeDays > (double) value / 2) {
-                                activeDays = (double) value / 2;
-                            }
-
-                            if (uniquePayers > (double) value / 2) {
-                                uniquePayers = (double) value / 2;
-                            }
-
-                            graph = graph + ((activeDays + uniquePayers) / 100);
-                            log.info("graph data {} for milestone:{}", graph, target.getMilestone_no());
-                        }
-                    }
-                    responseDto.setEnrollState(true);
-
-                    if (daysCount == null) {
-                        daysCount = days == 28 ? "Week 1" : "Milestone 1";
-                    }
-
-                    boolean isMileStoneExpiry = false;
-                    if (!ObjectUtils.isEmpty(entity)) {
-                        Date date = new Date();
-                        isMileStoneExpiry = entity.getExpiryDate().getTime() < date.getTime();
-                        if (isMileStoneExpiry == Boolean.TRUE)
-                        {
-                            String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
-                            Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-                            if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-                                lendingCache.delete(loanDetailsCacheKey);
-                            }
-                        }
-                        log.info("milestone Expiry is {}", isMileStoneExpiry);
-                        if (isMileStoneExpiry && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
-                            entity.setSessionStatus("COMPLETED");
-                            entity.setGraphData(graph);
-                            mileStoneDao.save(entity);
-                            responseDto.setIsMileStoneExpiry(true);
-                            responseDto.setEnrollState(false);
-                            responseDto.setMilStoneEligibility(lessThan30);
-                            responseDto.setProgramEligibleData(setProgramEligibleData());
-                            responseDto.setGraphData(graph);
-                            responseDto.setWeekCount(daysCount);
-                            responseDto.setPinCode(experian.getPincode());
-                            responseDto.setPanCard(kycPancard);
-                            responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                            responseDto.setDeepLinkUrl(deepLink);
-                            return responseDto;
-                        }
-                    }
-
-                    responseDto.setIsMileStoneExpiry(isMileStoneExpiry);
-                    responseDto.setWeekCount(daysCount);
-                    // To replace this with graph data
-                    responseDto.setGraphData(graph);
-                    responseDto.setProgramEligibleData(setProgramEligibleData());
-                    responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), daysCount));
-                    responseDto.setDeepLinkUrl(deepLink);
-
                 }
-                return responseDto;
+
+                responseDto.setIsMileStoneExpiry(isMileStoneExpiry);
+                responseDto.setWeekCount(daysCount);
+                // To replace this with graph data
+                responseDto.setGraphData(graph);
+                responseDto.setProgramEligibleData(setProgramEligibleData());
+                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), daysCount));
+                responseDto.setDeepLinkUrl(deepLink);
+                responseDto.setIsEligibleForReapply(true);
 
             }
-        responseDto.setMilStoneEligibility(false);
-        responseDto.setEnrollState(false);
+            log.info("responseDto--->{}",responseDto);
+            return responseDto;
 
-        return responseDto;
+            }
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
+            return responseDto;
+
+        }
+        catch (Exception e)
+        {
+            log.error("exception in calculate Eligibility flow for merchant id: {} and exception is {} ",merchant.getId(),Arrays.asList(e.getStackTrace()));
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
+            responseDto.setShowHomeWidgets(milestoneWidgetVisible);
+            responseDto.setShowSplashBanner(milestoneSplashVisible);
+            responseDto.setShowRTELoansFlow(milestoneEasyLoanVisible);
+            return responseDto;
+        }
+
     }
 
 
@@ -706,4 +747,3 @@ public class MileStoneHelperService {
     }
 
 }
-

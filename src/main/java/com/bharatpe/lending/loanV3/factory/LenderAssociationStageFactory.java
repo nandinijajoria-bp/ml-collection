@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV3.factory;
 
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
 import com.bharatpe.lending.loanV3.services.stages.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -35,6 +34,9 @@ public class LenderAssociationStageFactory {
     PushAuditSvcFactory pushAuditSvcFactory;
 
     @Autowired
+    DocUploadStageAssociationSvcFactory docUploadStageAssociationSvcFactory;
+
+    @Autowired
     DigitalSignStageAssociationFactory digitalSignStageAssociationFactory;
 
     public LenderAssociationServiceFactory getStageAssociatedLenderService(String stage) {
@@ -52,6 +54,8 @@ public class LenderAssociationStageFactory {
             return receiptStageSvcFactory;
         } else if (LenderAssociationStages.PUSH_AUDIT.name().equalsIgnoreCase(stage)) {
             return pushAuditSvcFactory;
+        } else if (LenderAssociationStages.DOC_UPLOAD.name().equalsIgnoreCase(stage)) {
+            return docUploadStageAssociationSvcFactory;
         } else if (LenderAssociationStages.DIGI_SIGN.name().equalsIgnoreCase(stage)) {
             return digitalSignStageAssociationFactory;
         }

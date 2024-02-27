@@ -60,6 +60,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.constant.LendingConstants.PAYTM;
 import static com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2.getDateInFormat;
 
 @Service
@@ -2210,15 +2211,28 @@ public class LendingApplicationService {
         try {
             Map<String, Object> data = new HashMap<>();
 //            Optional<Merchant> merchant = merchantDao.findById(merchantId);
-            Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(merchantId);
+
+            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId, Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
+
 
             data.put("bankAccountChange", Boolean.TRUE);
-            if (!merchant.isPresent()) {
+            if (ObjectUtils.isEmpty(merchant)) {
                 data.put("bankAccountChange", Boolean.FALSE);
                 data.put("message", "Merchant Not Found!");
                 responseDTO.setData(data);
                 return responseDTO;
             }
+
+            BankDetailsDto merchantBankDetail = merchantDetailsDto.getBankDetail();
+
+            if (!ObjectUtils.isEmpty(merchantBankDetail) && !ObjectUtils.isEmpty(merchantBankDetail.getBankName()) && merchantBankDetail.getBankName().toUpperCase().contains(PAYTM)) {
+                data.put("bankAccountChange", Boolean.TRUE);
+                data.put("message", "Merchant Is Able To Change Bank Account!");
+                responseDTO.setData(data);
+                return responseDTO;
+            }
+
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             if (lendingPaymentSchedule != null) {
                 data.put("bankAccountChange", Boolean.FALSE);
@@ -2240,7 +2254,7 @@ public class LendingApplicationService {
             }
 
 
-            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.get().getId());
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
             if (lendingApplication == null) {
                 data.put("bankAccountChange", Boolean.TRUE);
                 data.put("message", "Merchant Is Able To Change Bank Account!");

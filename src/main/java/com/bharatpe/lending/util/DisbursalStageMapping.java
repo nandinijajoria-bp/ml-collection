@@ -1,5 +1,6 @@
 package com.bharatpe.lending.util;
 
+import com.bharatpe.lending.enums.Lender;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -43,6 +44,8 @@ public class DisbursalStageMapping {
         put(Pair.of("MAMTA2", "CANCELLED"),"FAILED");
         put(Pair.of("ABFL", "DISBURSED"),"DISBURSED");
         put(Pair.of("PIRAMAL", "DISBURSED"),"DISBURSED");
+        put(Pair.of("USFB","DISBURSED"),"DISBURSED");
+        put(Pair.of(Lender.TRILLIONLOANS.name(), "DISBURSED"), "DISBURSED");
     }};
 
     public static String getDisbursedStage(String lender, String stage) {

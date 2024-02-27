@@ -18,10 +18,7 @@ import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
-import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.common.service.LendingNotificationService;
-import com.bharatpe.lending.common.service.NBFCService;
-import com.bharatpe.lending.common.service.PaymentSettlementService;
+import com.bharatpe.lending.common.service.*;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -39,9 +36,11 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
+import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+import com.bharatpe.lending.loanV3.dto.trillions.TrillionForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal;
@@ -51,6 +50,7 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustmentModesPiramal;
+import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.util.LoanUtil;
 
@@ -146,6 +146,9 @@ public class PaymentService {
     LoanDpdDaoSlave loanDpdDaoSlave;
 
     @Autowired
+    ExcessNachService excessNachService;
+
+    @Autowired
     LendingNotificationService lendingNotificationService;
 
     @Autowired
@@ -223,6 +226,9 @@ public class PaymentService {
     @Value("${loan.payment.order.pending.transaction.time.window:30}")
     int loanPaymentOrderPendingTransactionTimeWindow;
 
+    @Value("${nbfc.trillion.foreclosure.topic:trillion-foreclose-loan}")
+    String nbfcTrillionForeclosureTopic;
+
     @Autowired
     private LendingPullPaymentDao lendingPullPaymentDao;
 
@@ -232,8 +238,17 @@ public class PaymentService {
     @Value("${nbfc.baseurl.v3.foreclosure:api/v3/lender/foreclosure}")
     String nbfcURI;
 
+    @Value("${easy.loans.pg.redirection.url:easy-loans}")
+    String pgRedirectionUrl;
+
+    @Autowired
+    AssociationServiceUtil associationServiceUtil;
+
     @Autowired
     PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
+    @Autowired
+    SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -258,7 +273,10 @@ public class PaymentService {
         Integer overdueAmount = activeLoan.getDueAmount().intValue();
         Integer penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty().intValue() : 0;
         Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
-        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
+
+        Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(activeLoan.getMerchantId(), activeLoan.getId());
+
+        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         boolean isPayable = true;
         if(overdueDays < 2) {
@@ -277,6 +295,7 @@ public class PaymentService {
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
             netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+            netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
         }
         principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
         logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
@@ -393,10 +412,10 @@ public class PaymentService {
             PgCreateTransactionRequestDTO pgCreateTransactionRequestDTO = new PgCreateTransactionRequestDTO();
             pgCreateTransactionRequestDTO.setOrderAmount(amount.doubleValue());
             pgCreateTransactionRequestDTO.setOrderId(orderId);
-            pgCreateTransactionRequestDTO.setNarration("Payment for Order No "+orderId);
+            pgCreateTransactionRequestDTO.setNarration("Payment for Order No " + orderId);
             pgCreateTransactionRequestDTO.setPaymentPageHeaderText(PaymentConstants.PG_PAGE_HEADER_TEXT);
             if (activeLoan.getLoanApplication() != null && !StringUtils.isEmpty(activeLoan.getLoanApplication().getCkycId())) {//new loan flow
-                pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=easy-loans&wroute=payment-status&wid="+orderId);
+                pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=" + pgRedirectionUrl + "&wroute=payment-status&wid=" + orderId);
             } else {
                 pgCreateTransactionRequestDTO.setRedirectURIDeeplink("bharatpe://dynamic?key=loan&txnID=" + orderId);
             }
@@ -942,11 +961,20 @@ public class PaymentService {
 
         boolean excessCollectionAdjusted = false;
         double penaltyFee = 0;
+        boolean loanStatusFlag = false;
 
         logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), (principalDueAmount + ediHolidayInterestAmount));
         logger.info("Advance EDI amount for loanId:{} is:{}", activeLoan.getId(), advanceEdiAmount);
         logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
+
+        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if (Objects.nonNull(source) && waiverList.contains(source) &&
+                (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+            waiverSettlement(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
+            return;
+        }
+
         if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
@@ -990,6 +1018,8 @@ public class PaymentService {
                 lendingPrepayment.setAdvanceEdiAmount(0D);
                 lendingPrepaymentDao.save(lendingPrepayment);
             }
+            loanStatusFlag=true;
+            log.info("setting loan flag as true at AdjustLoanBalance for merchantId :{}",activeLoan.getMerchantId());
         }
         else {
             double balance=amount;
@@ -1173,10 +1203,25 @@ public class PaymentService {
 
         Double finalAmount = amount;
         notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
-        if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) && !ObjectUtils.isEmpty(lendingLedger)) {
+        if (isLoanClosed && preclosure && !ObjectUtils.isEmpty(lendingLedger)) {
+            if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
                 sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
-        }else if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()) && !ObjectUtils.isEmpty(lendingLedger)){
-            postForeclosureReceiptPiramal(activeLoan,lendingLedger);
+            }
+            else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
+                postForeclosureReceiptPiramal(activeLoan,lendingLedger);
+            }
+            else if (Arrays.asList("USFB").contains(activeLoan.getNbfc())) {
+                postForeclosureReceipt(activeLoan, lendingLedger);
+            } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
+                sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger);
+            }
+        }
+
+        if(loanStatusFlag)
+        {
+            Long merchantId = activeLoan.getMerchantId();
+            log.info("sending loan flag event in adjustLoanBalance for merchantId : {}",merchantId);
+            sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
         }
 
 //		if(isLoanClosed) {
@@ -1258,6 +1303,30 @@ public class PaymentService {
             logger.error("Exception {} while posting the foreclosure receipt for application id {}",e.getMessage(),activeLoan.getApplicationId());
         }
         return null;
+    }
+
+    public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
+        try {
+            logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
+            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger);
+            if(ObjectUtils.isEmpty(nbfcRequest)) {
+                log.info("Error in generating request for foreclosure receipt of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
+                return;
+            }
+            logger.info("foreclosure receipt request for {} {}", activeLoan.getNbfc(), nbfcRequest);
+            LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+            lendingCollectionAudit.setStatus("SUCCESS");
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            try {
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequest), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI);
+                logger.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
+
+            } catch (JsonProcessingException e) {
+                logger.error("exception occurred while posting foreclosure amt to nbfc svc for {}",nbfcRequest, e);
+            }
+        } catch (Exception e){
+            logger.error("Exception {} while posting the foreclosure receipt for application id {} {}",e.getMessage(),activeLoan.getApplicationId(), e);
+        }
     }
 
     private boolean adjustAdvanceEdi(LendingPaymentSchedule activeLoan, double balance, boolean advanceEdi) {
@@ -1727,6 +1796,42 @@ public class PaymentService {
         }
     }
 
+    public void sendForeclosureEventTrillionLoans(Long applicationId, LendingLedger lendingLedger) {
+        try{
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                logger.info("TrillionLoans: no lending app details record found for the app {}", applicationId);
+                return;
+            }
+            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
+                    .applicationId(applicationId)
+                    .lender(Lender.TRILLIONLOANS.name())
+                    .productName("LENDING")
+                    .payload(TrillionForeclosureRequestDto.Payload.builder()
+                            .loanAccounts(lendingApplicationLenderDetails.getLan())
+                            .note("Foreclosure")
+                            .preClosureReasonId(192)
+                            .transactionAmount(lendingLedger.getAmount().toString())
+                            .transactionDate(lendingLedger.getDate())
+                            .paymentTypeId(1)
+                            .interestWaiverAmount(0.0)
+                            .receiptNumber(txnId)
+                            .chargeDiscountDetails(new ArrayList<>())
+                            .waiveCharges(new ArrayList<>())
+                    .build()).build();
+            logger.info("TrillionLoans: foreclosure event sent {}", trillionForeclosureRequestDto);
+            kafkaTemplate.send(nbfcTrillionForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(trillionForeclosureRequestDto), new TypeReference<Map<String, Object>>() {}));
+
+            logger.info("TrillionLoans: updating LCA for foreclosed event for application id : {} ", lendingApplicationLenderDetails.getApplicationId());
+            LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+            lendingCollectionAudit.setStatus("SUCCESS");
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+
+        } catch (Exception e) {
+            logger.error("error occurred while sending foreclosure event {}", e.getMessage());
+        }
+    }
 
     private void adjustLoanBalanceEdiByEdi(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String transferType, String terminalOrderId) {
         logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
@@ -1744,12 +1849,19 @@ public class PaymentService {
                 excessCollectionBalance += lendingCollectionExcess.getAmount();
             }
         }
+        boolean loanStatusFlag = false;
 
         logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Preclosure amount for loanId:{} is:{}", activeLoan.getId(), foreclosureAmount);
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
 
 
+        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if (Objects.nonNull(source) && waiverList.contains(source) &&
+                (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+            waiverSettlement(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
+            return;
+        }
         if(foreclosureAmount - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
@@ -1783,6 +1895,8 @@ public class PaymentService {
             activeLoan.setClosingDate(new Date());
             preclosure = true;
             if(excessCollectionBalance > 0D)excessCollectionAdjusted = true;
+            loanStatusFlag=true;
+            log.info("setting loan flag as true at AdjustLoanBalanceEdiByEdi for merchantId :{}",activeLoan.getMerchantId());
         }
         else {
             final SettleLoanPaymentDTO settleLoanPaymentDTO = paymentSettlementService.settleLoanPayment(activeLoan.getId(), activeLoan.getEdiCount(), activeLoan.getEdiRemainingCount(), activeLoan.getSettleAllPrinciple(), remainingBalance);
@@ -1842,10 +1956,19 @@ public class PaymentService {
 
         notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
 
-        if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) && !ObjectUtils.isEmpty(lendingLedger)) {
-            sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
-        }else if (isLoanClosed && preclosure && activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()) && !ObjectUtils.isEmpty(lendingLedger)){
-            postForeclosureReceiptPiramal(activeLoan,lendingLedger);
+        if (isLoanClosed && preclosure && !ObjectUtils.isEmpty(lendingLedger)) {
+            if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
+                sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+            }
+            else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
+                postForeclosureReceiptPiramal(activeLoan,lendingLedger);
+            }
+            else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger);
+            }
+            else if (Arrays.asList("USFB").contains(activeLoan.getNbfc())) {
+                postForeclosureReceipt(activeLoan, lendingLedger);
+            }
         }
 
         if (remainingBalance > 0.05) {
@@ -1860,6 +1983,37 @@ public class PaymentService {
             lendingRefundAudit.setOrderAmount(amount);
             lendingRefundAuditDao.save(lendingRefundAudit);
         }
+        if(loanStatusFlag)
+        {
+            Long merchantId = activeLoan.getMerchantId();
+            log.info("sending loan flag status in adjustLoanBalanceEdiByEdi for merchantId : {} ",merchantId);
+            sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
+        }
+    }
+
+    private void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
+                                  String transferType, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList) {
+
+        createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
+                0d, "PREPAYMENT", source, transferType, terminalOrderId, 0d);
+        activeLoan.setStatus("CLOSED");
+        activeLoan.setClosingDate(new Date());
+        //settle excess collection balance only
+        if(excessCollectionBalance > 0D) {
+            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + excessCollectionBalance);
+            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + excessCollectionBalance);
+
+            logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
+            createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
+            settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
+
+        }
+        LendingLedger lendingLedger = createLendingLedger(
+                activeLoan,  amount + excessCollectionBalance,
+                amount + excessCollectionBalance, 0d,  getDescription(bankRefNo, true), source,
+                transferType, terminalOrderId, 0d);
+
+        lendingPaymentScheduleDao.save(activeLoan);
     }
 
     public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId,String externalLoanId) {

@@ -74,6 +74,9 @@ public interface LendingConstants {
 	String POA_PROVIDER = "DIGIO";
 	String CUSTOM_OFFER_DOWNGRADE = "CUSTOM_OFFER_DOWNGRADE";
 	String PENDING_DISBURSAL = "PENDING_DISBURSAL";
+	String SEND_TO_NBFC = "SEND_TO_NBFC";
+	String PENDING_DISBURSAL_SKIPPED = "PENDING_DISBURSAL_SKIPPED";
+	String PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC = "lending_disbursal";
 
 	String REJECTION_REASON_1 = "not_enough_references";
 
@@ -93,6 +96,8 @@ public interface LendingConstants {
 	Long BUSINESS_SUBCATEGORY_LMS_FIELD_ID = 41L;
 
 	String NEGATIVE_BUSINESS_CATEGORY_REJECTION = "Negative category as per lender";
+
+	String PAYTM = "PAYTM";
 
 }
 

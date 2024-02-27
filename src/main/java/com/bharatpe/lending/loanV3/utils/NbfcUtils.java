@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
@@ -111,8 +112,7 @@ public class NbfcUtils {
             lendingApplicationDetails.setApplicationId(applicationId);
             lendingApplicationDetails.setEdiModel(EdiModel.SEVEN_DAY_MODEL.name());
         }
-        LenderAssociationStages nextStage =
-                LenderAssociationStageFactory.getNextStage(Lender.valueOf(lender), LenderAssociationStages.valueOf(lenderAssociationStage));
+        LenderAssociationStages nextStage = nextStage(Lender.valueOf(lender), LenderAssociationStages.valueOf(lenderAssociationStage));
         lendingApplicationDetails.setStage(nextStage.name());
         lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
@@ -127,4 +127,17 @@ public class NbfcUtils {
             log.info("application {} successfully pushed to the next stage {}", applicationId, nextStage.name());
             }
         }
+
+    private LenderAssociationStages nextStage(Lender lender, LenderAssociationStages stage) {
+        switch (lender) {
+            case USFB :
+            case TRILLIONLOANS:
+                return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
+            case ABFL :
+            case PIRAMAL:
+            default:
+                return LenderAssociationStageFactory.getNextStage(lender, stage);
+        }
+    }
+
 }

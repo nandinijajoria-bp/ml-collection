@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,8 @@ import org.springframework.util.ObjectUtils;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.Period;
+import java.time.ZoneId;
 import java.util.*;
 
 import static com.bharatpe.lending.enums.KycDocType.PAN_CARD;
@@ -31,6 +34,9 @@ public class KycUtils {
 
     @Autowired
     ConverterUtils converterUtils;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
 
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
@@ -143,5 +149,30 @@ public class KycUtils {
                 }
             }
         }
+    }
+
+    public String getGender(String gender) {
+        if (Objects.nonNull(gender) && ("M".equalsIgnoreCase(gender) || "MALE".equalsIgnoreCase(gender))) {
+            return "MALE";
+        }
+        if (Objects.nonNull(gender) && ("F".equalsIgnoreCase(gender) || "FEMALE".equalsIgnoreCase(gender))) {
+            return "FEMALE";
+        }
+        return "OTHERS";
+    }
+
+    public Integer getAgeFromDob(String dob) {
+        if(ObjectUtils.isEmpty(dob)) {
+            return 0;
+        }
+        Date birthDate = apiGatewayService.parseKycDob(dob);
+        if(ObjectUtils.isEmpty(birthDate)) {
+            return 0;
+        }
+        Date currentDate = new Date();
+        return Period.between(
+                birthDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
+                currentDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+        ).getYears();
     }
 }
