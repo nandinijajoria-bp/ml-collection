@@ -5,7 +5,9 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
 import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
@@ -40,6 +42,7 @@ import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -71,6 +74,7 @@ import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.BooleanUtils;
@@ -252,7 +256,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
-
     @Value("${penalty.rollout.date:}")
     String penalDate;
 
@@ -263,6 +266,14 @@ public class LendingApplicationServiceV2 {
     @Autowired
     InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
 
+    @Value("${kfs.compression.level:2}")
+    int kfsCompressionLevel;
+
+    @Value("${sanction.aggrement.level:5}")
+    int sanctionCompressionLevel;
+
+    @Autowired
+    LendingPincodesQueryDao lendingPincodesQueryDao;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -809,9 +820,7 @@ public class LendingApplicationServiceV2 {
                 !ObjectUtils.isEmpty(lendingGstDetail.getShopType())
                 && lendingApplicationLenderDetails.getStage().equals(LenderAssociationStages.KYC.name())
                 && lendingApplicationLenderDetails.getKycStatus().equals(LenderAssociationStatus.SELFIE_UPLOAD_SUCCESS.name())
-                && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus())
-                && Boolean.TRUE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())
-        ) {
+                && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus())) {
             log.info("criteria met to invoke bre for piramal for {}", lendingApplication.getId());
 
             String currStage =  lendingApplicationLenderDetails.getStage();
@@ -825,10 +834,11 @@ public class LendingApplicationServiceV2 {
                     currStage,
                     Boolean.TRUE
             );
-        } else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
-            log.info("lender changed as current address not same as permanent address for {}", lendingApplication.getId());
-            nbfcUtils.modifyLender(lendingApplication,lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
         }
+//        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
+//           log.info("lender changed as current address not same as permanent address for {}", lendingApplication.getId());
+//            nbfcUtils.modifyLender(lendingApplication,lendingApplicationLenderDetails, LenderAssociationStatus.BRE_HARD_FAILED);
+//        }
     }
 
     public boolean isAddressUpdated(LendingApplication lendingApplication, CreateApplicationRequest applicationRequest) {
@@ -2282,7 +2292,7 @@ public class LendingApplicationServiceV2 {
             String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream);
+            PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()){
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
@@ -2373,7 +2383,7 @@ public class LendingApplicationServiceV2 {
             String kfsHtml = (String) apiResponse.data;
             fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream);
+            PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingKfs.getLender())) {
@@ -2437,7 +2447,8 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "KFS_P2P_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + ".html";
+                String language=getDocLanguage(merchant.getId());
+                filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL.html";
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
@@ -2465,7 +2476,29 @@ public class LendingApplicationServiceV2 {
             return new ApiResponse<>(false, "Unable to generate KFS");
         }
     }
+    private String getDocLanguage(long merchantId)
+    {
+        String language="";
+        try {
+            Experian experian = experianDao.getByMerchantId(merchantId);
+            if (!ObjectUtils.isEmpty(experian)) {
+                LendingPincodesQuery lendingPincodes = lendingPincodesQueryDao.findByPincode(experian.getPincode());
+                if (!ObjectUtils.isEmpty(lendingPincodes)) {
+                    language=DocumentLanguageMap.getDocumentLanguage(lendingPincodes.getState()).name();
+                    if (!ObjectUtils.isEmpty(language)) {
+                        log.info("doc language for merchantId  {} with given pinCode  {} is : {}", merchantId, lendingPincodes.getPincode(), language);
+                        language = "_" + language;
+                    }
+                }
 
+            }
+        }
+        catch(Exception e)
+        {
+             log.error("Exception while fetching language for merchantId: {} ,{}",merchantId ,Arrays.asList(e.getStackTrace()));
+        }
+        return language;
+    }
     public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
@@ -2494,7 +2527,8 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL.html";
+                 String language=getDocLanguage(merchant.getId());
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion)
@@ -3023,10 +3057,7 @@ public class LendingApplicationServiceV2 {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(sameAsAdhaar);
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            // invoke bre for piramal
-//            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-//                invokeBreForPiramal(lendingGstDetail, lendingApplication);
-//            }
+            /*
             if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
                 LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
                 lenderAssociationDetailsRequestDto.setApplicationId(lendingApplication.getId());
@@ -3035,6 +3066,7 @@ public class LendingApplicationServiceV2 {
                 lenderAssociationDetailsRequestDto.setManageState(true);
                 invokeCreateLeadAndDocUploadWraperService.checkForGSTDetailsAndInvokeBREWorkflow(lenderAssociationDetailsRequestDto);
             }
+             */
             funnelService.submitEvent(merchant.getId(), null, applicationId,
                     FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             return new ApiResponse<>(true, "Current Address updated successfully!");

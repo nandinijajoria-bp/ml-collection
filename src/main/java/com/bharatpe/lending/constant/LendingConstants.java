@@ -89,6 +89,11 @@ public interface LendingConstants {
     String BUREAU_CONSENT_KEY_PREFIX="BUREAU_CONSENT_DETAILS_";
 	String LENDING_SOURCE = "EASY_LOANS";
 
+	Long BUSINESS_CATEGORY_LMS_FIELD_ID = 40L;
+	Long BUSINESS_SUBCATEGORY_LMS_FIELD_ID = 41L;
+
+	String NEGATIVE_BUSINESS_CATEGORY_REJECTION = "Negative category as per lender";
+
 }
 
 

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8" />
     <title>KFS Piramal Lender</title>
     <style>
         .fw400 {
@@ -48,12 +49,62 @@
         .mb50 {
             margin-bottom: 50px;
         }
+        .mt24 {
+        margin-top:24px;
+        }
         .width-auto {
             width: -moz-fit-content;
             width: fit-content;
         }
         .fwbold {
             font-weight: bold;
+        }
+        table.outer-table {
+            width: 100%; /* Make the table fill the available width */
+            border-collapse: collapse; /* Collapse borders for better appearance */
+             border: 1px solid black;
+        }
+
+       table.outer-table th, td {
+            border: 1px solid black; /* Add borders for better visualization */
+            padding: 8px;
+            text-align: left;
+        }
+
+        /* Set widths for individual columns */
+      table.outer-table  th:nth-child(1),
+      table.outer-table  td:nth-child(1) {
+            width: 4%;
+        }
+
+       table.outer-table th:nth-child(2),
+       table.outer-table td:nth-child(2),
+      table.outer-table  th:nth-child(3),
+      table.outer-table  td:nth-child(3) {
+            width: 45%;
+        }
+        table.inner-table{
+         border: none;
+        width: 50%;
+
+        }
+        table.inner-table th:nth-child(1),
+        table.inner-table td:nth-child(1)
+        {
+        width:45%;
+        }
+        .bdpixel{
+          border: 1px black;
+        }
+      table.repaySchedule  th:nth-child(1),
+      table.repaySchedule  td:nth-child(1) {
+            width: 20%;
+        }
+         table.repaySchedule th:nth-child(2),
+       table.repaySchedule td:nth-child(2),
+      table.repaySchedule th:nth-child(3),
+      table.repaySchedule  td:nth-child(3) {
+            width: 20%;
         }
     </style>
 </head>
@@ -79,7 +130,7 @@
     <p style="margin: 6px 16px" class="fw400 text-left">
         <span class="fw400">PAN Number: </span> : {{pan_of_borrower}}
     </p>
-    <table border="1" cellspacing="0" class="width-100 mb20">
+    <table border="1" cellspacing="0" class="width-100 mb20 outer-table">
         <thead>
         <tr class="width-100">
             <td style="padding: 0px 5px" class="width-10">
@@ -403,7 +454,7 @@
                     6 equal daily instalments, (as per the repayment schedule),
                     a Penal Charge shall be levied in the following manner:
                 </p>
-                <table border="1" style="margin: 6px 16px;">
+                <table border="1" style="margin: 6px 16px;" class="inner-table">
                     <tr class="width-100">
                         <td class="width-50 bold">Outstanding Amount</td> <td class="width-50 bold">Penal Charges (In Rs.)</td>
                     </tr>
@@ -619,132 +670,141 @@
         *For more detailed information, please refer to the Sanction Letter & Loan Agreement for the loan facility.
         This Key Fact Statement needs to be read along with the Sanction Letter & Loan Agreement.
     </p>
-    <div style="page-break-inside: avoid !important" class="mb20">
-        <h3 class="text-left">
-            <span>Detailed Repayment Schedule</span>
-        </h3>
-        <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
-            <tbody>
-            <tr class="width-100">
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px" class="fwbold text-left word-wrap">
-                        <strong>Instalment No.</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px" class="fwbold text-left word-wrap">
-                        <strong>Outstanding Principal (in Rupees)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px" class="fwbold text-left word-wrap">
-                        <strong>Principal (in Rupees)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px" class="fwbold text-left word-wrap">
-                        <strong>Interest (in Rupees)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px" class="fwbold text-left word-wrap">
-                        <strong>Instalment (in Rupees)</strong>
-                    </p>
-                </td>
-            </tr>
-            {{repayment_schedule}}
-            </tbody>
-        </table>
     </div>
-    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
-           style="page-break-inside: avoid !important">
+   </div>
+
+
+<div style="page-break-inside: avoid !important" class="mb20">
+    <h3 class="text-left">
+        <span>Detailed Repayment Schedule</span>
+    </h3>
+    <table  cellspacing="0" class="width-100 m-auto mb20 mt24 " style="table-layout: fixed">
+    <table border="1" cellspacing="0" class="width-100 m-auto mb20 mt24 bdpixel repaySchedule outer-table" style="table-layout: fixed">
         <tbody>
         <tr class="width-100">
             <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    Borrower Name
+                <p style="margin: 0px" class="fwbold text-left word-wrap">
+                    <strong>Instalment No.</strong>
                 </p>
             </td>
             <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{borrower_name}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    Mobile No. for OTP
+                <p style="margin: 0px" class="fwbold text-left word-wrap">
+                    <strong>Outstanding Principal (in Rupees)</strong>
                 </p>
             </td>
             <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{mobile_number_for_otp}}
+                <p style="margin: 0px" class="fwbold text-left word-wrap">
+                    <strong>Principal (in Rupees)</strong>
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 0px" class="fwbold text-left word-wrap">
+                    <strong>Interest (in Rupees)</strong>
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 0px" class="fwbold text-left word-wrap">
+                    <strong>Instalment (in Rupees)</strong>
                 </p>
             </td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{platform}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{ip_address}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px;" class="width-50">
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    Location
-                </p>
-            </td>
-            <td style="padding: 0px 5px;" class="width-50">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{location}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{time_stamp}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">Loan ID</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{loan_id}}
-                </p>
-            </td>
-        </tr>
+        {{repayment_schedule}}
         </tbody>
+
     </table>
-</div>
+
+    <br/>
+    <br/>
+    <br/>
+        <table class="repayment" border="1" cellspacing="0" class="m-auto mb20 bdpixel outer-table"
+               style="page-break-inside: avoid !important">
+            <tbody>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        Borrower Name
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{borrower_name}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        Mobile No. for OTP
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{mobile_number_for_otp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{platform}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{ip_address}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px;" class="width-50">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        Location
+                    </p>
+                </td>
+                <td style="padding: 0px 5px;" class="width-50">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{location}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{time_stamp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Loan ID</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{loan_id}}
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+      </div>
 </body>
 </html>

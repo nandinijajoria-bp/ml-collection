@@ -670,7 +670,8 @@ public class LiquiloansService {
                 Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
 //                Date tomorrow = new Date();
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
-                if (tomorrow.getDay() == 0 && !lendingApplication.getLender().equalsIgnoreCase("ABFL")) {
+                if (tomorrow.getDay() == 0 && !lendingApplication.getLender().equalsIgnoreCase("ABFL")
+                   && !lendingApplication.getLender().equalsIgnoreCase("PIRAMAL")) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
                 }
                 tomorrow = format.parse(format.format(tomorrow));
