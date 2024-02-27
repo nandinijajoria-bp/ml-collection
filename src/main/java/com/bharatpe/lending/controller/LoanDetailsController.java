@@ -204,7 +204,7 @@ Integer lendingEdiModel;
 																					@RequestParam(name = "query_amount", required = true) Double queryAmount,
 																					@RequestParam(name = "edi_model", required = false) Integer ediModel) throws BureauCallMaskedApiException {
 		ediModel = (ediModel == null) ? lendingEdiModel : ediModel;
-		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}", merchant.getId(), queryAmount, ediModel);
+		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}, ediModel : {}", merchant.getId(), queryAmount, ediModel);
 		EligibleLendingOffersResponseDTO resp = loanEligibleService.getEligibilityDetails(merchant.getId(), queryAmount,ediModel);
 		logger.info("EligibleLendingOffers response: {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);

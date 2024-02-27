@@ -176,12 +176,12 @@ public class LoanEligibleService {
         EligibleLendingOffersResponseDTO responseDTO = new EligibleLendingOffersResponseDTO();
 
         int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(merchantId, newEligibilityRefreshWindowRolloutPercent) ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
-        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
+        Date dateWindow = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1);
 
-        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
-          Sort.by(Sort.Direction.DESC, "id"));
+//        List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
+//          Sort.by(Sort.Direction.DESC, "id"));
 
-        logger.info("Eligible loan offers : {} , {}", merchantId, eligibleLoans);
+        List<EligibleLoan> eligibleLoans = new ArrayList<>();
 
         if (ObjectUtils.isEmpty(eligibleLoans)) {
             GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
@@ -201,6 +201,7 @@ public class LoanEligibleService {
             loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, queryAmount, merchantId, false);
             eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(merchantId, queryAmount, dateWindow, topupLoans,
                     Sort.by(Sort.Direction.DESC, "id"));
+            logger.info("Eligible loan offers : {} , {}", merchantId, eligibleLoans);
         }
 
         List<EligibleLendingOffersResponseDTO.TenureDetails> tenures = new ArrayList<>();
