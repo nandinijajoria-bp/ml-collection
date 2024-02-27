@@ -27,6 +27,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
+import com.bharatpe.lending.service.MerchantLoansService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -81,6 +82,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${renach.rollout.date}")
     String renachRolloutDate;
 
+    @Autowired
+    MerchantLoansService merchantLoansService;
+
 
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -96,10 +100,15 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     public LendingStateDTO<EnachStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         EnachStateDTO enachStateDTO=new EnachStateDTO();
 
-        if (loanUtil.reNachEnabledMerchants().contains(scopeDataArgs.getMerchant().getId())) {
+        if (loanUtil.reNachEnabledMerchants().contains(scopeDataArgs.getMerchant().getId()) ) {
             LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), "ACTIVE");
-            if (!ObjectUtils.isEmpty(activeLoan))
-                return fetchRenachData(activeLoan.getApplicationId(), activeLoan.getMerchantId(), scopeDataArgs.getToken(), scopeDataArgs);
+
+            if (!ObjectUtils.isEmpty(activeLoan)) {
+                if (merchantLoansService.showRenachBanner(scopeDataArgs.getMerchant().getId(), activeLoan.getNbfc(), false)) {
+                    return fetchRenachData(activeLoan.getApplicationId(), activeLoan.getMerchantId(), scopeDataArgs.getToken(), scopeDataArgs);
+                }
+            }
+
         }
 
         LendingApplication openApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());

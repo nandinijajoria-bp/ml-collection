@@ -83,6 +83,9 @@ public class BPEnachService {
     @Autowired
     LoanUtil loanUtil;
 
+    @Autowired
+    MerchantLoansService merchantLoansService;
+
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
     private static String drfDeepLinkStr = "drf-onboard";
@@ -99,8 +102,11 @@ public class BPEnachService {
 
             if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
                 LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
-                if (!ObjectUtils.isEmpty(activeLoan))
-                    return eNachInitiateForRenachMerchants(merchant, token, nachMode, activeLoan);
+                if (!ObjectUtils.isEmpty(activeLoan)) {
+                    if (merchantLoansService.showRenachBanner(merchant.getId(), activeLoan.getNbfc(), false)) {
+                        return eNachInitiateForRenachMerchants(merchant, token, nachMode, activeLoan);
+                    }
+                }
             }
 
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());

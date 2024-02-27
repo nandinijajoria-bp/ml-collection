@@ -1517,11 +1517,6 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-
-		if (derogTopUpEnable(lendingApplication.getMerchantId())) {
-			setIsNachSkip(lendingApplication);
-			return Boolean.TRUE;
-		}
 		if (skipNachForRepeatLoans(lendingApplication, approvedNachDetails)) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
