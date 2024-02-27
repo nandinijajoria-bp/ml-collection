@@ -576,21 +576,23 @@ public class MerchantLoansService {
     }
 
     public boolean showRenachBanner(Long merchantId, String lender, boolean showChangeBankAccountBanner) {
-        final List<Long> reNachEnabledMerchants = loanUtil.reNachEnabledMerchants();
-        if (reNachEnabledMerchants.contains(merchantId)) {
-            MerchantNachDetailsResponseDTO successEnach = enachHandler.findByMerchantIdAndLender(merchantId, loanUtil.enachServiceLenderMapper(lender));
-            if (successEnach != null &&
-              !ObjectUtils.isEmpty(successEnach.getBankName()) && successEnach.getBankName().contains(PAYTM) &&
-              !ObjectUtils.isEmpty(showChangeBankAccountBanner) && !showChangeBankAccountBanner) {
-                logger.info("show renach banner to merchant : {} with successNach details as when existing nachBank is Paytm : {}", merchantId, successEnach);
-                return true;
-            }
 
-            final Date renachRolloutDate = loanUtil.parseRolloutDate(this.renachRolloutDate);
+        if (!showChangeBankAccountBanner) {
+            final List<Long> reNachEnabledMerchants = loanUtil.reNachEnabledMerchants();
+            if (reNachEnabledMerchants.contains(merchantId)) {
+                MerchantNachDetailsResponseDTO successEnach = enachHandler.findByMerchantIdAndLender(merchantId, loanUtil.enachServiceLenderMapper(lender));
+                if (successEnach != null &&
+                  !ObjectUtils.isEmpty(successEnach.getBankName()) && successEnach.getBankName().contains(PAYTM)) {
+                    logger.info("show renach banner to merchant : {} with successNach details as when existing nachBank is Paytm : {}", merchantId, successEnach);
+                    return true;
+                }
 
-            if (successEnach != null && successEnach.getCreatedAt().before(renachRolloutDate)) {
-                logger.info("show renach banner to merchant : {} with successNach details with rollOut : {}", merchantId, successEnach);
-                return true;
+                final Date renachRolloutDate = loanUtil.parseRolloutDate(this.renachRolloutDate);
+
+                if (successEnach != null && successEnach.getCreatedAt().before(renachRolloutDate)) {
+                    logger.info("show renach banner to merchant : {} with successNach details with rollOut : {}", merchantId, successEnach);
+                    return true;
+                }
             }
         }
 
