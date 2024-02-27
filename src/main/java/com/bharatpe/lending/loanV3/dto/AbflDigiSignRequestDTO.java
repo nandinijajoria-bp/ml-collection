@@ -25,9 +25,7 @@ public class AbflDigiSignRequestDTO {
     public static class Payload {
         String accountId;
         String mobile_number;
-        String email;
-        boolean merged_pdf_flag;
-        String unsigned_merged_pdf;
+        Boolean merged_pdf_flag;
         String sanction_letter;
         String loan_agreement;
         String key_fact_statement;

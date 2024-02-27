@@ -20,10 +20,7 @@ public class ABFLDigiSignService implements ILenderAssociationService {
     @Override
     public AbflDigiSignResponseDTO invoke(Long applicationId, Map args) {
         try {
-            Map<String, String> request = new HashMap() {{
-                put("application_id", applicationId.toString());
-            }};
-            log.info("digi Sign invoked via async api for {}", request);
+            log.info("DIGI sign: invoked via async api for application id {}", applicationId);
             return abflDigiSignServiceV2.invokeDigiSign(applicationId);
         } catch (Exception e) {
             log.error("exception occurred while initiating digiSign workflow for  {}", applicationId);

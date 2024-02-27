@@ -50,8 +50,8 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.foreclosureamt.api:api/v3/lender/foreclosure-details}")
     String nbfcForeClosureAmtUrl;
 
-    @Value("${nbfc.rps.api:api/v3/lender/digital-sign}")
-    String nbfcRpsUrl;
+    @Value("${nbfc.digitalSign.api:api/v3/lender/digital-sign}")
+    String digitalSignUrl;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -125,7 +125,7 @@ public class AbflApiGateway extends INbfcLenderGateway {
 
     public AbflDigiSignResponseDTO invokeDigiSign(AbflDigiSignRequestDTO abflDigiSignRequest) {
         try {
-            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(abflDigiSignRequest), AbflDigiSignResponseDTO.class,nbfcBaseUrl+nbfcRpsUrl);
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(abflDigiSignRequest), AbflDigiSignResponseDTO.class,nbfcBaseUrl+digitalSignUrl);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while invoking digiSign api call to nbfc svc for {}",abflDigiSignRequest, e);
         }
