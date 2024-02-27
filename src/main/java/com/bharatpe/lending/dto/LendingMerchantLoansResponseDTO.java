@@ -44,6 +44,8 @@ public class LendingMerchantLoansResponseDTO {
     private List<RepaymentDetails> repaymentDetails;
     private String topupLender;
     private BankAccountDetails accountDetails;
+    private Boolean showChangeBankAccountBanner;
+    private Boolean showRenachBanner;
 
     private Boolean contactSync = false;
     private List<PenaltyConfig> penaltyConfig;
@@ -687,26 +689,5 @@ public class LendingMerchantLoansResponseDTO {
 
     public void setContactSync(Boolean contactSync) {
         this.contactSync = contactSync;
-    }
-
-    @Override
-    public String toString() {
-        return "LendingMerchantLoansResponseDTO{" +
-          "loans=" + loans +
-          ", success=" + success +
-          ", eligibility=" + eligibility +
-          ", message='" + message + '\'' +
-          ", topup=" + topup +
-          ", totalPaidAmount=" + totalPaidAmount +
-          ", totalAmount=" + totalAmount +
-          ", totalDueAmount=" + totalDueAmount +
-          ", halfLoan=" + halfLoan +
-          ", ioLoan=" + ioLoan +
-          ", ediStarted=" + ediStarted +
-          ", repaymentDetails=" + repaymentDetails +
-          ", topupLender='" + topupLender + '\'' +
-          ", accountDetails=" + accountDetails +
-          ", contactSync=" + contactSync +
-          '}';
     }
 }

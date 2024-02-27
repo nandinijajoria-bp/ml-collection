@@ -214,6 +214,8 @@ public class LoanUtil {
 
 	List<Long> customEnabledMerchants = new ArrayList();
 
+	List<Long> reNachEnabledMerchants = new ArrayList();
+
 	List<Long> rteEligibleMerchants = new ArrayList();
 
 	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
@@ -238,6 +240,9 @@ public class LoanUtil {
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
 
+	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
+
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -258,6 +263,17 @@ public class LoanUtil {
 
 		customEnabledMerchants = readCsvFile(filePath);
 		return customEnabledMerchants;
+	}
+
+	public List<Long> reNachEnabledMerchants() {
+		if (!ObjectUtils.isEmpty(reNachEnabledMerchants)) {
+			return reNachEnabledMerchants;
+		}
+
+		String filePath = "/MerchantList/renach_enabled_merchants";
+
+		reNachEnabledMerchants = readCsvFile(filePath);
+		return reNachEnabledMerchants;
 	}
 
 	private boolean derogTopUpEnable(Long merchantId) {
@@ -1029,6 +1045,17 @@ public class LoanUtil {
 		} catch (Exception ex) {
 			logger.error("Exception in createMerchantSummarySnapshot for application:{}", application.getId(), ex);
 		}
+	}
+
+	public Date parseRolloutDate(String stringDate) {
+
+		try {
+			SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
+			return sdf.parse(stringDate);
+		} catch (Exception e) {
+			logger.info("Exception occurred while parsing date for string : {}", stringDate);
+		}
+		return null;
 	}
 
 	public BankAccountDetails getAccountDetails(Long merchantId) {
