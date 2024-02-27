@@ -67,6 +67,9 @@ public class AssociationServiceUtil {
     @Autowired
     TLRepaymentScheduleService tlRepaymentScheduleService;
 
+    @Autowired
+    AbflDigiSignService abflDigiSignService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -213,6 +216,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlDigitalSignService.processDigitalSignCallback(nbfcResponseDTO);
+            case "ABFL":
+                return abflDigiSignService.processDigitalSignCallback(nbfcResponseDTO);
             default:
                 return false;
         }

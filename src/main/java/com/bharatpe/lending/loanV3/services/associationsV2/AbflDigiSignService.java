@@ -9,23 +9,28 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
+import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
 @Service
-public class AbflDigiSignServiceV2 {
+public class AbflDigiSignService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
     LenderGatewayFactory lenderGatewayFactory;
@@ -35,6 +40,12 @@ public class AbflDigiSignServiceV2 {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Autowired
+    DocUploadUtils docUploadUtils;
 
     public AbflDigiSignResponseDTO invokeDigiSign(Long applicationId) {
         try {
@@ -86,4 +97,36 @@ public class AbflDigiSignServiceV2 {
                         .build())
                 .build();
     }
+
+    public Boolean processDigitalSignCallback(NBFCResponseDTO nbfcResponseDTO) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("No application found for applicationId : {}", nbfcResponseDTO.getApplicationId());
+                return false;
+            }
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !nbfcResponseDTO.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+                log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+                return false;
+            }
+            if (Objects.nonNull(nbfcResponseDTO.getData()) && nbfcResponseDTO.getSuccess()) {
+                AbflDigiSignStatusResponseDTO digitalSignCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), AbflDigiSignStatusResponseDTO.class);
+                log.info("DIGI sign: callback Response for id {} {}", nbfcResponseDTO.getApplicationId(), digitalSignCallbackResponseDto);
+                    if (!ObjectUtils.isEmpty(digitalSignCallbackResponseDto) && !ObjectUtils.isEmpty(digitalSignCallbackResponseDto.getData()) && !ObjectUtils.isEmpty(digitalSignCallbackResponseDto.getData().getShortUrl())) {
+                        lendingApplicationLenderDetails.setDigitalDataUploadStatus(LenderAssociationStatus.DIGI_SIGN_COMPLETE.name());
+                        lendingApplicationLenderDetails.setESignedSanc(Boolean.TRUE);
+                        lendingApplicationLenderDetails.setESignedKfs(Boolean.TRUE);
+                        docUploadUtils.saveESignedDocs(lendingApplication.getId(), digitalSignCallbackResponseDto.getData().getShortUrl(), digitalSignCallbackResponseDto.getData().getShortUrl());
+                        return true;
+                    }
+            }
+            lendingApplicationLenderDetails.setDigitalDataUploadStatus(LenderAssociationStatus.DIGI_SIGN_FAILED.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        } catch (Exception e) {
+            log.error("exception while processing KYC callback of Muthoot for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return false;
+    }
+
 }

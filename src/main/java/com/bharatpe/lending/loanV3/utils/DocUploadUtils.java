@@ -12,6 +12,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Date;
 
@@ -78,4 +79,50 @@ public class DocUploadUtils {
         }
 
     }
+    public void saveESignedDocs(Long applicationId, String signedKFSUrl, String signedSanctionUrl) {
+        try {
+            log.info("saving signed docs for applicationId : {}", applicationId);
+
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if (ObjectUtils.isEmpty(lendingKfs)) {
+                throw new Exception("Unable to retrieve LendingKFS details for applicationId : " + applicationId);
+            }
+
+            if (!ObjectUtils.isEmpty(signedSanctionUrl)) {
+                String sanctionLoanAgreementFileName = ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
+                InputStream inputStream = URI.create(signedSanctionUrl).toURL().openConnection().getInputStream();
+                s3BucketHandler.uploadToS3PdfBucket(inputStream, sanctionLoanAgreementFileName, bucket);
+                String sanctionUrl = s3BucketHandler.getPreSignedPublicURL(sanctionLoanAgreementFileName, bucket);
+                String sanctionShortUrl = apiGatewayService.getShortUrl(sanctionUrl);
+                if (sanctionShortUrl == null || sanctionShortUrl.isEmpty() || sanctionShortUrl.trim().isEmpty()) {
+                    throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + applicationId);
+                }
+                lendingKfs.setSignedSanctionDocFile(sanctionLoanAgreementFileName);
+                lendingKfs.setSignedSanctionDocUrl(sanctionShortUrl);
+                lendingKfs.setNbfcSignedAt(new Date());
+                lendingKfsDao.save(lendingKfs);
+            }
+
+            if (!ObjectUtils.isEmpty(signedKFSUrl)) {
+                String kfsLetterFileName = ESIGNED_KFS_S3_KEY_PREFIX + applicationId;
+                InputStream inputStream = URI.create(signedKFSUrl).toURL().openConnection().getInputStream();
+                s3BucketHandler.uploadToS3PdfBucket(inputStream, kfsLetterFileName, bucket);
+                String kfsUrl = s3BucketHandler.getPreSignedPublicURL(kfsLetterFileName, bucket);
+                String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
+                if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty()) {
+                    throw new Exception("Unable to create short URL for KFS doc link for : " + applicationId);
+                }
+                lendingKfs.setSignedKfsDocUrl(kfsShortUrl);
+                lendingKfs.setSignedKfsDocFile(kfsLetterFileName);
+                lendingKfs.setNbfcSignedAt(new Date());
+                lendingKfsDao.save(lendingKfs);
+            }
+            log.info("Signed loan docs saved for {}", applicationId);
+
+        } catch (Exception e) {
+            log.error("Exception in saving signed loan docs for {}, {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+
+    }
+
 }
