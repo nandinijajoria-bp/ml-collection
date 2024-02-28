@@ -71,7 +71,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
+import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.BP_CLUB_MEMBERSHIP_KEY_PREFIX;
 
 @Service
 @Slf4j
@@ -149,6 +149,12 @@ public class LoanDashboardService {
 
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
+
+    @Value("${new.eligibility.refresh.window:1}")
+    int newEligibilityRefreshWindow;
+
+    @Value("${new.eligibility.refresh.window.rollout.percent:0}")
+    Integer newEligibilityRefreshWindowRolloutPercent;
 
     @Autowired
     private DateTimeUtil dateTimeUtil;
@@ -375,7 +381,7 @@ public class LoanDashboardService {
             funnelService.submitEvent(merchantDetails.getId(), null, null,
                     FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TEN_LAKH_LOAN_PAGE, LocalDateTime.now().toString());
         }
-        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchantDetails);
+      /*  MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchantDetails);
         loanDashboardResponse.setRouteToEligibilityData(mileStoneEligibilityResponseDto);
 
         if (Boolean.TRUE.equals(mileStoneEligibilityResponseDto.getMilStoneEligibility())) {
@@ -393,8 +399,8 @@ public class LoanDashboardService {
             else {
                 loanDashboardResponse.setPanNumber(null);
             }
-           /* loanDashboardResponse.setPinCode(Integer.valueOf(mileStoneEligibilityResponseDto.getPinCode()));
-            loanDashboardResponse.setPanNumber(mileStoneEligibilityResponseDto.getPanCard());*/
+           *//* loanDashboardResponse.setPinCode(Integer.valueOf(mileStoneEligibilityResponseDto.getPinCode()));
+            loanDashboardResponse.setPanNumber(mileStoneEligibilityResponseDto.getPanCard());*//*
         }
         KycStatusDTO doc = kycHandler.getKycStatus(merchantDetails.getId());
         loanDashboardResponse.setKycStatus(doc.getKycStatus());
@@ -402,7 +408,7 @@ public class LoanDashboardService {
         {
             String kycPancard = kycHandler.getPanNumber(merchantDetails.getId());
             loanDashboardResponse.setPanNumber(kycPancard);
-        }
+        }*/
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
         return loanDashboardResponse;
@@ -448,7 +454,7 @@ public class LoanDashboardService {
         }
     }
 
-    private BankAccountDetails getBankName(Long merchantId){
+    public BankAccountDetails getBankName(Long merchantId){
         log.info("Getting bank account details for merchant:{}", merchantId);
         try {
             final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
@@ -491,7 +497,7 @@ public class LoanDashboardService {
         }
     }
 
-    private Boolean isClubV2Member(Long merchantId){
+    public Boolean isClubV2Member(Long merchantId){
         String clubV2MembershipKey = LoanDetailsConstant.CLUB_V2_MEMBERSHIP_KEY_PREFIX + merchantId;
         Object clubV2Response = lendingCache.get(clubV2MembershipKey);
         if (ObjectUtils.isEmpty(clubV2Response)) {
@@ -749,12 +755,7 @@ public class LoanDashboardService {
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
-            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
 
-            if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
-                funnelService.submitEvent(merchant.getId(), null, null,
-                        FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
-            }
 //            loanDashboardResponse.setPancard(experian.getPancardNumber());
 //            loanDashboardResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
 //            loanDashboardResponse.setHasExperian(true);
@@ -770,11 +771,12 @@ public class LoanDashboardService {
 //            }
             EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
             String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
+            int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(merchant.getId(), newEligibilityRefreshWindowRolloutPercent) ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
             if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
-                eligibilityRefreshWindow = 0;
+                updatedEligibilityRefreshWindow = 0;
                 lendingCache.delete(bureauConsentKey);
             }
-            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * eligibilityRefreshWindow);
+            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
 //            Boolean isClubV2 = apiGatewayService.checkClubV2(merchant.getId());
 //            log.info("merchant is: {} clubV2 member: {}",merchant.getId(), isClubV2);
 //            loanDashboardResponse.setClubV2Member(isClubV2);
@@ -816,6 +818,15 @@ public class LoanDashboardService {
                     eligibility = createEligibility(merchant.getId(),eligibleLoan);
                 }
             }
+
+            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
+
+            if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
+                funnelService.submitEvent(merchant.getId(), null, null,
+                FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
+            }
+
+
             if (eligibility != null) {
                 loanDashboardResponse.setEligibility(eligibility);
                 return;
@@ -903,7 +914,7 @@ public class LoanDashboardService {
         loanApplicationStage.setStatus(LoanDetailsConstant.STATUS_PENDING);
         // in case of auto disbursal lmsStage will be null, so checking if application status is approved or not.
         if(ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()) &&
-                (Objects.isNull(openApplication.getLmsStage()) || "PENDING_DISBURSAL".equalsIgnoreCase(openApplication.getLmsStage()))
+                (Objects.isNull(openApplication.getLmsStage()) || LendingConstants.SEND_TO_NBFC.equalsIgnoreCase(openApplication.getLmsStage()))
         ){
             loanApplicationStage.setStatus(LoanDetailsConstant.STATUS_SUCCESS);
         }
@@ -942,6 +953,12 @@ public class LoanDashboardService {
                 log.info("Derog merchant:{}", merchantId);
                 return IneligibleType.DEROG.name();
             }
+
+            if (!loanUtil.isEnachBank(merchantId)) {
+                log.info("Not an enach bank for the  merchantId:{}", merchantId);
+                return IneligibleType.CHANGE_BANK_ACCOUNT.name();
+            }
+
         } catch (Exception e) {
             log.error("Exception in getIneligibleReason for merchant:{}", merchantId, e);
         }
@@ -964,10 +981,10 @@ public class LoanDashboardService {
             for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
                 log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
                 if (Objects.nonNull(customAmount) && customAmount < finalLimit && customAmount <= offerDetail.getLoanAmount()) {
-                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version);
+                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, customAmount, null, version, true);
                 }
                 if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= (offerDetail.getLoanAmount())) {
-                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version);
+                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version, true);
                 }
             }
         } catch (Exception e) {
@@ -989,7 +1006,7 @@ public class LoanDashboardService {
         }
     }
 
-    private String getPreApprovedTag(Long merchantId){
+    public String getPreApprovedTag(Long merchantId){
         LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if(ObjectUtils.isEmpty(lendingRiskVariables)){
             return null;

@@ -28,6 +28,7 @@ import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.util.BQPublisherUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,6 +92,9 @@ public class UploadDocumentService {
 
 	@Autowired
 	MongoPublisher mongoPublisher;
+
+	@Autowired
+	BQPublisherUtil bqPublisherUtil;
 
 	@Autowired
 	FunnelService funnelService;
@@ -288,7 +292,11 @@ public class UploadDocumentService {
 			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
 		if (lendingShopDocumentsAuditList.size() > 0) {
-			mongoPublisher.publish("Lending", "lending_shop_documents_audit", merchantBasicDetails.getId().toString(),lendingShopDocumentsAuditList);
+//			mongoPublisher.publish("Lending", "lending_shop_documents_audit", merchantBasicDetails.getId().toString(),lendingShopDocumentsAuditList);
+
+			logger.info("data push to BQ for lending shop docs for merchant id {}",merchantBasicDetails.getId());
+			bqPublisherUtil.publish("Lending","lending_shop_documents_audit",lendingShopDocumentsAuditList);
+
 		}
 		return documentList;
 	}

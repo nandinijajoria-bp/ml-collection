@@ -114,8 +114,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     public void checkForGSTDetailsAndInvokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         log.info("entered for check gst and update lead bre flow: {} {}",lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lenderAssociationDetailsDto.getApplicationId());
-        if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId()) &&
-                Boolean.TRUE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
+        if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId())) {
             // push application to next stage
             //update lendingApplicationLenderDetails
             String currStage =  lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getStage();
@@ -130,10 +129,10 @@ public class InvokeCreateLeadAndDocUploadWraperService {
                     Boolean.TRUE
             );
         }
-        else if (Boolean.FALSE.equals(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())) {
-            log.info("modifying lender as permanent address is different that current address {}", lenderAssociationDetailsDto.getApplicationId());
-            nbfcUtils.modifyLender(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), LenderAssociationStatus.BRE_HARD_FAILED);
-        }
+//        else) {
+//            log.info("modifying lender as permanent address is different that current address {}", lenderAssociationDetailsDto.getApplicationId());
+//            nbfcUtils.modifyLender(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), LenderAssociationStatus.BRE_HARD_FAILED);
+//        }
     }
 
     private boolean checkForGSTDetails(Long applicationId) {

@@ -35,7 +35,9 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value = "SELECT * FROM lending_application WHERE  merchant_id = :merchantId AND status NOT IN ('closed','deleted') ORDER BY id DESC", nativeQuery = true)
 	List<LendingApplication> fetchLatestOpenApplication(Long merchantId);
 
-	@Query(value = "select * from lending_application where merchant_id=?1 and status in ('draft','pending_verification','approved') and disburse_timestamp is null order by id desc limit 1", nativeQuery = true)
+	@Query(value = "select * from lending_application where merchant_id = :merchantId " +
+			"and status in ('draft','pending_verification','approved') " +
+			"and disburse_timestamp is null order by id desc limit 1", nativeQuery = true)
 	LendingApplication getLatestPendingApplication(Long merchantId);
 
 	@Transactional
@@ -102,6 +104,12 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
     @Query(value="select * from lending_application where merchant_id=:merchantId and status='approved' and loan_disbursal_status='DISBURSED' order by id desc limit 1", nativeQuery = true)
     LendingApplication getLastDisbursedLoan(Long merchantId);
+
+	@Query(value="select * from lending_application where merchant_id=:merchantId and status='approved' and loan_disbursal_status='DISBURSED' and lms_stage is not null order by id desc limit 1", nativeQuery = true)
+	LendingApplication getLastLmsDisbursedLoan(Long merchantId);
+
+	@Query(value="select * from lending_application where merchant_id=:merchantId and status='rejected' order by id desc limit 3", nativeQuery = true)
+	List<LendingApplication> getLastThreeRejectedApplications(Long merchantId);
 
 	@Query(value="select * from lending_application where merchant_id=:merchantId and created_at>=:createdAt and status != 'deleted' and (loan_disbursal_status not in ('REJECTED','DISBURSED') or loan_disbursal_status is null) order by id desc limit 1", nativeQuery = true)
 	LendingApplication getRepeatLoanApplication(Long merchantId, Date createdAt);

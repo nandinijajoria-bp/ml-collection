@@ -7,6 +7,8 @@ import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -76,7 +78,13 @@ public class BPEnachService {
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    MerchantLoansService merchantLoansService;
 
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
@@ -91,6 +99,15 @@ public class BPEnachService {
 
 
         if(clientName.equalsIgnoreCase("LENDING")) {
+
+            if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
+                LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+                if (!ObjectUtils.isEmpty(activeLoan)) {
+                    if (merchantLoansService.showRenachBanner(merchant.getId(), activeLoan.getNbfc(), false)) {
+                        return eNachInitiateForRenachMerchants(merchant, token, nachMode, activeLoan);
+                    }
+                }
+            }
 
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
             if(lendingApplication == null) {
@@ -121,6 +138,36 @@ public class BPEnachService {
             enachInitiateRequestDTO.setClientName(clientName);
             return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
         }
+    }
+
+    private ENachIntitiationResponseDTO eNachInitiateForRenachMerchants(BasicDetailsDto merchant, String token, String nachMode, LendingPaymentScheduleSlave activeLoan) {
+
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+
+        Optional<LendingApplication> optionalLendingApplication = lendingApplicationDao.findById(activeLoan.getApplicationId());
+        if(!optionalLendingApplication.isPresent()) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Loan Application not found");
+            logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
+            return responseDTO;
+        }
+
+        LendingApplication lendingApplication = optionalLendingApplication.get();
+
+
+        lendingApplication.setNachStatus(null);
+        lendingApplication.setNachReferenceNumber(null);
+        lendingApplicationDao.save(lendingApplication);
+
+        logger.info("Initiating nach for applicationId : {} for merchantId : {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+
+        Double nachAmount = (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D)
+          ? 100000D : lendingApplication.getLoanAmount();
+        String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
+        String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
+
+        return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
+          String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
     }
 
 

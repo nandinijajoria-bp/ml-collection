@@ -12,7 +12,8 @@ public enum ApplicationDocType {
     HINDON_LETTERHEAD_HEADER,
     HINDON_LETTERHEAD_FOOTER,
     PIRAMAL_LETTERHEAD_FOOTER,
-    DISBURSMENT_REQUEST_LETTER_DOC;
+    DISBURSMENT_REQUEST_LETTER_DOC,
+    LIQUILOANS_NBFC_FOOTER;
 
 
     public static ApplicationDocType getFooterMapping(Lender lender) {
@@ -21,6 +22,9 @@ public enum ApplicationDocType {
                 return ABFL_LETTERHEAD_FOOTER;
             case PIRAMAL:
                 return PIRAMAL_LETTERHEAD_FOOTER;
+            case LIQUILOANS_NBFC:
+            case TRILLIONLOANS:
+                return LIQUILOANS_NBFC_FOOTER;
         }
         return null;
     }

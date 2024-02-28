@@ -4,11 +4,10 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.constants.ResponseCode;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.objects.CommonAPIRequest;
+import com.bharatpe.lending.common.dto.MerchantStatusResponseDTO;
+import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dto.ArcCommunicationRequestDTO;
-import com.bharatpe.lending.dto.ComputeEligibilityRequestDto;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.dto.SupportResponseDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.ArcSoldLoanService;
 import com.bharatpe.lending.service.FLDGReportService;
@@ -42,6 +41,9 @@ public class SupportLoanController {
 
     @Autowired
     ArcSoldLoanService arcSoldLoanService;
+
+    @Autowired
+    SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -126,5 +128,17 @@ public class SupportLoanController {
         logger.info("checking rteProgram details");
         return new ApiResponse<>(supportService.rteProgramDetails(merchantId));
     }
+
+    @GetMapping(value = "/loan-flag-status",produces = "application/json")
+    public ResponseEntity<ApiResponse<?>>getMerchantStatus(@RequestParam Long merchantId)
+    {
+        final MerchantStatusResponseDTO merchantStatusResponseDTO = sherlocLoanStatusChangeService.fetchLoanStatus(merchantId);
+        if (merchantStatusResponseDTO.getStatus() == null) {
+            return new ResponseEntity<>(new ApiResponse<>(true,merchantStatusResponseDTO,"NOT_FOUND"), HttpStatus.OK);
+        }
+        logger.info("fetching merchant loan status from lending payment schedule");
+        return new ResponseEntity<>(new ApiResponse<>(merchantStatusResponseDTO), HttpStatus.OK);
+    }
+
 }
 

@@ -1,6 +1,8 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ReferenceStateDTO;
@@ -27,6 +29,9 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
     @Autowired
     private LoanDetailsV3Service loanDetailsV3Service;
 
+    @Autowired
+    private LendingApplicationDao lendingApplicationDao;
+
     @Override
     public LendingStateDTO<ReferenceStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -43,6 +48,13 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
+            log.info("scope application id {}", scopeDataArgs.getApplicationId());
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
+            log.info("lendingApplication {} and status {}", lendingApplication, lendingApplication.getStatus());
+            if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
+                referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
+            }
+
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
         } catch (Exception e) {
             log.error("error in getting reference stage data for {} : {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));

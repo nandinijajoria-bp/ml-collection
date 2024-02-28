@@ -19,6 +19,7 @@ import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.revamp.controller.LoanDashboardController;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
@@ -118,6 +119,9 @@ public class ENachService {
     @Value("${v3.easyloan.deeplink}")
     public String v3EasyloanDeeplink;
 
+    @Autowired
+    LenderAssociationStageFactoryV2 lenderAssociationStageFactoryV2;
+
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider, String nachMode){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
@@ -156,7 +160,12 @@ public class ENachService {
                 String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
     }
 
-    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token){
+    public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
+
+        if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
+            return submitEnachForRenachMerchants(merchant, requestDTO,token);
+        }
+
         String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
         logger.info("deleting cached key of loan details where nach is done for merchant: {}",merchant.getId());
         if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
@@ -251,7 +260,7 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
                     lendingApplicationLenderDetailsDao.
                             findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                     (lendingApplication.getId(), Status.ACTIVE.name());
@@ -260,14 +269,21 @@ public class ENachService {
                     LenderAssociationStages.ASSC_COMPLETED.name()
                             .equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
                 {
+                    Boolean autoInvokeNextStage;
+                    if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
+                        autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                    } else {
+                        autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                    }
                 nbfcUtils.pushApplicationToNextStage
                         (lendingApplication.getId(), lendingApplication.getLender(),
                                 LenderAssociationStages.ASSC_COMPLETED.name(),
-                        LenderAssociationStageFactory
-                                .autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),
-                                        LenderAssociationStages.ASSC_COMPLETED));
+                                autoInvokeNextStage
+                       );
                 logger.info("invoked sanction workflow for application {}", lendingApplication.getId());}
             }
+
+
 //            LendingPennydrop lendingPennydrop = lendingPennydropDao.isFailed(merchant.getId(), lendingApplication.getId());
 //            if (lendingPennydrop == null) {
 //                apiGatewayService.updateApplicationPriority(merchant.getId(), lendingApplication.getId());
@@ -304,6 +320,93 @@ public class ENachService {
         if(Objects.nonNull(requestDTO)){
             checkForApplicationRejection(merchant, requestDTO, lendingApplication);
         }
+        if (!requestDTO.getStatus() && lendingApplication != null && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
+            if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                String deeplink = v3EasyloanDeeplink + "&applicationId=" + lendingApplication.getId();
+                responseDTO.getData().setDeep_link(deeplink);
+            }
+            else responseDTO.getData().setDeep_link(env.getProperty("new.loan.deeplink"));
+        }
+        return responseDTO;
+    }
+
+    public ENachIntitiationResponseDTO submitEnachForRenachMerchants (BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token) {
+
+        logger.info("submitEnachForRenachMerchants for merchantId : {} ENachSubmitRequestDTO : {}", merchant.getId(), requestDTO);
+
+        String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
+        logger.info("deleting cached key of loan details where nach is done for merchant: {}",merchant.getId());
+        if(Objects.nonNull(lendingCache.get(loanDetailsCacheKey))) {
+            lendingCache.delete(loanDetailsCacheKey);
+        }
+        LendingApplicationDetails lendingApplicationDetails = null;
+        ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
+        responseDTO.setData(new ENachIntitiationResponseDTO.Data());
+        responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
+        BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
+        LendingApplication lendingApplication =
+          lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
+        if (bharatPeEnach == null) {
+            responseDTO.setResponse(false);
+            responseDTO.setMessage("Enach not initiated");
+            return responseDTO;
+        }
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
+        if (requestDTO.getStatus()) {
+            logger.info("Enach success for merchant:{}", merchant.getId());
+            if(Objects.nonNull(lendingApplication) && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
+                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=easy-loans&wroute=enachSuccess");
+                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    String deeplink = v3EasyloanDeeplink + "&applicationId=" + lendingApplication.getId();
+                    responseDTO.getData().setDeep_link(deeplink);
+                }
+            } else {
+                responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan&wroute=enachSuccess");
+            }
+            // Update Lending Application for ENACH
+            if (lendingApplication == null) {
+                responseDTO.setResponse(false);
+                responseDTO.setMessage("Loan Application not found");
+                return responseDTO;
+            }
+            lendingApplication.setNachType("ENACH");
+
+            if(EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()))lendingApplication.setNachStatus("PENDING_VERIFICATION");
+            else lendingApplication.setNachStatus("APPROVED");
+            loanDashboardService.deleteLoanDashboardCache(merchant.getId());
+
+            logger.info("nach status for {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getNachStatus());
+
+            lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
+        }
+
+        requestDTO.setLender(lendingApplication.getLender());
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+
+        if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
+            if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
+                lendingApplication.setNachLender(eNachIntitiationResponseDTO.getData().getLender());
+            } else{
+                lendingApplication.setNachLender("BHARATPE");
+            }
+        }
+        responseDTO.setMessage(ObjectUtils.isEmpty(eNachIntitiationResponseDTO) ? null : eNachIntitiationResponseDTO.getMessage());
+
+        lendingApplicationDao.save(lendingApplication);
+
+        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+            put("loanAmount", lendingApplication.getLoanAmount().toString());
+            put("beneficiaryName", lendingApplication.getMerchantName());
+            put("businessName", lendingApplication.getBusinessName());
+            put("loanType", lendingApplication.getLoanType());
+        }};
+        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_NACH_COMPLETED_BE.name(), cleverTapEvtData, merchant.getMid()));
+
+//        if(Objects.nonNull(requestDTO)){
+//            checkForApplicationRejection(merchant, requestDTO, lendingApplication);
+//        }
+
+
         if (!requestDTO.getStatus() && lendingApplication != null && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
             if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
                 String deeplink = v3EasyloanDeeplink + "&applicationId=" + lendingApplication.getId();

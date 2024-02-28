@@ -15,6 +15,7 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.Arrays;
 import java.util.Map;
 
 @Slf4j
@@ -59,7 +60,7 @@ public class NbfcLenderGateway extends APIGatewayService {
                     httpStatusCodeException.getResponseBodyAsString());
         }
         catch (Exception e) {
-            log.error("exception occurred while processing {} api call to nbfc svc {}",e, requestUrl, e.getMessage());
+            log.error("exception occurred while processing {} api call to nbfc svc {}, {}",e.getMessage(), requestUrl, Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

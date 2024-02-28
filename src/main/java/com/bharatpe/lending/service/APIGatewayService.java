@@ -251,6 +251,9 @@ public class APIGatewayService {
     @Value("${lending.global.api.caching.rollout.percent:10}")
     Integer lendingGlobalAPICachingRolloutPercent;
 
+    @Value("${lending.schenaptic.caching.percent:10}")
+    Integer lendingScenapticCachingPercent;
+
     @Value("${scenaptic.rollout.percent:1}")
     Integer scenapticRolloutPercent;
 
@@ -1541,17 +1544,17 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null, false);
     }
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, Boolean clubV2) throws BureauCallMaskedApiException {
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null, false);
     }
 
     //    @Async
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                               String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
-                                              Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException  {
+                                              Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO, Boolean flagForUwToSkipCache) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
         boolean isPincodeChanged = false;
         if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
@@ -1578,7 +1581,7 @@ public class APIGatewayService {
         }
 
         if (easyLoanUtil.percentScaleUp(merchantId, scenapticRolloutPercent) && !easyLoanUtil.isDummyMerchant(merchantId)) {
-            return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache, finalIsPincodeChanged);
+            return getScenapticGlobalLimit(merchantId, source, appVersion, clubV2, useCache, finalIsPincodeChanged, sessionId, flagForUwToSkipCache);
         }
 
 
@@ -1671,7 +1674,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged) {
+    public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache) {
         logger.info("Get scenaptic limit for merchant:{}", merchantId);
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
@@ -1680,8 +1683,10 @@ public class APIGatewayService {
             put("appVersion", appVersion);
             put("clubV2", clubV2);
             put("isPincodeChanged", isPincodeChanged);
+            put("skipCache", flagForUwToSkipCache);
         }};
         StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
+        Map<String, Object> body = new HashMap<>();
         if (!ObjectUtils.isEmpty(source)) {
             queryParams.append("&source=").append(source);
         }
@@ -1694,6 +1699,12 @@ public class APIGatewayService {
         if (!ObjectUtils.isEmpty(isPincodeChanged)) {
             queryParams.append("&isPincodeChanged=").append(isPincodeChanged);
         }
+        if (!ObjectUtils.isEmpty(sessionId)) {
+            body.put("sessionId", sessionId);
+        }
+        if(!ObjectUtils.isEmpty(flagForUwToSkipCache)) {
+            queryParams.append("&skipCache=").append(flagForUwToSkipCache);
+        }
         String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/eligibility" + queryParams;
         String payload = lendingHmacCalculator.getObjectPayload(requestParams);
         String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
@@ -1702,7 +1713,7 @@ public class APIGatewayService {
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
         headers.set("X-API-KEY", xApiKeyUnderwritingService);
-        HttpEntity<Map<String, String>> request = new HttpEntity<>(new HashMap<>(), headers);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         logger.info("Get Scenaptic Limit request: {} for merchant : {}, Url :{}", request, merchantId, url);
         try {
             ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
@@ -1720,7 +1731,7 @@ public class APIGatewayService {
             GlobalLimitResponse globalLimitResponse = objectMapper.treeToValue(actualObj, GlobalLimitResponse.class);
             logger.info("Get Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && globalLimitResponse.isSuccess()) {
-                if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingGlobalAPICachingRolloutPercent)) {
+                if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingScenapticCachingPercent)) {
                     globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
                 }
                 return globalLimitResponse;
@@ -1736,7 +1747,7 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String source) throws Exception {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, true,null,null);
+        return getGlobalLimit(merchantId, source, null, clubV2, null, null, null, null,false, null, null, true,null,null, false);
     }
 
     public boolean globalLimitTxn(Long merchantId, String mode, Double amount) {
@@ -3002,7 +3013,7 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, String orderId, String type) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false,null, null);
+        return getGlobalLimit(merchantId, null, null, clubV2, null, null, null, null, false, orderId, type, false,null, null, false);
     }
 
     public LdcTopConsentApiResponseDTO getLdcTopupConsent(Long applicationId, Boolean toBePaused, Double expectedForeclosureAmount) {

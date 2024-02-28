@@ -10,6 +10,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCRTEDto;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -116,10 +117,10 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
             }
             initiateKycResponse.setKycStatus(doc.getKycStatus());
             initiateKycResponse.setShowKycPage(false);
-            String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + scopeDataArgs.getMerchant().getId();
-            Object loanDetailsCacheResponse = lendingCache.get(loanDetailsCacheKey);
-            if (!ObjectUtils.isEmpty(loanDetailsCacheResponse)) {
-                lendingCache.delete(loanDetailsCacheKey);
+            String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + scopeDataArgs.getMerchant().getId();
+            Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
+            if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                lendingCache.delete(mileStoneCacheKey);
             }
             return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY,
                     LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY);

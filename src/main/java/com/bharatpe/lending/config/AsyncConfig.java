@@ -37,4 +37,14 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.initialize();
         return executor;
     }
+
+    @Bean(name = "lenderPoolTaskExecutor")
+    public Executor lendeAsyncExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(piramalAsyncCorePoolSize);
+        executor.setMaxPoolSize(piramalAsyncMaxPoolSize);
+        executor.setThreadNamePrefix("LenderAsyncThread::");
+        executor.initialize();
+        return executor;
+    }
 }

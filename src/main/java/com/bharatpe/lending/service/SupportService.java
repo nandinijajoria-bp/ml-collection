@@ -34,6 +34,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +67,8 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
 import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
@@ -225,6 +228,9 @@ public class SupportService {
 
     @Autowired
     DsHandler dsHandler;
+
+    @Autowired
+    PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -673,7 +679,13 @@ public class SupportService {
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
                 experian = experianDao.getByMerchantId(supportApiResponseDto.getMerchantId());
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(supportApiResponseDto.getMerchantId());
-                if (experian.getRejected() && !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) && lendingRiskVariables.getFinalOffer() == 0) {
+                logger.info("lendingRiskVariables.getExperianRejection() {}",lendingRiskVariables.getExperianRejection());
+                logger.info("supportApiResponseDto.getApplicationStage() {}",supportApiResponseDto.getApplicationStage());
+
+                if (!ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())&&
+                        !ApplicationStage.IN_PROCESS.getStage().equals(supportApiResponseDto.getApplicationStage()) &&
+                        (ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) || (!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() == 0)))
+                {
                     supportApiResponseDto.setApplicationStage(ApplicationStage.INELIGIBLE.getStage());
                     supportApiResponseDto.setIneligibleType(easyLoanUtil.getRejectionType(lendingRiskVariables.getExperianRejection(), RejectionStage.EXPERIAN));
                     supportApiResponseDto.setEligible(Boolean.FALSE);
@@ -983,7 +995,7 @@ public class SupportService {
                 if (!Objects.isNull(lendingPaymentSchedule1)) {
                     logger.info("loan found in LPS for merchant:{} with status:{}", merchantId, lendingPaymentSchedule1.getStatus());
                     List<Map<String, Object>> lendingLedgerDetailList = new ArrayList<>();
-                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateDesc(lendingPaymentSchedule1);
+                    List<LendingLedger> lendingLedgerList = lendingLedgerDao.findByLendingPaymentScheduleOrderByDateAsc(lendingPaymentSchedule1);
                     Double dueAmount = 0D;
                     for (LendingLedger lendingLedger1 : lendingLedgerList) {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
@@ -1000,8 +1012,13 @@ public class SupportService {
                             lendingLedgerDetail.put("paidAmount", paidAmount);
                         }
                         lendingLedgerDetail.put("dueAmount", dueAmount);
-                        lendingLedgerDetailList.add(lendingLedgerDetail);
+                        lendingLedgerDetail.put("penaltyAmount", lendingLedger1.getPenalty());
+
+                        lendingLedgerDetailList.add(0, lendingLedgerDetail);
                     }
+                    List<Map<String, Object>> penaltyLedgerList = new ArrayList<>();
+                    penaltyLedgerList = populatePenaltyLedger(lendingPaymentSchedule1, penaltyLedgerList);
+
 
                     SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
 
@@ -1040,7 +1057,16 @@ public class SupportService {
                     if(Objects.nonNull(application.getDisburseTimestamp()) && "DISBURSED".equals(application.getLoanDisbursalStatus())){
                         lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(application.getId(), application.getLender());
                     }
-                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(), application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(), lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(), lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(), lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(), null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(), lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null, lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails)?null:lendingApplicationLenderDetails.getUtrNo(), LoanUtil.getEdiModal(application).name(), refundDetails);
+                    LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO(application.getExternalLoanId(), application.getLoanAmount(),
+                            application.getTenure(), application.getDisburseTimestamp(), application.getInterestRate(),
+                            lendingPaymentSchedule1.getEdiAmount(), lendingPaymentSchedule1.getEdiRemainingCount(),
+                            lendingPaymentSchedule1.getNextEdiDate(), lendingPaymentSchedule1.getPaidAmount(),
+                            lendingPaymentSchedule1.getTentativeClosingDate(), lendingPaymentSchedule1.getClosingDate(),
+                            null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(),
+                            lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null,
+                            lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo(),
+                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList);
+
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
                     loanDetailsDTO.setRepayment(application.getRepayment());
@@ -1057,6 +1083,23 @@ public class SupportService {
             supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
         }
         return supportLoanResponseDTO;
+    }
+
+    private List<Map<String, Object>> populatePenaltyLedger(LendingPaymentSchedule lendingPaymentSchedule1, List<Map<String, Object>> penaltyLedgerList) {
+        List<PenaltyFeeLedger> penaltyLedgers = penaltyFeeLedgerDao.findByLoanIdOrderByCreatedAtDesc(lendingPaymentSchedule1.getId());
+
+        for (PenaltyFeeLedger penaltyLedger : penaltyLedgers) {
+            Map<String, Object> penaltyLedgerDetail = new HashMap<>();
+            penaltyLedgerDetail.put("createdAt", penaltyLedger.getCreatedAt());
+            penaltyLedgerDetail.put("id", penaltyLedger.getId());
+            penaltyLedgerDetail.put("transactionType", penaltyLedger.getDescription());
+            penaltyLedgerDetail.put("amount", penaltyLedger.getAmount());
+            penaltyLedgerDetail.put("isWaveOff", penaltyLedger.getIsWaveOff());
+            penaltyLedgerList.add(penaltyLedgerDetail);
+
+        }
+        logger.info("size of penalty ledger list: {}, for loan: {}", penaltyLedgerList.size(), lendingPaymentSchedule1.getId());
+        return penaltyLedgerList;
     }
 
         /*LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.APPROVED.name());
@@ -2592,31 +2635,126 @@ public class SupportService {
         return upgradeLoanOfferEligibilityDTO;
     }
 
+    public void defaultAchievementResponse(DSMileStoneAchievementResponse achievementResponse,
+                                           MileStoneEntity entity,
+                                           Long merchantId,
+                                           List<MileStoneDataForSupport> mapList,
+                                           Map<Integer, Target> targetMileStoneNoMap,
+                                           MileStoneDashboardDetailsForCRM mileStoneDashboardDetails) {
+        if (achievementResponse.getAchievement().isEmpty()) {
+            logger.info("Default Data of achievement response for merchant id{}", merchantId);
+            int milestoneCount = 0, weekDays = 0;
+            int days = entity.getProgramDuration();
+            if (days == 28) {
+                weekDays = 7;
+                milestoneCount = days / weekDays;
+            } else {
+                weekDays = 14;
+                milestoneCount = days / weekDays;
+            }
+            for (int mileStoneNo = 1; mileStoneNo <= milestoneCount; mileStoneNo++) {
+                Target target = targetMileStoneNoMap.get(mileStoneNo);
+
+                List<Object> uniquePayer = new ArrayList<>();
+                for (int uniquePayerData = (mileStoneNo - 1) * weekDays; uniquePayerData <= (mileStoneNo - 1) * weekDays + weekDays; uniquePayerData++) {
+                    HashMap<Object, Object> uniquePayerDaily = new HashMap<>();
+                    uniquePayerDaily.put("date", DateUtils.addDays(entity.getProgramStartDate(), uniquePayerData));
+                    uniquePayerDaily.put("unq_payer", 0);
+                    uniquePayer.add(uniquePayerDaily);
+                }
+
+                List<Object> activeDays = new ArrayList<>();
+                for (int activeDaysData = (mileStoneNo - 1) * weekDays; activeDaysData <= (mileStoneNo - 1) * weekDays + weekDays; activeDaysData++) {
+                    HashMap<Object, Object> activeDaysDaily = new HashMap<>();
+                    activeDaysDaily.put("date", DateUtils.addDays(entity.getProgramStartDate(), activeDaysData));
+                    activeDaysDaily.put("active", 0);
+                    activeDays.add(activeDaysDaily);
+                }
+
+                MileStoneDataForSupport data = MileStoneDataForSupport.builder().
+                        AchieveMilestone(mileStoneNo)
+                        .TargetMileStone(target.getMilestone_no())
+                        .AchieveMileStoneActiveDays(0)
+                        .TargetActiveDays(target.getActive_days())
+                        .AchieveMileStoneUniquePayer(0)
+                        .TargetUniquePayer(target.getUnq_payer())
+                        .milestone_start_time(DateUtils.addDaysWithTime(entity.getProgramStartDate(), ((mileStoneNo - 1) * weekDays)))
+                        .milestone_end_time(DateUtils.addDaysWithTime(entity.getProgramStartDate(), mileStoneNo * weekDays))
+                        .active_days_daily(activeDays)
+                        .unq_payer_daily(uniquePayer)
+                        .tpv(0)
+                        .build();
+                mapList.add(data);
+            }
+
+            mileStoneDashboardDetails.setMapList(mapList);
+            mileStoneDashboardDetails.setMileStoneCreatedAt(entity.getCreatedAt());
+            mileStoneDashboardDetails.setAchievementActiveDays(0);
+            mileStoneDashboardDetails.setAchievementUniquePayer(0);
+            mileStoneDashboardDetails.setTargetActiveDays(0);
+            mileStoneDashboardDetails.setTargetUniquePayer(0);
+
+        }
+    }
+
 
     public MilestoneSupportDto rteProgramDetails(Long merchantId) {
-
         MilestoneSupportDto supportDto = new MilestoneSupportDto();
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
-        logger.info("basic Details of Merchant{} for milestone program for merchantId {}",basicDetailsDto,merchantId);
+        logger.info("basic Details of Merchant{} for milestone program for merchantId {}", basicDetailsDto, merchantId);
         if (basicDetailsDto.isPresent()) {
             MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
             supportDto.setMileStoneEligibility(responseDto);
             supportDto.setMerchantId(merchantId);
             MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            logger.info("entity {} for merchant id {}",entity,merchantId);
+            logger.info("entity {} for merchant id {}", entity, merchantId);
             if (!ObjectUtils.isEmpty(entity)) {
                 entity.getProgramStartDate();
                 supportDto.setProgramStartDate(entity.getProgramStartDate());
                 DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
                 supportDto.setMileStoneResponse(mileStoneResponse);
-
-                supportDto.setMerchantOnboardingDate(basicDetailsDto.get().getCreated_at());
+                supportDto.setMerchantOnboardingDate(basicDetailsDto.get().getCreatedAt());
                 DSMileStoneAchievementResponse achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
+                if (ObjectUtils.isEmpty(achievementResponse)) {
+                    logger.info("achievementResponse is null");
+                    return new MilestoneSupportDto();
+                }
+                List<MileStoneDataForSupport> mapList = new ArrayList<>();
+                Map<Integer, Target> targetMileStoneNoMap = mileStoneResponse.getTarget().stream().
+                        collect(Collectors.toMap(Target::getMilestone_no, Function.identity()));
 
-                supportDto.setAchievementResponse(achievementResponse);
+                MileStoneDashboardDetailsForCRM mileStoneDashboardDetails = new MileStoneDashboardDetailsForCRM();
+                if (!achievementResponse.getAchievement().isEmpty())
+                {
+                    for (DSMileStoneAchievementResponse.Achievement achievement : achievementResponse.achievement) {
+                        Target target = targetMileStoneNoMap.get(achievement.getMilestone_no());
+                        MileStoneDataForSupport data = MileStoneDataForSupport.builder().
+                                AchieveMilestone(achievement.getMilestone_no())
+                                .TargetMileStone(target.getMilestone_no())
+                                .AchieveMileStoneActiveDays(achievement.active_days)
+                                .TargetActiveDays(target.active_days)
+                                .AchieveMileStoneUniquePayer(achievement.getUnq_payer())
+                                .TargetUniquePayer(target.getUnq_payer())
+                                .milestone_start_time(achievement.getMilestone_start_time())
+                                .milestone_end_time(achievement.getMilestone_end_time())
+                                .active_days_daily(achievement.getActive_days_daily())
+                                .unq_payer_daily(achievement.getUnq_payer_daily())
+                                .tpv(achievement.getTpv())
+                                .build();
+                        mapList.add(data);
+                    }
+                    mileStoneDashboardDetails.setMapList(mapList);
+                    mileStoneDashboardDetails.setMileStoneCreatedAt(entity.getCreatedAt());
+                    mileStoneDashboardDetails.setAchievementActiveDays(achievementResponse.getTotal().getActive_days());
+                    mileStoneDashboardDetails.setAchievementUniquePayer(achievementResponse.getTotal().getUnq_payer());
+                    mileStoneDashboardDetails.setTargetActiveDays(mileStoneResponse.getTotal_target().getActive_days());
+                    mileStoneDashboardDetails.setTargetUniquePayer(mileStoneResponse.getTotal_target().getUnq_payer());
+                }
+                defaultAchievementResponse(achievementResponse,entity,merchantId,mapList,targetMileStoneNoMap,mileStoneDashboardDetails);
+                supportDto.setAchievementResponse(mileStoneDashboardDetails);
                 supportDto.setMilestoneData(true);
                 MileStoneReward reward = mileStoneRewardDao.findTop1ByMerchantId(merchantId);
-                if(!ObjectUtils.isEmpty(reward)) {
+                if (!ObjectUtils.isEmpty(reward)) {
                     if (reward.getSessionId().equalsIgnoreCase(entity.getSessionId())) {
                         supportDto.setClaimedDate(reward.getClaimDate());
                         supportDto.setRewardStatus(reward.getRewardClaimedStatus());
@@ -2625,9 +2763,8 @@ public class SupportService {
                 }
                 return supportDto;
             }
-        }
-        else{
-            logger.info("No Data presnt for merchantId {}",merchantId);
+        } else {
+            logger.info("No Data presnt for merchantId {}", merchantId);
             supportDto.setMilestoneData(false);
             supportDto.setMerchantId(merchantId);
             return supportDto;

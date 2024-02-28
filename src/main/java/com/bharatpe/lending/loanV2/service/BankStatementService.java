@@ -243,7 +243,7 @@ public class BankStatementService {
                         eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                         if (eligibleAmount > 0D) {
                             log.info("Eligibility found for merchant:{}", bankStatementSessionDetails.getMerchantId());
-                            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, bankStatementSessionDetails.getMerchantId());
+                            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, bankStatementSessionDetails.getMerchantId(), false);
                             evictLoanDetailV2Cache(bankStatementSessionDetails.getMerchantId());
                         }
                         if(("BANK_STATEMENT").equalsIgnoreCase(bankStatementSessionDetails.getType())) {

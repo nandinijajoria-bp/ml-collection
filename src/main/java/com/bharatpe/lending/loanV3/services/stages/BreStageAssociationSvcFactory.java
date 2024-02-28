@@ -5,6 +5,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationServiceFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.associations.AbflBreService;
 import com.bharatpe.lending.loanV3.services.associations.OldModelService;
+import com.bharatpe.lending.loanV3.services.associations.UpdateLeadAndBREWorkflowService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.UpdateLeadAndRunBREInitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,9 @@ public class BreStageAssociationSvcFactory extends LenderAssociationServiceFacto
     @Autowired
     UpdateLeadAndRunBREInitService updateLeadAndRunBREInitService;
 
+    @Autowired
+    UpdateLeadAndBREWorkflowService updateLeadAndBREWorkflowService;
+
     @Override
     public ILenderAssociationService getLenderAssociationService(String lender) {
         switch (lender) {
@@ -28,6 +32,9 @@ public class BreStageAssociationSvcFactory extends LenderAssociationServiceFacto
                 return abflBreService;
             case "PIRAMAL":
                 return updateLeadAndRunBREInitService;
+            case "USFB":
+            case "TRILLIONLOANS":
+                return updateLeadAndBREWorkflowService;
             default:
                 return oldModelService;
         }

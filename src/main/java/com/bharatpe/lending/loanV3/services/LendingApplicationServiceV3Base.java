@@ -6,6 +6,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -53,6 +54,9 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Autowired
     KafkaTemplate kafkaTemplate;
+
+    @Autowired
+    SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -133,6 +137,7 @@ public abstract class LendingApplicationServiceV3Base {
 
     public  ApiResponse<?> modifyAppDetails(ModifyAppRequest modifyAppRequest) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(modifyAppRequest.getApplicationId());
+        boolean loanStatusFlag = false;
         if (!lendingApplication.isPresent()) {
             return new ApiResponse<>(false, "no app exists");
         }
@@ -205,15 +210,30 @@ public abstract class LendingApplicationServiceV3Base {
         if (!ObjectUtils.isEmpty(modifyAppRequest.getLpsId())) {
             Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(modifyAppRequest.getLpsId());
             if (lendingPaymentSchedule.isPresent() && "CLOSED".equalsIgnoreCase(modifyAppRequest.getLpsStatus())) {
+                if(!"CLOSED".equalsIgnoreCase(lendingPaymentSchedule.get().getStatus())){
+                    loanStatusFlag = true;
+                    log.info("setting loan flag as true in modifyAppDetails for merchantId :{}",lendingPaymentSchedule.get().getMerchantId());
+                }
                 lendingPaymentSchedule.get().setClosingDate(new Date());
                 lendingPaymentSchedule.get().setStatus("CLOSED");
                 log.info("closed loan {}", modifyAppRequest.getLpsId());
-            } else if (lendingPaymentSchedule.isPresent() && "ACTIVE".equalsIgnoreCase(modifyAppRequest.getLpsStatus())) {
+            }
+            else if (lendingPaymentSchedule.isPresent() && "ACTIVE".equalsIgnoreCase(modifyAppRequest.getLpsStatus())) {
                 lendingPaymentSchedule.get().setClosingDate(null);
+                if(!"ACTIVE".equalsIgnoreCase(lendingPaymentSchedule.get().getStatus())){
+                    loanStatusFlag = true;
+                    log.info("setting loan flag as true in modifyAppDetails for merchantId :{}",lendingPaymentSchedule.get().getMerchantId());
+                }
                 lendingPaymentSchedule.get().setStatus("ACTIVE");
                 log.info("active marked loan {}", modifyAppRequest.getLpsId());
             }
             lendingPaymentScheduleDao.save(lendingPaymentSchedule.get());
+
+            if(loanStatusFlag) {
+                Long merchantId = lendingPaymentSchedule.get().getMerchantId();
+                log.info("sending loan flag status in modifyAppDetails for merchantId {}:",merchantId);
+                sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, lendingPaymentSchedule.get().getStatus());
+            }
         }
         return new ApiResponse<>(true,"successfully updated application details");
     }

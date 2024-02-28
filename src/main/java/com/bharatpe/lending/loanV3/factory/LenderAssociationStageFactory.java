@@ -33,6 +33,12 @@ public class LenderAssociationStageFactory {
     @Autowired
     PushAuditSvcFactory pushAuditSvcFactory;
 
+    @Autowired
+    DocUploadStageAssociationSvcFactory docUploadStageAssociationSvcFactory;
+
+    @Autowired
+    DigitalSignStageAssociationFactory digitalSignStageAssociationFactory;
+
     public LenderAssociationServiceFactory getStageAssociatedLenderService(String stage) {
         if (LenderAssociationStages.KYC.name().equalsIgnoreCase(stage)) {
             return  kycStageAssociationSvcFactory;
@@ -48,6 +54,10 @@ public class LenderAssociationStageFactory {
             return receiptStageSvcFactory;
         } else if (LenderAssociationStages.PUSH_AUDIT.name().equalsIgnoreCase(stage)) {
             return pushAuditSvcFactory;
+        } else if (LenderAssociationStages.DOC_UPLOAD.name().equalsIgnoreCase(stage)) {
+            return docUploadStageAssociationSvcFactory;
+        } else if (LenderAssociationStages.DIGI_SIGN.name().equalsIgnoreCase(stage)) {
+            return digitalSignStageAssociationFactory;
         }
         return oldModelAssociationSvcFactory;
     }

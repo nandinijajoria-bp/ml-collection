@@ -18,11 +18,14 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.LmsStageHistoryDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -72,6 +75,9 @@ public class LoanUtil {
 
 	@Autowired
 	MongoPublisher mongoPublisher;
+
+	@Autowired
+	BQPublisherUtil bqPublisherUtil;
 
 	@Autowired
 	LendingCovidCitiesDao lendingCovidCitiesDao;
@@ -207,6 +213,8 @@ public class LoanUtil {
 
 	List<Long> customEnabledMerchants = new ArrayList();
 
+	List<Long> reNachEnabledMerchants = new ArrayList();
+
 	List<Long> rteEligibleMerchants = new ArrayList();
 
 	List<Long> bankStatementEligibleMerchants = new ArrayList<>();
@@ -224,6 +232,17 @@ public class LoanUtil {
 
 	@Autowired
 	LenderAssociationStageFactory lenderAssociationStageFactory;
+
+	@Autowired
+	LmsStageHistoryDao lmsStageHistoryDao;
+
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
+
+	@Value("${eligibleLoan.creation.skip.rollout:0}")
+	Integer eligibleLoanCreationSkipRollout;
+
+	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -245,6 +264,17 @@ public class LoanUtil {
 
 		customEnabledMerchants = readCsvFile(filePath);
 		return customEnabledMerchants;
+	}
+
+	public List<Long> reNachEnabledMerchants() {
+		if (!ObjectUtils.isEmpty(reNachEnabledMerchants)) {
+			return reNachEnabledMerchants;
+		}
+
+		String filePath = "/MerchantList/renach_enabled_merchants";
+
+		reNachEnabledMerchants = readCsvFile(filePath);
+		return reNachEnabledMerchants;
 	}
 
 	private boolean derogTopUpEnable(Long merchantId) {
@@ -502,9 +532,7 @@ public class LoanUtil {
 		try {
 			ExperianAuditTrail experianAuditTrail = ExperianAuditTrail.createObject(experian);
 			experianAuditTrail.setId(System.nanoTime());
-			mongoPublisher.publish("Lending", "experian_audit_trail", experianAuditTrail.getMerchantId().toString(), new ArrayList<ExperianAuditTrail>() {{
-				add(experianAuditTrail);
-			}});
+			bqPublisherUtil.publish("lending","experian_audit_trail", experianAuditTrail);
 		} catch (Exception e) {
 			logger.error("Exception in mongo publish", e);
 		}
@@ -893,7 +921,13 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setBankBasedOffer(lendingRiskVariables.getBankBasedOffer());
 				lendingRiskVariablesSnapshot.setGst3bBasedOffer(lendingRiskVariables.getGst3bBasedOffer());
 				lendingRiskVariablesSnapshot.setComputeSource(lendingRiskVariables.getComputeSource());
-
+				lendingRiskVariablesSnapshot.setAggregateId(lendingRiskVariables.getAggregateId());
+				lendingRiskVariablesSnapshot.setMonthlyIncome(lendingRiskVariables.getMonthlyIncome());
+				lendingRiskVariablesSnapshot.setGst3bBasedAffectedOffer(lendingRiskVariables.getGst3bBasedAffectedOffer());
+				lendingRiskVariablesSnapshot.setAaBasedAffectedOffer(lendingRiskVariables.getAaBasedAffectedOffer());
+				lendingRiskVariablesSnapshot.setAaBasedOffer(lendingRiskVariables.getAaBasedOffer());
+				lendingRiskVariablesSnapshot.setBankBasedAffectedOffer(lendingRiskVariables.getBankBasedAffectedOffer());
+				lendingRiskVariablesSnapshot.setApprovalRate(lendingRiskVariables.getApprovalRate());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -1012,6 +1046,17 @@ public class LoanUtil {
 		} catch (Exception ex) {
 			logger.error("Exception in createMerchantSummarySnapshot for application:{}", application.getId(), ex);
 		}
+	}
+
+	public Date parseRolloutDate(String stringDate) {
+
+		try {
+			SimpleDateFormat sdf = new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS);
+			return sdf.parse(stringDate);
+		} catch (Exception e) {
+			logger.info("Exception occurred while parsing date for string : {}", stringDate);
+		}
+		return null;
 	}
 
 	public BankAccountDetails getAccountDetails(Long merchantId) {
@@ -1168,6 +1213,21 @@ public class LoanUtil {
 				- advanceEdiAmount - excessCollectionBalance);
 	}
 
+
+	public int getForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule, Double excessCollectionBalance) {
+		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+			return 0;
+		}
+		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+
+
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
+		- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
+		+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
+		- advanceEdiAmount - excessCollectionBalance);
+	}
+
 	public int getForeclosureAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
 		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
 			return 0;
@@ -1301,7 +1361,10 @@ public class LoanUtil {
 	}
 
 
-	public EligibleLoan calculateLoanBreakup(GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType, Double version) {
+	public EligibleLoan calculateLoanBreakup(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version, boolean skipEligibleLoanDbEntryCreation
+	) {
 
 		Integer ediAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / tenureDetail.getEdiCount());
 		Integer repayment = Math.round((tenureDetail.getEdiCount() * ediAmount));
@@ -1356,6 +1419,10 @@ public class LoanUtil {
 				.build();
 		eligibleLoanList.add(eligibleLoan);
 		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		if(easyLoanUtil.percentScaleUp(merchantId, eligibleLoanCreationSkipRollout) && skipEligibleLoanDbEntryCreation){
+			logger.info("skipping eligible_loan entry creation for {}", merchantId);
+			return sevenDayEligibleLoanOffer;
+		}
 		eligibleLoanDao.saveAll(eligibleLoanList);
 		eligibleLoanDao.flush();
 		return sevenDayEligibleLoanOffer;
@@ -1405,7 +1472,7 @@ public class LoanUtil {
 		if (lender.equals("LIQUILOANS_P2P") || lender.equals("LIQUILOANS")) {
 			finalLender = Lender.LIQUILOANS.name();
 		}
-		if (lender.equals("LIQUILOANS_NBFC")) {
+		if (lender.equals("LIQUILOANS_NBFC") || "TRILLIONLOANS".equalsIgnoreCase(lender)) {
 			finalLender = "TRILLIONS";
 		}
 		if (lender.equals("LIQUILOANS_P2P_OF")) {
@@ -1458,13 +1525,6 @@ public class LoanUtil {
 		}
 
 		if (approvedNachDetails.getNachAmount() >= lendingApplication.getLoanAmount()) {
-			setIsNachSkip(lendingApplication);
-			return Boolean.TRUE;
-		}
-
-		//Todo: remove this condition after derog after merchants cases are over
-		List<Long> derogMerchants = loadDerogEffectedMerchants();
-		if (derogMerchants.contains(lendingApplication.getMerchantId()) && derogTopUpEnable(lendingApplication.getMerchantId())) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
@@ -1591,12 +1651,6 @@ public class LoanUtil {
 //				logger.info("Nach Waiver is true for merchant:{}", merchantId);
 //				return Boolean.TRUE;
 //			}
-
-			if (qrPaidRatio > 80 && ediPaidRatio > 65 && allowedRiskGroupsNachWaiver.contains(riskGroup)
-					&& maxDpd <= 10) {
-				logger.info("nach waiver is true for merchant:{}", merchantId);
-				return Boolean.TRUE;
-			}
 
 		} catch (Exception e) {
 			logger.error("Exception while check nach waiver for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -1833,5 +1887,53 @@ public class LoanUtil {
 		return forceLendersForMerchants;
 	}
 
+	public void checkForPendingDisbursalStageSkip(LendingApplication lendingApplication, String requestId){
+		try{
+			if (LendingConstants.PENDING_DISBURSAL.equalsIgnoreCase(lendingApplication.getLmsStage())) {
+				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+				if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)){
+					logger.info("lending_risk_variable_snapshot not found for {}", lendingApplication.getId());
+					return;
+				}
+				LendingDisbursalModeConfig lendingDisbursalModeConfig = lendingDisbursalModeConfigDao.findTop1ByLenderAndPlatformAndLoanTypeAndStatusOrderByIdDesc(
+						lendingApplication.getLender(), "LMS", lendingRiskVariablesSnapshot.getRiskSegment().name(), "ACTIVE"
+				);
+				if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
+					logger.info("skipping PENDING_DISBURSAL stage for {}", lendingApplication.getId());
+					publishForDisbursal(lendingApplication, false, requestId);
+
+					LmsStageHistory lmsStageHistory = new LmsStageHistory();
+					lmsStageHistory.setLendingApplicationId(lendingApplication.getId());
+					lmsStageHistory.setLmsStage(LendingConstants.PENDING_DISBURSAL_SKIPPED);
+					LmsStageHistory stageSavedEntity = lmsStageHistoryDao.saveAndFlush(lmsStageHistory);
+
+					lendingApplication.setLmsStage(LendingConstants.SEND_TO_NBFC);
+					lendingApplicationDao.save(lendingApplication);
+				}
+			}
+		}
+		catch(Exception e){
+			logger.error("error on Pending disbursal skip check for {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+		}
+	}
+
+	public void publishForDisbursal(LendingApplication lendingApplication,
+									Boolean generateReportFlag, String requestId){
+
+		LoanDisbursalDto loanDisbursalDto = new LoanDisbursalDto();
+		logger.info("Publishing application_id: {} of loan pending for disbursal to kafka "
+						+ "requestId: {}, generateReportFlg: {}",
+				lendingApplication.getId(), requestId, generateReportFlag);
+		loanDisbursalDto.setApplicationId(lendingApplication.getId());
+		loanDisbursalDto.setMerchantId(lendingApplication.getMerchantId());
+		loanDisbursalDto.setGenerateReport(generateReportFlag);
+		loanDisbursalDto.setRequestId(requestId);
+		logger.info("loanDisbursalDto for {} : {}", lendingApplication.getId(), loanDisbursalDto);
+		kafkaTemplate.send(
+				Objects.requireNonNull(LendingConstants.PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC),
+				lendingApplication.getId().toString(),
+				loanDisbursalDto
+		);
+	}
 }
 

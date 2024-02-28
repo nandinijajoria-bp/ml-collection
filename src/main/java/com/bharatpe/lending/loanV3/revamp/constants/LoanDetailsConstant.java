@@ -15,7 +15,6 @@ public class LoanDetailsConstant {
 
     public static String LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX="LENDING_DASHBOARD_DETAILS_V3_";
 
-    public static String RTE_MILESTONE_OFFER_KEY = "RTE_MILESTONE_OFFER_";
 
     public static String LENDING_VERSION_KEY_PREFIX="LENDING_VERSION_V2_";
     public static String LENDING_LOAN_DETAILS_KEY_PREFIX="LENDING_LOAN_DETAILS_";
@@ -38,6 +37,8 @@ public class LoanDetailsConstant {
     public static String PREAPPROVED_FRESH_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_FRESH";
 
     public static String PREAPPROVED_REPEAT_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_REPEAT";
+
+    public static String F_TPV_PILOT_IDENTIFIER = "F_TPV";
 
     public static String PREAPPROVED_TOPUP_LOAN_IDENTIFIER = "PRE_APPROVED_PILOT_1_TOPUP";
 

@@ -22,7 +22,7 @@ public class MilestoneSupportDto {
     private Date claimedDate;
 
     private DSMileStoneResponse mileStoneResponse;
-    private DSMileStoneAchievementResponse achievementResponse;
+    private MileStoneDashboardDetailsForCRM achievementResponse;
     private Long merchantId;
 }
 
