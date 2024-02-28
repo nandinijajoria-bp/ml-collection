@@ -303,7 +303,7 @@ public class LoanDetailsServiceV2 {
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
-    public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token) throws BureauCallMaskedApiException {
+    public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token, Boolean flagForUwToSkipCache) throws BureauCallMaskedApiException {
         try {
             if (Objects.nonNull(request) &&
                     Objects.nonNull(request.getPancard()) && Objects.nonNull(request.getPincode())) {
@@ -494,7 +494,7 @@ public class LoanDetailsServiceV2 {
             }
 
 
-            checkEligibility(loanDetailsResponse, request, experian, merchant);
+            checkEligibility(loanDetailsResponse, request, experian, merchant, flagForUwToSkipCache);
             cacheLoanDetailsData(loanDetailsResponse, loanDetailsCacheKey, loanDetailsRefreshWindow);
             log.info("returning response from database");
             return new ApiResponse<>(loanDetailsResponse);
@@ -683,7 +683,7 @@ public class LoanDetailsServiceV2 {
     }
 
     private void checkEligibility(LoanDetailsResponse loanDetailsResponse, LoanDetailsRequest request,
-                                  Experian experian, BasicDetailsDto merchant) throws BureauCallMaskedApiException {
+                                  Experian experian, BasicDetailsDto merchant, Boolean flagForUwToSkipCache) throws BureauCallMaskedApiException {
         String kycPancard = kycHandler.getPanNumber(merchant.getId());
         if (experian == null && (request == null || request.getPancard() == null || request.getPincode() == null)) {
             log.info("Invalid request to eligibility for merchant:{}", merchant.getId());
@@ -785,7 +785,7 @@ public class LoanDetailsServiceV2 {
         MutableBoolean isDerog = new MutableBoolean(false);
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), null,
                 request.getAppVersion(), isClubV2, request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
-                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse,null);
+                request.getSkipBureau(), request.getSkipMaskedMobileException(), null, null, true, loanDetailsResponse,null, flagForUwToSkipCache);
         Double eligibleAmount = 0D;
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());

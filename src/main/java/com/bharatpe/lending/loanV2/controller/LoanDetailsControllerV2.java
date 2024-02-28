@@ -53,7 +53,7 @@ public class LoanDetailsControllerV2 {
         log.info("loan details v2 request:{} for merchant:{}", loanDetailsRequest, merchant.getId());
         ApiResponse<?> response;
         try {
-            response = loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, token);
+            response = loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, token, false);
         } catch (BureauCallMaskedApiException e){
             throw (e);
         } catch (Exception e) {
