@@ -93,7 +93,7 @@ public class AbflDigiSignService {
                         .loan_agreement(lendingKfs.getSanctionLoanAgreementDocUrl())
                         .sanction_letter(lendingKfs.getSanctionLoanAgreementDocUrl())
                         .merged_pdf_flag(Boolean.FALSE)
-                        .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile())
+                        .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile().substring(2))
                         .build())
                 .build();
     }
