@@ -1071,9 +1071,7 @@ public class FosService {
                 logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
             } else {
-                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED") &&
-                        Arrays.asList("pending_verification", "approved").contains(lendingApplication.getStatus())
-                ) {
+                if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                     fosTaskStatusDto.setStatus("COMPLETE");
                     fosTaskStatusDto.setMessage("task completed");
                     logger.info("nach done for merchant {}", merchantId);
