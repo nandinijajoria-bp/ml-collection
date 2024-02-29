@@ -521,6 +521,12 @@ public class MerchantLoansService {
                     }
                     responseDTO.setRepaymentDetails(repaymentDetailsList);
                 }
+
+                /*
+                *@Deprecated
+                * Removing penny drop check before eligibilty check, penny drop check now on agreement stage
+                * EL - 2775
+                *
                 boolean pennyDrop = loanUtil.checkPennyDropV2(lendingPaymentSchedule.getMerchantId());
                 if (pennyDrop) {
                     try {
@@ -551,7 +557,37 @@ public class MerchantLoansService {
                         }
                     }
                 }
+                 */
+
 //                responseDTO.setContactSync(isContactSyncRequired(lendingPaymentSchedule));
+
+                try {
+                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
+                    if (!loans.isEmpty()) {
+                        responseDTO.setEligibility(loans);
+                        responseDTO.setTopup(Boolean.TRUE);
+//                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
+                        responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
+                    }
+                } catch (Exception e) {
+                    logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
+                }
+                if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule, responseDTO)) {
+                    logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
+                    LendingIoHalfTopup lendingIoHalfTopup = lendingIoHalfTopupDao.findByLoanId(lendingPaymentSchedule.getId());
+                    LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
+                    if (lendingIoHalfTopup != null && LoanType.IO_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
+                        logger.info("merchant:{} eligible for io loan", merchantId);
+                        loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
+                        responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
+                    } else if (lendingIoHalfTopup != null && LoanType.HALF_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
+                        logger.info("merchant:{} eligible for half loan", merchantId);
+                        loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
+                        responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
+                    } else {
+                        logger.info("Entry not found in lending_io_half_topup for merchant:{}", merchantId);
+                    }
+                }
             }
 
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));

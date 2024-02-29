@@ -1,15 +1,12 @@
 package com.bharatpe.lending.dao;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigInteger;
 import java.util.Date;
 import java.util.List;
 
@@ -131,4 +128,6 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value = "SELECT * FROM lending_application WHERE  merchant_id = :merchantId AND status IN ('draft','pending_verification') ORDER BY id DESC", nativeQuery = true)
 	LendingApplication findInProgressLoanApplication(Long merchantId);
 
+	@Query(value = "SELECT * FROM lending_application WHERE  merchant_id = :merchantId AND status = :status ORDER BY id DESC LIMIT 1", nativeQuery = true)
+	LendingApplication findLatestDraftApplication(Long merchantId, String status);
 }
