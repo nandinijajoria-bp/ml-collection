@@ -1893,6 +1893,10 @@ public class LoanUtil {
 				);
 				if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
 					logger.info("skipping PENDING_DISBURSAL stage for {}", lendingApplication.getId());
+
+					lendingApplication.setLmsStage(LendingConstants.SEND_TO_NBFC);
+					lendingApplicationDao.save(lendingApplication);
+
 					publishForDisbursal(lendingApplication, false, requestId);
 
 					LmsStageHistory lmsStageHistory = new LmsStageHistory();
@@ -1900,8 +1904,6 @@ public class LoanUtil {
 					lmsStageHistory.setLmsStage(LendingConstants.PENDING_DISBURSAL_SKIPPED);
 					LmsStageHistory stageSavedEntity = lmsStageHistoryDao.saveAndFlush(lmsStageHistory);
 
-					lendingApplication.setLmsStage(LendingConstants.SEND_TO_NBFC);
-					lendingApplicationDao.save(lendingApplication);
 				}
 			}
 		}
