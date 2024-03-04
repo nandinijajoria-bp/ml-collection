@@ -46,44 +46,15 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
+        if(lendingStateDTO.getData().isTopup() && Lender.ABFL.name().equalsIgnoreCase(lendingStateDTO.getData().getLender())){
+            //next page for ABFL topup is set in fetchScopeData call
+            return lendingStateDTO;
+        }
         if(loanUtilV3.isPreapprovedRepeatLoan(scopeDataArgs.getApplicationId())){
             lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         }
         else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.REFERENCE_PAGE);
-        }
-        LendingApplication lendingApplication = lendingApplicationDao.findById(scopeDataArgs.getApplicationId()).orElse(null);
-        if(ObjectUtils.isEmpty(lendingApplication)) {
-            return lendingStateDTO;
-        }
-        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
-            if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                if(LenderAssociationStatus.BRE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
-                    log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as BRE_FAILED for applicationId: {}", lendingApplication.getId());
-                    lendingApplication.setStatus("rejected");
-                    lendingApplicationDao.save(lendingApplication);
-                    lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
-                } else if(LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())){
-                    lendingStateDTO.getData().setIsRetryable(Boolean.TRUE);
-                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_EVALUATION_PAGE);
-                } else if (LenderAssociationStatus.KYC_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
-                    log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as KYC_FAILED for applicationId: {}", lendingApplication.getId());
-                    lendingApplication.setStatus("rejected");
-                    lendingApplicationDao.save(lendingApplication);
-                    lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
-                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                    lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_TOPUP_REJECTED);
-                } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
-                    lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-                }
-                else if (LenderAssociationStatus.KYC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
-                    lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
-                }
-
-            }
         }
         return lendingStateDTO;
     }
@@ -92,11 +63,45 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     public LendingStateDTO<LenderEvaluationStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         LenderEvaluationStateDTO lenderEvaluationStateDTO = new LenderEvaluationStateDTO();
         try {
-            // dont make db call, just return next page
             if(ObjectUtils.isEmpty(scopeDataArgs.getApplicationId())){
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_ID_MISSING.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_ID_MISSING.getErrorMessage());
             }
-            return new LendingStateDTO<>(lenderEvaluationStateDTO , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.LENDER_EVALUATION_PAGE);
+            LendingApplication lendingApplication = lendingApplicationDao.findById(scopeDataArgs.getApplicationId()).orElse(null);
+            if(ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
+            }
+            LendingViewStates nextPage = LendingViewStates.LENDER_EVALUATION_PAGE;
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                lenderEvaluationStateDTO.setTopup(true);
+                lenderEvaluationStateDTO.setLender(Lender.ABFL.name());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                    if(LenderAssociationStatus.BRE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
+                        log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as BRE_FAILED for applicationId: {}", lendingApplication.getId());
+                        lendingApplication.setStatus("rejected");
+                        lendingApplicationDao.save(lendingApplication);
+                        lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        nextPage = LendingViewStates.LENDER_TOPUP_REJECTED;
+                    } else if(LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())){
+                        lenderEvaluationStateDTO.setIsRetryable(Boolean.TRUE);
+                    } else if (LenderAssociationStatus.KYC_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                        log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as KYC_FAILED for applicationId: {}", lendingApplication.getId());
+                        lendingApplication.setStatus("rejected");
+                        lendingApplicationDao.save(lendingApplication);
+                        lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        nextPage = LendingViewStates.LENDER_TOPUP_REJECTED;
+                    } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                        nextPage = LendingViewStates.KYC_PAGE;
+                    }
+                    else if (LenderAssociationStatus.KYC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                        nextPage = LendingViewStates.ENACH_PAGE;
+                    }
+                }
+            }
+            return new LendingStateDTO<>(lenderEvaluationStateDTO , nextPage, LendingViewStates.LENDER_EVALUATION_PAGE);
         } catch (Exception e) {
             log.error("error in getting reference stage data for {} : {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(),LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());

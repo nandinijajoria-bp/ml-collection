@@ -10,4 +10,6 @@ import lombok.*;
 public class LenderEvaluationStateDTO {
     private Long applicationId;
     private Boolean isRetryable;
+    private boolean isTopup;
+    private String lender;
 }
