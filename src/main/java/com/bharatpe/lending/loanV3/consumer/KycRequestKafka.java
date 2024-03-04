@@ -18,6 +18,8 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -72,6 +74,9 @@ public class KycRequestKafka {
     @Autowired
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
 
     @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
     public void kycRequestListener(String request) {
@@ -186,6 +191,11 @@ public class KycRequestKafka {
             existingLendingApplicationLenderDetails.setNbfcKycAsyncId(data.getAsyncId());
             existingLendingApplicationLenderDetails.setCkycType(data.getKycType());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())){
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
+            }
+
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
                     LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC));
             log.info("kyc completed for the application {} ", lendingApplication.get().getId());
