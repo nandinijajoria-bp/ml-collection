@@ -847,6 +847,13 @@ public class MerchantLoansService {
         List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
         List<Long> customEnabledMerchants = loanUtil.customEnabledTopupMerchants();
 
+        List<LendingPaymentScheduleSlave> activeLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(lendingPaymentSchedule.getMerchantId(),"ACTIVE");
+
+        if (activeLoans.size() > 1) {
+            logger.info("more than 1 loan active for merchantId : {} loans : {}", lendingPaymentSchedule.getMerchantId(), activeLoans.size());
+            return Collections.emptyList();
+        }
+
         if (customEnabledMerchants.contains(lendingPaymentSchedule.getMerchantId())) {
             return computeEligibility(lendingPaymentSchedule);
 

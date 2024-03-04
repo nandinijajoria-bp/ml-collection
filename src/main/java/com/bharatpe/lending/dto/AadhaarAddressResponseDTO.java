@@ -12,4 +12,7 @@ public class AadhaarAddressResponseDTO {
     private String pincode;
     private String state;
     private String name;
+    private String dob;
+    private String gender;
+    private String aadharNumber;
 }

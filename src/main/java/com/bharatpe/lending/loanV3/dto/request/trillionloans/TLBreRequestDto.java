@@ -64,6 +64,7 @@ public class TLBreRequestDto {
             private Double bureauScore;
             private Double drs;
             private Double bbs;
+            private Double bbs2;
             private Double bpScore;
             private Long vintage;
             private Integer uniqueCustomerCount;
@@ -85,6 +86,7 @@ public class TLBreRequestDto {
             private Integer maxTenure;
             private Double loanCapping;
             private Integer age;
+            private String pilots;
         }
     }
 }

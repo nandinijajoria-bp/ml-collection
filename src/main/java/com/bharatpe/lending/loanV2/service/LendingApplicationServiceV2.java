@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
@@ -2142,6 +2143,9 @@ public class LendingApplicationServiceV2 {
                 return generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, false, null);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.DISBURSMENT_REQUEST_LETTER_DOC.toString())) {
                 return generateDisbursementRequestLetter(applicationId, lendingApplication, merchant, clientIp, deviceId, platform);
+            } else if(docType.equalsIgnoreCase(ApplicationDocType.AUTHORIZATION_LETTER_DOC.toString()))
+            {
+                return generateAuthorizationLetter(applicationId,lendingApplication,merchant,false,null);
             }
             return new ApiResponse<>(false, "Unhandled DocType");
         }
@@ -2177,6 +2181,7 @@ public class LendingApplicationServiceV2 {
 //            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getAnnualRoi())) {
 //                apr = lendingApplicationLenderDetails.getAnnualRoi();
 //            }
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingKfs.getMerchantId());
 
             String lenderCorporateName = "";
             String lenderBusinessAddress = "";
@@ -2245,6 +2250,9 @@ public class LendingApplicationServiceV2 {
                 colenderBusinessAddress = KfsConstants.COLENDER_BUSINESS_ADDRESS_MAMTA2;
             }
 
+            String shopAddress = constructShopAddress(lendingApplication);
+
+
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2278,6 +2286,9 @@ public class LendingApplicationServiceV2 {
                     .lspContactNumber(KfsConstants.LSP_CONTACT_NUMBER)
                     .nbfcId(lendingApplication.getNbfcId())
                     .ediDays((lendingApplication.getPayableDays() % 30) == 0 ? 7 : 6)
+                    .agreementAt(lendingApplication.getAgreementAt())
+                    .shopAddress(shopAddress)
+                    .monthlyIncome(lendingRiskVariables.getMonthlyIncome())
                     .build();
             return new ApiResponse<>(kfsDto);
         }
@@ -2312,6 +2323,13 @@ public class LendingApplicationServiceV2 {
         //Loan Agreement
         generateSanctionCumLoanAgreementDoc(lendingApplication, merchant, lendingKfs, null);
         lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
+
+        //Authorization Letter
+        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.getLender())){
+            generateAuthorizationLetterDoc(lendingApplication, merchant, lendingKfs, null);
+            lendingKfs.setAuthorizationLetterSignedAt(dateTimeUtil.getCurrentDate());
+        }
+
         lendingKfsDao.save(lendingKfs);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
@@ -2734,11 +2752,22 @@ public class LendingApplicationServiceV2 {
         return shortUrl;
     }
 
+    public String fetchAuthorizationLetterFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
+        String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
+        if (ObjectUtils.isEmpty(authorizationLetterShortUrl)|| authorizationLetterShortUrl.trim().isEmpty())
+            throw new Exception("Unable to create short URL for Authorization doc link for : " + applicationId);
+
+        return authorizationLetterShortUrl;
+    }
+
     public Map<String, Object> getApplicationDocData(Long applicationId, KfsDto kfsDto, BasicDetailsDto merchant, boolean timeStamp, ApplicationDocType applicationDocType, Date dateTime, String ip) throws Exception {
         if(ObjectUtils.isEmpty(dateTime)){
             dateTime  = dateTimeUtil.getCurrentDate();
         }
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusOrderByMinAmountAsc(1D, true);
+        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
+        BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
         Map<String, Object> data = new HashMap<>();
         data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
@@ -2809,12 +2838,30 @@ public class LendingApplicationServiceV2 {
             data.put("address_of_borrower", aadhaarAddressResponseDTO.getAddress());
             if (!ObjectUtils.isEmpty(aadhaarAddressResponseDTO.getName())) {
                 data.put("borrower_name", aadhaarAddressResponseDTO.getName());
+                data.put("borrower_city",aadhaarAddressResponseDTO.getCity());
+                data.put("borrower_state",aadhaarAddressResponseDTO.getState());
+                data.put("borrower_pincode",aadhaarAddressResponseDTO.getPincode());
+                data.put("gender",aadhaarAddressResponseDTO.getGender());
+                data.put("dob",aadhaarAddressResponseDTO.getDob());
+                data.put("aadhar_Number",aadhaarAddressResponseDTO.getAadharNumber());
                 log.info("borrower name getting populated in agreement for application: {} {}", aadhaarAddressResponseDTO.getName(), applicationId);
             }
 
         }
         else throw new Exception("Unable to get aadhar address for : " + applicationId);
         data.put("device_id", "");
+        if(!ObjectUtils.isEmpty(merchantBankDetail)) {
+            data.put("accountNumber", "XXXXXXXX" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length() - 4));
+            data.put("accountType", merchantBankDetail.getAccountType());
+            data.put("ifsc", merchantBankDetail.getIfsc());
+            data.put("bankName", merchantBankDetail.getBankName());
+            log.info("borrower bank details getting populated for application ; {}",applicationId);
+        }
+        String ediStartDate = lendingEdiScheduleService.getEdiStartDate(merchant.getId(),applicationId);
+        if(!ObjectUtils.isEmpty(ediStartDate))
+        {
+            data.put("ediStartDate",ediStartDate);
+        }
         if(!timeStamp){
             String lenderLogoHtml = "<p class=\"text-center\">\n" +
                     "<img class=\"width-66 mb20\" src=\"" + getLenderLogo(kfsDto.getLender(), applicationDocType) + "\" alt=\"lender\" />\n" +
@@ -2843,6 +2890,9 @@ public class LendingApplicationServiceV2 {
             data.put("penal_charges_"+value, penaltyFeeConfigSlaveList.get(i).getPenalty());
         }
         data.put("edi_days", kfsDto.getEdiDays());
+        data.put("date_of_execution",Optional.ofNullable(kfsDto.getAgreementAt()).map(String::valueOf).orElse(""));
+        data.put("shopAddress",kfsDto.getShopAddress());
+        data.put("monthlyIncome",Optional.ofNullable(kfsDto.getMonthlyIncome()).map(String::valueOf).orElse(""));
         log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
@@ -2850,7 +2900,7 @@ public class LendingApplicationServiceV2 {
     public String getLenderLogo(String lender, ApplicationDocType applicationDocType){
         String logoUrl = "";
         if(lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
-            logoUrl = "https://d36q81tf33qni.cloudfront.net/LiquiLoans.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/liquiloans_header-1709183554567.png";
         } else if((lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender))
                 && applicationDocType.equals(ApplicationDocType.LIQUILOANS_NBFC_FOOTER)) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trliions_Footer-1705915638774.png";
@@ -3130,6 +3180,9 @@ public class LendingApplicationServiceV2 {
                     dto.setPincode(kycDoc.getPincode());
                     dto.setState(kycDoc.getState());
                     dto.setName(kycDoc.getName());
+                    dto.setDob(kycDoc.getDob());
+                    dto.setGender(kycDoc.getGender());
+                    dto.setAadharNumber(kycDoc.getDocIdentifier());
                     return new ApiResponse<>(dto);
                 }
             }
@@ -3208,4 +3261,93 @@ public class LendingApplicationServiceV2 {
         }
         return Boolean.TRUE;
     }
+
+
+    public ApiResponse<?> generateAuthorizationLetter(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        if(!apiResponse.success){
+            log.info("Unable to get KFS details while creating Authorization doc for applicationId: {}", applicationId);
+            return new ApiResponse<>(false,"Unable to retrieve KFS Details");
+        }
+        KfsDto kfsDto = (KfsDto)apiResponse.data;
+        if(ObjectUtils.isEmpty(kfsDto.getLender())){
+            log.info("Unable to get lender details while creating Authorization doc for applicationId: {}", applicationId);
+            return new ApiResponse<>(false,"Unable to get lender while generating Authorization Letter");
+        }
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.AUTHORIZATION_LETTER_DOC, dateTime, lendingApplication.getIp());
+            String lender = kfsDto.getLender();
+            Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
+            Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
+            String html = "";
+            String filePath = "";
+           if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
+                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
+                filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
+                filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
+            }  else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
+                filePath = "/templates/AUTHORIZATION_LETTER_NONP2P_ABFL.html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
+                filePath = "/templates/" + "AUTHORIZATION_LETTER_TRILLIONS_PC" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                filePath = "/templates/AUTHORIZATION_LETTER_TRILLIONS_PC.html";
+            } else {
+                filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
+            }
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";;
+            for(Map.Entry<String,Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                log.info(key + " " + val);
+                html = html.replace(key, val);
+            }
+            return new ApiResponse<>(html);
+        } catch (Exception e) {
+            log.error("Exception while generating Authorization html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Unable to generate Authorization Letter");
+        }
+    }
+
+    public void generateAuthorizationLetterDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
+        String fileName = "";
+        ApiResponse<?> apiResponse;
+        apiResponse = generateAuthorizationLetter(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        if (apiResponse.success) {
+            String authorizationHtml = (String) apiResponse.data;
+            fileName = AUTHORIZATION_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            InputStream htmlStringInputStream = new ByteArrayInputStream(authorizationHtml.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
+            if (ObjectUtils.isEmpty(authorizationLetterShortUrl) || authorizationLetterShortUrl.trim().isEmpty())
+                throw new Exception("Unable to create short URL for Authorization doc link for : " + lendingApplication.getId());
+            else {
+                lendingKfs.setAuthorizationLetterDocFile(fileName);
+                lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterShortUrl);
+            }
+        }
+        else{
+            log.error("Unable to store Authorization Letter pdf doc for applicationId : {}", lendingApplication.getId());
+            throw new Exception("Unable to generate Authorization Letter doc for applicationID" + lendingApplication.getId());
+        }
+    }
+    private String constructShopAddress(LendingApplication lendingApplication) {
+        return (ObjectUtils.isEmpty(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber()) + "," +
+                (ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress()) + "," +
+                (ObjectUtils.isEmpty(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark()) + "," +
+                (ObjectUtils.isEmpty(lendingApplication.getCity()) ? "" : lendingApplication.getCity()) + "," +
+                (ObjectUtils.isEmpty(lendingApplication.getState()) ? "" : lendingApplication.getState()) + "," +
+                (ObjectUtils.isEmpty(lendingApplication.getPincode()) ? "" : lendingApplication.getPincode());
+
+    }
+
 }

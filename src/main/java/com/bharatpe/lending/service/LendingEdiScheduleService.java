@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.text.SimpleDateFormat;
 
 @Service
 public class LendingEdiScheduleService {
@@ -230,5 +232,51 @@ public class LendingEdiScheduleService {
             logger.error("Exception while creating schedule V2 for applicationId {}, Exception is {}, Stacktrace : {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new CommonResponse(false, "Something went wrong");
+    }
+    public String getEdiStartDate(Long merchantId, Long applicationId) {
+        logger.info("fetching edi start date for applicationId :{}", applicationId);
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        try {
+            LendingApplication lendingApplication =
+                    lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                logger.error("lending application not found for applicationId : {}",applicationId);
+                return null;
+            }
+            LendingPaymentSchedule lendingPaymentSchedule =
+                    lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+            String construct = lendingApplication.getLoanConstruct();
+            Calendar cal = Calendar.getInstance();
+            if ("CONSTRUCT_2".equals(construct) || "CONSTRUCT_3".equals(construct)) {
+                if (lendingPaymentSchedule != null) {
+                    cal.setTime(lendingPaymentSchedule.getInterestOnlyStartDate());
+                }
+                // Skip for Sunday for six-day modal
+                if (lendingApplication.getPayableDays() % 30 != 0) {
+                    if (cal.get(Calendar.DAY_OF_WEEK) ==
+                            liquiloansService.getOffDayNumber(LendingConstants.SIX_DAY_MODEL_OFF_DAY)) {
+                        cal.add(Calendar.DAY_OF_MONTH, 1);
+                    }
+                }
+                return sdf.format(cal.getTime());
+
+            }
+
+            if (lendingPaymentSchedule != null) {
+                cal.setTime(lendingPaymentSchedule.getStartDate());
+            }
+                // skip for sunday for six day modal
+                if (lendingApplication.getPayableDays() % 30 != 0) {
+                    if (cal.get(Calendar.DAY_OF_WEEK) == liquiloansService.getOffDayNumber(LendingConstants.SIX_DAY_MODEL_OFF_DAY)) {
+                        cal.add(Calendar.DAY_OF_MONTH, 1);
+
+                    }
+                }
+            return sdf.format(cal.getTime());
+
+        } catch(Exception ex) {
+            logger.error("Exception while creating date  for applicationId {}, Exception is {}, Stacktrace : {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+         return null;
     }
 }

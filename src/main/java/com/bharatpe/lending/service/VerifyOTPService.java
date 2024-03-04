@@ -341,6 +341,7 @@ public class VerifyOTPService {
                 final LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
                 lendingKfs.setKfsSignedAt(new Date());
                 lendingKfs.setSanctionLoanAgreementSignedAt(new Date());
+                lendingKfs.setAuthorizationLetterSignedAt(new Date());
                 lendingKfsDao.save(lendingKfs);
 
                 // create agreement according to the new lender

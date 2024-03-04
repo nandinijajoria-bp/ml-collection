@@ -160,6 +160,7 @@ public class TLBreService {
                         .bureauScore(lendingRiskVariablesSnapshot.getBureauScore())
                         .drs(lendingRiskVariablesSnapshot.getDrsScore())
                         .bbs(lendingRiskVariablesSnapshot.getBbs())
+                        .bbs2(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getBbs2()) ? 0 : lendingRiskVariablesSnapshot.getBbs2())
                         .bpScore(lendingRiskVariablesSnapshot.getBpScore())
                         .vintage(lendingRiskVariablesSnapshot.getVintage())
                         .uniqueCustomerCount(lendingRiskVariablesSnapshot.getUniqueCustomer1mon())
@@ -181,6 +182,7 @@ public class TLBreService {
                         .maxTenure(lendingApplication.getTenureInMonths())
                         .loanCapping(lendingApplication.getLoanAmount())
                         .age(kycUtils.getAgeFromDob(cKycResponseDto.getDob()))
+                        .pilots(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getPilotIdentifier()) ? "" : lendingRiskVariablesSnapshot.getPilotIdentifier())
                         .build())
                 .build();
     }

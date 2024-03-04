@@ -13,7 +13,8 @@ public enum ApplicationDocType {
     HINDON_LETTERHEAD_FOOTER,
     PIRAMAL_LETTERHEAD_FOOTER,
     DISBURSMENT_REQUEST_LETTER_DOC,
-    LIQUILOANS_NBFC_FOOTER;
+    LIQUILOANS_NBFC_FOOTER,
+    AUTHORIZATION_LETTER_DOC;
 
 
     public static ApplicationDocType getFooterMapping(Lender lender) {

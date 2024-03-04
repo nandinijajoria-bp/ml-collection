@@ -926,6 +926,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setComputeSource(lendingRiskVariables.getComputeSource());
 				lendingRiskVariablesSnapshot.setAggregateId(lendingRiskVariables.getAggregateId());
 				lendingRiskVariablesSnapshot.setMonthlyIncome(lendingRiskVariables.getMonthlyIncome());
+				lendingRiskVariablesSnapshot.setTpv6Mon(lendingRiskVariables.getTpv6Mon());
 				lendingRiskVariablesSnapshot.setGst3bBasedAffectedOffer(lendingRiskVariables.getGst3bBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setAaBasedAffectedOffer(lendingRiskVariables.getAaBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setAaBasedOffer(lendingRiskVariables.getAaBasedOffer());
