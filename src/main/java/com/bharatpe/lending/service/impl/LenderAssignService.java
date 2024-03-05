@@ -728,7 +728,8 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> application = lendingApplicationDao.findById(applicationId);
         if(application.isPresent()){
             log.info("Modifying lender for application:{}", application.get().getId());
-            if(Lender.PIRAMAL.name().equalsIgnoreCase(application.get().getLender()) || Lender.ABFL.name().equalsIgnoreCase(application.get().getLender())) {
+            if(Lender.PIRAMAL.name().equalsIgnoreCase(application.get().getLender()) || Lender.ABFL.name().equalsIgnoreCase(application.get().getLender())
+            || TRILLIONLOANS.name().equalsIgnoreCase(application.get().getLender())) {
                 log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
