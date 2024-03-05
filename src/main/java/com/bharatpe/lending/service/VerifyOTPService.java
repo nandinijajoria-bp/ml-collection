@@ -617,7 +617,6 @@ public class VerifyOTPService {
     private Boolean topUpLoans(LendingApplication lendingApplication) {
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
-            logger.info("In topupLoans function is for active Loan id {}", activeLoan.getId());
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
@@ -685,7 +684,8 @@ public class VerifyOTPService {
                 lendingPaymentScheduleDao.save(activeLoan);
             }*/
         } catch (Exception ex) {
-            logger.error("Exception IN TOPUP LOANS Ledger for application:{}", lendingApplication.getId(), ex);
+            logger.error("Exception IN TOPUP LOANS Ledger for application:{} {}", lendingApplication.getId(), Arrays.asList(ex.getStackTrace()));
+            return false;
         }
 
         return true;
