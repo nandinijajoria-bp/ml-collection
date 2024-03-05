@@ -30,6 +30,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.enums.Lender.LDC;
@@ -135,6 +136,12 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${is.gst.offer.enabled:false}")
     boolean isGstOfferEnabled;
 
+    @Value("${is.wildcard.lender.config.enabled:true}")
+    boolean isWildcardLenderConfigEnabled;
+
+    @Value("${lending.wildcard.lender.name:TRILLIONLOANS}")
+    String lendingWildcardLenderName;
+
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
 
@@ -184,50 +191,80 @@ public class LenderAssignService implements ILenderAssignService {
                 ruleList=lenderAssignmentRulesDao.fetchEligibleRulesForInternal(application.getLoanAmount(), bureauScore, riskSegment, tenure, riskGroupLike, pincodeColor);
             }
             log.info("Fetched Rules:{}", ruleList);
-            if(ObjectUtils.isEmpty(ruleList)){
-                return null;
-            }
-            lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(),vintage);
             try {
-                if (!CollectionUtils.isEmpty(lenders)) {
-                    ListIterator<String> iterator = lenders.listIterator();
-                    while (iterator.hasNext()) {
-                        String lender = iterator.next().toUpperCase();
-                        if (lenderEligiblePincodeCheckList.contains(lender)) {
-                            LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
-                                    lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
-                            );
-                            if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
-                                funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
-                                        FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
-                                log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
+                List<String> eligibleLendersAsPerRules = ruleList.stream().map(LenderAssignmentRules::getLender).collect(Collectors.toCollection(ArrayList::new));
+                saveEligibleLenderAudit(application, "", CollectionUtils.isEmpty(eligibleLendersAsPerRules) ? "" : String.join(",", eligibleLendersAsPerRules), "ELIGIBLE_RULE_LENDERS");
+            } catch (Exception exception) {
+                log.info("exception while logging the lender assignment details under rules based lenders", exception);
+            }
+            if(!ObjectUtils.isEmpty(ruleList)) {
+                lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage);
+                try {
+                    if (!CollectionUtils.isEmpty(lenders)) {
+                        ListIterator<String> iterator = lenders.listIterator();
+                        while (iterator.hasNext()) {
+                            String lender = iterator.next().toUpperCase();
+                            if (lenderEligiblePincodeCheckList.contains(lender)) {
+                                LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
+                                        lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
+                                );
+                                if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
+                                    funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
+                                            FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                                    log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
+                                    iterator.remove();
+                                }
+                            }
+                            if (!baseChecksPassedForLenders(application, lender)) {
+                                log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
+                                iterator.remove();
+                            }
+                            if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
+                                log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
+                                iterator.remove();
+                            }
+                            if (additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)) {
+                                log.info("skipping {} due to additional checks failing for {}", lender, application.getId());
+                                iterator.remove();
+                            }
+                            if (!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)) {
+                                log.info("skipping {} due to business category check failure for {}", lender, application.getId());
                                 iterator.remove();
                             }
                         }
-                        if (!baseChecksPassedForLenders(application,lender)){
-                            log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
-                            iterator.remove();
-                        }
-                        if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
-                            log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
-                            iterator.remove();
-                        }
-                        if(additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)){
-                            log.info("skipping {} due to additional checks failing for {}", lender, application.getId());
-                            iterator.remove();
-                        }
-                        if(!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)){
-                            log.info("skipping {} due to business category check failure for {}", lender, application.getId());
-                            iterator.remove();
-                        }
                     }
+                } catch (Exception exception) {
+                    log.error("exception while custom pincode check for lender for application id : {}, {}", application.getId(), Arrays.asList(exception.getStackTrace()));
                 }
-            } catch (Exception exception) {
-                log.error("exception while custom pincode check for lender for application id : {}, {}", application.getId(), Arrays.asList(exception.getStackTrace()));
+            }
+            if (ObjectUtils.isEmpty(lenders)) {
+                /*
+                LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                if (!ObjectUtils.isEmpty(lendingLenderQuota)) {
+                    log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
+                            lendingLenderQuota.getLender(), application.getId(), lenders);
+                    try {
+                        saveEligibleLenderAudit(application, lendingLenderQuota.getLender(), CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
+                    } catch (Exception exception) {
+                        log.info("exception while logging the lender assignment details", exception);
+                    }
+                    lenders.add(lendingLenderQuota.getLender());
+                }
+                */
+                if (isWildcardLenderConfigEnabled && ObjectUtils.isEmpty(lendingWildcardLenderName)) {
+                    log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
+                            lendingWildcardLenderName , application.getId(), lenders);
+                    try {
+                        saveEligibleLenderAudit(application, lendingWildcardLenderName, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
+                    } catch (Exception exception) {
+                        log.info("exception while logging the lender assignment details", exception);
+                    }
+                    lenders.add(lendingWildcardLenderName);
+                }
             }
             decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
             try {
-                saveEligibleLenderAudit(application, ObjectUtils.isEmpty(decidedLender) ? "" : decidedLender, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders));
+                saveEligibleLenderAudit(application, ObjectUtils.isEmpty(decidedLender) ? "" : decidedLender, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "ELIGIBLE_LENDER");
             } catch (Exception exception) {
                 log.info("exception while logging the lender assignment details", exception);
             }
@@ -408,11 +445,11 @@ public class LenderAssignService implements ILenderAssignService {
         lendingAuditTrialDao.save(auditLender);
     }
 
-    public void saveEligibleLenderAudit(LendingApplication lendingApplication, String selectedLender, String eligibleLender){
+    public void saveEligibleLenderAudit(LendingApplication lendingApplication, String selectedLender, String eligibleLender, String type){
         LendingAuditTrial auditLender = new LendingAuditTrial();
         auditLender.setApplicationId(lendingApplication.getId());
         auditLender.setMerchantId(lendingApplication.getMerchantId());
-        auditLender.setType("ELIGIBLE_LENDER");
+        auditLender.setType(type);
         auditLender.setLoanId("BPL"+lendingApplication.getId());
         auditLender.setOldStatus(eligibleLender);
         auditLender.setNewStatus(selectedLender);
@@ -599,6 +636,10 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingLenderQuota> limit1 = lenderDisbursalLimitsDao.findById(limit.getId());
         Long id = limit.getId();
         if(limit1.isPresent()){
+            /*
+            LendingLenderQuota updatedLimit = new LendingLenderQuota(limit.getLender(), limit.getTotalWeeklyAmount(),
+                    limit.getRemainingBalance(), limit.getAssignedAmount(), null, LendingLenderQuota.Classification.REGULAR.name());
+            */
             LendingLenderQuota updatedLimit = new LendingLenderQuota(limit.getLender(), limit.getTotalWeeklyAmount(),
                     limit.getRemainingBalance(), limit.getAssignedAmount(), null);
             updatedLimit.setCreatedAt(limit1.get().getCreatedAt());

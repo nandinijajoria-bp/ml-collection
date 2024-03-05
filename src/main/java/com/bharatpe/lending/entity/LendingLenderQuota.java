@@ -3,18 +3,20 @@ package com.bharatpe.lending.entity;
 import com.bharatpe.lending.common.entity.BaseEntity;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Table;
 
+@Data
 @Entity
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-@Table(name = "lending_lender_quota")
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+@Table(name = "lending_lender_quota")
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class LendingLenderQuota extends BaseEntity {
 
     @Column(name = "lender")
@@ -32,54 +34,13 @@ public class LendingLenderQuota extends BaseEntity {
     @Column(name = "edi_model")
     private String ediModel;
 
-    public String getLender() {
-        return lender;
-    }
+    /*
+    @Column(name = "classification")
+    private String classification;
 
-    public void setLender(String lender) {
-        this.lender = lender;
+    public enum Classification {
+        DEFAULT, WILDCARD, REGULAR
     }
+    */
 
-    public Double getTotalWeeklyAmount() {
-        return totalWeeklyAmount;
-    }
-
-    public void setTotalWeeklyAmount(Double totalWeeklyLimit) {
-        this.totalWeeklyAmount = totalWeeklyLimit;
-    }
-
-    public Double getRemainingBalance() {
-        return remainingBalance;
-    }
-
-    public void setRemainingBalance(Double remainingBalance) {
-        this.remainingBalance = remainingBalance;
-    }
-
-    public Double getAssignedAmount() {
-        return assignedAmount;
-    }
-
-    public void setAssignedAmount(Double assignedAmount) {
-        this.assignedAmount = assignedAmount;
-    }
-
-    public String getEdiModel() {
-        return ediModel;
-    }
-
-    public void setEdiModel(String ediModel) {
-        this.ediModel = ediModel;
-    }
-
-    @Override
-    public String toString() {
-        return "LenderDisbursalLimits{" +
-                "lender='" + lender + '\'' +
-                ", totalWeeklyLimit=" + totalWeeklyAmount +
-                ", remainingBalance=" + remainingBalance +
-                ", assignedAmount=" + assignedAmount +
-                ", ediModel=" + ediModel +
-                '}';
-    }
 }
