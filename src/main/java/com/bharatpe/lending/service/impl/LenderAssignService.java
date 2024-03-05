@@ -251,7 +251,7 @@ public class LenderAssignService implements ILenderAssignService {
                     lenders.add(lendingLenderQuota.getLender());
                 }
                 */
-                if (isWildcardLenderConfigEnabled && ObjectUtils.isEmpty(lendingWildcardLenderName)) {
+                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingWildcardLenderName)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
                             lendingWildcardLenderName , application.getId(), lenders);
                     try {
