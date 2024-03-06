@@ -1949,6 +1949,7 @@ public class LendingApplicationServiceV2 {
             }
             Boolean resubmitCompleted = true;
             List<String> resubmitReasonList = Arrays.asList(resubmitReasons.split("\\s*,\\s*"));
+            List<String> updatedResubmitReasonsList = fetchUpdatedResubmitReasonsList(resubmitReasonList);
             LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId, lendingApplication);
             Integer maxCount = -1;
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
@@ -1956,7 +1957,7 @@ public class LendingApplicationServiceV2 {
             }
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
-                for(String resubmitReason : resubmitReasonList){
+                for(String resubmitReason : updatedResubmitReasonsList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
                         lendingResubmitReasonCount.setResubmittedAt(new Date());
@@ -2023,6 +2024,17 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in resubmit Done for application:{}", applicationId, e);
         }
         return new ApiResponse<>(false,"Something Went Wrong.");
+    }
+
+    private List<String> fetchUpdatedResubmitReasonsList(List<String> resubmitReasonList) {
+        List<String> updatedResubmitReasonsList = new ArrayList<>();
+
+        for (String resubmitReason : resubmitReasonList){
+            if(!updatedResubmitReasonsList.contains(resubmitReason)){
+                updatedResubmitReasonsList.addAll(LendingConstants.ResubmitReasonMap.get(resubmitReason));
+            }
+        }
+        return updatedResubmitReasonsList;
     }
 
     public ApiResponse<?> getBusinessCategory(){
