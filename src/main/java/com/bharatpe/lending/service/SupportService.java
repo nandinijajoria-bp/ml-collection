@@ -2261,6 +2261,11 @@ public class SupportService {
                     if(!ObjectUtils.isEmpty(lendingKfs.getKfsDocUrl()) && !ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())){
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getKfsSignedAt());
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getSanctionLoanAgreementSignedAt());
+
+                        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.get().getLender())){
+                            lendingApplicationServiceV2.generateAuthorizationLetterDoc(lendingApplication.get(),basicDetailsDto.get(),lendingKfs1,lendingKfs.getAuthorizationLetterSignedAt());
+                            lendingKfs1.setAuthorizationLetterSignedAt(lendingKfs.getKfsSignedAt());
+                        }
                         //set timestamps as the old ones.
                         lendingKfs1.setKfsSignedAt(lendingKfs.getKfsSignedAt());
                         lendingKfs1.setSanctionLoanAgreementSignedAt(lendingKfs.getSanctionLoanAgreementSignedAt());
