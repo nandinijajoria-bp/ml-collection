@@ -690,30 +690,29 @@ public class LoanEligibleService {
     }
 
 
-    public LendingPancard verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
+    public VerifyPanCardResponseDto verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
         logger.info("Calling Pan Verify Api for merchant:{}", merchantId);
         try {
             PanVerifyKYCResponseDto.Data responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
             if(!ObjectUtils.isEmpty(responseDto))  {
-                if(!ObjectUtils.isEmpty(responseDto.getPanValid())) {
-                    verifyPanCardResponseDto.setIsPanVerified(responseDto.getPanValid());
-                }
-                if(!ObjectUtils.isEmpty(responseDto.getDobMatch())) {
-                    verifyPanCardResponseDto.setIsDobVerified(responseDto.getDobMatch());
-                }
-                if(!ObjectUtils.isEmpty(responseDto.getNameMatch())) {
-                    verifyPanCardResponseDto.setIsNameVerified(responseDto.getNameMatch());
-                }
+                verifyPanCardResponseDto.setIsPanVerified(!ObjectUtils.isEmpty(responseDto.getPanValid()) ? responseDto.getPanValid() : false);
+                verifyPanCardResponseDto.setIsDobVerified(!ObjectUtils.isEmpty(responseDto.getDobMatch()) ? responseDto.getDobMatch() : false);
+                verifyPanCardResponseDto.setIsNameVerified(!ObjectUtils.isEmpty(responseDto.getNameMatch()) ? responseDto.getNameMatch() : false);
 
                 if(verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
                     LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
                     if (lendingPancard != null) {
                         lendingPancard.setName(responseDto.getPanHolderName());
                         lendingPancard.setPancardNumber(verifyPanCardRequestDto.getPanNumber());
-                        return lendingPancardDao.save(lendingPancard);
+                        lendingPancardDao.save(lendingPancard);
+                    }else{
+                        lendingPancardDao.save(new LendingPancard(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getPanHolderName()));
                     }
-                    return lendingPancardDao.save(new LendingPancard(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getPanHolderName()));
+                    verifyPanCardResponseDto.setMessage("");
+                }else{
+                    verifyPanCardResponseDto.setMessage("Please enter valid details");
                 }
+                return verifyPanCardResponseDto;
             }
         } catch (Exception e) {
             logger.error("Exception in verifyPanDetails for merchant:{}", merchantId, e);

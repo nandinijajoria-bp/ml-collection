@@ -7,13 +7,14 @@ import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dto.VerifyPanCardRequestDto;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
+import com.bharatpe.lending.dto.VerifyPanCardRequestDto;
 import com.bharatpe.lending.dto.VerifyPanCardResponseDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 
@@ -77,20 +78,22 @@ public class VerifyDocService {
 			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
 			Experian experian =experianDao.getByPancardNumber(verifyPanCardRequestDto.getPanNumber(), merchant.getId());
 			if( (experian != null && !merchant.getId().equals(experian.getMerchantId()))){
-				logger.info("Already Experian  Pull On this Pancard :{}",verifyPanCardRequestDto.getPanNumber());
+				logger.info("Already Experian Pull On this Pancard :{}",verifyPanCardRequestDto.getPanNumber());
 				return new VerifyPanCardResponseDto(true,"PAN already exists, Please enter a different PAN Number", false, false, false);
+			}
+			//existing merchant
+			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty() && lendingPancard.getPancardNumber() != null && !lendingPancard.getPancardNumber().isEmpty() && lendingPancard.getPancardNumber().equalsIgnoreCase(verifyPanCardRequestDto.getPanNumber())) {
+				return new VerifyPanCardResponseDto(true, "", true, true, true);
 			}
 
 			VerifyPanCardResponseDto verifyPanCardResponseDto = new VerifyPanCardResponseDto();
 			if(lendingPancard == null || (lendingPancard.getPancardNumber()!=null && !lendingPancard.getPancardNumber().equalsIgnoreCase(verifyPanCardRequestDto.getPanNumber()))||(lendingPancard.getPancardNumber()==null || lendingPancard.getPancardNumber().isEmpty())) {
-				lendingPancard=loanEligibleService.verifyPanDetails(verifyPanCardRequestDto, token, merchant.getId(), verifyPanCardResponseDto);
+				verifyPanCardResponseDto = loanEligibleService.verifyPanDetails(verifyPanCardRequestDto, token, merchant.getId(), verifyPanCardResponseDto);
+				if(!ObjectUtils.isEmpty(verifyPanCardResponseDto) && verifyPanCardResponseDto != null) {
+					return verifyPanCardResponseDto;
+				}
 			}
-			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty()) {
-				verifyPanCardResponseDto.setMessage("");
-			}else{
-				verifyPanCardResponseDto.setMessage("Please enter valid details");
-			}
-			return verifyPanCardResponseDto;
+			return new VerifyPanCardResponseDto(true,"Please enter valid details", false, false, false);
 		}
 		catch(Exception e) {
 			logger.error("Error occurred while verifying pancard {} for merchant {}: {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
