@@ -77,5 +77,8 @@ public class BreApiRequestDto {
         String loanSegment;
         String pincodeColor;
         String riskGroup;
+        String bpVintage;
+        Long shopPincode;
+        String tpv;
     }
 }
