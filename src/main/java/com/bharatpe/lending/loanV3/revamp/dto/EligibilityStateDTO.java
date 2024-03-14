@@ -47,5 +47,6 @@ public class EligibilityStateDTO {
     private String riskSegment;
 
     private boolean isPincodeChanged;
-
+    private String dob;
+    private String fullName;
 }

@@ -689,6 +689,40 @@ public class LoanEligibleService {
         return null;
     }
 
+
+    public LendingPancard verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
+        logger.info("Calling Pan Verify Api for merchant:{}", merchantId);
+        try {
+            PanVerifyKYCResponseDto.Data responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
+            if(!ObjectUtils.isEmpty(responseDto))  {
+                if(!ObjectUtils.isEmpty(responseDto.getPanValid())) {
+                    verifyPanCardResponseDto.setIsPanVerified(responseDto.getPanValid());
+                }
+                if(!ObjectUtils.isEmpty(responseDto.getDobMatch())) {
+                    verifyPanCardResponseDto.setIsDobVerified(responseDto.getDobMatch());
+                }
+                if(!ObjectUtils.isEmpty(responseDto.getNameMatch())) {
+                    verifyPanCardResponseDto.setIsNameVerified(responseDto.getNameMatch());
+                }
+
+                if(verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
+                    LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+                    if (lendingPancard != null) {
+                        lendingPancard.setName(responseDto.getPanHolderName());
+                        lendingPancard.setPancardNumber(verifyPanCardRequestDto.getPanNumber());
+                        return lendingPancardDao.save(lendingPancard);
+                    }
+                    return lendingPancardDao.save(new LendingPancard(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getPanHolderName()));
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Exception in verifyPanDetails for merchant:{}", merchantId, e);
+        }
+        return null;
+    }
+
+
+
 //    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(ResponseUtil responseUtil, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
 //        int bureauVintage = responseUtil.fetchBureauVintage();//months
 //        String accountCategory = responseUtil.fetchAccountCategory();// A,B,C or NTC

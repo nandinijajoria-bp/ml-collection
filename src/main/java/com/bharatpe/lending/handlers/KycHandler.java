@@ -9,6 +9,8 @@ import com.bharatpe.lending.common.util.RestUtils;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.KycDocResponseDTO;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
+import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
@@ -400,6 +402,58 @@ public class KycHandler {
         if ((boolean) res.get("status")) {
             data = (HashMap<String, String>) res.get("data");
             return data.get("name");
+        }
+        return null;
+    }
+
+    public PanFetchKYCResponseDto.Data panFetch(String token, String panNumber, Long merchantId) throws Exception {
+        if (ObjectUtils.isEmpty(panNumber)) {
+            log.info("PanNumber of merchantId : {} is empty", merchantId);
+            return null;
+        }
+        String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_FETCH;
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("panNumber", panNumber);
+        payload.put("userType", "MERCHANT");
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        headers.put("token", token);
+
+        PanFetchKYCResponseDto panFetchKYCResponseDto = restUtils.postForObject(url, headers, payload, PanFetchKYCResponseDto.class, RestUtils.ExceptionLevel.INFO);
+        log.info("Pan Fetch KYC response {}", panFetchKYCResponseDto);
+        if (panFetchKYCResponseDto.getStatus()) {
+            if(!ObjectUtils.isEmpty(panFetchKYCResponseDto.getData())) {
+                return panFetchKYCResponseDto.getData();
+            }
+        }
+        return null;
+    }
+
+    public PanVerifyKYCResponseDto.Data verifyPanDetails(String token, String panNumber, String name, String dob, Long merchantId) throws Exception {
+        if (ObjectUtils.isEmpty(panNumber) || ObjectUtils.isEmpty(name) || ObjectUtils.isEmpty(dob)) {
+            log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
+            return null;
+        }
+        String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_VERIFY;
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("panNumber", panNumber);
+        payload.put("dob", dob);
+        payload.put("name", name);
+        payload.put("userType", "MERCHANT");
+
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        headers.put("token", token);
+
+        PanVerifyKYCResponseDto panVerifyKYCResponseDto = restUtils.postForObject(url, headers, payload, PanVerifyKYCResponseDto.class, RestUtils.ExceptionLevel.INFO);
+        log.info("Pan Verify KYC response {}", mapper.writeValueAsString(panVerifyKYCResponseDto));
+        if (panVerifyKYCResponseDto.getStatus()) {
+            if(!ObjectUtils.isEmpty(panVerifyKYCResponseDto.getData())) {
+                return panVerifyKYCResponseDto.getData();
+            }
         }
         return null;
     }

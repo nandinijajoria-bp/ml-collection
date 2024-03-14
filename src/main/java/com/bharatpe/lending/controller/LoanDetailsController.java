@@ -193,6 +193,16 @@ Integer lendingEdiModel;
 		return verifyPanCardDto;
 	}
 
+	@RequestMapping(value = "/verify_pan_card", method = RequestMethod.POST)
+	public VerifyPanCardResponseDto validatePanCard(@RequestHeader(value = "token", required = false) String token,
+													@RequestAttribute BasicDetailsDto merchant,
+													@RequestBody VerifyPanCardRequestDto verifyPanCardRequestDto) {
+		logger.info("verify pancard check request for merchant:{} and pancard:{}", merchant.getId(), verifyPanCardRequestDto.getPanNumber());
+		VerifyPanCardResponseDto verifyPanCardResponseDto = verifyDocService.validatePanCard(token, merchant, verifyPanCardRequestDto);
+		logger.info("verify pancard check response for merchant:{} and pancard:{} is :{}", merchant.getId(), verifyPanCardRequestDto.getPanNumber(), verifyPanCardResponseDto);
+		return verifyPanCardResponseDto;
+	}
+
 	@RequestMapping(value = "/offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<LendingOffersResponseDTO> getSwipeOffers(@RequestParam(name = "merchant_id") Long requestMerchantId,
 																   @RequestParam(name = "merchant_store_id", required = false) Long requestMerchantStoreId) {

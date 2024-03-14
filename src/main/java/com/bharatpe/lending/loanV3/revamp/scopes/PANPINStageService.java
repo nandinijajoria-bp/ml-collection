@@ -4,25 +4,24 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.exception.BureauCallMaskedApiException;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
-import com.bharatpe.lending.loanV3.revamp.dto.*;
+import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
-import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Objects;
 
 @Component
 @Slf4j
@@ -69,6 +68,15 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             else{
                 String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
                 eligibilityStateDTO.setPancard(kycPancard);
+            }
+            PanFetchKYCResponseDto.Data response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+            if(!ObjectUtils.isEmpty(response)) {
+                if(!ObjectUtils.isEmpty(response.getDateOfBirth())) {
+                    eligibilityStateDTO.setDob(response.getDateOfBirth());
+                }
+                if(!ObjectUtils.isEmpty(response.getName())) {
+                    eligibilityStateDTO.setFullName(response.getName());
+                }
             }
         }
         catch (Exception e) {

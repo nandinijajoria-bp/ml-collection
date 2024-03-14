@@ -3,9 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.dto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
-import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,7 +72,8 @@ public class LoanDetailsV3Response {
     private String kycDeeplink;
     private Boolean isSelfieResumit;
     private Boolean isPreapprovedRepeatLoan;
-
+    private String dob;
+    private String fullName;
 
     @Data
     @ToString
@@ -286,6 +285,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setPincode(eligibilityStateDTO.getPincode());
         loanDetailsV3Response.setHasExperian(eligibilityStateDTO.isHasExperian());
         loanDetailsV3Response.setMerchantName(eligibilityStateDTO.getMerchantName());
+        loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
+        loanDetailsV3Response.setFullName(eligibilityStateDTO.getFullName());
     }
 
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){
