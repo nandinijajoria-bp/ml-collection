@@ -75,23 +75,16 @@ public class VerifyDocService {
 
 	public VerifyPanCardResponseDto validatePanCard(String token, BasicDetailsDto merchant, VerifyPanCardRequestDto verifyPanCardRequestDto) {
 		try {
-			LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchant.getId());
 			Experian experian =experianDao.getByPancardNumber(verifyPanCardRequestDto.getPanNumber(), merchant.getId());
 			if( (experian != null && !merchant.getId().equals(experian.getMerchantId()))){
 				logger.info("Already Experian Pull On this Pancard :{}",verifyPanCardRequestDto.getPanNumber());
 				return new VerifyPanCardResponseDto(true,"PAN already exists, Please enter a different PAN Number", false, false, false);
 			}
-			//existing merchant
-			if(lendingPancard!=null && lendingPancard.getName()!=null && !lendingPancard.getName().isEmpty() && lendingPancard.getPancardNumber() != null && !lendingPancard.getPancardNumber().isEmpty() && lendingPancard.getPancardNumber().equalsIgnoreCase(verifyPanCardRequestDto.getPanNumber())) {
-				return new VerifyPanCardResponseDto(true, "", true, true, true);
-			}
 
 			VerifyPanCardResponseDto verifyPanCardResponseDto = new VerifyPanCardResponseDto();
-			if(lendingPancard == null || (lendingPancard.getPancardNumber()!=null && !lendingPancard.getPancardNumber().equalsIgnoreCase(verifyPanCardRequestDto.getPanNumber()))||(lendingPancard.getPancardNumber()==null || lendingPancard.getPancardNumber().isEmpty())) {
-				verifyPanCardResponseDto = loanEligibleService.verifyPanDetails(verifyPanCardRequestDto, token, merchant.getId(), verifyPanCardResponseDto);
-				if(!ObjectUtils.isEmpty(verifyPanCardResponseDto) && verifyPanCardResponseDto != null) {
-					return verifyPanCardResponseDto;
-				}
+			verifyPanCardResponseDto = loanEligibleService.verifyPanDetails(verifyPanCardRequestDto, token, merchant.getId(), verifyPanCardResponseDto);
+			if(!ObjectUtils.isEmpty(verifyPanCardResponseDto) && verifyPanCardResponseDto != null) {
+				return verifyPanCardResponseDto;
 			}
 			return new VerifyPanCardResponseDto(true,"Please enter valid details", false, false, false);
 		}
