@@ -2906,13 +2906,15 @@ public class LendingApplicationServiceV2 {
             data.put("register_address_of_colender", kfsDto.getColenderBusinessAddress() + " (Co-Lender)");
             data.put("colender_text", "The loan is given under the Co-Lending model by the Lender & Co-Lender in the ratio of 20:80 respectively.");
         }
-        data.put("outstanding_amount_1", penaltyFeeConfigSlaveList.get(0).getMaxAmount());
-        data.put("penal_charges_1", penaltyFeeConfigSlaveList.get(0).getPenalty());
-        for (int i = 1; i < penaltyFeeConfigSlaveList.size(); i++) {
-            String value = String.valueOf((i+1));
-            data.put("outstanding_amount_min_"+value, penaltyFeeConfigSlaveList.get(i).getMinAmount());
-            data.put("outstanding_amount_max_"+value, penaltyFeeConfigSlaveList.get(i).getMaxAmount());
-            data.put("penal_charges_"+value, penaltyFeeConfigSlaveList.get(i).getPenalty());
+        if (!penaltyFeeConfigSlaveList.isEmpty()) {
+            data.put("outstanding_amount_1", penaltyFeeConfigSlaveList.get(0).getMaxAmount());
+            data.put("penal_charges_1", penaltyFeeConfigSlaveList.get(0).getPenalty());
+            for (int i = 1; i < penaltyFeeConfigSlaveList.size(); i++) {
+                String value = String.valueOf((i + 1));
+                data.put("outstanding_amount_min_" + value, penaltyFeeConfigSlaveList.get(i).getMinAmount());
+                data.put("outstanding_amount_max_" + value, penaltyFeeConfigSlaveList.get(i).getMaxAmount());
+                data.put("penal_charges_" + value, penaltyFeeConfigSlaveList.get(i).getPenalty());
+            }
         }
         data.put("edi_days", kfsDto.getEdiDays());
         data.put("date_of_execution",Optional.ofNullable(kfsDto.getAgreementAt()).map(String::valueOf).orElse(""));
