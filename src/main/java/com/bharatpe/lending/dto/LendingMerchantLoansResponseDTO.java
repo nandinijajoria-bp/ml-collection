@@ -165,7 +165,7 @@ public class LendingMerchantLoansResponseDTO {
         public Loan(Long applicationId,Long loanId, Double loanAmount, Double ediAmount, Double dueAmount, Double interestRate,
                 Double processingFee, Double disbursedAmount, Double pendingAmount, Double paidPrinciple, String tenure,
                 String startDate, String endDate, String loanType, String status, Double paidAmount,Double repaymentAmount,
-                    Integer ediCount, String lender, String settlementStatus) {
+                    Integer ediCount, String lender, String settlementStatus, double duePenalty) {
             this.applicationId = applicationId;
             this.loanId = loanId;
             this.loanAmount = loanAmount;
@@ -186,6 +186,7 @@ public class LendingMerchantLoansResponseDTO {
             this.ediCount = ediCount;
             this.lender = lender;
             this.settlementStatus = settlementStatus;
+            this.duePenalty = duePenalty;
         }
 
         public Long getLoanId() {
@@ -569,10 +570,11 @@ public class LendingMerchantLoansResponseDTO {
         String lender = lendingPaymentSchedule.getNbfc();
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
         Long applicationId = lendingPaymentSchedule.getApplicationId();
+        double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0d;
 
         return new Loan(applicationId, lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
                 disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),
-                lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus);
+                lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus, penaltyFee);
     }
 
     public boolean getSuccess() {

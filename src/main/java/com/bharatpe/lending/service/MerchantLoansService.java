@@ -430,7 +430,8 @@ public class MerchantLoansService {
                 loan.setEdiDays(loan.getEdiCount() % 30 == 0 ? 7 : 6);
 
                 PenalChargesSlave penalChargesSlave = penalChargesSlaveDao.findByLoanId(loan.getLoanId());
-                loan.setDuePenalty(Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDuePenalty() : 0);
+                double duePenalty = Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDuePenalty() : (Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0);
+                loan.setDuePenalty(duePenalty);
                 loan.setNachBounceAmount(Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDueNachBounce() : 0);
 
                 if (loan.getStatus().equals("ACTIVE")) {
