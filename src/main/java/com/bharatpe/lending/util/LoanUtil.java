@@ -21,6 +21,8 @@ import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.PennyDropService;
+import com.bharatpe.lending.common.query.dao.PenalChargesSlaveDao;
+import com.bharatpe.lending.common.query.entity.PenalChargesSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
@@ -244,8 +246,10 @@ public class LoanUtil {
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
 
-	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
+	@Autowired
+	PenalChargesSlaveDao penalChargesSlaveDao;
 
+	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1986,10 +1990,22 @@ public class LoanUtil {
 					return false;
 				}
 			}
-		}catch (Exception e) {
+		} catch (Exception e) {
 			logger.error("Exception in penny drop for merchant:{}", merchantId, e);
 		}
 		return false;
+	}
+
+	public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
+		PenalChargesSlave penalCharge =  penalChargesSlaveDao.findByLoanId(loan.getId());
+		double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
+		double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
+		penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
+		penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
+		penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
+		penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+		penalChargesSlaveDao.save(penalCharge);
+
 	}
 }
 

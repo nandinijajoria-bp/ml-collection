@@ -259,6 +259,9 @@ public class LendingApplicationServiceV2 {
     @Value("${penalty.rollout.date:}")
     String penalDate;
 
+    @Value("${penalty.rollout.date.liquiloans:}")
+    String penalDateLiquiloans;
+
     @Value("${penalty.rollout.date.trillion:}")
     String penalDateTrillion;
 
@@ -2494,16 +2497,14 @@ public class LendingApplicationServiceV2 {
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
+            Date penaltyDateLiquiloans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateLiquiloans);
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             String html = "";
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
-            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
-                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
-                filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
-                filePath = "/templates/" + "KFS_P2P_PC" + ".html";
+                filePath = getFilePathLiquiloans(lendingApplication, penaltyDate, penaltyDateLiquiloans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC);
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 String language=getDocLanguage(merchant.getId());
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
@@ -2518,6 +2519,7 @@ public class LendingApplicationServiceV2 {
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
+            log.info("file path for kfs: {}", filePath);
             InputStream inputStream = this.getClass().getResourceAsStream(filePath);
             Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
             html = scanner.hasNext() ? scanner.next() : "";;
@@ -2533,6 +2535,29 @@ public class LendingApplicationServiceV2 {
             return new ApiResponse<>(false, "Unable to generate KFS");
         }
     }
+
+    private String getFilePathLiquiloans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateLiquiloans, ApplicationDocType type) {
+
+        if (ApplicationDocType.KEY_FACTS_STATEMENT_DOC.equals(type)) {
+            if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)) {
+                return "/templates/" + "KFS_P2P" + ".html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateLiquiloans)) {
+                return "/templates/" + "KFS_P2P_PC" + ".html";
+            }
+            return "/templates/" + "KFS_P2P_Penalty" + ".html";
+
+        } else if (ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.equals(type)) {
+            if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)) {
+                return "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
+            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateLiquiloans)) {
+                return "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_PC" + ".html";
+            }
+            return "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_Penalty" + ".html";
+
+        }
+        return null;
+    }
+
     private String getDocLanguage(long merchantId)
     {
         String language="";
@@ -2569,6 +2594,7 @@ public class LendingApplicationServiceV2 {
         try {
             Map<String, Object> data = new HashMap<>();
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
+            Date penaltyDateLiquiloans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateLiquiloans);
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
@@ -2576,11 +2602,8 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
-            } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
-                    && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
-                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
-                filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P_PC" + ".html";
+                filePath = getFilePathLiquiloans(lendingApplication, penaltyDate, penaltyDateLiquiloans, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
@@ -2765,7 +2788,9 @@ public class LendingApplicationServiceV2 {
         if(ObjectUtils.isEmpty(dateTime)){
             dateTime  = dateTimeUtil.getCurrentDate();
         }
-        List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusOrderByMinAmountAsc(1D, true);
+        double version = 2;
+
+        List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
         BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
         Map<String, Object> data = new HashMap<>();

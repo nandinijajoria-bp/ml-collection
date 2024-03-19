@@ -207,6 +207,9 @@ public class MerchantLoansService {
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
+    @Autowired
+    PenalChargesSlaveDao penalChargesSlaveDao;
+
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -426,6 +429,10 @@ public class MerchantLoansService {
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
                 loan.setEdiDays(loan.getEdiCount() % 30 == 0 ? 7 : 6);
 
+                PenalChargesSlave penalChargesSlave = penalChargesSlaveDao.findByLoanId(loan.getLoanId());
+                loan.setDuePenalty(Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDuePenalty() : 0);
+                loan.setNachBounceAmount(Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDueNachBounce() : 0);
+
                 if (loan.getStatus().equals("ACTIVE")) {
                     responseDTO.setShowChangeBankAccountBanner(showChangeBankAccountBanner(responseDTO.getAccountDetails(), merchantId));
                     LendingPullPaymentSlave pullPayment = lendingPullPaymentDaoSlave.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
@@ -487,18 +494,21 @@ public class MerchantLoansService {
             }
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-            List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusOrderByMinAmountAsc(1D, true);
+            if (Objects.nonNull(lendingPaymentSchedule)) {
+                List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
+                        (2D, true, lendingPaymentSchedule.getNbfc());
 
-            List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
+                List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
 
-            for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
-                LendingMerchantLoansResponseDTO.PenaltyConfig penaltyConfig = new LendingMerchantLoansResponseDTO.PenaltyConfig();
-                penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
-                penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
-                penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
-                penaltyConfigs.add(penaltyConfig);
+                for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
+                    LendingMerchantLoansResponseDTO.PenaltyConfig penaltyConfig = new LendingMerchantLoansResponseDTO.PenaltyConfig();
+                    penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
+                    penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
+                    penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
+                    penaltyConfigs.add(penaltyConfig);
+                }
+                responseDTO.setPenaltyConfig(penaltyConfigs);
             }
-            responseDTO.setPenaltyConfig(penaltyConfigs);
 
             if (lendingPaymentSchedule != null) {
                 Date date = new Date();
