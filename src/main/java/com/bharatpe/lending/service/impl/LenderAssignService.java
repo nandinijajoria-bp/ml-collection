@@ -728,20 +728,8 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> application = lendingApplicationDao.findById(applicationId);
         if(application.isPresent()){
             log.info("Modifying lender for application:{}", application.get().getId());
-            if(Lender.PIRAMAL.name().equalsIgnoreCase(application.get().getLender()) || Lender.ABFL.name().equalsIgnoreCase(application.get().getLender())
-            || TRILLIONLOANS.name().equalsIgnoreCase(application.get().getLender())) {
-                log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
-                LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-                EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
-                String oldLender = application.get().getLender();
-                String newLender = assignFallackLender(application.get(), ediModel);
-                application.get().setLender(newLender);
-                lendingApplicationDao.save(application.get());
-                updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
-                return Lender.valueOf(newLender);
-            }
             List<LendingAuditTrial> auditLenderList = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndType(application.get().getId(),
-                    application.get().getMerchantId(), "LENDER_SET");
+                    application.get().getMerchantId(), "OFFER_MODIFIED_LENDER_CHANGE");
             if(auditLenderList.size()>=2){
                 log.info("Lender already changed twice for application: {}", application.get().getId());
                 EdiModel ediModel = LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel();
@@ -755,6 +743,18 @@ public class LenderAssignService implements ILenderAssignService {
                 updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 lendingApplicationDao.save(application.get());
                 return Lender.LIQUILOANS_P2P;
+            }
+            if(Lender.PIRAMAL.name().equalsIgnoreCase(application.get().getLender()) || Lender.ABFL.name().equalsIgnoreCase(application.get().getLender())
+            || TRILLIONLOANS.name().equalsIgnoreCase(application.get().getLender())) {
+                log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
+                LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+                EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
+                String oldLender = application.get().getLender();
+                String newLender = assignFallackLender(application.get(), ediModel);
+                application.get().setLender(newLender);
+                lendingApplicationDao.save(application.get());
+                updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
+                return Lender.valueOf(newLender);
             }
             EdiModel ediModel = LenderOffDays.valueOf(application.get().getLender()).getEdiModel();
             assignLender(application.get(), ediModel, null);
