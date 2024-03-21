@@ -21,8 +21,7 @@ import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.PennyDropService;
-import com.bharatpe.lending.common.query.dao.PenalChargesSlaveDao;
-import com.bharatpe.lending.common.query.entity.PenalChargesSlave;
+import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
@@ -247,7 +246,7 @@ public class LoanUtil {
 	Integer eligibleLoanCreationSkipRollout;
 
 	@Autowired
-	PenalChargesSlaveDao penalChargesSlaveDao;
+	PenalChargesDao penalChargesDao;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -1997,14 +1996,14 @@ public class LoanUtil {
 	}
 
 	public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
-		PenalChargesSlave penalCharge =  penalChargesSlaveDao.findByLoanId(loan.getId());
+		PenalCharges penalCharge =  penalChargesDao.findByLoanId(loan.getId());
 		double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
 		double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
 		penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
 		penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
 		penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
 		penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
-		penalChargesSlaveDao.save(penalCharge);
+		penalChargesDao.save(penalCharge);
 
 	}
 }

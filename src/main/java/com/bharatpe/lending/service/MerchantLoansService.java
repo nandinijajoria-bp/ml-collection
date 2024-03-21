@@ -208,7 +208,7 @@ public class MerchantLoansService {
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
     @Autowired
-    PenalChargesSlaveDao penalChargesSlaveDao;
+    PenalChargesDao penalChargesDao;
 
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
@@ -429,10 +429,10 @@ public class MerchantLoansService {
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
                 loan.setEdiDays(loan.getEdiCount() % 30 == 0 ? 7 : 6);
 
-                PenalChargesSlave penalChargesSlave = penalChargesSlaveDao.findByLoanId(loan.getLoanId());
-                double duePenalty = Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDuePenalty() : (Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0);
+                PenalCharges penalCharges = penalChargesDao.findByLoanId(loan.getLoanId());
+                double duePenalty = Objects.nonNull(penalCharges) ? penalCharges.getDuePenalty() : (Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0);
                 loan.setDuePenalty(duePenalty);
-                loan.setNachBounceAmount(Objects.nonNull(penalChargesSlave) ? penalChargesSlave.getDueNachBounce() : 0);
+                loan.setNachBounceAmount(Objects.nonNull(penalCharges) ? penalCharges.getDueNachBounce() : 0);
 
                 if (loan.getStatus().equals("ACTIVE")) {
                     responseDTO.setShowChangeBankAccountBanner(showChangeBankAccountBanner(responseDTO.getAccountDetails(), merchantId));
