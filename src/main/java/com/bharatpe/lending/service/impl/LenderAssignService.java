@@ -157,6 +157,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -728,9 +731,10 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> application = lendingApplicationDao.findById(applicationId);
         if(application.isPresent()){
             log.info("Modifying lender for application:{}", application.get().getId());
+            List<LendingApplicationLenderDetails> lendingApplicationLenderDetailsList = lendingApplicationLenderDetailsDao.findByApplicationId(application.get().getId());
             List<LendingAuditTrial> auditLenderList = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndType(application.get().getId(),
                     application.get().getMerchantId(), "OFFER_MODIFIED_LENDER_CHANGE");
-            if(auditLenderList.size()>=2){
+            if(auditLenderList.size() > 2 || lendingApplicationLenderDetailsList.size() > 3){
                 log.info("Lender already changed twice for application: {}", application.get().getId());
                 EdiModel ediModel = LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel();
 //                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
