@@ -416,6 +416,7 @@ public class KycHandler {
         Map<String, Object> payload = new HashMap<>();
         payload.put("panNumber", panNumber);
         payload.put("userType", "MERCHANT");
+        payload.put("source", "LOAN");
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
@@ -443,6 +444,7 @@ public class KycHandler {
         payload.put("dob", dob);
         payload.put("name", name);
         payload.put("userType", "MERCHANT");
+        payload.put("source", "LOAN");
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
