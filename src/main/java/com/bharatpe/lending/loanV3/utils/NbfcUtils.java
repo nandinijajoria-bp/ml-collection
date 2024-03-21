@@ -23,6 +23,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -60,6 +61,11 @@ public class NbfcUtils {
             lendingApplicationDetails.setApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setEdiModel(LoanUtil.getEdiModal(lendingApplication).name());
             lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
+        }
+        List<LendingApplicationLenderDetails> lendingApplicationLenderDetailsList = lendingApplicationLenderDetailsDao.findByApplicationId(lendingApplication.getId());
+        if(lendingApplicationLenderDetailsList.size() >= 2) {
+           log.info("lender changes twice for application {} ", lendingApplication.getId());
+           return;
         }
         log.info("changing lender for the application {}", lendingApplication.getId());
         // restore this
