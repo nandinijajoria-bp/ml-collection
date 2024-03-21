@@ -20,6 +20,8 @@ public class PanFetchKYCResponseDto {
         private String maskedAadhaar;
         private boolean aadhaarLinked;
         private String provider;
+        private String consumerId;
+        private String merchantId;
         private NonNsdladdress nonNsdladdress;
 
         public class NonNsdladdress {
@@ -224,6 +226,23 @@ public class PanFetchKYCResponseDto {
 
         public void setProvider(String provider) {
             this.provider = provider;
+        }
+
+
+        public String getConsumerId() {
+            return consumerId;
+        }
+
+        public void setConsumerId(String consumerId) {
+            this.consumerId = consumerId;
+        }
+
+        public String getMerchantId() {
+            return merchantId;
+        }
+
+        public void setMerchantId(String merchantId) {
+            this.merchantId = merchantId;
         }
 
         public NonNsdladdress getNonNsdladdress() {

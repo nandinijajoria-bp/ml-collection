@@ -21,6 +21,8 @@ public class PanVerifyKYCResponseDto {
         private String provider;
         private String createdAt;
         private String updatedAt;
+        private String consumerId;
+        private String merchantId;
 
         public String getPanNumber() {
             return panNumber;
@@ -156,6 +158,22 @@ public class PanVerifyKYCResponseDto {
 
         public void setNameMatch(boolean nameMatch) {
             this.nameMatch = nameMatch;
+        }
+
+        public String getConsumerId() {
+            return consumerId;
+        }
+
+        public void setConsumerId(String consumerId) {
+            this.consumerId = consumerId;
+        }
+
+        public String getMerchantId() {
+            return merchantId;
+        }
+
+        public void setMerchantId(String merchantId) {
+            this.merchantId = merchantId;
         }
     }
 
