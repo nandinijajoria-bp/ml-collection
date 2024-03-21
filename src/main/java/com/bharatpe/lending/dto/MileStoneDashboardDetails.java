@@ -16,5 +16,6 @@ public class MileStoneDashboardDetails {
     private int achievementActiveDays;
     private int targetUniquePayer;
     private int targetActiveDays;
+    private boolean isWeeklyFlowUser;
 
 }
