@@ -5,6 +5,8 @@ public class PanFetchKYCResponseDto {
     private Data data;
     public class Data {
         private String id;
+        private String message;
+        private boolean maxCountReached;
         private String createdAt;
         private String updatedAt;
         private String version;
@@ -243,6 +245,22 @@ public class PanFetchKYCResponseDto {
 
         public void setMerchantId(String merchantId) {
             this.merchantId = merchantId;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public boolean getMaxCountReached() {
+            return maxCountReached;
+        }
+
+        public void setMaxCountReached(boolean maxCountReached) {
+            this.maxCountReached = maxCountReached;
         }
 
         public NonNsdladdress getNonNsdladdress() {

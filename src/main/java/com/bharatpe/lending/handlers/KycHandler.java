@@ -406,7 +406,7 @@ public class KycHandler {
         return null;
     }
 
-    public PanFetchKYCResponseDto.Data panFetch(String token, String panNumber, Long merchantId) throws Exception {
+    public PanFetchKYCResponseDto panFetch(String token, String panNumber, Long merchantId) throws Exception {
         if (ObjectUtils.isEmpty(panNumber)) {
             log.info("PanNumber of merchantId : {} is empty", merchantId);
             return null;
@@ -424,15 +424,10 @@ public class KycHandler {
 
         PanFetchKYCResponseDto panFetchKYCResponseDto = restUtils.postForObject(url, headers, payload, PanFetchKYCResponseDto.class, RestUtils.ExceptionLevel.INFO);
         log.info("Pan Fetch KYC response {}", panFetchKYCResponseDto);
-        if (panFetchKYCResponseDto.getStatus()) {
-            if(!ObjectUtils.isEmpty(panFetchKYCResponseDto.getData())) {
-                return panFetchKYCResponseDto.getData();
-            }
-        }
-        return null;
+        return panFetchKYCResponseDto;
     }
 
-    public PanVerifyKYCResponseDto.Data verifyPanDetails(String token, String panNumber, String name, String dob, Long merchantId) throws Exception {
+    public PanVerifyKYCResponseDto verifyPanDetails(String token, String panNumber, String name, String dob, Long merchantId) throws Exception {
         if (ObjectUtils.isEmpty(panNumber) || ObjectUtils.isEmpty(name) || ObjectUtils.isEmpty(dob)) {
             log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
             return null;
@@ -452,12 +447,7 @@ public class KycHandler {
 
         PanVerifyKYCResponseDto panVerifyKYCResponseDto = restUtils.postForObject(url, headers, payload, PanVerifyKYCResponseDto.class, RestUtils.ExceptionLevel.INFO);
         log.info("Pan Verify KYC response {}", mapper.writeValueAsString(panVerifyKYCResponseDto));
-        if (panVerifyKYCResponseDto.getStatus()) {
-            if(!ObjectUtils.isEmpty(panVerifyKYCResponseDto.getData())) {
-                return panVerifyKYCResponseDto.getData();
-            }
-        }
-        return null;
+        return panVerifyKYCResponseDto;
     }
 
     private List<KycDoc> getPan(Long merchantId) {

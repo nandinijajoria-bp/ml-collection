@@ -74,6 +74,7 @@ public class LoanDetailsV3Response {
     private Boolean isPreapprovedRepeatLoan;
     private String dob;
     private String fullName;
+    private String message;
 
     @Data
     @ToString
@@ -287,6 +288,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setMerchantName(eligibilityStateDTO.getMerchantName());
         loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
         loanDetailsV3Response.setFullName(eligibilityStateDTO.getFullName());
+        loanDetailsV3Response.setMessage(eligibilityStateDTO.getMessage());
     }
 
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){

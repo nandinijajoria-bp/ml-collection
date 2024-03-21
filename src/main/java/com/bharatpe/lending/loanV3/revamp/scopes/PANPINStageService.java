@@ -18,7 +18,6 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -69,14 +68,19 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
                 eligibilityStateDTO.setPancard(kycPancard);
             }
-            PanFetchKYCResponseDto.Data response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
-            if(!ObjectUtils.isEmpty(response)) {
-                if(!ObjectUtils.isEmpty(response.getDateOfBirth())) {
-                    eligibilityStateDTO.setDob(response.getDateOfBirth());
+            PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+            if (response != null && response.getStatus()) {
+                PanFetchKYCResponseDto.Data data = response.getData();
+                if (data != null) {
+                    if (data.getDateOfBirth() != null) {
+                        eligibilityStateDTO.setDob(data.getDateOfBirth());
+                    }
+                    if (data.getName() != null) {
+                        eligibilityStateDTO.setFullName(data.getName());
+                    }
                 }
-                if(!ObjectUtils.isEmpty(response.getName())) {
-                    eligibilityStateDTO.setFullName(response.getName());
-                }
+            } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                eligibilityStateDTO.setMessage(response.getData().getMessage());
             }
         }
         catch (Exception e) {
