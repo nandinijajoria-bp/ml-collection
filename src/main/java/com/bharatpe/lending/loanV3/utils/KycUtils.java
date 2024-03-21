@@ -161,6 +161,10 @@ public class KycUtils {
         return "OTHERS";
     }
 
+    public String getMobileFromKycData(CKycResponseDto cKycResponseDto){
+        return ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2);
+    }
+
     public Integer getAgeFromDob(String dob) {
         if(ObjectUtils.isEmpty(dob)) {
             return 0;

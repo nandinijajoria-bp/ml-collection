@@ -69,4 +69,9 @@ public interface KfsConstants {
     String ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX = "ESigned_Sanction_Cum_Loan_Agreement_";
     String ESIGNED_KFS_S3_KEY_PREFIX = "ESigned_Key_Facts_Statement_";
     String  AUTHORIZATION_S3_KEY_PREFIX = "Authorization_Letter_";
+    String LENDER_CORPORATE_NAME_MUTHOOT = "Muthoot FinCorp Limited";
+    String LENDER_BUSINESS_ADDRESS_MUTHOOT = "Muthoot Centre, Punnen Road, Thiruvananthapuram, Kerala - 695001";
+    String LENDER_CONTACT_NAME_MUTHOOT = "Julia Mathew";
+    String LENDER_CONTACT_EMAIL_MUTHOOT = "julia.mathew@muthoot.com";
+    String LENDER_CONTACT_NUMBER_MUTHOOT = "0471-4911626";
 }

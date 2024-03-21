@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -59,14 +60,15 @@ public class InvokeAdditionalDocUploadWrapperService {
                 }
                 lendingApplicationLenderDetails.setStage(LenderAssociationStages.DOC_UPLOAD.name());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                log.info("doc upload status {}", lendingApplicationLenderDetails.getDocUploadStatus());
-                if (Objects.isNull(lendingApplicationLenderDetails.getDocUploadStatus())) {
+                boolean isRetry = (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload())) && LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDocUploadStatus());
+                log.info("doc upload status {}, isRetry: {}", lendingApplicationLenderDetails.getDocUploadStatus(), isRetry);
+                if (Objects.isNull(lendingApplicationLenderDetails.getDocUploadStatus()) || isRetry) {
                     LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
                             .lendingApplication(lendingApplication)
                             .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
                             .build();
 
-                    List<DocType> docs = getDocList(lendingApplication.getLender());
+                    List<DocType> docs = isRetry ? getFailedDocList(lendingApplicationLenderDetails) : getDocList(lendingApplication.getLender());
                     for (DocType docType : docs) {
                         try {
                             log.info("processing doc {} {}", lendingApplication.getId(), docType);
@@ -84,6 +86,11 @@ public class InvokeAdditionalDocUploadWrapperService {
                     }
                     lendingApplicationLenderDetails.setDocUploadStatus(Objects.isNull(lendingApplicationLenderDetails.getFailedUpload()) ?
                             LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name() : LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
+
+                    // For callback handling of doc upload in case of Muthoot
+                    if(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                        lendingApplicationLenderDetails.setDocUploadStatus(LenderAssociationStatus.DOC_UPLOAD_IN_PROGRESS.name());
+                    }
                     if (LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name().equals(lendingApplicationLenderDetails.getDocUploadStatus())) {
                         lendingApplicationLenderDetails.setStage(LenderAssociationStageFactoryV2.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.DOC_UPLOAD).name());
                         nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.DOC_UPLOAD.name(), LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.DOC_UPLOAD));
@@ -108,8 +115,14 @@ public class InvokeAdditionalDocUploadWrapperService {
                 return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
             case "TRILLIONLOANS":
                 return Collections.singletonList(DocType.LOAN_AGREEMENT);
+            case "MUTHOOT":
+                return Collections.singletonList(DocType.KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED);
             default:
                 return new ArrayList<>();
         }
+    }
+
+    private List<DocType> getFailedDocList(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+        return Arrays.stream(lendingApplicationLenderDetails.getFailedUpload().split(";")).map(DocType :: valueOf).collect(Collectors.toList());
     }
 }

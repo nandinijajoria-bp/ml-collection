@@ -142,6 +142,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${lending.wildcard.lender.name:TRILLIONLOANS}")
     String lendingWildcardLenderName;
 
+    @Value("${muthoot.rollout.percent:1}")
+    Integer muthootRolloutPercentage;
+
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
 
@@ -717,6 +720,9 @@ public class LenderAssignService implements ILenderAssignService {
             case "TRILLIONLOANS":
                 rolloutPercent = trillionLoansRolloutPercentage;
                 break;
+            case "MUTHOOT":
+                rolloutPercent = muthootRolloutPercentage;
+                break;
             default:
                 rolloutPercent = 0;
         }
@@ -748,8 +754,7 @@ public class LenderAssignService implements ILenderAssignService {
                 lendingApplicationDao.save(application.get());
                 return Lender.LIQUILOANS_P2P;
             }
-            if(Lender.PIRAMAL.name().equalsIgnoreCase(application.get().getLender()) || Lender.ABFL.name().equalsIgnoreCase(application.get().getLender())
-            || TRILLIONLOANS.name().equalsIgnoreCase(application.get().getLender())) {
+            if(Arrays.asList(Lender.PIRAMAL.name(), Lender.ABFL.name(), TRILLIONLOANS.name(), MUTHOOT.name()).contains(application.get().getLender())) {
                 log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());

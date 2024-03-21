@@ -1487,6 +1487,12 @@ public class LoanUtil {
 		if (lender.equals("PIRAMAL")) {
 			finalLender = Lender.PIRAMAL.name();
 		}
+		if("USFB".equalsIgnoreCase(lender)) {
+			finalLender = Lender.USFB.name();
+		}
+		if("MUTHOOT".equalsIgnoreCase(lender)){
+			finalLender = Lender.MUTHOOT.name();
+		}
 		return finalLender;
 	}
 

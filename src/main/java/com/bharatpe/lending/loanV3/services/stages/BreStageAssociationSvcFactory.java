@@ -34,6 +34,7 @@ public class BreStageAssociationSvcFactory extends LenderAssociationServiceFacto
                 return updateLeadAndRunBREInitService;
             case "USFB":
             case "TRILLIONLOANS":
+            case "MUTHOOT" :
                 return updateLeadAndBREWorkflowService;
             default:
                 return oldModelService;

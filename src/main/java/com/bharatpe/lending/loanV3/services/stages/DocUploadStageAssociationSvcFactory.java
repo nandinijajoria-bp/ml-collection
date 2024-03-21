@@ -21,6 +21,7 @@ public class DocUploadStageAssociationSvcFactory extends LenderAssociationServic
         switch (lender) {
             case "USFB":
             case "TRILLIONLOANS":
+            case "MUTHOOT" :
                 return additionalDocUploadService;
             default:
                 return oldModelService;

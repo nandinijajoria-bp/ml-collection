@@ -7,7 +7,6 @@ import com.bharatpe.lending.loanV3.services.associations.OldModelService;
 import com.bharatpe.lending.loanV3.services.associations.SanctionWrapperService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 
 @Component
 public class SanctionWrapperStageAssociationSvcFactory  extends LenderAssociationServiceFactory {
@@ -26,6 +25,7 @@ public class SanctionWrapperStageAssociationSvcFactory  extends LenderAssociatio
             case "ABFL":
                 return abflSancWrapperService;
             case "TRILLIONLOANS":
+            case "MUTHOOT":
                 return sanctionWrapperService;
             default:
                 return oldModelService;

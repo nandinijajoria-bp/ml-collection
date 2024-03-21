@@ -7,7 +7,8 @@ public enum DocType {
     SANCTION_LETTER("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
     KEY_FACT_STATEMENT("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
     SHOP_PHOTO("CONSENTS_DOCUMENT", "OTHER", ".jpeg", "URL"),
-    SHOP_STOCK("CONSENTS_DOCUMENT", "OTHER", ".jpeg", "URL");
+    SHOP_STOCK("CONSENTS_DOCUMENT", "OTHER", ".jpeg", "URL"),
+    KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED("LOAN_DOCUMENT", "OTHER", ".pdf", "URL");
 
     String category;
     String subCategory;

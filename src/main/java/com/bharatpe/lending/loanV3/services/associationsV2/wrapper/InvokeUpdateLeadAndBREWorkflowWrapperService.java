@@ -111,6 +111,8 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
                 return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest);
             case "TRILLIONLOANS":
                 return associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest);
+            case "MUTHOOT":
+                return true;
             default:
                 return false;
         }

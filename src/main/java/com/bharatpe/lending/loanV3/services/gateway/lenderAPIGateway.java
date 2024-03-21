@@ -57,6 +57,12 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.rps.api:api/v3/lender/foreclosure-details}")
     String foreclosureFetchUrl;
 
+    @Value("${nbfc.kyc.api:api/v3/lender/kyc}")
+    String kycUrl;
+
+    @Value("${nbfc.kyc.api:api/v3/lender/accept-offer}")
+    String acceptOfferUrl;
+
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
@@ -96,6 +102,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl + nbfcNachMandateUrl;
             case "FORECLOSURE_FETCH":
                 return nbfcBaseUrl+foreclosureFetchUrl;
+            case "KYC":
+                return nbfcBaseUrl+kycUrl;
+            case "ACCEPT_OFFER":
+                return nbfcBaseUrl+acceptOfferUrl;
             default:
                 return null;
         }

@@ -275,8 +275,14 @@ public class LendingApplicationServiceV2 {
     @Value("${sanction.aggrement.level:5}")
     int sanctionCompressionLevel;
 
+    @Value("${offer.downgrade.disabled.lenders:TRILLIONLOANS}")
+    String offerDowngradeDisabledLenders;
+
     @Autowired
     LendingPincodesQueryDao lendingPincodesQueryDao;
+
+    @Autowired
+    KycUtils kycUtils;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -1715,8 +1721,8 @@ public class LendingApplicationServiceV2 {
                 }
             }
 
-            if (LendingResubmitEnum.DOWNGRADE.equals(resubmitApplicationDTO.getType()) && lendingApplication.getLender().equalsIgnoreCase("TRILLIONLOANS")) {
-                return new ApiResponse<>(false,"offer downgrade disabled for lender : TRILLIONLOANS");
+            if (LendingResubmitEnum.DOWNGRADE.equals(resubmitApplicationDTO.getType()) && offerDowngradeDisabledLenders.contains(lendingApplication.getLender())) {
+                return new ApiResponse<>(false,"offer downgrade disabled for lender " + lendingApplication.getLender());
             }
 
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
@@ -2247,6 +2253,13 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_PIRAMAL;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_PIRAMAL;
             }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MUTHOOT.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_MUTHOOT;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_MUTHOOT;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_MUTHOOT;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_MUTHOOT;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_MUTHOOT;
+            }
             else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
@@ -2368,7 +2381,7 @@ public class LendingApplicationServiceV2 {
             PdfDocument pdfDocument = new PdfDocument(writer);
             if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
-                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name()).contains(lendingKfs.getLender())) {
+                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2459,7 +2472,7 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream,new WriterProperties().setCompressionLevel(kfsCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name()).contains(lendingKfs.getLender())) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingKfs.getLender())) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2528,6 +2541,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = "/templates/KFS_TRILLION_PC_v2.html";
+            } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
+                filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + ".html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -2629,6 +2644,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+            } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT.html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
@@ -2880,6 +2897,7 @@ public class LendingApplicationServiceV2 {
                 data.put("borrower_pincode",aadhaarAddressResponseDTO.getPincode());
                 data.put("gender",aadhaarAddressResponseDTO.getGender());
                 data.put("dob",aadhaarAddressResponseDTO.getDob());
+                data.put("age_of_applicant", kycUtils.getAgeFromDob(aadhaarAddressResponseDTO.getDob()));
                 data.put("aadhar_Number",aadhaarAddressResponseDTO.getAadharNumber());
                 log.info("borrower name getting populated in agreement for application: {} {}", aadhaarAddressResponseDTO.getName(), applicationId);
             }
@@ -2963,6 +2981,12 @@ public class LendingApplicationServiceV2 {
         else if(lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/piramal-logo.png";
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_logo_header.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name()) && applicationDocType.equals(ApplicationDocType.MUTHOOT_LETTERHEAD_FOOTER)){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-footer-1708687663592.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-header-1708687626411.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";

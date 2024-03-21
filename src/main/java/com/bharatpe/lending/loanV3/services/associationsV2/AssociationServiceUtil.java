@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -67,12 +68,44 @@ public class AssociationServiceUtil {
     @Autowired
     TLRepaymentScheduleService tlRepaymentScheduleService;
 
+    @Autowired
+    MFLeadService mfLeadService;
+
+    @Autowired
+    MFKycService mfKycService;
+
+    @Autowired
+    MFBreService mfBreService;
+
+    @Autowired
+    MFDocUploadService mfDocUploadService;
+
+    @Autowired
+    MFDisbursalCallbackService mfDisbursalCallbackService;
+
+    @Autowired
+    MFForeclosureService mfForeclosureService;
+
+    @Autowired
+    MFRepaymentScheduleService mfRepaymentScheduleService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
                 return leadCreateService.invokeCreateLead(lenderAssociationDetailsRequest);
             case "TRILLIONLOANS":
                 return tlCreateLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
+            case "MUTHOOT":
+                return mfLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean invokeKycService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "MUTHOOT":
+                return mfKycService.invokeKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -84,6 +117,8 @@ public class AssociationServiceUtil {
                 return docUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "TRILLIONLOANS":
                 return tlDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
+            case "MUTHOOT":
+                return mfDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             default:
                 return false;
         }
@@ -95,6 +130,8 @@ public class AssociationServiceUtil {
                 return leadUpdateService.invokeUpdateLead(lenderAssociationDetailsRequest);
             case "TRILLIONLOANS":
                 return tlUpdateLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
+            case "MUTHOOT":
+                return mfLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -106,6 +143,8 @@ public class AssociationServiceUtil {
                 return loanOnboardingService.invokeLoanOnboardingFLow(lenderAssociationDetailsRequest);
             case "TRILLIONLOANS":
                 return tlBreService.invokeBre(lenderAssociationDetailsRequest);
+            case "MUTHOOT":
+                return mfBreService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -117,6 +156,8 @@ public class AssociationServiceUtil {
                 return docUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "TRILLIONLOANS":
                 return tlDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+            case "MUTHOOT":
+                return mfDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             default:
                 return false;
         }
@@ -128,6 +169,8 @@ public class AssociationServiceUtil {
                 return repaymentService.invokeRpsGenerate(applicationId);
             case "TRILLIONLOANS":
                 return tlRepaymentScheduleService.invokeRpsGenerate(applicationId);
+            case "MUTHOOT":
+                return mfRepaymentScheduleService.invokeRpsGenerate(applicationId);
             default:
                 return null;
         }
@@ -139,6 +182,8 @@ public class AssociationServiceUtil {
                 return disbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
             case "TRILLIONLOANS":
                 return tlDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
+            case "MUTHOOT":
+                return mfDisbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -148,6 +193,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "USFB":
                 return loanOnboardingService.processLoanOnboardingCallback(nbfcResponseDTO);
+            case "MUTHOOT":
+                return mfBreService.processMFBreCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -159,6 +206,8 @@ public class AssociationServiceUtil {
                 return repaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "TRILLIONLOANS":
                 return trillionRepaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
+            case "MUTHOOT":
+                return null;
             default:
                 return null;
         }
@@ -168,6 +217,8 @@ public class AssociationServiceUtil {
         switch(lender) {
             case "USFB" :
                 return 0D;
+            case"MUTHOOT":
+                return mfForeclosureService.getForeclosureDetails(applicationId);
             default:
                 return 0D;
         }
@@ -186,6 +237,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlKycService.processKycCallback(nbfcResponseDTO);
+            case "MUTHOOT":
+                return mfKycService.processMFKycCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -213,6 +266,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlDigitalSignService.processDigitalSignCallback(nbfcResponseDTO);
+            case "MUTHOOT":
+                return mfDocUploadService.processMFDocUploadCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -226,4 +281,5 @@ public class AssociationServiceUtil {
                 return false;
         }
     }
+
 }
