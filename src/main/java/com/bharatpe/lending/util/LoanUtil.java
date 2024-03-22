@@ -2002,14 +2002,18 @@ public class LoanUtil {
 	}
 
 	public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
-		PenalCharges penalCharge =  penalChargesDao.findByLoanId(loan.getId());
-		double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
-		double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
-		penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-		penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
-		penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
-		penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
-		penalChargesDao.save(penalCharge);
+		try {
+			PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
+			double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
+			double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
+			penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
+			penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
+			penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
+			penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+			penalChargesDao.save(penalCharge);
+		} catch (Exception e) {
+			logger.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
+		}
 
 	}
 }
