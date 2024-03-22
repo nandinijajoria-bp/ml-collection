@@ -3,22 +3,20 @@ package com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.NachStatusResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.LendingMerchantDetails;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -29,13 +27,8 @@ import com.bharatpe.lending.loanV3.dto.response.muthoot.MFCreateLeadResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.muthoot.MFUpdateLeadResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.validations.LeadPayloadValidation;
-import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
-import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +36,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.io.IOException;
 import java.util.*;
 
 @Slf4j
@@ -65,15 +57,6 @@ public class MFLeadService {
     LeadPayloadValidation leadPayloadValidation;
 
     @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
-
-    @Autowired
-    LendingMerchantDetailsDao lendingMerchantDetailsDao;
-
-    @Autowired
-    ConverterUtils converterUtils;
-
-    @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Autowired
@@ -81,6 +64,12 @@ public class MFLeadService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+    DsHandler dsHandler;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -257,10 +246,7 @@ public class MFLeadService {
                         .state(lendingApplication.getState())
                         .landmark(Optional.ofNullable(lendingApplication.getLandmark()).orElse("NONE"))
                         .pincode(lendingApplication.getPincode().toString())
-                        .location(MFUpdateLeadRequestDTO.Location.builder()
-                                .latitude(lendingApplication.getLatitude())
-                                .longitude(lendingApplication.getLongitude())
-                                .build())
+                        .location(getAddressLocation(lendingApplication.getMerchantId(), lendingApplication.getId()))
                         .build())
                 .build();
         return businessAddress;
@@ -347,4 +333,26 @@ public class MFLeadService {
         }
         return mandateDetails;
     }
+
+    private MFUpdateLeadRequestDTO.Location getAddressLocation(Long merchantId, Long applicationId) {
+        try {
+            List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(merchantId, applicationId);
+            for (LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList) {
+                if (!ObjectUtils.isEmpty(lendingShopDocuments) && !ObjectUtils.isEmpty(lendingShopDocuments.getLatitude()) && !ObjectUtils.isEmpty(lendingShopDocuments.getLongitude())) {
+                    return MFUpdateLeadRequestDTO.Location.builder().latitude(lendingShopDocuments.getLatitude()).longitude(lendingShopDocuments.getLongitude()).build();
+                }
+            }
+            Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
+            if (!ObjectUtils.isEmpty(dsResponse) || dsResponse.containsKey("latitude") || !ObjectUtils.isEmpty(dsResponse.get("latitude")) || dsResponse.containsKey("longitude") || !ObjectUtils.isEmpty(dsResponse.get("longitude"))) {
+                return MFUpdateLeadRequestDTO.Location.builder().latitude(String.valueOf(dsResponse.get("latitude"))).longitude(String.valueOf(dsResponse.get("longitude"))).build();
+            }
+
+        } catch (Exception e) {
+            log.error("error while getting latitude and longitude for application Id {} and merchantId {}, {}, {}", applicationId, merchantId, e, Arrays.asList(e.getStackTrace()));
+        }
+
+        log.info("couldn't get lat long for applicationId {} and merchantId {} from shop picture and fetch DS location", applicationId, merchantId);
+        return MFUpdateLeadRequestDTO.Location.builder().latitude("0.0").longitude("0.0").build();
+    }
+
 }
