@@ -80,7 +80,7 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                     }
                 }
             } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
-                eligibilityStateDTO.setMessage(response.getData().getMessage());
+                eligibilityStateDTO.setKycMessage(response.getData().getMessage());
             }
         }
         catch (Exception e) {

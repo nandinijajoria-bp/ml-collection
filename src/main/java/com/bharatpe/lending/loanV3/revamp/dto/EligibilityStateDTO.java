@@ -49,5 +49,5 @@ public class EligibilityStateDTO {
     private boolean isPincodeChanged;
     private String dob;
     private String fullName;
-    private String message;
+    private String kycMessage;
 }
