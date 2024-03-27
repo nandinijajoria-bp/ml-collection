@@ -2197,11 +2197,12 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Unable to create KFS details");
             }
             Double apr = null;
-//            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
-//                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
-//            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getAnnualRoi())) {
-//                apr = lendingApplicationLenderDetails.getAnnualRoi();
-//            }
+            Double annualRoi = null;
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getAnnualRoi())) {
+                annualRoi = lendingApplicationLenderDetails.getAnnualRoi();
+            }
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingKfs.getMerchantId());
 
             String lenderCorporateName = "";
@@ -2317,6 +2318,7 @@ public class LendingApplicationServiceV2 {
                     .agreementAt(lendingApplication.getAgreementAt())
                     .shopAddress(shopAddress)
                     .monthlyIncome(lendingRiskVariables.getMonthlyIncome())
+                    .annualRoi(annualRoi)
                     .build();
             return new ApiResponse<>(kfsDto);
         }
@@ -2950,6 +2952,7 @@ public class LendingApplicationServiceV2 {
         data.put("date_of_execution",Optional.ofNullable(kfsDto.getAgreementAt()).map(String::valueOf).orElse(""));
         data.put("shopAddress",kfsDto.getShopAddress());
         data.put("monthlyIncome",Optional.ofNullable(kfsDto.getMonthlyIncome()).map(String::valueOf).orElse(""));
+        data.put("annual_roi", kfsDto.getAnnualRoi());
         log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }

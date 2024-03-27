@@ -260,27 +260,32 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
-                    lendingApplicationLenderDetailsDao.
-                            findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
-                                    (lendingApplication.getId(), Status.ACTIVE.name());
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
+                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
+                    logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
+                } else {
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                            lendingApplicationLenderDetailsDao.
+                                    findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
+                                            (lendingApplication.getId(), Status.ACTIVE.name());
 
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
-                    LenderAssociationStages.ASSC_COMPLETED.name()
-                            .equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
-                {
-                    Boolean autoInvokeNextStage;
-                    if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
-                        autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
-                    } else {
-                        autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                    if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
+                            LenderAssociationStages.ASSC_COMPLETED.name()
+                                    .equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                        Boolean autoInvokeNextStage;
+                        if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
+                            autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                        } else {
+                            autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                        }
+                        nbfcUtils.pushApplicationToNextStage
+                                (lendingApplication.getId(), lendingApplication.getLender(),
+                                        LenderAssociationStages.ASSC_COMPLETED.name(),
+                                        autoInvokeNextStage
+                                );
+                        logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
                     }
-                nbfcUtils.pushApplicationToNextStage
-                        (lendingApplication.getId(), lendingApplication.getLender(),
-                                LenderAssociationStages.ASSC_COMPLETED.name(),
-                                autoInvokeNextStage
-                       );
-                logger.info("invoked sanction workflow for application {}", lendingApplication.getId());}
+                }
             }
 
 

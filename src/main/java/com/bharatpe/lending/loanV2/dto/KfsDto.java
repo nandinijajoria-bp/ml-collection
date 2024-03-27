@@ -42,5 +42,6 @@ public class KfsDto {
     private Date agreementAt;
     private String shopAddress;
     private Double monthlyIncome;
+    private Double annualRoi;
 
 }
