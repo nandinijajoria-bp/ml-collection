@@ -347,6 +347,7 @@ public class VerifyOTPService {
                 final LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
                 lendingKfs.setKfsSignedAt(new Date());
                 lendingKfs.setSanctionLoanAgreementSignedAt(new Date());
+                lendingKfs.setAuthorizationLetterSignedAt(new Date());
                 lendingKfsDao.save(lendingKfs);
 
                 // create agreement according to the new lender
@@ -533,7 +534,7 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
-            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {
+            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
@@ -635,7 +636,6 @@ public class VerifyOTPService {
     private Boolean topUpLoans(LendingApplication lendingApplication) {
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
-            logger.info("In topupLoans function is for active Loan id {}", activeLoan.getId());
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
@@ -704,7 +704,8 @@ public class VerifyOTPService {
                 lendingPaymentScheduleDao.save(activeLoan);
             }*/
         } catch (Exception ex) {
-            logger.error("Exception IN TOPUP LOANS Ledger for application:{}", lendingApplication.getId(), ex);
+            logger.error("Exception IN TOPUP LOANS Ledger for application:{} {}", lendingApplication.getId(), Arrays.asList(ex.getStackTrace()));
+            return false;
         }
 
         return true;

@@ -2,7 +2,10 @@ package com.bharatpe.lending.util;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.MerchantScoreSnapshotDao;
+import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
@@ -12,24 +15,28 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.enums.EdiModel;
+import com.bharatpe.lending.common.enums.LendingEnum;
+import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.PennyDropService;
+import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.LmsStageHistoryDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
-import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -40,7 +47,6 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
-import com.bharatpe.lending.common.service.PennyDropService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.opencsv.CSVReader;
 import org.apache.commons.io.FileUtils;
@@ -204,6 +210,9 @@ public class LoanUtil {
 	@Autowired
 	ExcessNachService excessNachService;
 
+	@Autowired
+	LendingAuditTrialDao lendingAuditTrialDao;
+
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
 
@@ -241,6 +250,9 @@ public class LoanUtil {
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
+
+	@Autowired
+	PenalChargesDao penalChargesDao;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -716,7 +728,7 @@ public class LoanUtil {
 		return false;
 	}
 
-	public boolean checkPennyDropV2(Long merchantId) {
+	public boolean checkPennyDropV2(Long merchantId, Long applicationId) {
 		try {
 			logger.info("Checking penny drop for merchant:{}", merchantId);
 
@@ -762,7 +774,7 @@ public class LoanUtil {
 			}
 
 			// if no entry in last 15 days then initiatePennyDrop
-			pennyDropService.initiateNewPennyDrop(merchantBankDetail, merchantId, null);
+			pennyDropService.initiateNewPennyDrop(merchantBankDetail, merchantId, applicationId);
 
 
 			logger.info("Releasing lock for penndrop key " + lockRedisKey);
@@ -923,6 +935,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setComputeSource(lendingRiskVariables.getComputeSource());
 				lendingRiskVariablesSnapshot.setAggregateId(lendingRiskVariables.getAggregateId());
 				lendingRiskVariablesSnapshot.setMonthlyIncome(lendingRiskVariables.getMonthlyIncome());
+				lendingRiskVariablesSnapshot.setTpv6Mon(lendingRiskVariables.getTpv6Mon());
 				lendingRiskVariablesSnapshot.setGst3bBasedAffectedOffer(lendingRiskVariables.getGst3bBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setAaBasedAffectedOffer(lendingRiskVariables.getAaBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setAaBasedOffer(lendingRiskVariables.getAaBasedOffer());
@@ -1490,6 +1503,12 @@ public class LoanUtil {
 		if (lender.equals("PIRAMAL")) {
 			finalLender = Lender.PIRAMAL.name();
 		}
+		if("USFB".equalsIgnoreCase(lender)) {
+			finalLender = Lender.USFB.name();
+		}
+		if("MUTHOOT".equalsIgnoreCase(lender)){
+			finalLender = Lender.MUTHOOT.name();
+		}
 		return finalLender;
 	}
 
@@ -1900,6 +1919,10 @@ public class LoanUtil {
 				);
 				if(!ObjectUtils.isEmpty(lendingDisbursalModeConfig)){
 					logger.info("skipping PENDING_DISBURSAL stage for {}", lendingApplication.getId());
+
+					lendingApplication.setLmsStage(LendingConstants.SEND_TO_NBFC);
+					lendingApplicationDao.save(lendingApplication);
+
 					publishForDisbursal(lendingApplication, false, requestId);
 
 					LmsStageHistory lmsStageHistory = new LmsStageHistory();
@@ -1907,8 +1930,6 @@ public class LoanUtil {
 					lmsStageHistory.setLmsStage(LendingConstants.PENDING_DISBURSAL_SKIPPED);
 					LmsStageHistory stageSavedEntity = lmsStageHistoryDao.saveAndFlush(lmsStageHistory);
 
-					lendingApplication.setLmsStage(LendingConstants.SEND_TO_NBFC);
-					lendingApplicationDao.save(lendingApplication);
 				}
 			}
 		}
@@ -1934,6 +1955,82 @@ public class LoanUtil {
 				lendingApplication.getId().toString(),
 				loanDisbursalDto
 		);
+	}
+
+	public boolean verifyPennyDrop(Long merchantId, Map<String, Object> response) {
+		try {
+			logger.info("Checking penny drop for merchant:{}", merchantId);
+
+			MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId);
+			BasicDetailsDto basicDetailsDto = merchantDetailsDto.getMerchantDetail();
+			if (ObjectUtils.isEmpty(basicDetailsDto)) {
+				return false;
+			}
+			BankDetailsDto bankDetailsDto = merchantDetailsDto.getBankDetail();
+			if (ObjectUtils.isEmpty(bankDetailsDto)) {
+				return false;
+			}
+
+			final LendingPennydrop pennydropInLast15Days = lendingPennydropDao.findByMerchantIdAndAccountNumberInLast15Days(merchantId,
+					bankDetailsDto.getAccountNumber());
+
+			if (!ObjectUtils.isEmpty(pennydropInLast15Days)) {
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("SUCCESS")) {
+					logger.info("Penny drop success for merchant:{}", merchantId);
+					response.put("penny_drop_failed", false);
+					response.put("message", "penny drop success");
+					return true;
+				}
+
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("PENDING")) {
+					logger.info("Penny drop is pending for merchant:{} and penny dropId : {}", merchantId, pennydropInLast15Days.getId());
+					response.put("penny_drop_failed", false);
+					response.put("message", "penny drop pending, please try again after sometime");
+					return false;
+				}
+
+				if (pennydropInLast15Days.getStatus().equalsIgnoreCase("FAILED")) {
+					logger.info("Penny drop failed for merchant:{}", merchantId);
+					response.put("penny_drop_failed", true);
+					response.put("message", "We are unable to verify your bank account. Re-apply after confirming that your bank account is working and your information is correct.");
+
+					LendingApplication lendingApplication = lendingApplicationDao.findLatestDraftApplication(merchantId, "draft");
+					lendingApplication.setStatus("deleted");
+					lendingApplication.setManualCibilReason("PENNY_DROP_FAILED");
+					lendingApplicationDao.save(lendingApplication);
+
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(lendingApplication.getId());
+					lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+					lendingAuditTrial.setLoanId(lendingApplication.getExternalLoanId());
+					lendingAuditTrial.setUserId(Long.parseLong("0"));
+					lendingAuditTrial.setOldStatus("draft");
+					lendingAuditTrial.setNewStatus("deleted");
+					lendingAuditTrial.setType("APP_STATUS");
+					lendingAuditTrialDao.save(lendingAuditTrial);
+					return false;
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Exception in penny drop for merchant:{}", merchantId, e);
+		}
+		return false;
+	}
+
+	public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
+		try {
+			PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
+			double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
+			double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
+			penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
+			penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
+			penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
+			penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+			penalChargesDao.save(penalCharge);
+		} catch (Exception e) {
+			logger.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
+		}
+
 	}
 }
 

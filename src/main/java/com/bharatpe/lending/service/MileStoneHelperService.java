@@ -130,21 +130,34 @@ public class MileStoneHelperService {
         entity.setComment(null);
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(entity.getCreatedAt());
-        if (days == 28) {
-            calendar.add(Calendar.DATE, 28);
+        if (days == 30) {
+            calendar.add(Calendar.DATE, 30);
         } else {
-            calendar.add(Calendar.DATE, 56);
+            calendar.add(Calendar.DATE, 60);
         }
         entity.setExpiryDate(calendar.getTime());
         mileStoneDao.save(entity);
         return entity;
     }
 
-    public MileStoneEligibilityResponseDto.ProgramActiveData setProgramActiveData(Double graphData, String weekCount) {
+    public MileStoneEligibilityResponseDto.ProgramActiveData setETCProgramActiveData(Double graphData, String weekCount) {
         MileStoneEligibilityResponseDto.ProgramActiveData programActiveData = new MileStoneEligibilityResponseDto.ProgramActiveData();
         programActiveData.setStripHeading(weekCount);
         programActiveData.setMinorHeading("Get Set Loan in 30 days");
-        programActiveData.setMajorHeading("Complete your weekly target!");
+        programActiveData.setMajorHeading("Complete your  target!");
+        programActiveData.setSubHeading("you are on the right track. Join the program to become eligible");
+        programActiveData.setButtonText("Know More");
+        programActiveData.setProgressText("ACHIEVED");
+        programActiveData.setProgressPercentage(String.valueOf(graphData));
+        programActiveData.setButtonActionDeeplink(activeButtonActionDeepLink);
+        return programActiveData;
+
+    }
+    public MileStoneEligibilityResponseDto.ProgramActiveData setNTCProgramActiveData(Double graphData, String weekCount) {
+        MileStoneEligibilityResponseDto.ProgramActiveData programActiveData = new MileStoneEligibilityResponseDto.ProgramActiveData();
+        programActiveData.setStripHeading(weekCount);
+        programActiveData.setMinorHeading("Get Set Loan in 60 days");
+        programActiveData.setMajorHeading("Complete your  target!");
         programActiveData.setSubHeading("you are on the right track. Join the program to become eligible");
         programActiveData.setButtonText("Know More");
         programActiveData.setProgressText("ACHIEVED");
@@ -154,17 +167,26 @@ public class MileStoneHelperService {
 
     }
 
-    public MileStoneEligibilityResponseDto.ProgramEligibleData setProgramEligibleData() {
+    public MileStoneEligibilityResponseDto.ProgramEligibleData setETCProgramEligibleData() {
         MileStoneEligibilityResponseDto.ProgramEligibleData programEligibleData = new MileStoneEligibilityResponseDto.ProgramEligibleData();
         programEligibleData.setStripHeading("Join Program");
         programEligibleData.setHeading("Get Set Loan in 30 days!");
-        programEligibleData.setSubHeading("Complete weekly targets to become eligible for loan");
+        programEligibleData.setSubHeading("Complete  targets to become eligible for loan");
         programEligibleData.setButtonText("START NOW");
         programEligibleData.setBannerImage("https://d30gqtvesfc1d5.cloudfront.net/hubble/r2e/home-joinprogram-lottie-1696315201206.json");
         programEligibleData.setButtonActionDeeplink(eligibleButtonActionDeepLink);
         return programEligibleData;
     }
-
+    public MileStoneEligibilityResponseDto.ProgramEligibleData setNTCProgramEligibleData() {
+        MileStoneEligibilityResponseDto.ProgramEligibleData programEligibleData = new MileStoneEligibilityResponseDto.ProgramEligibleData();
+        programEligibleData.setStripHeading("Join Program");
+        programEligibleData.setHeading("Get Set Loan in 60 days!");
+        programEligibleData.setSubHeading("Complete  targets to become eligible for loan");
+        programEligibleData.setButtonText("START NOW");
+        programEligibleData.setBannerImage("https://d30gqtvesfc1d5.cloudfront.net/hubble/r2e/home-joinprogram-lottie-1696315201206.json");
+        programEligibleData.setButtonActionDeeplink(eligibleButtonActionDeepLink);
+        return programEligibleData;
+    }
     public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant) {
         MileStoneEligibilityResponseDto responseDto = new MileStoneEligibilityResponseDto();
         responseDto.setShowHomeWidgets(milestoneWidgetVisible);
@@ -184,6 +206,7 @@ public class MileStoneHelperService {
         List<MileStoneEntity> entityList = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "COMPLETED");
         log.info("entityList is {}", entityList.size());
 
+        /*
         if (entityList.size() >= 3) {
             log.info("merchant has been enrolled in this program for 3 times");
             responseDto.setMilStoneEligibility(false);
@@ -191,6 +214,8 @@ public class MileStoneHelperService {
             responseDto.setIsEligibleForReapply(false);
             return responseDto;
         }
+
+         */
 
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
         log.info("entity for milestone journey {} for merchantId {}", entity, merchant.getId());
@@ -275,8 +300,9 @@ public class MileStoneHelperService {
             lessThan30 = true;
         }
 
-        if (!lessThan30 && (ObjectUtils.isEmpty(entity)) || entityList.size()>=3) {
-            log.info("less Than 30 flag is {} for merchantId {} with no session present or session exceeds", lessThan30,merchant.getId());
+
+        if (!lessThan30 && (ObjectUtils.isEmpty(entity)) ) {
+            log.info("less Than 30 flag is {} for merchantId {} with no session present ", lessThan30,merchant.getId());
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
             return responseDto;
@@ -287,7 +313,9 @@ public class MileStoneHelperService {
         String kycPancard = null;
         int pincode = 0;
         Experian experian = experianDao.getByMerchantId(merchant.getId());
+        log.info("Experian data for merchant id {} is {} ",merchant.getId(),experian);
         kycPancard = kycHandler.getPanNumber(merchant.getId());
+        log.info("kycPancard data for merchant id {} is {} ",merchant.getId(),kycPancard);
         if (ObjectUtils.isEmpty(entity) || !("IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus()))) {
             if (ObjectUtils.isEmpty(kycPancard)) {
                 log.info("panCard is empty for merchant", merchant.getId());
@@ -295,8 +323,8 @@ public class MileStoneHelperService {
                 responseDto.setMilStoneEligibility(true);
                 responseDto.setGraphData(null);
                 responseDto.setWeekCount(null);
-                responseDto.setProgramEligibleData(setProgramEligibleData());
-                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                responseDto.setProgramEligibleData(setNTCProgramEligibleData());
+                responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
                 responseDto.setIsMileStoneExpiry(false);
                 responseDto.setDeepLinkUrl(deepLink);
                 responseDto.setPanCard(null);
@@ -322,8 +350,8 @@ public class MileStoneHelperService {
                 responseDto.setMilStoneEligibility(true);
                 responseDto.setGraphData(null);
                 responseDto.setWeekCount(null);
-                responseDto.setProgramEligibleData(setProgramEligibleData());
-                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                responseDto.setProgramEligibleData(setNTCProgramEligibleData());
+                responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
                 responseDto.setIsMileStoneExpiry(false);
                 responseDto.setDeepLinkUrl(deepLink);
                 responseDto.setPinCode(pincode);
@@ -355,8 +383,8 @@ public class MileStoneHelperService {
                         responseDto.setMilStoneEligibility(true);
                         responseDto.setGraphData(null);
                         responseDto.setWeekCount(null);
-                        responseDto.setProgramEligibleData(setProgramEligibleData());
-                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramEligibleData(setETCProgramEligibleData());
+                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
                         responseDto.setIsMileStoneExpiry(false);
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setPinCode(pincode);
@@ -439,12 +467,12 @@ public class MileStoneHelperService {
                         responseDto.setMilStoneEligibility(true);
                         responseDto.setEnrollState(true);
                         responseDto.setDsErrorMessage("error in target ds api");
-                        responseDto.setProgramEligibleData(setProgramEligibleData());
+                        responseDto.setProgramEligibleData(setNTCProgramEligibleData());
                         responseDto.setGraphData(null);
                         responseDto.setWeekCount(null);
                         responseDto.setPinCode(experian.getPincode());
                         responseDto.setPanCard(kycPancard);
-                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setIsEligibleForReapply(true);
                         return responseDto;
@@ -486,12 +514,12 @@ public class MileStoneHelperService {
                         responseDto.setMilStoneEligibility(true);
                         responseDto.setEnrollState(true);
                         responseDto.setDsErrorMessage("error in target ds api");
-                        responseDto.setProgramEligibleData(setProgramEligibleData());
+                        responseDto.setProgramEligibleData(setETCProgramEligibleData());
                         responseDto.setGraphData(null);
                         responseDto.setWeekCount(null);
                         responseDto.setPinCode(experian.getPincode());
                         responseDto.setPanCard(kycPancard);
-                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setIsEligibleForReapply(true);
                         return responseDto;
@@ -511,14 +539,8 @@ public class MileStoneHelperService {
 
 
         List inclusionReasonMilestoneList = Arrays.asList
-                ("Something went wrong - merchant_summary",
-                        "LIMIT BLOCKED: Offer set 0",
+                ("LIMIT BLOCKED: Offer set 0",
                         "LIMIT BLOCKED: Less than 10K offer",
-                        "Risk Segment Exclusion: RegularNTCReject:R2/R3&DRS<15&Cust<250",
-                        "Something went wrong - DS pan pin",
-                        "Something went wrong - Bureau",
-                        "LIMIT BLOCKED: Pending application",
-                        "Something went wrong - Experian",
                         "NTC",
                         "Risk Segment Exclusion: NTB vintage less than 30",
                         "Thin File ETC");
@@ -543,10 +565,18 @@ public class MileStoneHelperService {
                 responseDto.setWeekCount(null);
                 responseDto.setPinCode(experian.getPincode());
                 responseDto.setPanCard(kycPancard);
-                responseDto.setProgramEligibleData(setProgramEligibleData());
                 responseDto.setIsEligibleForReapply(true);
                 responseDto.setDeepLinkUrl(deepLink);
-                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                if (bureauResponseDTO!=null){
+                    responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
+                    responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
+                            setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
+                            setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                }else {
+                    responseDto.setProgramEligibleData(setETCProgramEligibleData());
+                    responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                }
+
 
                 if (!ObjectUtils.isEmpty(entity) && "COMPLETED".equalsIgnoreCase(entity.getSessionStatus())) {
                     responseDto.setIsMileStoneExpiry(true);
@@ -557,6 +587,8 @@ public class MileStoneHelperService {
                 log.info("------test1----{}",responseDto);
             }
             else {
+
+                // Old Session Flow->>>> expiry management
                 DSMileStoneResponse response = fetchTarget(entity);
                 log.info("fetch Target data {} for merchant {}", response, merchant.getId());
 
@@ -580,17 +612,26 @@ public class MileStoneHelperService {
                     responseDto.setDsErrorMessage("achievement response is null");
                     responseDto.setMilStoneEligibility(true);
                     responseDto.setEnrollState(true);
-                    responseDto.setProgramEligibleData(setProgramEligibleData());
                     responseDto.setGraphData(null);
                     responseDto.setWeekCount(null);
                     responseDto.setPinCode(experian.getPincode());
                     responseDto.setPanCard(kycPancard);
-                    responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                    if (bureauResponseDTO!=null){
+                        responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
+                        responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
+                                setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
+                                setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                    }else {
+                        responseDto.setProgramEligibleData(setETCProgramEligibleData());
+                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                    }
                     responseDto.setDeepLinkUrl(deepLink);
                     responseDto.setIsEligibleForReapply(true);
                     return responseDto;
                 }
 
+
+                //TODO
                 int value = 100 / response.getTarget().size();
                 double graph = 0d;
                 String daysCount = null;
@@ -600,22 +641,29 @@ public class MileStoneHelperService {
                     targetMileStoneNoMap.put(target.getMilestone_no(), target);
 
                 int days = response.getTarget_duration_days();
-
+//BUILDING GRAPH DATA
                 if (!ObjectUtils.isEmpty(achievementResponse)) {
                     for (DSMileStoneAchievementResponse.Achievement response1 : achievementResponse.achievement) {
                         Date date = new Date();
-                        if (days == 56) {
-                            if ((date.after(response1.getMilestone_start_time())) && date.before(response1.getMilestone_end_time())) {
-                                daysCount = "Milestone" + " " + response1.getMilestone_no();
+                        if (days%28==0) { //weekly flow
+                            if (days == 56) {
+                                if ((date.after(response1.getMilestone_start_time())) && date.before(response1.getMilestone_end_time())) {
+                                    daysCount = "Milestone" + " " + response1.getMilestone_no();
+                                }
+                            }
+                            if (days == 28) {
+                                if ((date.after(response1.getMilestone_start_time()))
+                                        && date.before(response1.getMilestone_end_time())) {
+                                    daysCount = "Week" + " " + response1.getMilestone_no();
+                                }
+
                             }
                         }
-                        if (days == 28) {
-                            if ((date.after(response1.getMilestone_start_time()))
-                                    && date.before(response1.getMilestone_end_time())) {
-                                daysCount = "Week" + " " + response1.getMilestone_no();
-                            }
-
-                        } else {
+                        else if (days%30==0){
+                                if ((date.after(response1.getMilestone_start_time())) && date.before(response1.getMilestone_end_time())) {
+                                    daysCount = "Milestone" + " " + response1.getMilestone_no();
+                                }
+                        }else {
                             daysCount = "COMPLETED";
                         }
 
@@ -638,7 +686,11 @@ public class MileStoneHelperService {
                 responseDto.setEnrollState(true);
 
                 if (daysCount == null) {
+                    if (days%28==0){
                     daysCount = days == 28 ? "Week 1" : "Milestone 1";
+                }else {
+                    daysCount="Milestone 1";
+                    }
                 }
 
                 boolean isMileStoneExpiry = false;
@@ -655,7 +707,9 @@ public class MileStoneHelperService {
                         entity.setSessionStatus("COMPLETED");
                         entity.setGraphData(graph);
                         mileStoneDao.save(entity);
+                        /*
                         List<MileStoneEntity> completedEntity = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), "COMPLETED");
+
                         if (completedEntity.size() == 3) {
                             responseDto.setMilStoneEligibility(false);
                             responseDto.setEnrollState(false);
@@ -663,14 +717,23 @@ public class MileStoneHelperService {
                             return responseDto;
                         }
 
+                         */
+
                         responseDto.setIsMileStoneExpiry(true);
                         responseDto.setEnrollState(false);
-                        responseDto.setProgramEligibleData(setProgramEligibleData());
                         responseDto.setGraphData(graph);
                         responseDto.setWeekCount(daysCount);
                         responseDto.setPinCode(experian.getPincode());
                         responseDto.setPanCard(kycPancard);
-                        responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        if (bureauResponseDTO!=null){
+                            responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
+                            responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
+                                    setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
+                                    setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        }else {
+                            responseDto.setProgramEligibleData(setETCProgramEligibleData());
+                            responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        }
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setIsEligibleForReapply(true);
                         responseDto.setMilStoneEligibility(responseDto.getIsEligibleForReapply());
@@ -682,8 +745,16 @@ public class MileStoneHelperService {
                 responseDto.setWeekCount(daysCount);
                 // To replace this with graph data
                 responseDto.setGraphData(graph);
-                responseDto.setProgramEligibleData(setProgramEligibleData());
-                responseDto.setProgramActiveData(setProgramActiveData(responseDto.getGraphData(), daysCount));
+                if (bureauResponseDTO!=null){
+                responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
+                responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
+                        setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
+                        setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                }else {
+                    responseDto.setProgramEligibleData(setETCProgramEligibleData());
+                    responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                }
+
                 responseDto.setDeepLinkUrl(deepLink);
                 responseDto.setIsEligibleForReapply(true);
 

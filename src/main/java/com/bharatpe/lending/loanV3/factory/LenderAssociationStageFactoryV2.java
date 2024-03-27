@@ -12,6 +12,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.KYC;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -20,6 +21,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.BRE;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -28,6 +30,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.ASSC_COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -35,6 +38,8 @@ public class LenderAssociationStageFactoryV2 {
             case ASSC_COMPLETED:
                 switch (lender) {
                     case USFB:
+                    case MUTHOOT:
+                        return LenderAssociationStages.DOC_UPLOAD;
                     case TRILLIONLOANS:
                         return LenderAssociationStages.DOC_UPLOAD;
                     default:
@@ -43,6 +48,7 @@ public class LenderAssociationStageFactoryV2 {
             case SANCTION_WRAPPER:
                 switch (lender){
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.DRAWDOWN;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -52,6 +58,7 @@ public class LenderAssociationStageFactoryV2 {
                     case USFB:
                         return LenderAssociationStages.DRAWDOWN;
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.SANCTION_WRAPPER;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -60,6 +67,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -76,6 +84,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return LenderAssociationStages.KYC;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -89,6 +98,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -97,6 +107,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -105,6 +116,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -113,6 +125,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -121,6 +134,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -129,6 +143,7 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -136,6 +151,7 @@ public class LenderAssociationStageFactoryV2 {
             case SANCTION_WRAPPER:
                 switch (lender) {
                     case TRILLIONLOANS:
+                    case MUTHOOT:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;

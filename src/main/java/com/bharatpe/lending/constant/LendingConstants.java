@@ -1,9 +1,6 @@
 package com.bharatpe.lending.constant;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public interface LendingConstants {
 	Integer MAX_LOAN_AMOUNT_INTEGER = 1000000;
@@ -99,6 +96,15 @@ public interface LendingConstants {
 
 	String PAYTM = "PAYTM";
 
+	Map<String , List<String>> ResubmitReasonMap = new HashMap<String , List<String>>() {{
+		put("SHOP_PHOTO", Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
+		put("SHOP_INFERED_DISTANCE",  Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
+		put("SHOP_OPERATIONAL",  Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
+		put("BUSINESS_NAME",  Arrays.asList("BUSINESS_NAME","SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME"));
+		put("SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME", Arrays.asList("BUSINESS_NAME","SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME"));
+		put("SHOP_ADDRESS_INCORRECT", Collections.singletonList("SHOP_ADDRESS"));
+		put("INCORRECT_SELFIE", Collections.singletonList("SELFIE_RESUBMIT"));
+	}};
 }
 
 

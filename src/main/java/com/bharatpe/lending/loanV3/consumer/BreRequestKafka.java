@@ -270,6 +270,9 @@ public class BreRequestKafka {
                                     .loanSegment(RiskEngineUtil.loanRiskMapping(lendingRiskVariablesSnapshot.getRiskSegment().name()))
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
                                     .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
+                                    .bpVintage(getVintage(lendingRiskVariablesSnapshot))
+                                    .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : String.valueOf(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
+                                    .shopPincode(lendingApplication.get().getPincode())
                                     .build())
                     .build();
             log.info("breRequest payload {}", breRequestKafkaDto);
@@ -287,5 +290,13 @@ public class BreRequestKafka {
             return "";
         }
         return name.substring(firstOccurence + 1, lastOccurence).trim();
+    }
+
+    private String getVintage(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot) {
+        if(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getVintage())) {
+            Date vintageDate = DateTimeUtil.addDays(new Date(), -lendingRiskVariablesSnapshot.getVintage().intValue());
+            return DateTimeUtil.getDateInFormat(vintageDate, "yyyy-MM-dd");
+        }
+        return "";
     }
 }

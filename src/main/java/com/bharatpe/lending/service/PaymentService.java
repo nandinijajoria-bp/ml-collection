@@ -1173,6 +1173,7 @@ public class PaymentService {
         if (penaltyFee > 0.5) {
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(activeLoan.getMerchantId(), activeLoan.getId(), penaltyFee, source, false, activeLoan.getNbfc());
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            loanUtil.savePenalCharges(activeLoan, penaltyFee);
         }
         if (advanceAdjusted) {
             logger.info("Reducing adjusted amount due to advance EDI for loanId:{}, old amount:{}, new amount:{}", activeLoan.getId(), amount, (paidPrincipalAmount + paidInterestAmount));
@@ -1933,6 +1934,7 @@ public class PaymentService {
         if (penaltyFee > 0.5) {
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(activeLoan.getMerchantId(), activeLoan.getId(), penaltyFee, source, false, activeLoan.getNbfc());
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            loanUtil.savePenalCharges(activeLoan, penaltyFee);
         }
 
         if (Objects.nonNull(activeLoan.getSettleAllPrinciple()) && activeLoan.getSettleAllPrinciple()) {

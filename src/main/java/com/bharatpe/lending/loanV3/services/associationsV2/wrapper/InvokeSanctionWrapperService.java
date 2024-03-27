@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
@@ -72,6 +73,9 @@ public class InvokeSanctionWrapperService {
                 MDC.clear();
                 return;
             }
+            if(Lender.MUTHOOT.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
+                commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
+            }
             MDC.clear();
         } catch (Exception e) {
             log.info("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
@@ -104,6 +108,8 @@ public class InvokeSanctionWrapperService {
         switch (stage) {
             case "NACH_MANDATE":
                 return associationServiceUtil.invokeNachMandateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "UPDATE_LEAD":
+                return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return true;
         }
@@ -117,6 +123,8 @@ public class InvokeSanctionWrapperService {
         switch (lendingApplication.get().getLender()) {
             case "TRILLIONLOANS":
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
+            case "MUTHOOT":
+                return Collections.singletonList(LenderAssociationStages.UPDATE_LEAD.name());
             default:
                 return new ArrayList<>();
         }

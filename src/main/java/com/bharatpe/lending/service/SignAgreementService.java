@@ -2,17 +2,23 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
-import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingEkycDao;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingEkyc;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -23,8 +29,6 @@ import com.bharatpe.lending.dto.CreateApplicationRequestForTopupDTO;
 import com.bharatpe.lending.dto.MetaDTO;
 import com.bharatpe.lending.dto.RequestDTO;
 import com.bharatpe.lending.dto.SignAgreementDTO;
-import com.bharatpe.lending.dto.ClosePreviousLoanForTopupDTO;
-
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -187,7 +191,6 @@ public class SignAgreementService {
 			}
 		}
 		if (Objects.nonNull(lendingResubmitTask)) {
-
 			boolean isDownGradeRequired = ObjectUtils.nullSafeEquals(lendingResubmitTask.getDowngrade(), true);
 			boolean isDownGradeDone = ObjectUtils.nullSafeEquals(lendingResubmitTask.getDowngradeDone(), true);
 			boolean isResignRequired = ObjectUtils.nullSafeEquals(lendingResubmitTask.getResign(), true);
@@ -200,7 +203,6 @@ public class SignAgreementService {
 
 			if (isResignRequired)
 				draftCheck = draftCheck && isResignDone;
-
 
 			if (draftCheck) {
 				if (lendingApplication == null || !"draft".equals(lendingApplication.getStatus())) {
@@ -224,9 +226,23 @@ public class SignAgreementService {
 				return response;
 			}
 		}
+
+		if(lendingApplication.getLoanType().equals("TOPUP")) {
+			boolean pennyDrop = loanUtil.verifyPennyDrop(merchant.getId(), response);
+			if(pennyDrop) {
+				response = publishDataAndSendOtp(lendingApplication, merchant, appSign, response);
+			}
+		}else{
+			logger.info("skipping penny drop for {} loans at agreement stage", lendingApplication.getLoanType());
+			response = publishDataAndSendOtp(lendingApplication, merchant, appSign, response);
+		}
+		return response;
+	}
+
+	private Map<String, Object> publishDataAndSendOtp(LendingApplication lendingApplication, BasicDetailsDto merchant, String appSign, Map<String, Object> response) {
 		executorService.execute(() -> loanUtil.publishDSData(lendingApplication));
 		response =  sendOTP(merchant, appSign);
-		response.put("application_id", applicationId);
+		response.put("application_id", lendingApplication.getId());
 		return response;
 	}
 
@@ -827,6 +843,7 @@ public class SignAgreementService {
 		LendingViewStates currentViewState = Lender.ABFL.name().equalsIgnoreCase(newApplication.getLender()) ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.ENACH_PAGE;
 		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), currentViewState);
 
+		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
 		response.put("success", true);
 		response.put("message","Application created Successfully");
 		return response;

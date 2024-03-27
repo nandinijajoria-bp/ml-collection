@@ -158,6 +158,7 @@ public class LendingMerchantLoansResponseDTO {
         private String settlementStatus;
         private double duePenalty;
         private long ediDays;
+        private double nachBounceAmount;
 
         public Loan() {
         }
@@ -571,6 +572,7 @@ public class LendingMerchantLoansResponseDTO {
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
         Long applicationId = lendingPaymentSchedule.getApplicationId();
         double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0d;
+
         return new Loan(applicationId, lendingPaymentSchedule.getId(), loanAmount, ediAmount, dueAmount, interestRate, processingFee,
                 disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),
                 lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus, penaltyFee);

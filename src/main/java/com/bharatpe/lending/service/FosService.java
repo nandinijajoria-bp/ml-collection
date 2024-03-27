@@ -31,10 +31,12 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.UnderwritingDocEligibilityDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -147,6 +149,9 @@ public class FosService {
 
     @Autowired
     SupportService supportService;
+
+    @Autowired
+    LoanDashboardService loanDashboardService;
 
 
     public ResponseDTO fosLoan(Long merchantId) {
@@ -907,7 +912,7 @@ public class FosService {
                             // closed loans and eligibility check
                             else if (lendingPaymentSchedule.getStatus().equalsIgnoreCase("CLOSED")) {
                                 logger.info("merchant {} has a closed loan", merchantId);
-                                return computeEligibilityParams(hasFinalOfferGtZero(merchantId, forceEligibilityCheck), null, merchantId, "closed loan");
+                                return computeEligibilityParams(hasFinalOfferGtZero(merchantId), null, merchantId, "closed loan");
                             }
                             else if (LoanStatus.INACTIVE_TOPUP.name().equalsIgnoreCase(lendingPaymentSchedule.getStatus())) {
                                 logger.info("merchant {} has a inactive topup loan", merchantId);
@@ -921,32 +926,29 @@ public class FosService {
                     }
                 }
             }
-            String finalOfferEligibility = hasFinalOfferGtZero(merchantId, forceEligibilityCheck);
+            String finalOfferEligibility = hasFinalOfferGtZero(merchantId);
             return finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId, null) : computeEligibilityParams(finalOfferEligibility, null, merchantId, "no existing offer found");
         } catch (Exception e) {
-            logger.error("error while checking fos loan eligibility for merchant: {}", merchantId, e);
+            logger.error("error while checking fos loan eligibility for merchant: {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return new ResponseDTO(Boolean.FALSE, "something went wrong !!");
     }
 
-    public String hasFinalOfferGtZero(Long merchantId, Boolean forceEligibilityCheck) {
-//        if (forceEligibilityCheck) {
-//            try {
-//                String globalDetailsCacheKey = "LENDING_GLOBAL_DETAILS_" + merchant.getId();
-//                if (Objects.nonNull(lendingCache.get(globalDetailsCacheKey))) {
-//                    logger.info("clearing cache for fos eligibility computation {}", merchant.getId());
-//                    lendingCache.delete(globalDetailsCacheKey);
-//                }
-//                apiGatewayService.getGlobalLimit(merchant.getId());
-//            } catch (Exception e) {
-//                logger.error("error while computing final offer for merchant: {}", merchant.getId(), e);
-//            }
-//        }
-        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-        if (Objects.isNull(lendingRiskVariables)) {
-            return "maybe";
-        } else if (!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() > 0) {
-            return "eligible";
+    public String hasFinalOfferGtZero(Long merchantId) {
+        try {
+            GlobalLimitResponse globalLimitResponse=new GlobalLimitResponse();
+            globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, loanDashboardService.isClubV2Member(merchantId));
+            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+                logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
+                Double eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+                if (eligibleAmount > 0D) {
+                    logger.info("Eligibility found for merchant:{}", merchantId);
+                    return "eligible";
+                }
+            }
+        }
+        catch (Exception e) {
+            logger.error("Exception occurred for merchantId while checking eligibilty:{},execption:{}", merchantId,Arrays.asList(e.getStackTrace()));
         }
         return "ineligible";
     }
@@ -1071,9 +1073,7 @@ public class FosService {
                 logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
             } else {
-                if (!ObjectUtils.isEmpty(lendingApplication.getNachStatus()) && lendingApplication.getNachStatus().equals("APPROVED") &&
-                        Arrays.asList("pending_verification", "approved").contains(lendingApplication.getStatus())
-                ) {
+                if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                     fosTaskStatusDto.setStatus("COMPLETE");
                     fosTaskStatusDto.setMessage("task completed");
                     logger.info("nach done for merchant {}", merchantId);

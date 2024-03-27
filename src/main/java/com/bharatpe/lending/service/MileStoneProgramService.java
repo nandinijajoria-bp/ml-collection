@@ -287,24 +287,43 @@ public class MileStoneProgramService {
             return new ApiResponse<>(false, "400", "Achievement response is null");
         }
 
+        log.info("achievementResponse:{} for merchant id {} ",merchant.getId(),achievementResponse);
+
         dsHandler.pushMilestoneAchievementData(merchant.getId(),achievementResponse);
 
         DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
 
+        log.info("DSMileStoneResponse: {} for merchant id {}",merchant.getId(),mileStoneResponse);
         List<MileStoneDashboardData> mapList = new ArrayList<>();
 
         Map<Integer, Target> targetMileStoneNoMap = mileStoneResponse.getTarget().stream().
                 collect(Collectors.toMap(Target::getMilestone_no, Function.identity()));
+        log.info("targetMileStoneNoMap{} for merchant id {}",merchant.getId(),targetMileStoneNoMap);
+ // WEEKLY ->>>MONTHLY Handling
 
+        int milestoneCount = 0, weekDays = 0, days =0;
+        String sessionStatus=null;
+        log.info("Entity for merchant: {} id is  {}",merchant.getId(),entity);
+        if (!ObjectUtils.isEmpty(entity)) {
+            sessionStatus  = entity.getSessionStatus();
+            days=entity.getProgramDuration();
+        }
 
-        int milestoneCount = 0, weekDays = 0;
+        boolean isWeeklyFlowUser=(days%28==0)?true:false;
+
         if (achievementResponse.achievement.isEmpty()) {
-            int days = entity.getProgramDuration();
-            if (days == 28) {
-                weekDays = 7;
-                milestoneCount = days / weekDays;
-            } else {
-                weekDays = 14;
+
+            if (days%28==0 && "IN_PROGRESS".equalsIgnoreCase(sessionStatus)){//existing user handling
+                if (days == 28) {
+                    weekDays = 7;
+                    milestoneCount = days / weekDays;
+                } else {
+                    weekDays = 14;
+                    milestoneCount = days / weekDays;
+                }
+            }
+            else {//new user handling
+                weekDays = 30;
                 milestoneCount = days / weekDays;
             }
             for (int mileStoneNo = 1; mileStoneNo <= milestoneCount; mileStoneNo++) {
@@ -347,6 +366,7 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setAchievementUniquePayer(0);
             mileStoneDashboardDetails.setTargetActiveDays(0);
             mileStoneDashboardDetails.setTargetUniquePayer(0);
+            mileStoneDashboardDetails.setWeeklyFlowUser(isWeeklyFlowUser);
 
             log.info("achievement response added in cache");
             AddCacheDto addCacheDto = new AddCacheDto();
@@ -380,6 +400,7 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setAchievementUniquePayer(achievementResponse.getTotal().getUnq_payer());
             mileStoneDashboardDetails.setTargetActiveDays(mileStoneResponse.getTotal_target().getActive_days());
             mileStoneDashboardDetails.setTargetUniquePayer(mileStoneResponse.getTotal_target().getUnq_payer());
+            mileStoneDashboardDetails.setWeeklyFlowUser(isWeeklyFlowUser);
 
             log.info("achievement response added in cache");
             AddCacheDto addCacheDto = new AddCacheDto();

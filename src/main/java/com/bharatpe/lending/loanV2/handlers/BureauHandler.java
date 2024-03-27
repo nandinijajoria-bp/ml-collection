@@ -50,7 +50,7 @@ public class BureauHandler {
             requestBody.put("source", "EASY_LOANS");
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days" + "=" + days;
-            log.info("BureauHandler call for phone: {}",mobile);
+            log.info("BureauHandler call for phone: {} and url is {}",mobile,url);
 
             ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
             if(Objects.isNull(responseEntity.getBody())){
@@ -87,7 +87,7 @@ public class BureauHandler {
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             log.info("request for bureau data {} for merchant id {}", request, merchantId);
             final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days" + "=" + days;
-            log.info("BureauHandler call for phone: {}",mobile);
+            log.info("BureauHandler call for phone: {} and url is {}",mobile,url);
 
             ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
             if(Objects.isNull(responseEntity.getBody())){

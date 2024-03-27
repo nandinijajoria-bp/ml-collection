@@ -41,4 +41,5 @@ public class LenderAssignController {
     public String assignLender(@RequestParam Long applicationId, @RequestParam String ediModel){
         return lenderAssignService.assignLenderAndEdiModel(applicationId, ediModel);
     }
+
 }

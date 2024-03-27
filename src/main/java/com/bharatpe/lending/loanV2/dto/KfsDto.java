@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV2.dto;
 
 import lombok.Builder;
 import lombok.Data;
+import java.util.Date;
 
 @Data
 @Builder
@@ -38,5 +39,8 @@ public class KfsDto {
     private String locationLatLong;
     private boolean isTopUpLoan;
     private long ediDays;
+    private Date agreementAt;
+    private String shopAddress;
+    private Double monthlyIncome;
 
 }

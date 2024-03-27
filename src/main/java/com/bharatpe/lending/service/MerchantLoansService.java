@@ -214,6 +214,8 @@ public class MerchantLoansService {
     @Value("${abfl.topup.rejection.banner.tat:5}")
     Long abflTopupRejectionBannerTat;
 
+    @Autowired
+    PenalChargesDao penalChargesDao;
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -433,6 +435,11 @@ public class MerchantLoansService {
                 loan.setPaidPrinciple((ObjectUtils.isEmpty(loan.getPaidPrinciple()) ? 0 : loan.getPaidPrinciple()) + advanceEdiAmount);
                 loan.setEdiDays(loan.getEdiCount() % 30 == 0 ? 7 : 6);
 
+                PenalCharges penalCharges = penalChargesDao.findByLoanId(loan.getLoanId());
+                double duePenalty = Objects.nonNull(penalCharges) ? penalCharges.getDuePenalty() : (Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0);
+                loan.setDuePenalty(duePenalty);
+                loan.setNachBounceAmount(Objects.nonNull(penalCharges) ? penalCharges.getDueNachBounce() : 0);
+
                 if (loan.getStatus().equals("ACTIVE")) {
                     responseDTO.setShowChangeBankAccountBanner(showChangeBankAccountBanner(responseDTO.getAccountDetails(), merchantId));
                     LendingPullPaymentSlave pullPayment = lendingPullPaymentDaoSlave.findTop1ByMerchantIdAndModeOrderByIdDesc(merchantId, "AUTOPAYUPI");
@@ -494,18 +501,21 @@ public class MerchantLoansService {
             }
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-            List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusOrderByMinAmountAsc(1D, true);
+            if (Objects.nonNull(lendingPaymentSchedule)) {
+                List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
+                        (2D, true, lendingPaymentSchedule.getNbfc());
 
-            List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
+                List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
 
-            for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
-                LendingMerchantLoansResponseDTO.PenaltyConfig penaltyConfig = new LendingMerchantLoansResponseDTO.PenaltyConfig();
-                penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
-                penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
-                penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
-                penaltyConfigs.add(penaltyConfig);
+                for (PenaltyFeeConfigSlave penaltyFeeConfigSlave : penaltyFeeConfigSlaves) {
+                    LendingMerchantLoansResponseDTO.PenaltyConfig penaltyConfig = new LendingMerchantLoansResponseDTO.PenaltyConfig();
+                    penaltyConfig.setMinAmount(penaltyFeeConfigSlave.getMinAmount());
+                    penaltyConfig.setMaxAmount(penaltyFeeConfigSlave.getMaxAmount());
+                    penaltyConfig.setPenalty(penaltyFeeConfigSlave.getPenalty());
+                    penaltyConfigs.add(penaltyConfig);
+                }
+                responseDTO.setPenaltyConfig(penaltyConfigs);
             }
-            responseDTO.setPenaltyConfig(penaltyConfigs);
 
             if (lendingPaymentSchedule != null) {
                 Date date = new Date();
@@ -528,6 +538,12 @@ public class MerchantLoansService {
                     }
                     responseDTO.setRepaymentDetails(repaymentDetailsList);
                 }
+
+                /*
+                *@Deprecated
+                * Removing penny drop check before eligibilty check, penny drop check now on agreement stage
+                * EL - 2775
+                *
                 boolean pennyDrop = loanUtil.checkPennyDropV2(lendingPaymentSchedule.getMerchantId());
                 if (pennyDrop) {
                     try {
@@ -561,7 +577,37 @@ public class MerchantLoansService {
                         }
                     }
                 }
+                 */
+
 //                responseDTO.setContactSync(isContactSyncRequired(lendingPaymentSchedule));
+
+                try {
+                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
+                    if (!loans.isEmpty()) {
+                        responseDTO.setEligibility(loans);
+                        responseDTO.setTopup(Boolean.TRUE);
+//                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
+                        responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
+                    }
+                } catch (Exception e) {
+                    logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
+                }
+                if (baseChecksForHalfAndIOEdi(lendingPaymentSchedule, responseDTO)) {
+                    logger.info("Base checks passed for Half/IO Loan for loanId:{}", lendingPaymentSchedule.getId());
+                    LendingIoHalfTopup lendingIoHalfTopup = lendingIoHalfTopupDao.findByLoanId(lendingPaymentSchedule.getId());
+                    LoanCalculationUtil.LoanBreakupDetail loanBreakupDetail;
+                    if (lendingIoHalfTopup != null && LoanType.IO_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
+                        logger.info("merchant:{} eligible for io loan", merchantId);
+                        loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.IO_TOPUP);
+                        responseDTO.setIoLoan(lendingPaymentSchedule, loanBreakupDetail);
+                    } else if (lendingIoHalfTopup != null && LoanType.HALF_TOPUP.name().equals(lendingIoHalfTopup.getLoanType())) {
+                        logger.info("merchant:{} eligible for half loan", merchantId);
+                        loanBreakupDetail = calculateHalfIOLoan(lendingPaymentSchedule, merchantId, LoanType.HALF_TOPUP);
+                        responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
+                    } else {
+                        logger.info("Entry not found in lending_io_half_topup for merchant:{}", merchantId);
+                    }
+                }
             }
 
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
@@ -839,6 +885,13 @@ public class MerchantLoansService {
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentScheduleSlave lendingPaymentSchedule) {
         List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
         List<Long> customEnabledMerchants = loanUtil.customEnabledTopupMerchants();
+
+        List<LendingPaymentScheduleSlave> activeLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(lendingPaymentSchedule.getMerchantId(),"ACTIVE");
+
+        if (activeLoans.size() > 1) {
+            logger.info("more than 1 loan active for merchantId : {} loans : {}", lendingPaymentSchedule.getMerchantId(), activeLoans.size());
+            return Collections.emptyList();
+        }
 
         if (customEnabledMerchants.contains(lendingPaymentSchedule.getMerchantId())) {
             return computeEligibility(lendingPaymentSchedule);

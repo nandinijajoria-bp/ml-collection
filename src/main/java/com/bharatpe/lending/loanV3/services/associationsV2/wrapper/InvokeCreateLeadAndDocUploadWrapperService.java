@@ -81,7 +81,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 MDC.clear();
                 return;
             }
-            if(!Arrays.asList(Lender.TRILLIONLOANS.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
+            if(!Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
                 invokeBREWorkflow(lenderAssociationDetailsRequestDto);
             }
             MDC.clear();
@@ -157,6 +157,10 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 return associationServiceUtil.invokeDocUploadService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage);
             case "CREATE_CLIENT" :
                 return associationServiceUtil.invokeCreateClientService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "KYC":
+                return associationServiceUtil.invokeKycService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "UPDATE_LEAD":
+                return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return true;
         }
@@ -167,6 +171,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case "CREATE_LEAD":
             case "AADHAR_UPLOAD":
             case "SELFIE_UPLOAD":
+            case "UPDATED_LEAD":
                 return true;
             default:
                 return false;
@@ -185,6 +190,9 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case TRILLIONLOANS:
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name(),
                         LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name());
+            case MUTHOOT:
+                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(),
+                        LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.KYC.name());
             default:
                 return new ArrayList<>();
         }

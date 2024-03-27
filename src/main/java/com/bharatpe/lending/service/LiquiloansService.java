@@ -252,6 +252,9 @@ public class LiquiloansService {
     @Autowired
     LenderAssociationStageFactory lenderAssociationStageFactory;
 
+    @Value("${backdated.loan.eligible.lenders:ABFL}")
+    String backDatedLoanEligibleLenders;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     private LendingLedgerDao lendingLedgerDao;
@@ -686,7 +689,8 @@ public class LiquiloansService {
                         LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 
                 if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
-                        || Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                        || Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
+                        || Lender.MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
 
@@ -788,9 +792,8 @@ public class LiquiloansService {
         } catch (Exception e) {
             logger.error("exception occurred while computing diff days for {} {}", lendingApplication.getId(), e.getMessage());
         }
-        if ((Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
-                || Lender.TRILLIONLOANS.name().equalsIgnoreCase((lendingPaymentSchedule.getNbfc())))
-                && backdatedLoanEnabled && diffInDisbursalDates > 0) {
+        if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
+                diffInDisbursalDates > 0) {
             lendingApplication.setDisburseTimestamp(postPayoutRequestDto.getDisbursalDate());
             lendingApplication = lendingApplicationDao.save(lendingApplication);
             logger.info("adjusting LPS as this is a backdated disbursal loan {}", lendingPaymentSchedule.getId());
@@ -812,7 +815,7 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
         }
-        if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
+        if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
         }
@@ -1563,8 +1566,12 @@ public class LiquiloansService {
                 flag = constructAbflTopupEDISchedule(paymentSchedule);
                 retry++;
             } while (!flag && retry < 3);
-        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS").contains(paymentSchedule.getNbfc()))  {
-            constructLenderEDISchedule(paymentSchedule);
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT").contains(paymentSchedule.getNbfc()))  {
+            boolean success = constructLenderEDISchedule(paymentSchedule);
+            if(!success) {
+                logger.info("creating bharatPe edi schedule as failed to create lender edi schedule for {}", paymentSchedule.getApplicationId());
+                constructBharatPeEDISchedule(paymentSchedule);
+            }
         } else {
             constructBharatPeEDISchedule(paymentSchedule);
         }
@@ -1814,7 +1821,7 @@ public class LiquiloansService {
             do {
                 lenderEdIScheduleResponse = associationServiceUtil.invokeRepaymentScheduleService(paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId());
                 retry++;
-            } while (ObjectUtils.isEmpty(lenderEdIScheduleResponse) && retry < 3);
+            } while (ObjectUtils.isEmpty(lenderEdIScheduleResponse) && retry < 5);
             logger.info("response from {} repayment schedule for application id : {} is : {}", paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId(), lenderEdIScheduleResponse);
             if (ObjectUtils.isEmpty(lenderEdIScheduleResponse)) {
                 logger.info("failure response from {} repayment schedule api for {}", paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId());
@@ -1848,7 +1855,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(lenderEdIScheduleResponse.getTotalInterestPayable());
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(lenderEdIScheduleResponse.getLoanMaturityDate());
-            if (paymentSchedule.getNbfc().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(paymentSchedule.getNbfc())) {
                 LendingApplication lendingApplication = paymentSchedule.getLoanApplication();
                 Double totalPayableAmount = lendingApplication.getLoanAmount() + lenderEdIScheduleResponse.getTotalInterestPayable();
                 paymentSchedule.setTotalPayableAmount(totalPayableAmount);

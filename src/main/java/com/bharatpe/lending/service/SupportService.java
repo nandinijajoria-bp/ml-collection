@@ -28,6 +28,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.BankStatementRejectReason;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -44,6 +45,7 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -70,8 +72,7 @@ import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
-import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.*;
 
 @Service
 public class SupportService {
@@ -231,6 +232,9 @@ public class SupportService {
 
     @Autowired
     PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
+	@Value("${aws.s3.bucket:loan-document}")
+    private String bucket;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -2220,7 +2224,7 @@ public class SupportService {
 
                     String kfsFileName= ObjectUtils.isEmpty(lendingKfs.getKfsDocFile()) ? KFS_S3_KEY_PREFIX + applicationId  : lendingKfs.getKfsDocFile();
                     String sanctionAndLoanAgreementFileName= ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
-                    String bucket = "loan-document";
+                    String authorizationLetterFileName = ObjectUtils.isEmpty(lendingKfs.getAuthorizationLetterDocFile()) ? AUTHORIZATION_S3_KEY_PREFIX + applicationId : lendingKfs.getAuthorizationLetterDocFile();
 
                     if (s3BucketHandler.doesS3ObjectExist(kfsFileName, bucket)) {
                         String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get().getId(), kfsFileName);
@@ -2235,6 +2239,15 @@ public class SupportService {
                     } else {
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
                     }
+                    if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.get().getLender())){
+                    if (s3BucketHandler.doesS3ObjectExist(authorizationLetterFileName,bucket))
+                    {
+                        String authorizationLetterUrl = lendingApplicationServiceV2.fetchAuthorizationLetterFromS3andGenerateShortUrl(lendingApplication.get().getId(),authorizationLetterFileName);
+                        lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterUrl);
+                    } else {
+                            lendingApplicationServiceV2.generateAuthorizationLetterDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getAuthorizationLetterSignedAt());
+                        }
+                    }
                     lendingKfsDao.save(lendingKfs);
                     return new ResponseDTO(true, "Agreement created successfully.", lendingKfs.getSanctionLoanAgreementDocUrl());
                 } else{
@@ -2248,6 +2261,11 @@ public class SupportService {
                     if(!ObjectUtils.isEmpty(lendingKfs.getKfsDocUrl()) && !ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())){
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getKfsSignedAt());
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getSanctionLoanAgreementSignedAt());
+
+                        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.get().getLender())){
+                            lendingApplicationServiceV2.generateAuthorizationLetterDoc(lendingApplication.get(),basicDetailsDto.get(),lendingKfs1,lendingKfs.getAuthorizationLetterSignedAt());
+                            lendingKfs1.setAuthorizationLetterSignedAt(lendingKfs.getKfsSignedAt());
+                        }
                         //set timestamps as the old ones.
                         lendingKfs1.setKfsSignedAt(lendingKfs.getKfsSignedAt());
                         lendingKfs1.setSanctionLoanAgreementSignedAt(lendingKfs.getSanctionLoanAgreementSignedAt());
