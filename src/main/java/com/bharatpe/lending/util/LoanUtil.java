@@ -1493,6 +1493,9 @@ public class LoanUtil {
 		if("MUTHOOT".equalsIgnoreCase(lender)){
 			finalLender = Lender.MUTHOOT.name();
 		}
+		if("CAPRI".equalsIgnoreCase(lender)) {
+			finalLender = Lender.CAPRI.name();
+		}
 		return finalLender;
 	}
 

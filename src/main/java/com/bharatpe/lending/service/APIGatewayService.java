@@ -410,7 +410,7 @@ public class APIGatewayService {
             logger.info("Create pg transaction internal request: {}", mapper.writeValueAsString(request));
             try {
                 String pgCreateTxnURL = getPgCreateTxnUrl(merchantId);
-                logger.info("pg create url: {}", pgCreateTxnURL);
+                logger.info("pg create url: {}", PG_URL + pgCreateTxnURL);
                 PgCreateTransactionResponseDTO response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, PgCreateTransactionResponseDTO.class);
                 logger.info("Response received from Create pg transaction API {}", mapper.writeValueAsString(response));
                 return response;

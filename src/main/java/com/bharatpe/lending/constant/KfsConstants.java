@@ -74,4 +74,9 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_MUTHOOT = "Julia Mathew";
     String LENDER_CONTACT_EMAIL_MUTHOOT = "julia.mathew@muthoot.com";
     String LENDER_CONTACT_NUMBER_MUTHOOT = "0471-4911626";
+    String LENDER_CORPORATE_NAME_CAPRI = "Capri Global Capital Limited.";
+    String LENDER_BUSINESS_ADDRESS_CAPRI = "Reg Off : 502, Tower-A, Peninsula Business Park,Senapati Bapat Marg, Lower Parel, Mumbai-400 013";
+    String LENDER_CONTACT_NAME_CAPRI = "Mr. Satish Tryambak Shimpi";
+    String LENDER_CONTACT_EMAIL_CAPRI = "nodalofficer@capriglobal.in";
+    String LENDER_CONTACT_NUMBER_CAPRI = "022-40888161";
 }

@@ -250,6 +250,12 @@ public class PaymentService {
     @Autowired
     SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
+    @Value("${nbfc.usfb.foreclosure.topic:usfb-foreclose-loan}")
+    String nbfcUsfbForeclosureTopic;
+
+    @Value("${nbfc.capri.foreclosure.topic:capri-foreclose-loan}")
+    String nbfcCapriForeclosureTopic;
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -1211,7 +1217,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 postForeclosureReceiptPiramal(activeLoan,lendingLedger);
             }
-            else if (Arrays.asList("USFB").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger);
@@ -1318,17 +1324,24 @@ public class PaymentService {
             LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
             lendingCollectionAudit.setStatus("SUCCESS");
             lendingCollectionAuditDao.save(lendingCollectionAudit);
-            try {
-                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequest), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI);
-                logger.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
-
-            } catch (JsonProcessingException e) {
-                logger.error("exception occurred while posting foreclosure amt to nbfc svc for {}",nbfcRequest, e);
-            }
+            kafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
+            log.info("foreclosure event sent for application {} {}", activeLoan.getApplicationId(), nbfcRequest);
         } catch (Exception e){
             logger.error("Exception {} while posting the foreclosure receipt for application id {} {}",e.getMessage(),activeLoan.getApplicationId(), e);
         }
     }
+
+    private String getLenderForeclsoureReceiptTopic(String lender) {
+        switch (lender) {
+            case "USFB":
+                return nbfcUsfbForeclosureTopic;
+            case "CAPRI":
+                return nbfcCapriForeclosureTopic;
+            default:
+                return null;
+        }
+    }
+
 
     private boolean adjustAdvanceEdi(LendingPaymentSchedule activeLoan, double balance, boolean advanceEdi) {
         if (advanceEdi && balance > 0D) {
@@ -1968,7 +1981,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger);
             }
-            else if (Arrays.asList("USFB").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             }
         }

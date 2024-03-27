@@ -172,6 +172,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case "AADHAR_UPLOAD":
             case "SELFIE_UPLOAD":
             case "UPDATED_LEAD":
+            case "CREATE_CLIENT":
                 return true;
             default:
                 return false;
@@ -193,6 +194,9 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case MUTHOOT:
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(),
                         LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.KYC.name());
+            case CAPRI:
+                return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name(),
+                        LenderAssociationStages.SELFIE_UPLOAD.name());
             default:
                 return new ArrayList<>();
         }

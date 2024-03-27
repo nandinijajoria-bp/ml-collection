@@ -139,6 +139,7 @@ public class NbfcUtils {
             case USFB :
             case TRILLIONLOANS:
             case MUTHOOT:
+            case CAPRI:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:

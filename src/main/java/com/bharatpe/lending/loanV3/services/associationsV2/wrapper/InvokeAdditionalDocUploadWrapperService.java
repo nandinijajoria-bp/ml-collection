@@ -117,6 +117,8 @@ public class InvokeAdditionalDocUploadWrapperService {
                 return Collections.singletonList(DocType.LOAN_AGREEMENT);
             case "MUTHOOT":
                 return Collections.singletonList(DocType.KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED);
+            case "CAPRI":
+                return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
             default:
                 return new ArrayList<>();
         }
