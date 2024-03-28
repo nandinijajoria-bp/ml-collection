@@ -224,7 +224,7 @@ public class CapriCreateClientService {
         return CapriCreateClientRequestDTO.EmploymentDetailData.builder()
                 .currentEmployerName(lendingApplication.getBusinessName())
                 .monthlySalary(String.valueOf(lendingRiskVariablesSnapshot.getMonthlyIncome()))
-                .occupationType("Salaried")   // Need to verify with product
+                .occupationType("SENP")   // Need to verify with product
                 .employmentType("SELF")       // Need to verify with product
                 .build();
     }
