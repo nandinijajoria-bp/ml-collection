@@ -161,9 +161,12 @@ public class ENachService {
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
-
-        if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
-            return submitEnachForRenachMerchants(merchant, requestDTO,token);
+        LendingApplication lendingApplication =
+                lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
+        if(!ObjectUtils.isEmpty(lendingApplication) && "approved".equalsIgnoreCase(lendingApplication.getStatus())) {
+            if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
+                return submitEnachForRenachMerchants(merchant, requestDTO, token);
+            }
         }
 
         String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -176,8 +179,6 @@ public class ENachService {
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
-        LendingApplication lendingApplication =
-                lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
         if (bharatPeEnach == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Enach not initiated");
@@ -261,7 +262,7 @@ public class ENachService {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
             if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
-                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
+                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
                 } else {
                     LendingApplicationLenderDetails lendingApplicationLenderDetails =
