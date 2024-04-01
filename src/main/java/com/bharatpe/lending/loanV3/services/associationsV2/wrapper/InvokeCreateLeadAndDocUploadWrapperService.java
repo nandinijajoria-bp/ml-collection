@@ -119,7 +119,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
         lenderAssociationDetailsDto.setModifyLender(enableLenderChange);
         lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
-                .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lenderAssociationDetailsDto.getApplicationId(), Status.ACTIVE.name(), Lender.PIRAMAL.name());
+                .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lenderAssociationDetailsDto.getApplicationId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
         if (Objects.nonNull(lendingApplicationLenderDetails) && Objects.nonNull(lendingApplicationLenderDetails.getLeadId())) {
             log.info("lead creation already done for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
         }
@@ -180,10 +180,12 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     }
 
     public List<String> getStageToBeInvokedInOrder(Long applicationId) {
+        log.info("Getting stages to be invoked in createLead and docUpload for applicationId {}", applicationId);
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if (ObjectUtils.isEmpty(lendingApplication.get())) {
             return new ArrayList<>();
         }
+        log.info("Getting stages to be invoked in createLead and docUpload for applicationId {} with lender {}", lendingApplication.get().getId(), lendingApplication.get().getLender());
         switch (Lender.valueOf(lendingApplication.get().getLender())) {
             case USFB:  //TODO Add PAN in list if required
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(),

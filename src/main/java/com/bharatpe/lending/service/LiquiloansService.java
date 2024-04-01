@@ -1971,6 +1971,7 @@ public class LiquiloansService {
             lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
             lendingApplicationLenderDetails.setApplicationId(applicationId);
             lendingApplicationLenderDetails.setLender(lender.toUpperCase());
+            lendingApplicationLenderDetails.setStatus(com.bharatpe.lending.common.enums.Status.ACTIVE.name());
         }
 
         lendingApplicationLenderDetails.setUtrNo(utr);
