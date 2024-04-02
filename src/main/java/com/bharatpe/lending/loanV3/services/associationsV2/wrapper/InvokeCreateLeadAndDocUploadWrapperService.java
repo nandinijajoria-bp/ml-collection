@@ -55,7 +55,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     @Async("lenderPoolTaskExecutor")
     public void invokeCreateLeadAndDocUpload(Map<String, String> request, Map<String, Object> args) {
         try {
-            List<String> stagesToBeInvokedInOrder = getStageToBeInvokedInOrder(Long.parseLong(request.get("application_id")));
+            List<String> stagesToBeInvokedInOrder = new ArrayList<>();
             if (!ObjectUtils.isEmpty(args)) {
                 if (args.containsKey("stages")) {
                     stagesToBeInvokedInOrder = Arrays.stream(((String) args.get("stages")).split(",")).collect(Collectors.toList());
@@ -74,6 +74,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 return;
             }
             log.info("base checks ran for applicationId {} with lender {}", applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            stagesToBeInvokedInOrder = getStageToBeInvokedInOrder(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
             lenderAssociationDetailsRequestDto.setManageState(true);
             Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !invokeStage(lenderAssociationDetailsRequestDto, stage)).findFirst();
             if (failureStage.isPresent()) {
@@ -179,14 +180,12 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
         }
     }
 
-    public List<String> getStageToBeInvokedInOrder(Long applicationId) {
-        log.info("Getting stages to be invoked in createLead and docUpload for applicationId {}", applicationId);
-        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
-        if (ObjectUtils.isEmpty(lendingApplication.get())) {
-            return new ArrayList<>();
+    public List<String> getStageToBeInvokedInOrder(Long applicationId, String lender) {
+        log.info("Getting stages to be invoked in createLead and docUpload for applicationId  {} and lender {} ", applicationId, lender);
+        if (ObjectUtils.isEmpty(lender)) {
+            throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }
-        log.info("Getting stages to be invoked in createLead and docUpload for applicationId {} with lender {}", lendingApplication.get().getId(), lendingApplication.get().getLender());
-        switch (Lender.valueOf(lendingApplication.get().getLender())) {
+        switch (Lender.valueOf(lender)) {
             case USFB:  //TODO Add PAN in list if required
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(),
                         LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name());
@@ -200,7 +199,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name(),
                         LenderAssociationStages.SELFIE_UPLOAD.name());
             default:
-                return new ArrayList<>();
+                throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }
     }
 
