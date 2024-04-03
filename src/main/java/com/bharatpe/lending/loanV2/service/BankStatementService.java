@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.enums.BankStatementRejectReason;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -233,7 +234,7 @@ public class BankStatementService {
                 currentLimit = lendingRiskVariables.getFinalOffer();
             }
             String type = "BANK_STATEMENT".equalsIgnoreCase(bankStatementSessionDetails.getType()) ? bankStatementSessionDetails.getType() : "AA";
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(bankStatementSessionDetails.getMerchantId(), bankStatementSessionDetails.getOrderId(),type);
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(bankStatementSessionDetails.getMerchantId(), bankStatementSessionDetails.getOrderId(),type, EligibilityRequestSource.EASY_LOANS);
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getBankAffectedOffer() != null) {
                 if (globalLimitResponse.getData().getBankAffectedOffer()) {
                     if(globalLimitResponse.getData().getGlobalLimit() > currentLimit) {

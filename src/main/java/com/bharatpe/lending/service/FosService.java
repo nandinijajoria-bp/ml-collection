@@ -937,7 +937,7 @@ public class FosService {
     public String hasFinalOfferGtZero(Long merchantId) {
         try {
             GlobalLimitResponse globalLimitResponse=new GlobalLimitResponse();
-            globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, loanDashboardService.isClubV2Member(merchantId));
+            globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, loanDashboardService.isClubV2Member(merchantId),EligibilityRequestSource.FOS);
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
                 Double eligibleAmount = globalLimitResponse.getData().getGlobalLimit();

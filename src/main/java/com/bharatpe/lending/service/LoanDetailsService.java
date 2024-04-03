@@ -43,6 +43,7 @@ import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
@@ -819,7 +820,7 @@ public class LoanDetailsService {
 	private LoanEligibilityDTO getEligibilty(Long merchantId, Experian experian) throws Exception {
 		logger.info("Getting eligibility for merchant:{}", merchantId);
 		Double eligibleAmount = 0D;
-		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
 		if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 			logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
 			eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
@@ -1204,7 +1205,7 @@ public class LoanDetailsService {
 				}
 			}
 			Double eligibleAmount = 0D;
-			GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantBasicDetails.getId(), "CREDIT_SCORE");
+			GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantBasicDetails.getId(), "CREDIT_SCORE",EligibilityRequestSource.EASY_LOANS);
 			if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 				logger.info("Global limit for merchant:{} is {}", merchantBasicDetails.getId(), globalLimitResponse.getData().getGlobalLimit());
 				experian = globalLimitResponse.getData().getExperian();
