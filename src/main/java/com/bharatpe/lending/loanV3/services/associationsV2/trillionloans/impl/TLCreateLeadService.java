@@ -116,6 +116,7 @@ public class TLCreateLeadService {
                             .chargeId(2L)
                             .amount(String.format("%.2f", (lendingApplication.getProcessingFee() / lendingApplication.getLoanAmount()) * 100))
                             .build()))
+                    .externalId(lendingApplication.getExternalLoanId())
                     .build();
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())

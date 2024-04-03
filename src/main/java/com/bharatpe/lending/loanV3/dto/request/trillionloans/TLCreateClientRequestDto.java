@@ -26,6 +26,7 @@ public class TLCreateClientRequestDto {
         private String alternateMobileNo;
         private String email;
         private String education;
+        private String externalId;
     }
 
     private List<AddressDetails> addressDetails;
