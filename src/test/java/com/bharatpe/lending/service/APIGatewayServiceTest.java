@@ -32,7 +32,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@TestPropertySource(properties =  {"lendingGlobalAPICachingRolloutPercent=100"})
+@TestPropertySource(properties =  {"lendingGlobalAPICachingRolloutPercent=0"})
 @TestConfiguration
 public class APIGatewayServiceTest {
 
@@ -62,16 +62,12 @@ public class APIGatewayServiceTest {
     @BeforeEach
     public void setup() {
         MockitoAnnotations.initMocks(this);
+        lendingGlobalAPICachingRolloutPercent1 = 0;
     }
 
 
-    @Value("${lendingGlobalAPICachingRolloutPercent:100}")
+    @Value("${lendingGlobalAPICachingRolloutPercent:0}")
     private int lendingGlobalAPICachingRolloutPercent1;
-
-    @Before
-    public void setUp() {
-        lendingGlobalAPICachingRolloutPercent1 = 10;
-    }
 
 
     @Test
