@@ -1962,7 +1962,7 @@ public class LiquiloansService {
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
         // trim utr string length to 50
-        utr = utr.substring(0, Math.min(utr.length() - 1, 49));
+        utr = utr.substring(0, Math.min(utr.length(), 50));
 
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name(), lender);
 

@@ -69,6 +69,8 @@ public class InvokeAdditionalDocUploadWrapperService {
                             .build();
 
                     List<DocType> docs = isRetry ? getFailedDocList(lendingApplicationLenderDetails) : getDocList(lendingApplication.getLender());
+                    lendingApplicationLenderDetails.setFailedUpload(null);
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                     for (DocType docType : docs) {
                         try {
                             log.info("processing doc {} {}", lendingApplication.getId(), docType);
