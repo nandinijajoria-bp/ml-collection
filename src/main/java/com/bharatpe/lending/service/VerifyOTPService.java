@@ -229,6 +229,9 @@ public class VerifyOTPService {
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
+    @Value("${skip.update.lead.verify.otp.downgrade}")
+    boolean skipUpdateLeadVerifyOtpDowngrade;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -288,7 +291,7 @@ public class VerifyOTPService {
                 try{
                     lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchant);
                     if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                        if(lendingApplicationServiceV2.invokeUpdateLeadApi(lendingApplication)) {
+                        if(skipUpdateLeadVerifyOtpDowngrade || lendingApplicationServiceV2.invokeUpdateLeadApi(lendingApplication, false)) {
                             if (!invokeDocUploadApi(lendingApplication)) {
                                 return finalResponse;
                             }

@@ -1782,7 +1782,7 @@ public class LendingApplicationServiceV2 {
                 String tenure = lendingApplication.getTenure();
                 if(downGradeStatus && (loanAmountDifference > 0 || !tenure.equals(lendingApplication.getTenure()))){
                     if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
-                        if(!invokeUpdateLeadApi(lendingApplication)) {
+                        if(!invokeUpdateLeadApi(lendingApplication, true)) {
                             return new ApiResponse<>(false, "Downgrade initiation failed for lender "+lendingApplication.getLender());
                         }
                     }
@@ -1827,7 +1827,7 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false,"Something went wrong");
     }
 
-    public boolean invokeUpdateLeadApi(LendingApplication lendingApplication) {
+    public boolean invokeUpdateLeadApi(LendingApplication lendingApplication, boolean isDowngradeInitiateFlow) {
         log.info("Calling update lead api for applicationId: {} & merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
         LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
@@ -1873,12 +1873,14 @@ public class LendingApplicationServiceV2 {
         lenderAssociationDetailsRequestDto.setManageState(true);
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
-        log.info("Error response from update-lead api for applicationId: {}", lendingApplication.getId());
-        lendingApplication.setManualKyc("REJECTED");
-        lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
-        lendingApplication.setLmsStage("QC_REJECTED");
-        lendingApplication.setStatus("rejected");
-        lendingApplicationDao.save(lendingApplication);
+        if(isDowngradeInitiateFlow){
+            log.info("Error response from update-lead api for applicationId: {}", lendingApplication.getId());
+            lendingApplication.setManualKyc("REJECTED");
+            lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+            lendingApplication.setLmsStage("QC_REJECTED");
+            lendingApplication.setStatus("rejected");
+            lendingApplicationDao.save(lendingApplication);
+        }
         return false;
     }
 
