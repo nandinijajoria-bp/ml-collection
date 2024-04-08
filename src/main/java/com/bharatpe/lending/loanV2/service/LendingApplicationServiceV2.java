@@ -1878,6 +1878,13 @@ public class LendingApplicationServiceV2 {
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_FAILED.name());
         lenderAssociationDetailsRequestDto.setManageState(true);
         commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+
+        log.info("Error response from update-lead api for applicationId: {}", lendingApplication.getId());
+        lendingApplication.setManualKyc("REJECTED");
+        lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+        lendingApplication.setLmsStage("QC_REJECTED");
+        lendingApplication.setStatus("rejected");
+        lendingApplicationDao.save(lendingApplication);
         return false;
     }
 
