@@ -43,5 +43,6 @@ public class KfsDto {
     private String shopAddress;
     private Double monthlyIncome;
     private Double annualRoi;
+    private boolean foreclosureChargesRequired;
 
 }

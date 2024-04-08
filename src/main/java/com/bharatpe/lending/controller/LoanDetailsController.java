@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 import com.bharatpe.common.objects.CommonAPIRequest;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -304,5 +305,9 @@ Integer lendingEdiModel;
 			logger.error("Exception in settlement---", e);
 			return new ResponseEntity<>(new DocumentDetailsDto(false, "Something went wrong", null), HttpStatus.OK);
 		}
+	}
+	@RequestMapping(value="/foreclosure/tnc", method = RequestMethod.GET)
+	public  ResponseEntity<ForeClosureTncDTO> getForeClosureTnc(@RequestAttribute BasicDetailsDto merchant) {
+		return new ResponseEntity<>(loanDetailsService.getForeClosureTnc(merchant.getId()), HttpStatus.OK);
 	}
 }

@@ -21,7 +21,9 @@ import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
+import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -57,6 +59,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -64,6 +67,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
 import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
@@ -219,6 +223,8 @@ public class LoanDetailsService {
 
 	@Autowired
 	ExcessNachService excessNachService;
+	@Autowired
+	ForeClosureConfigDao foreClosureDao;
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -1523,5 +1529,37 @@ public class LoanDetailsService {
 		data.setNocUrl(nocUrl);
 		documentDetailsDto.setData(data);
 		return documentDetailsDto;
+	}
+
+	public ForeClosureTncDTO getForeClosureTnc(long merchantId) {
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+		if (activeLoan == null) {
+			logger.info("No active loan found for merchant id {}", merchantId);
+			return ForeClosureTncDTO.builder()
+					.foreClosureCharges(new ArrayList<>())
+					.build();
+		}
+		List<ForeClosureConfig> foreClosureConfigs = foreClosureDao.findByLender(activeLoan.getNbfc());
+		List<ForeClosureEntityDTO> foreClosureEntityDto = convertToForeClosureEntityDto(foreClosureConfigs);
+		return ForeClosureTncDTO.builder()
+				.foreClosureCharges(foreClosureEntityDto)
+				.build();
+
+	}
+
+	private List<ForeClosureEntityDTO> convertToForeClosureEntityDto(List<ForeClosureConfig> foreClosureConfigs) {
+		if (!CollectionUtils.isEmpty(foreClosureConfigs)) {
+			return foreClosureConfigs.stream()
+					.map(_foreClosure -> {
+						return ForeClosureEntityDTO.builder()
+								.rate(_foreClosure.getRate())
+								.durationFrom(_foreClosure.getDurationFrom())
+								.durationTo(_foreClosure.getDurationTo())
+								.minAmount(_foreClosure.getMinAmount())
+								.tenure(_foreClosure.getTenure())
+								.build();
+					}).collect(Collectors.toList());
+		}
+		return new ArrayList<>();
 	}
 }
