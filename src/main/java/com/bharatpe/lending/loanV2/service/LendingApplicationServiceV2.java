@@ -1866,7 +1866,7 @@ public class LendingApplicationServiceV2 {
                 retry++;
             }
         }catch (Exception e) {
-            log.info("Exception while calling updateLead api for applicationId: {}", lendingApplication.getId());
+            log.error("Exception while calling updateLead api for applicationId: {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsRequestDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_FAILED.name());
