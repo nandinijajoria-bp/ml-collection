@@ -1,24 +1,11 @@
 package com.bharatpe.lending.loanV2.service;
 
-import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.cache.DTO.AddCacheDto;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.cache.service.LendingCache;
+import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
-import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
-import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
-import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.common.service.merchant.constants.Constants;
-import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
-import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
-import com.bharatpe.lending.common.enums.EdiModel;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -26,39 +13,55 @@ import com.bharatpe.lending.common.dto.AddLeadRequestNimbusDto;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
+import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
+import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
+import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.KfsConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
+import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeRequestDto;
+import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeResponseDto;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
-import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
-import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
+import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.service.LenderMappingService;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
-import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -88,7 +91,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
@@ -283,6 +289,12 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     KycUtils kycUtils;
+    @Autowired
+    ILenderAPIGateway lenderAPIGateway;
+    @Autowired
+    CommonService commonService;
+    @Autowired
+    ObjectMapper objectMapper;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -1767,7 +1779,13 @@ public class LendingApplicationServiceV2 {
                 Double previousOferAmount = lendingApplication.getLoanAmount();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
-                if(downGradeStatus && loanAmountDifference > 0){
+                String tenure = lendingApplication.getTenure();
+                if(downGradeStatus && loanAmountDifference > 0 && !tenure.equals(lendingApplication.getTenure())){
+                    if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
+                        if(!invokeUpdateLeadApi(lendingApplication)) {
+                            return new ApiResponse<>(false, "error while updating loan for lender "+lendingApplication.getLender());
+                        }
+                    }
                     lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
                     lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
@@ -1807,6 +1825,71 @@ public class LendingApplicationServiceV2 {
         }
         loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
         return new ApiResponse<>(false,"Something went wrong");
+    }
+
+    public boolean invokeUpdateLeadApi(LendingApplication lendingApplication) {
+        log.info("Calling update lead api for applicationId: {} & merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+        LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
+        try {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                log.error("Lending application lender details not found for applicationId: {} & lender: {}", lendingApplication.getId(), lendingApplication.getLender());
+                return false;
+            }
+
+            if(lendingApplicationLenderDetails.getLeadStatus().equals(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_COMPLETED.name())) {
+                return true;
+            }
+
+            lenderAssociationDetailsRequestDto.setApplicationId(lendingApplication.getId());
+            lenderAssociationDetailsRequestDto.setManageState(true);
+            lenderAssociationDetailsRequestDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_PENDING.name());
+            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+
+            NBFCRequestDTO updateLeadRequestDto = getPayload(lendingApplicationLenderDetails, lendingApplication);
+            if (Objects.isNull(updateLeadRequestDto)) {
+                log.info("error in creating payload while invoking update-lead api of applicationId: {}", lendingApplication.getId());
+                return false;
+            }
+
+            int retry = 0;
+            while (retry < 3) {
+                NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(updateLeadRequestDto, LenderAssociationStages.UPDATE_LEAD);
+                log.info("update lead response from nbfc: {} with applicationId: {}", nbfcResponseDTO, lendingApplication.getId());
+                if (Objects.nonNull(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && Objects.nonNull(nbfcResponseDTO.getData())) {
+                    TLUpdateLeadDowngradeResponseDto tlUpdateLeadDowngradeResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLUpdateLeadDowngradeResponseDto.class);
+                    lendingApplicationLenderDetails.setLeadId(String.valueOf(tlUpdateLeadDowngradeResponseDto.getResourceId()));
+                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_COMPLETED.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                    return true;
+                }
+                retry++;
+            }
+        }catch (Exception e) {
+            log.info("Exception while calling updateLead api for applicationId: {}", lendingApplication.getId());
+        }
+        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_FAILED.name());
+        return false;
+    }
+
+    public NBFCRequestDTO getPayload(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication) {
+        try {
+            return NBFCRequestDTO.builder()
+                    .applicationId(lendingApplication.getId())
+                    .lender(lendingApplication.getLender())
+                    .productName("LENDING")
+                    .payload(TLUpdateLeadDowngradeRequestDto.builder()
+                            .leadId(lendingApplicationLenderDetails.getLeadId())
+                            .loanAmountRequested(String.valueOf(lendingApplication.getLoanAmount()))
+                            .tenure(lendingApplication.getPayableDays())
+                            .rateOfInterest(String.valueOf(lendingApplicationLenderDetails.getAnnualRoi()))
+                            .build())
+                    .build();
+        }catch (Exception e) {
+            log.info("Exception in getPayload for applicationId: {} {}", lendingApplication.getId(), e);
+        }
+        return null;
     }
 
     private void createLendingResubmitReasonCountRecord(LendingApplication lendingApplication, String resubmitReasons, Integer resubmitCount) {
