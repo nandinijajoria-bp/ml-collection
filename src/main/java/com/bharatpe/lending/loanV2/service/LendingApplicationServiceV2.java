@@ -1780,7 +1780,7 @@ public class LendingApplicationServiceV2 {
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
                 String tenure = lendingApplication.getTenure();
-                if(downGradeStatus && loanAmountDifference > 0 && !tenure.equals(lendingApplication.getTenure())){
+                if(downGradeStatus && (loanAmountDifference > 0 || !tenure.equals(lendingApplication.getTenure()))){
                     if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
                         if(!invokeUpdateLeadApi(lendingApplication)) {
                             return new ApiResponse<>(false, "error while updating loan for lender "+lendingApplication.getLender());
@@ -1830,13 +1830,12 @@ public class LendingApplicationServiceV2 {
     public boolean invokeUpdateLeadApi(LendingApplication lendingApplication) {
         log.info("Calling update lead api for applicationId: {} & merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
         LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+        if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.error("Lending application lender details not found for applicationId: {} & lender: {}", lendingApplication.getId(), lendingApplication.getLender());
+            return false;
+        }
         try {
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-            if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                log.error("Lending application lender details not found for applicationId: {} & lender: {}", lendingApplication.getId(), lendingApplication.getLender());
-                return false;
-            }
-
             if(lendingApplicationLenderDetails.getLeadStatus().equals(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_COMPLETED.name())) {
                 return true;
             }
@@ -1869,7 +1868,10 @@ public class LendingApplicationServiceV2 {
         }catch (Exception e) {
             log.info("Exception while calling updateLead api for applicationId: {}", lendingApplication.getId());
         }
+        lenderAssociationDetailsRequestDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_FAILED.name());
+        lenderAssociationDetailsRequestDto.setManageState(true);
+        commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
         return false;
     }
 
