@@ -1783,7 +1783,13 @@ public class LendingApplicationServiceV2 {
                 if(downGradeStatus && (loanAmountDifference > 0 || !tenure.equals(lendingApplication.getTenure()))){
                     if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
                         if(!invokeUpdateLeadApi(lendingApplication)) {
-                            return new ApiResponse<>(false, "error while updating loan for lender "+lendingApplication.getLender());
+                            log.info("Error response from update-lead api for applicationId: {}", lendingApplication.getId());
+                            lendingApplication.setManualKyc("REJECTED");
+                            lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+                            lendingApplication.setLmsStage("QC_REJECTED");
+                            lendingApplication.setStatus("rejected");
+                            lendingApplicationDao.save(lendingApplication);
+                            return new ApiResponse<>(false, "Downgrade initiation failed for lender "+lendingApplication.getLender());
                         }
                     }
                     lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
