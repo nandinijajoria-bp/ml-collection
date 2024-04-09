@@ -1822,7 +1822,7 @@ public class LendingApplicationServiceV2 {
             loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
             return new ApiResponse<>(true,"Application Submitted Successfully");
         }catch (DowngradeConfigNotFoundException e) {
-            log.info("Exception while downgrading application for applicationId:{} {}", resubmitApplicationDTO.getApplicationId(), e);
+            log.info("Exception while downgrading application for applicationId:{} {}", resubmitApplicationDTO.getApplicationId(), e.getMessage());
             return new ApiResponse<>(false, "Downgrade config not found");
         }catch (Exception e){
             log.error("Exception in resubmit application for application:{}, {}, {}", resubmitApplicationDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
