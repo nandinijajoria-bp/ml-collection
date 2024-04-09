@@ -2026,7 +2026,9 @@ public class LendingApplicationServiceV2 {
             }
 
             return amount;
-        } catch (Exception e) {
+        } catch (DowngradeConfigNotFoundException e){
+            throw e;
+        }catch (Exception e) {
             log.error("exception while downgrade loan amount according to config for applicationId: {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return loanAmount;
