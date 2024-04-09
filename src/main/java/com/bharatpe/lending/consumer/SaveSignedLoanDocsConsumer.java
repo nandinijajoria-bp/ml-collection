@@ -33,7 +33,10 @@ public class SaveSignedLoanDocsConsumer {
     @Autowired
     LendingKfsDao lendingKfsDao;
 
-    @KafkaListener(topics = "save_signed_loan_docs", autoStartup ="${sign_loan_docs.consumer.enabled:false}")
+    @KafkaListener(
+            topics = "save_signed_loan_docs",
+            autoStartup ="${sign_loan_docs.consumer.enabled:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void saveSignedLoanDocs(String data) {
         log.info("saving loan docs : {}", data);
         Long applicationId = null;
