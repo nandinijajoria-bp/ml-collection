@@ -366,16 +366,17 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("No active loan found.");
             }
             Integer amount = request.getPayload().getAmount();
+            double penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
             if(amount < 1 ) {
                 logger.info("Amount is less than 1 for merchant id {}", merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("Amount is less than 1");
             }
             String paymentType = request.getPayload().getPaymentType();
-            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > (activeLoan.getDueAmount().intValue() + penaltyFee)) {
                 logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
             }
-            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > (activeLoan.getDueAmount().intValue() + penaltyFee)) {
                 logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No dues left.");
             }
@@ -1245,8 +1246,8 @@ public class PaymentService {
                 paidPrincipalAmount += principle;
                 paidInterestAmount += interest;
 
-                if (amount > (paidPrincipalAmount + paidInterestAmount)) {
-                    double remainingAmount = amount - (paidPrincipalAmount + paidInterestAmount);
+                if (amount > (paidPrincipalAmount + paidInterestAmount + penaltyFee)) {
+                    double remainingAmount = amount - (paidPrincipalAmount + paidInterestAmount + penaltyFee);
                     logger.info("Balance remaining:{} for loan:{} after adjustment, adjusting this in principle", remainingAmount, activeLoan.getId());
                     principle += remainingAmount;
                     paidPrincipalAmount += remainingAmount;
