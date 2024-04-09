@@ -1777,10 +1777,10 @@ public class LendingApplicationServiceV2 {
 
             } else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
+                Integer previousTenureInMonths = lendingApplication.getTenureInMonths();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
-                String tenure = lendingApplication.getTenure();
-                if(downGradeStatus && (loanAmountDifference > 0 || !tenure.equals(lendingApplication.getTenure()))){
+                if(downGradeStatus && (loanAmountDifference > 0 || !Objects.equals(previousTenureInMonths, lendingApplication.getTenureInMonths()))){
                     if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
                         if(!invokeUpdateLeadApi(lendingApplication, true)) {
                             return new ApiResponse<>(false, "Downgrade initiation failed for lender "+lendingApplication.getLender());
