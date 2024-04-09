@@ -291,11 +291,13 @@ public class VerifyOTPService {
                 try{
                     lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchant);
                     if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                        if(skipUpdateLeadVerifyOtpDowngrade || lendingApplicationServiceV2.invokeUpdateLeadApi(lendingApplication, false)) {
-                            if (!invokeDocUploadApi(lendingApplication)) {
+                        if(!skipUpdateLeadVerifyOtpDowngrade){
+                            if(!lendingApplicationServiceV2.invokeUpdateLeadApi(lendingApplication, false)){
+                                logger.info("Update lead failed on downgrade completion for {}", lendingApplication.getId());
                                 return finalResponse;
                             }
-                        }else {
+                        }
+                        if (!invokeDocUploadApi(lendingApplication)) {
                             return finalResponse;
                         }
                     }
