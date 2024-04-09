@@ -35,6 +35,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.exceptions.DowngradeConfigNotFoundException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -1820,6 +1821,9 @@ public class LendingApplicationServiceV2 {
 
             loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
             return new ApiResponse<>(true,"Application Submitted Successfully");
+        }catch (DowngradeConfigNotFoundException e) {
+            log.info("Exception while downgrading application for applicationId:{} {}", resubmitApplicationDTO.getApplicationId(), e);
+            return new ApiResponse<>(false, "Downgrade config not found");
         }catch (Exception e){
             log.error("Exception in resubmit application for application:{}, {}, {}", resubmitApplicationDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
@@ -1973,7 +1977,9 @@ public class LendingApplicationServiceV2 {
             executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT", amountDiffrence));
 
             return true;
-        }catch (Exception e){
+        }catch (DowngradeConfigNotFoundException e) {
+            throw e;
+        }catch(Exception e){
             log.error("Exception while downgrading application for applicationId:{}",lendingApplication.getId(),e);
         }
         return false;
@@ -1992,12 +1998,15 @@ public class LendingApplicationServiceV2 {
                         lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.getTenureInMonths());
                 return loanAmount;
             }
-            LoanDowngradeConfigEntity loanDowngradeConfigEntity = loanDowngradeConfigEntities.get(0);
+            LoanDowngradeConfigEntity loanDowngradeConfigEntity = null;
             for (LoanDowngradeConfigEntity loanDowngradeConfig: loanDowngradeConfigEntities) {
                 if (loanDowngradeConfig.getTenure() <= lendingApplication.getTenureInMonths()) {
                     loanDowngradeConfigEntity = loanDowngradeConfig;
                     break;
                 }
+            }
+            if(ObjectUtils.isEmpty(loanDowngradeConfigEntity)) {
+                throw new DowngradeConfigNotFoundException("Downgrade config not found");
             }
             log.info("downgrade config entity used for downgrade: {} for application: {}", loanDowngradeConfigEntity, lendingApplication.getId());
             Double maxLimit = shopType.equalsIgnoreCase("movable") ? loanDowngradeConfigEntity.getMaxLimitMov() : loanDowngradeConfigEntity.getMaxLimitTemp();
