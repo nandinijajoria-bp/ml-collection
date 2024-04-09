@@ -233,6 +233,12 @@ public class SupportService {
 	@Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
+    @Value(("${bankstatement.enabled:false}"))
+    boolean bankStatementEnabled;
+
+    @Value("${account-aggregator.rollout.percent:10}")
+    Integer accountAggregatorRolloutPercent;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -2486,6 +2492,17 @@ public class SupportService {
 
     public UpgradeLoanOfferEligibilityDTO checkBankStatementAndAccountAggregatorSessionEligibility(Long merchantId, UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO) {
         logger.info("Checking bankStatement and accountAggregator session eligibility for merchantId : {}", merchantId);
+        if(!bankStatementEnabled) {
+            logger.info("BankStatement upload feature not enabled for merchant : {}",merchantId);
+            upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+        }
+        if (!easyLoanUtil.percentScaleUp(merchantId, accountAggregatorRolloutPercent)) {
+            logger.info("merchant {} is not eligible for Account aggregator feature with rollout percentage: {}",merchantId, accountAggregatorRolloutPercent);
+            upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+        }
+        if(!upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility() && !upgradeLoanOfferEligibilityDTO.getBankStatementEligibility()) {
+            return upgradeLoanOfferEligibilityDTO;
+        }
         Pageable pageable = PageRequest.of(0, 2, Sort.by("Id").descending());
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
