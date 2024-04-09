@@ -2031,19 +2031,30 @@ public class LoanUtil {
 	}
 
     public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
-        try {
-            PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
-            double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
-            double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
-            penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-            penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
-            penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
-            penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
-            penalChargesDao.save(penalCharge);
-        } catch (Exception e) {
-            logger.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
-        }
+		try {
+			PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
+			if (ObjectUtils.isEmpty(penalCharge)) {
+				return;
+			}
+			double nachBounceAdjusted = 0;
+			double netPenaltyAdjusted = 0;
+			if (Objects.nonNull(penalCharge.getDueNachBounce())) {
+				nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
+				netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
+				double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
+				penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
+				penalCharge.setPaidNachBounce(paidNachBounce);
+			}
 
+			if (Objects.nonNull(penalCharge.getDuePenalty())) {
+				double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
+				penalCharge.setPaidPenalty(paidPenalty);
+				penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+			}
+			penalChargesDao.save(penalCharge);
+		} catch (Exception e) {
+			logger.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
+		}
     }
 
 	public boolean checkIfForeClosureChargesApplicable(Date loanCreatedAt, String lender)  {
