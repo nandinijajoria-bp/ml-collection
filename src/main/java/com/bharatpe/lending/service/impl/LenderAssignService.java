@@ -180,6 +180,7 @@ public class LenderAssignService implements ILenderAssignService {
         String riskGroupLike = null;
         String pincodeColor = null;
         Boolean isGstOffer = null;
+        Double summaryTpv = 0D;
         Long vintage = 0L;
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
@@ -188,6 +189,7 @@ public class LenderAssignService implements ILenderAssignService {
             pincodeColor = Objects.nonNull(lendingRiskVariables.getPincodeColor()) ? "%"+lendingRiskVariables.getPincodeColor().name() + "%" : "";
             isGstOffer = Objects.nonNull(lendingRiskVariables.getGstAffectedOffer())? lendingRiskVariables.getGstAffectedOffer() : Boolean.FALSE;
             vintage = Objects.nonNull(lendingRiskVariables.getVintage())? lendingRiskVariables.getVintage() : 0L;
+            summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
@@ -230,6 +232,10 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
                                 log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
+                                iterator.remove();
+                            }
+                            if (Lender.CAPRI.name().equalsIgnoreCase(lender) && summaryTpv < application.getEdi()) {
+                                log.info("skipping capri {} due to merchant edi is greater than summaryTpv {}", lender, application.getId());
                                 iterator.remove();
                             }
                             if (additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)) {
@@ -695,6 +701,12 @@ public class LenderAssignService implements ILenderAssignService {
                     log.info("Can't assign PIRAMAL as vintage {} is less than threshold vintage {}",vintage,thresholdVintage);
                     continue;
                 }
+
+                if (Lender.CAPRI.name().equalsIgnoreCase(lender) && age > 65) {
+                    log.info("Can't assign CAPRI as age is greater than 65 years {} for merchant id {}", age, merchantId);
+                    continue;
+                }
+
                 log.info("adding {} to the eligible list for merchantId: {}", lender, merchantId);
                 if(Lender.PIRAMAL.name().equalsIgnoreCase(lender) && !loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, piramalRolloutPercentage)) {
                     log.info("removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
