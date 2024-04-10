@@ -755,23 +755,28 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> application = lendingApplicationDao.findById(applicationId);
         if(application.isPresent()){
             log.info("Modifying lender for application:{}", application.get().getId());
-            List<LendingAuditTrial> auditLenderList = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndType(application.get().getId(),
-                    application.get().getMerchantId(), "OFFER_MODIFIED_LENDER_CHANGE");
-            if(auditLenderList.size() > 2 ){
-                log.info("Lender already changed twice for application: {}", application.get().getId());
-                EdiModel ediModel = LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel();
-//                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
+            String eligibleLenders = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndTypeOrderByIdDesc(application.get().getId(),
+                    application.get().getMerchantId(), "ELIGIBLE_LENDER");
+            List<String> initialEligibleLenders = ObjectUtils.isEmpty(eligibleLenders) ? new ArrayList<>() : Arrays.asList(eligibleLenders.split(","));
+            log.info("Initial eligible lenders for applicationId : {} {}", application.get().getId(), initialEligibleLenders);
+            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
+            log.info("Already assigned lenders for applicationId : {} {}", application.get().getId(), alreadyAssignedLender);
+            List<String> availableLenders = initialEligibleLenders.stream().filter(lender -> !alreadyAssignedLender.contains(lender)).collect(Collectors.toCollection(ArrayList::new));
+            if(availableLenders.size() > 0) {
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-                if (!ediDetails.getEdiModel().equals(ediModel.name())) {
-                    modifyEdiModel(application.get(), ediModel);
+                String decidedLender = getLender(application.get(), availableLenders, EdiModel.valueOf(ediDetails.getEdiModel()), false, null);
+                if(!ObjectUtils.isEmpty(decidedLender)) {
+                    log.info("assigning lender {} from available lenders {} for applicationId {} with old lender {}", decidedLender, availableLenders, applicationId, application.get().getLender());
+                    EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
+                    String oldLender = application.get().getLender();
+                    application.get().setLender(decidedLender);
+                    lendingApplicationDao.save(application.get());
+                    updateOfferDetailsInApplication(application.get(), ediModel, oldLender);
+                    return Lender.valueOf(decidedLender);
                 }
-                String oldLender = application.get().getLender();
-                application.get().setLender(Lender.LIQUILOANS_P2P.name());
-                updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
-                lendingApplicationDao.save(application.get());
-                return Lender.LIQUILOANS_P2P;
             }
-            if(Arrays.asList(Lender.PIRAMAL.name(), Lender.ABFL.name(), TRILLIONLOANS.name(), MUTHOOT.name(), Lender.CAPRI.name()).contains(application.get().getLender())) {
+            LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+            if(!ObjectUtils.isEmpty(fallbackLender) && !alreadyAssignedLender.contains(fallbackLender.getLender())){
                 log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
@@ -781,10 +786,10 @@ public class LenderAssignService implements ILenderAssignService {
                 lendingApplicationDao.save(application.get());
                 updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 return Lender.valueOf(newLender);
+            } else {
+                log.info("Fallback lender already assigned for applicationId : {}", application.get().getId());
+                return null;
             }
-            EdiModel ediModel = LenderOffDays.valueOf(application.get().getLender()).getEdiModel();
-            assignLender(application.get(), ediModel, null);
-            return Lender.valueOf(application.get().getLender());
         }
         log.info("Application with id:{} not found.", applicationId);
         return null;
