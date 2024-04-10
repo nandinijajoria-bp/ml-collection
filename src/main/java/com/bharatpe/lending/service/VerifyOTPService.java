@@ -197,6 +197,7 @@ public class VerifyOTPService {
     @Autowired
     FunnelService funnelService;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 

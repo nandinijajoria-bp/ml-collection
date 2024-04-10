@@ -244,6 +244,7 @@ public class LendingApplicationServiceV2 {
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 
