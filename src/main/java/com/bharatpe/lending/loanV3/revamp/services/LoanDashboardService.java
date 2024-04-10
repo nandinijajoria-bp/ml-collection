@@ -408,6 +408,7 @@ public class LoanDashboardService {
         }*/
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
+        log.info("loan dashboard response : {} for applicationId : {}",loanDashboardResponse,loanDashboardResponse.getLoanApplication().getApplicationId());
         return loanDashboardResponse;
     }
 
