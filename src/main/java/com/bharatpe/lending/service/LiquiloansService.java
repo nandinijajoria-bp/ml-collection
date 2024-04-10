@@ -54,6 +54,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
@@ -141,6 +142,10 @@ public class LiquiloansService {
 
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 //    @Autowired
 //    CreditApplicationDao creditApplicationDao;
@@ -1074,7 +1079,7 @@ public class LiquiloansService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic create_gst_invoice");
         } catch (Exception e) {
             logger.error("Exception while pushing to topic create_gst_invoice for application:{}", lendingApplication.getId(), e);
@@ -1962,7 +1967,7 @@ public class LiquiloansService {
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
         // trim utr string length to 50
-        utr = utr.substring(0, Math.min(utr.length() - 1, 49));
+        utr = utr.substring(0, Math.min(utr.length(), 50));
 
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name(), lender);
 

@@ -59,6 +59,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -130,6 +131,10 @@ public class VerifyOTPService {
 
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Autowired
     EnachHandler enachHandler;
@@ -607,7 +612,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            kafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic find_lat_long");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic find_lat_long", e);
