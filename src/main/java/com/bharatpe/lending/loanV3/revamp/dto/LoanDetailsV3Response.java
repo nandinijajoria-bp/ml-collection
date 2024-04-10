@@ -282,7 +282,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
         loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
         loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
-        loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
+        loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
     }
 
     private static void setPanPinResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
