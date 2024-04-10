@@ -31,10 +31,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MileStoneDao;
-import com.bharatpe.lending.dto.DEPinCode;
-import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.KycDoc;
-import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
@@ -810,6 +807,8 @@ public class LoanDashboardService {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 isDerog.setValue(globalLimitResponse.getData().isDerog());
+                loanDashboardResponse.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
+                loanDashboardResponse.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
             }
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
