@@ -42,6 +42,7 @@ public class BreApiRequestDto {
          String middleName;
          String lastName;
          String mobile;
+         String email;
          String panNumber;
          String gender;
          String dob;
