@@ -92,7 +92,7 @@ public class InvokeAdditionalDocUploadWrapperService {
                             LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name() : LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
 
                     // For callback handling of doc upload in case of Muthoot
-                    if(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    if(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload())) {
                         lendingApplicationLenderDetails.setDocUploadStatus(LenderAssociationStatus.DOC_UPLOAD_IN_PROGRESS.name());
                     }
                     if (LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name().equals(lendingApplicationLenderDetails.getDocUploadStatus())) {

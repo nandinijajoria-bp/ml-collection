@@ -28,7 +28,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -165,6 +164,9 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Value("${max.eligible.lenders.for.modify:2}")
+    Integer maxEligibleLendersCountForModify;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -762,7 +764,8 @@ public class LenderAssignService implements ILenderAssignService {
             List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
             log.info("Already assigned lenders for applicationId : {} {}", application.get().getId(), alreadyAssignedLender);
             List<String> availableLenders = initialEligibleLenders.stream().filter(lender -> !alreadyAssignedLender.contains(lender)).collect(Collectors.toCollection(ArrayList::new));
-            if(availableLenders.size() > 0) {
+            log.info("Available lenders {} from initial eligible lenders for applicationId : {} ", availableLenders, application.get().getId());
+            if(availableLenders.size() > 0 && alreadyAssignedLender.size() < maxEligibleLendersCountForModify) {
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 String decidedLender = getLender(application.get(), availableLenders, EdiModel.valueOf(ediDetails.getEdiModel()), false, null);
                 if(!ObjectUtils.isEmpty(decidedLender)) {
