@@ -835,6 +835,8 @@ public class FosService {
 //                    return computeEligibilityParams("ineligible", null, merchantId, "red pin zone");
 //                }
 //            }
+
+            logger.info("Fos checkMerchantEligibilty for merchantId : {}", merchantId);
             Experian experian = experianDao.getByMerchantId(merchantId);
             if (Objects.nonNull(experian)) {
                 // blocked pan card
@@ -1037,14 +1039,15 @@ public class FosService {
     public ResponseDTO getFosTaskStatus(Long merchantId, Long taskTimestampEpoch, Long refCode, Integer timeWindow) {
         ResponseDTO responseDTO = new ResponseDTO();
         FosTaskStatusDto fosTaskStatusDto = new FosTaskStatusDto();
+        logger.info("getFosTaskStatus for merchantId : {} taskTimestampEpoch : {} refCode : {} timeWindow : {}", merchantId, taskTimestampEpoch, refCode, timeWindow);
         try {
             Date taskStartTimestamp = dateTimeUtil.getDatePlusMinutes(new Date(taskTimestampEpoch * 1000), -1 * timeWindow);
-            logger.info("task status timestamp: {}", taskStartTimestamp);
+            logger.info("taskStartTimestamp: {} for merchantId : {} ", taskStartTimestamp, merchantId);
             Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
 //            Merchant merchant = merchantDao.getById(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
             if(ObjectUtils.isEmpty(lendingApplication)){
-                logger.info("application not found");
+                logger.info("application not found for merchantId : {}", merchantId);
                 fosTaskStatusDto.setMessage("application not found");
                 responseDTO.setSuccess(Boolean.TRUE);
                 responseDTO.setData(fosTaskStatusDto);
@@ -1052,7 +1055,7 @@ public class FosService {
             }
             Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
             if (ObjectUtils.isEmpty(basicDetailsDto)) {
-                logger.info("invalid merchant ID");
+                logger.info("invalid merchant ID for merchantId : {}", merchantId);
                 fosTaskStatusDto.setMessage("merchant doesn't exist");
                 responseDTO.setData(fosTaskStatusDto);
                 responseDTO.setSuccess(Boolean.TRUE);
@@ -1064,7 +1067,8 @@ public class FosService {
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
                                     lendingApplication.getAgreementAt().after(taskEndTimeStamp))
                                     && (ObjectUtils.isEmpty(bpEnach) || bpEnach.getUpdatedAt().before(taskStartTimestamp) || bpEnach.getUpdatedAt().after(taskEndTimeStamp))
-                            ))) {
+                            ))
+            ) {
                 fosTaskStatusDto.setStatus("INCOMPLETE");
                 fosTaskStatusDto.setStage(ApplicationStage.NOT_STARTED.getStage());
                 fosTaskStatusDto.setMessage("no application found against this task");
@@ -1082,14 +1086,14 @@ public class FosService {
                     fosTaskStatusDto.setMessage("Nach pending for the application");
                     logger.info("nach pending for merchant {}", merchantId);
                 }
-                logger.info("agreement done for merchant {}", lendingApplication.getMerchantId());
+                logger.info("agreement done for merchant {} and applicationId : {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
                 if(ObjectUtils.isEmpty(lendingApplicationDetails)){
                     lendingApplicationDetails = new LendingApplicationDetails();
                     lendingApplicationDetails.setApplicationId(lendingApplication.getId());
                 }
                 lendingApplicationDetails.setCpvReferralCode(String.valueOf(refCode));
-                logger.info("updated lending_application_details -> {}", lendingApplicationDetails.getCpvReferralCode());
+                logger.info("updated lending_application_details -> {} for merchantId : {}", lendingApplicationDetails.getCpvReferralCode(), merchantId);
                 lendingApplicationDetailsDao.save(lendingApplicationDetails);
                 saveRefCodeAudit(lendingApplicationDetails, String.valueOf(refCode), lendingApplication, "LOAN_TASK");
                 populateApplicationStage(lendingApplication, fosTaskStatusDto);
@@ -1206,6 +1210,8 @@ public class FosService {
     }
 
     public ResponseDTO nachTaskSuccess(Map<String, Object> request){
+
+        logger.info("nachTaskSuccess request : {}", request);
 
         Long merchantId = Long.valueOf(request.containsKey("merchant_id") ? request.get("merchant_id").toString() : "0");
         Long visitTimestamp = Long.valueOf(request.containsKey("visit_timestamp") ? request.get("visit_timestamp").toString() : "0");

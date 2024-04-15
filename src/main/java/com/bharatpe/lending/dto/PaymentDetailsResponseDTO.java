@@ -80,6 +80,10 @@ public class PaymentDetailsResponseDTO {
 
 		private Integer penaltyFee;
 
+		private Double foreClosureAmount;
+
+        private ForeClosureDetailDTO foreClosureDetail;
+
 		public Data() {
 			
 		}

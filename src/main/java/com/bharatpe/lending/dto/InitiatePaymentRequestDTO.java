@@ -3,13 +3,18 @@ package com.bharatpe.lending.dto;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class InitiatePaymentRequestDTO {
 
 	private Integer amount;
@@ -18,6 +23,8 @@ public class InitiatePaymentRequestDTO {
 	private CreditConstants.PaymentMode type;
 	private CreditConstants.PaymentSource source;
 	private Integer advanceEdiCount;
+	private ForeClosureDetailDTO foreClosureDetail;
+
 
 	public Integer getAmount() {
 		return amount;

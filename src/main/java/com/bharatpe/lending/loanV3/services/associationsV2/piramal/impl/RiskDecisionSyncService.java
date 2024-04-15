@@ -59,7 +59,7 @@ public class RiskDecisionSyncService {
                 if(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt() < lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount()) {
                     log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
                             lenderAssociationDetailsRequestDto.getLendingApplication().getId(),lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt(), lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount());
-                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_COMPLETED);
+                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
                     return false;
                 }
 

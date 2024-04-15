@@ -102,7 +102,7 @@ public class CapriBreService {
             throw new RuntimeException("lending risk variable snapshot not found for capri application " + lendingApplication.getId());
         }
         try {
-            Double sixtyDaysTpv = ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? 0D : lendingRiskVariablesSnapshot.getMonthlyTpv() * 2;
+            Double sixtyDaysTpv = ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getSummaryTpv()) ? 0D : lendingRiskVariablesSnapshot.getSummaryTpv() * 60;
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
