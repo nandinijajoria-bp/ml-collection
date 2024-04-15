@@ -2112,7 +2112,7 @@ public class LoanUtil {
 				foreClosureDetailDTO.setPrincipalOutstanding(data.getPrincipalDueAmount());
 				Double minAmount = foreClosureConfig.getMinAmount();
 				if(minAmount == null) minAmount = 0.0;
-				foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( (activeLoan.getDuePrinciple()) * foreClosureConfig.getRate())/100.0) , minAmount));
+				foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) * foreClosureConfig.getRate())/100.0) , minAmount));
 				foreClosureDetailDTO.setGst(Math.ceil((foreClosureDetailDTO.getForeclosureCharges() * foreClosureConfig.getGst())/100.0));
 				logger.info("going to return fore closure charges {} ",foreClosureDetailDTO);
 				return foreClosureDetailDTO;
