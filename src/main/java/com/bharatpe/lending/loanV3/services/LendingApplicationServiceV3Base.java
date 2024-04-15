@@ -61,6 +61,15 @@ public abstract class LendingApplicationServiceV3Base {
     public ApiResponse<?> fetchApplicationStatus(Long merchantId) {
         LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
+            LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
+            if(!ObjectUtils.isEmpty(currentRejectApplication)) {
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(LenderAssociationStatus.LENDER_ASSOCIATION_FAILED)
+                        .stage(LenderAssociationStages.FAILED)
+                        .ediModelModified(false)
+                        .lender(currentRejectApplication.getLender())
+                        .build());
+            }
             return new ApiResponse<>(false,"open draft lending application not found");
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());

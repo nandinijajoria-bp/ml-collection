@@ -87,7 +87,7 @@ public class RiskDecisionAsyncService {
                 if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.getLoanAmount()) {
                     log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
                             lendingApplication.getId(),lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt(), lendingApplication.getLoanAmount());
-                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_COMPLETED);
+                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
                     return;
                 }
 

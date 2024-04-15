@@ -136,7 +136,7 @@ public class PiramalGetLoanResponseDto {
 
         private Long disbursementId;
 
-        private Long utr;
+        private String utr;
 
     }
 
