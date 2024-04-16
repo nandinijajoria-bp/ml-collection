@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
@@ -29,7 +31,6 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -63,6 +64,8 @@ public class TLDocUploadService {
 
     @Autowired
     ObjectMapper objectMapper;
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
@@ -197,9 +200,11 @@ public class TLDocUploadService {
             case "SELFIE":
                 return cKycResponseDto.getSelfieString();
             case "KEY_FACT_STATEMENT":
+            case "KEY_FACT_STATEMENT_NEW":
                 key = lendingKfs.getKfsDocFile();
                 break;
             case "LOAN_AGREEMENT":
+            case "LOAN_AGREEMENT_NEW":
                 key = lendingKfs.getSanctionLoanAgreementDocFile();
                 break;
             default:
@@ -240,7 +245,11 @@ public class TLDocUploadService {
                 throw new RuntimeException("Unable to fetch lending kfs and loan agreement documents for application " + applicationId);
             }
 
-            List<DocType> documentList = Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+            List<DocType> documentList = (lendingResubmitTask != null && lendingResubmitTask.getDowngrade() != null && lendingResubmitTask.getDowngrade() && lendingResubmitTask.getDowngradeDone() != null && !lendingResubmitTask.getDowngradeDone()) ?
+                    Arrays.asList(DocType.KEY_FACT_STATEMENT_NEW, DocType.LOAN_AGREEMENT_NEW) :
+                    Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
+
             TLDocUploadRequestDto docUploadRequest = TLDocUploadRequestDto.builder()
                     .name(getDocumentName(docName))
                     .clientId(lendingApplicationLenderDetails.getCccId())

@@ -113,7 +113,7 @@ public class InvokeAdditionalDocUploadWrapperService {
         }
     }
 
-    private List<DocType> getDocList(String lender) {
+    public List<DocType> getDocList(String lender) {
         switch (lender) {
             case "USFB":
                 return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
