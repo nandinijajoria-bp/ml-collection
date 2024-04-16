@@ -34,7 +34,7 @@ jobs:
           maxsplit: 1
 
       - name: Action PR title
-        if: ${{ steps.extract_branch.outputs.branch != 'release' }}
+        if: ${{ (steps.split.outputs._0 == 'feature') || (steps.split.outputs._0 == 'hotfix') }}
         uses: deepakputhraya/action-pr-title@master
         with:
           regex: '\w+\-\w+\-\d+' # Regex the title should match.
@@ -59,7 +59,7 @@ jobs:
             fi
           elif [[ "${{ steps.base_branch.outputs.branch }}" == release ]]
           then
-            if [ ${{ steps.split.outputs._0 }} == 'feature' ]
+            if [ ${{ steps.split.outputs._0 }} == 'feature' ] || [ ${{ steps.split.outputs._0 }} == "${{ github.event.repository.default_branch }}" ] 
             then
               echo "This pull request targets the Release branching strategy."
             else
@@ -71,7 +71,7 @@ jobs:
             exit 1
           fi
       - name: Verify JIRA ID on JIRA Board
-        if: ${{ steps.extract_branch.outputs.branch != 'release' }}
+        if: ${{ (steps.split.outputs._0 == 'feature') || (steps.split.outputs._0 == 'hotfix') }} 
         id: verify-jira-id
         run: |
           jira_id="${{ steps.split.outputs._1 }}"
@@ -89,8 +89,7 @@ jobs:
           commit_messagesTrim=$(echo "$commit_messages" | head -c 500)
           git config --global user.email "deployer@bharatpe.com"
           git config --global user.name "deployerbharatpe"
-          pattern="^v[0-9]+\.[0-9]+\.[0-9]+$"
-          if [ -z $current_version ] || [ $current_version != $pattern ]
+          if [ -z $current_version ]
           then
             echo "This Repo Has Not Been Tagged Yet Starting Tagging The Following Repo"
             git tag -a v0.1.0 -m "$commit_messagesTrim"
