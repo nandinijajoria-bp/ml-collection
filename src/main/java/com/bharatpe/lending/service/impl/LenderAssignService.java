@@ -255,28 +255,16 @@ public class LenderAssignService implements ILenderAssignService {
                 }
             }
             if (ObjectUtils.isEmpty(lenders)) {
-                /*
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
-                if (!ObjectUtils.isEmpty(lendingLenderQuota)) {
+                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
-                            lendingLenderQuota.getLender(), application.getId(), lenders);
+                            lendingLenderQuota.getLender() , application.getId(), lenders);
                     try {
                         saveEligibleLenderAudit(application, lendingLenderQuota.getLender(), CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
                     } catch (Exception exception) {
                         log.info("exception while logging the lender assignment details", exception);
                     }
                     lenders.add(lendingLenderQuota.getLender());
-                }
-                */
-                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingWildcardLenderName)) {
-                    log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
-                            lendingWildcardLenderName , application.getId(), lenders);
-                    try {
-                        saveEligibleLenderAudit(application, lendingWildcardLenderName, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
-                    } catch (Exception exception) {
-                        log.info("exception while logging the lender assignment details", exception);
-                    }
-                    lenders.add(lendingWildcardLenderName);
                 }
             }
             decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
