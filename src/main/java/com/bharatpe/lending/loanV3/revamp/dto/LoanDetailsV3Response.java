@@ -74,7 +74,7 @@ public class LoanDetailsV3Response {
     private String kycDeeplink;
     private Boolean isSelfieResumit;
     private Boolean isPreapprovedRepeatLoan;
-    private Boolean offerIncreased;
+    private String offerIncreased;
     private Double previousFinalOffer;
 
 

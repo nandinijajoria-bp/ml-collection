@@ -45,7 +45,7 @@ public class GlobalLimitResponse {
         Boolean gst3bAffectedOffer;
         private Boolean preApprovedLoan;
         private Double previousFinalOffer;
-        private Boolean offerIncreased;
+        private String offerIncreased;
 
     }
 
