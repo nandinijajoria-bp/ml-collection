@@ -726,6 +726,11 @@ public class SignAgreementService {
 			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
 		} else if("ABFL".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
 			previousAmount = loanUtil.getForeClosureAmountForABFL(prevLendingSchedule);
+			if(previousAmount <= 0){
+				logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
+				response.put("message","Invalid loan application");
+				return response;
+			}
 		} else previousAmount = loanUtil.getForeclosureAmount(prevLendingSchedule);
 
 		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())

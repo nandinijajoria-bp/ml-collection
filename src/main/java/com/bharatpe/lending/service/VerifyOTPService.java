@@ -679,6 +679,11 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
+            } else if("ABFL".equalsIgnoreCase(activeLoan.getNbfc())) {
+                previousAmount = loanUtil.getForeClosureAmountForABFL(activeLoan);
+                if(previousAmount <= 0){
+                    throw new RuntimeException("Error getting ABFL foreclosure details");
+                }
             } else previousAmount = loanUtil.getForeclosureAmount(activeLoan);
 
 
