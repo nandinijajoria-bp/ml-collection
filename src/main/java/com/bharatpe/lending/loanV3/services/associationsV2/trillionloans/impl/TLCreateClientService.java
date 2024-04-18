@@ -108,7 +108,7 @@ public class TLCreateClientService {
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
                     .payload(TLCreateClientRequestDto.builder()
-                            .clientDetails(getClientDetails(cKycResponseDto))
+                            .clientDetails(getClientDetails(lendingApplication, cKycResponseDto))
                             .addressDetails(getAddressDetails(cKycResponseDto))
                             .bankDetails(getBankDetails(lendingApplication, cKycResponseDto))
                             .clientIdentifierDetails(getClientIdentifier(cKycResponseDto))
@@ -128,7 +128,7 @@ public class TLCreateClientService {
                 .build();
     }
 
-    private TLCreateClientRequestDto.ClientDetails getClientDetails(CKycResponseDto cKycResponseDto) {
+    private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
         return TLCreateClientRequestDto.ClientDetails.builder()
                 .firstName(kycUtils.getFirstName(cKycResponseDto))
                 .middleName(kycUtils.getMiddleName(cKycResponseDto))
@@ -136,6 +136,7 @@ public class TLCreateClientService {
                 .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
                 .gender(kycUtils.getGender(cKycResponseDto.getGender()))
                 .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                .externalId(lendingApplication.getExternalLoanId())
                 .build();
     }
 

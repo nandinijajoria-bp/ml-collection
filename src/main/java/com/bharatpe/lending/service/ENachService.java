@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -88,6 +89,7 @@ public class ENachService {
     @Autowired
     MerchantService merchantService;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 
@@ -97,6 +99,7 @@ public class ENachService {
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
 
+    @Lazy
     @Autowired
     PiramalAdditionalDocUploadService piramalAdditionalDocUploadService;
 
@@ -161,9 +164,12 @@ public class ENachService {
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
-
-        if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
-            return submitEnachForRenachMerchants(merchant, requestDTO,token);
+        LendingApplication lendingApplication =
+                lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
+        if(!ObjectUtils.isEmpty(lendingApplication) && "approved".equalsIgnoreCase(lendingApplication.getStatus())) {
+            if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
+                return submitEnachForRenachMerchants(merchant, requestDTO, token);
+            }
         }
 
         String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
@@ -176,8 +182,6 @@ public class ENachService {
         responseDTO.setData(new ENachIntitiationResponseDTO.Data());
         responseDTO.getData().setDeep_link("bharatpe://dynamic?key=loan");
         BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(merchant.getId(), requestDTO.getApplicationId());
-        LendingApplication lendingApplication =
-                lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
         if (bharatPeEnach == null) {
             responseDTO.setResponse(false);
             responseDTO.setMessage("Enach not initiated");
@@ -260,27 +264,32 @@ public class ENachService {
             if (lendingApplication.getLoanAmount() <= 200000) {
                 verifyOTPService.sendDetailsForKycVerification(merchant.getId(), lendingApplication.getId(), false);
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {LendingApplicationLenderDetails lendingApplicationLenderDetails =
-                    lendingApplicationLenderDetailsDao.
-                            findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
-                                    (lendingApplication.getId(), Status.ACTIVE.name());
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
+                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
+                    logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
+                } else {
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                            lendingApplicationLenderDetailsDao.
+                                    findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
+                                            (lendingApplication.getId(), Status.ACTIVE.name());
 
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
-                    LenderAssociationStages.ASSC_COMPLETED.name()
-                            .equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
-                {
-                    Boolean autoInvokeNextStage;
-                    if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
-                        autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
-                    } else {
-                        autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                    if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
+                            LenderAssociationStages.ASSC_COMPLETED.name()
+                                    .equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                        Boolean autoInvokeNextStage;
+                        if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
+                            autoInvokeNextStage = LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                        } else {
+                            autoInvokeNextStage = LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED);
+                        }
+                        nbfcUtils.pushApplicationToNextStage
+                                (lendingApplication.getId(), lendingApplication.getLender(),
+                                        LenderAssociationStages.ASSC_COMPLETED.name(),
+                                        autoInvokeNextStage
+                                );
+                        logger.info("invoked sanction workflow for application {}", lendingApplication.getId());
                     }
-                nbfcUtils.pushApplicationToNextStage
-                        (lendingApplication.getId(), lendingApplication.getLender(),
-                                LenderAssociationStages.ASSC_COMPLETED.name(),
-                                autoInvokeNextStage
-                       );
-                logger.info("invoked sanction workflow for application {}", lendingApplication.getId());}
+                }
             }
 
 

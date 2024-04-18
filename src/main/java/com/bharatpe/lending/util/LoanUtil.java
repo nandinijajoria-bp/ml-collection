@@ -19,6 +19,8 @@ import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.enums.RiskSegment;
+import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.PennyDropService;
@@ -51,14 +53,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.opencsv.CSVReader;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.io.File;
 import java.io.FileReader;
@@ -78,6 +81,7 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*
 @Component
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
+	public static final int NO_OF_DAYS_IN_A_MONTH = 30;
 
 	@Autowired
 	MongoPublisher mongoPublisher;
@@ -107,6 +111,12 @@ public class LoanUtil {
 
 	@Value("${ldc.foreclose.amount.date.diff:2}")
 	long ldcForecloseAmountDateDiff;
+
+	@Value("${is.fore.closure.charges.allowed:true}")
+	boolean isForeClosureChargesAllowed;
+
+	@Value("${whitelisted.fore.closure.charges.lenders:LIQUILOANS_P2P,LIQUILOANS_P2P_OF,TRILLIONLOANS,LIQUILOANS_NBFC}")
+	String foreClosureChargesWhitelistedLenders;
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -213,6 +223,9 @@ public class LoanUtil {
 	@Autowired
 	LendingAuditTrialDao lendingAuditTrialDao;
 
+    @Autowired
+	ForeClosureConfigDao foreClosureDao;
+
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
 
@@ -253,6 +266,18 @@ public class LoanUtil {
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
+
+	@Value("${fore.closure.charges.rollout.date:2024-04-10 00:00}")
+	String foreClosureChargesRolloutDate;
+
+	@Value("${fore.closure.charges.rollout.date.LIQUILOANS_P2P:2024-04-10 00:00}")
+	String liquiloansp2pForeClosureChargesRolloutDate;
+	@Value("${fore.closure.charges.rollout.date.LIQUILOANS_P2P_OF:2024-04-10 00:00}")
+	String liquiloansp2pofForeClosureChargesRolloutDate;
+	@Value("${fore.closure.charges.rollout.date.TRILLIONLOANS:2024-04-10 00:00}")
+	String trillionloansForeClosureChargesRolloutDate;
+	@Value("${fore.closure.charges.rollout.date.LIQUILOANS_NBFC:2024-04-10 00:00}")
+	String liquiloansnbfcForeClosureChargesRolloutDate;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -941,6 +966,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setAaBasedOffer(lendingRiskVariables.getAaBasedOffer());
 				lendingRiskVariablesSnapshot.setBankBasedAffectedOffer(lendingRiskVariables.getBankBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setApprovalRate(lendingRiskVariables.getApprovalRate());
+				lendingRiskVariablesSnapshot.setClientIdentifier(lendingRiskVariables.getClientIdentifier());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -1509,6 +1535,9 @@ public class LoanUtil {
 		if("MUTHOOT".equalsIgnoreCase(lender)){
 			finalLender = Lender.MUTHOOT.name();
 		}
+		if("CAPRI".equalsIgnoreCase(lender)) {
+			finalLender = Lender.CAPRI.name();
+		}
 		return finalLender;
 	}
 
@@ -2017,20 +2046,118 @@ public class LoanUtil {
 		return false;
 	}
 
-	public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
+    public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
 		try {
 			PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
-			double nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
-			double netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
-			penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-			penalCharge.setPaidNachBounce(penalCharge.getPaidNachBounce() + nachBounceAdjusted);
-			penalCharge.setPaidPenalty(penalCharge.getPaidPenalty() + netPenaltyAdjusted);
-			penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+			if (ObjectUtils.isEmpty(penalCharge)) {
+				return;
+			}
+			double nachBounceAdjusted = 0;
+			double netPenaltyAdjusted = 0;
+			if (Objects.nonNull(penalCharge.getDueNachBounce())) {
+				nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
+				netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
+				double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
+				penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
+				penalCharge.setPaidNachBounce(paidNachBounce);
+			}
+
+			if (Objects.nonNull(penalCharge.getDuePenalty())) {
+				double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
+				penalCharge.setPaidPenalty(paidPenalty);
+				penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+			}
 			penalChargesDao.save(penalCharge);
 		} catch (Exception e) {
 			logger.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
 		}
+    }
 
+	public boolean checkIfForeClosureChargesApplicable(Date loanCreatedAt, String lender)  {
+		return isForeClosureChargesAllowed && foreClosureChargesWhitelistedLenders.contains(lender) && checkForeClosureChargesEligibility(loanCreatedAt, lender);
+	}
+
+	public boolean checkForeClosureChargesEligibility(Date createdAt, String lender)  {
+        try {
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+			String rolloutDate = getLenderForeClosureRolloutDate(lender);
+			if (!StringUtils.isEmpty(rolloutDate)) {
+				Date date = sdf.parse(rolloutDate);
+				if (createdAt.after(date)) {
+					return true;
+				}
+			}
+		} catch (Exception e) {
+			logger.info("An exception occured while checking fore closure charges eligibilty");
+		}
+		return false;
+	}
+
+	private String getLenderForeClosureRolloutDate(String lender) {
+		String date = null;
+		if (!StringUtils.isEmpty(lender)) {
+			switch (lender) {
+				case "LIQUILOANS_P2P":
+					date = liquiloansp2pForeClosureChargesRolloutDate;
+					break;
+				case "LIQUILOANS_P2P_OF":
+					date = liquiloansp2pofForeClosureChargesRolloutDate;
+					break;
+				case "LIQUILOANS_NBFC":
+					date = liquiloansnbfcForeClosureChargesRolloutDate;
+					break;
+				case "TRILLIONLOANS":
+					date = trillionloansForeClosureChargesRolloutDate;
+					break;
+				default:
+					break;
+			}
+		}
+		return date;
+	}
+
+	public ForeClosureDetailDTO calculateForeClosureCharges(LendingPaymentSchedule activeLoan, PaymentDetailsResponseDTO.Data data) {
+		ForeClosureDetailDTO foreClosureDetailDTO = new ForeClosureDetailDTO();
+		logger.info("going to hit foreclosure config db with lender {} and tenure {}",activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
+		List<ForeClosureConfig> foreClosureConfigList = foreClosureDao.findByLenderAndTenure(activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
+        double duration = calculateDurationInMonths(activeLoan.getStartDate());
+		if(!CollectionUtils.isEmpty(foreClosureConfigList)) {
+			ForeClosureConfig foreClosureConfig = getApplicableForeclosureConfig(foreClosureConfigList, duration);
+			if(foreClosureConfig != null) {
+                foreClosureDetailDTO.setId(foreClosureConfig.getId());
+				foreClosureDetailDTO.setPrincipalOutstanding(data.getPrincipalDueAmount());
+				Double minAmount = foreClosureConfig.getMinAmount();
+				if(minAmount == null) minAmount = 0.0;
+				foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple()) * foreClosureConfig.getRate())/100.0) , minAmount));
+				foreClosureDetailDTO.setGst(Math.ceil((foreClosureDetailDTO.getForeclosureCharges() * foreClosureConfig.getGst())/100.0));
+				logger.info("going to return fore closure charges {} ",foreClosureDetailDTO);
+				return foreClosureDetailDTO;
+			}
+		}
+		logger.info("fore closure charges not applicable for loanId {} and nbfc {}",activeLoan.getId(),activeLoan.getNbfc());
+        return null;
+	}
+
+	private  ForeClosureConfig getApplicableForeclosureConfig(List<ForeClosureConfig> foreClosureConfigList, double duration) {
+		for (ForeClosureConfig foreClosureConfig : foreClosureConfigList) {
+			if(foreClosureConfig.getDurationFrom() < duration && foreClosureConfig.getDurationTo() >= duration) {
+				return foreClosureConfig;
+			}
+		}
+		return null;
+	}
+
+
+	private double calculateDurationInDays(Date date) {
+		logger.info("inside calculate duration for loan {}",date);
+		Date currentDate = new Date();
+		// Convert milliseconds to days
+		long differenceInMillis = currentDate.getTime() - date.getTime();
+		return TimeUnit.MILLISECONDS.toDays(differenceInMillis);
+	}
+
+	private  double calculateDurationInMonths(Date date) {
+		return calculateDurationInDays(date) / NO_OF_DAYS_IN_A_MONTH;
 	}
 }
 

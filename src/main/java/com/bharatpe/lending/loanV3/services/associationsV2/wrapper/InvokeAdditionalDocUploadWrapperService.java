@@ -16,6 +16,7 @@ import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -36,6 +37,7 @@ public class InvokeAdditionalDocUploadWrapperService {
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 
@@ -69,6 +71,8 @@ public class InvokeAdditionalDocUploadWrapperService {
                             .build();
 
                     List<DocType> docs = isRetry ? getFailedDocList(lendingApplicationLenderDetails) : getDocList(lendingApplication.getLender());
+                    lendingApplicationLenderDetails.setFailedUpload(null);
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                     for (DocType docType : docs) {
                         try {
                             log.info("processing doc {} {}", lendingApplication.getId(), docType);
@@ -88,7 +92,7 @@ public class InvokeAdditionalDocUploadWrapperService {
                             LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name() : LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
 
                     // For callback handling of doc upload in case of Muthoot
-                    if(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    if(Lender.MUTHOOT.name().equalsIgnoreCase(lendingApplication.getLender()) && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload())) {
                         lendingApplicationLenderDetails.setDocUploadStatus(LenderAssociationStatus.DOC_UPLOAD_IN_PROGRESS.name());
                     }
                     if (LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name().equals(lendingApplicationLenderDetails.getDocUploadStatus())) {
@@ -109,7 +113,7 @@ public class InvokeAdditionalDocUploadWrapperService {
         }
     }
 
-    private List<DocType> getDocList(String lender) {
+    public List<DocType> getDocList(String lender) {
         switch (lender) {
             case "USFB":
                 return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
@@ -117,6 +121,8 @@ public class InvokeAdditionalDocUploadWrapperService {
                 return Collections.singletonList(DocType.LOAN_AGREEMENT);
             case "MUTHOOT":
                 return Collections.singletonList(DocType.KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED);
+            case "CAPRI":
+                return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
             default:
                 return new ArrayList<>();
         }

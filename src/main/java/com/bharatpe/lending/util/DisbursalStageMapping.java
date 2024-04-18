@@ -47,6 +47,7 @@ public class DisbursalStageMapping {
         put(Pair.of("USFB","DISBURSED"),"DISBURSED");
         put(Pair.of(Lender.TRILLIONLOANS.name(), "DISBURSED"), "DISBURSED");
         put(Pair.of("MUTHOOT", "DISBURSED"), "DISBURSED");
+        put(Pair.of("CAPRI", "DISBURSED"), "DISBURSED");
     }};
 
     public static String getDisbursedStage(String lender, String stage) {

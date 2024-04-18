@@ -1,9 +1,10 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.LendingCitiesDao;
+import com.bharatpe.common.dao.LendingDisbursalStageDao;
+import com.bharatpe.common.dao.LendingPrebookLoansDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.enums.NotificationProvider;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
@@ -13,52 +14,52 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.LoanDisbursalDto;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.NBFCService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.entity.LmsStageHistory;
-import com.bharatpe.lending.enums.CleverTapEvents;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.MetaDTO;
+import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
-import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
+import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeAdditionalDocUploadWrapperService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -132,6 +133,10 @@ public class VerifyOTPService {
     KafkaTemplate<String, Object> kafkaTemplate;
 
     @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate<String, Object> confluentKafkaTemplate;
+
+    @Autowired
     EnachHandler enachHandler;
 
     @Autowired
@@ -192,6 +197,7 @@ public class VerifyOTPService {
     @Autowired
     FunnelService funnelService;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 
@@ -222,6 +228,15 @@ public class VerifyOTPService {
 
     @Autowired
     CleverTapEventService cleverTapEventService;
+    @Autowired
+    InvokeAdditionalDocUploadWrapperService invokeAdditionalDocUploadWrapperService;
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+    @Autowired
+    AssociationServiceUtil associationServiceUtil;
+
+    @Value("${skip.update.lead.verify.otp.downgrade}")
+    boolean skipUpdateLeadVerifyOtpDowngrade;
 
     @Autowired
     PaymentService paymentService;
@@ -287,6 +302,17 @@ public class VerifyOTPService {
             if (isOTPVerified) {
                 try{
                     lendingApplicationServiceV2.storeApplicationDocs(lendingApplication.getId(), lendingApplication, merchant);
+                    if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+                        if(!skipUpdateLeadVerifyOtpDowngrade){
+                            if(!lendingApplicationServiceV2.invokeUpdateLeadApi(lendingApplication, false)){
+                                logger.info("Update lead failed on downgrade completion for {}", lendingApplication.getId());
+                                return finalResponse;
+                            }
+                        }
+                        if (!invokeDocUploadApi(lendingApplication)) {
+                            return finalResponse;
+                        }
+                    }
                 }
                 catch(Exception e){
                     logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -384,6 +410,73 @@ public class VerifyOTPService {
             }
         }
         return finalResponse;
+    }
+
+    private boolean invokeDocUploadApi(LendingApplication lendingApplication) {
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(
+                        lendingApplication.getId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name(),
+                        lendingApplication.getLender());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            logger.error("Lending application lender details not found for applicationId: {} & lender: {}",
+                    lendingApplication.getId(), lendingApplication.getLender());
+            return false;
+        }
+
+        LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
+                .lendingApplication(lendingApplication).lendingApplicationLenderDetails(lendingApplicationLenderDetails)
+                .build();
+
+        List<DocType> docs = invokeAdditionalDocUploadWrapperService.getDocList(lendingApplication.getLender());
+        int totalDocCount = docs.size();
+        int successDocCount = 0;
+        for (DocType docType : docs) {
+            boolean docUploadSuccess = false;
+            int retryCount = 0;
+
+            while (!docUploadSuccess && retryCount < 3) {
+                try {
+                    logger.info("Processing doc {} {}", lendingApplication.getId(), docType);
+                    lendingApplicationLenderDetails.setLeadStatus(docType.name());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
+                    docUploadSuccess = associationServiceUtil.invokeAdditionalDocUpload(
+                            lendingApplication.getLender(), lenderAssociationDetailsRequest, docType.name());
+
+                    if (docUploadSuccess) {
+                        logger.info("doc upload successfully for {}", docType);
+                        lendingApplicationLenderDetails.setDocUploadStatus(LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        successDocCount++;
+                    } else {
+                        retryCount++;
+                        logger.info("Doc upload failed for {} in attempt {}/3", docType, retryCount);
+                    }
+                } catch (Exception e) {
+                    logger.error("Exception occurred while uploading doc {} for application {}: {}", docType,
+                            lendingApplication.getId(), e.getMessage(), e);
+                    retryCount++;
+                    logger.info("Retry attempt {}/3", retryCount);
+                }
+            }
+
+            if (!docUploadSuccess) {
+                String failedUpload = lendingApplicationLenderDetails.getFailedUpload();
+                if (ObjectUtils.isEmpty(failedUpload)) {
+                    failedUpload = docType.name();
+                } else {
+                    failedUpload += ";" + docType.name();
+                }
+                lendingApplicationLenderDetails.setFailedUpload(failedUpload);
+                lendingApplicationLenderDetails.setDocUploadStatus(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+            }
+        }
+
+        if(totalDocCount == successDocCount) {
+            return true;
+        }
+        return false;
     }
 
     private Map<String, Object> updateApplicationStatusAndSuccessSms(BasicDetailsDto merchantBasicDetailsDto,
@@ -534,7 +627,7 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
-            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lendingApplication.getLender())) {
+            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
@@ -626,7 +719,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            kafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send("find_lat_long", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic find_lat_long");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic find_lat_long", e);

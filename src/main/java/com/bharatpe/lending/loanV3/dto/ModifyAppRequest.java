@@ -63,4 +63,8 @@ public class ModifyAppRequest {
     Boolean docStatusUpdate = Boolean.FALSE;
 
     String laldLender;
+
+    Date lpsStartDate;
+
+    Date disbursalDate;
 }

@@ -63,6 +63,15 @@ public abstract class LendingApplicationServiceV3Base {
     public ApiResponse<?> fetchApplicationStatus(Long merchantId) {
         LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
+            LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
+            if(!ObjectUtils.isEmpty(currentRejectApplication)) {
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(LenderAssociationStatus.LENDER_ASSOCIATION_FAILED)
+                        .stage(LenderAssociationStages.FAILED)
+                        .ediModelModified(false)
+                        .lender(currentRejectApplication.getLender())
+                        .build());
+            }
             return new ApiResponse<>(false,"open draft lending application not found");
         }
         if(Lender.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
@@ -158,6 +167,7 @@ public abstract class LendingApplicationServiceV3Base {
         lendingApplication.get().setTenureInMonths(!ObjectUtils.isEmpty(modifyAppRequest.getTenure()) ? modifyAppRequest.getTenure() : lendingApplication.get().getTenureInMonths());
         lendingApplication.get().setDisbursalAmount(!ObjectUtils.isEmpty(modifyAppRequest.getDisbursalAmt()) ? modifyAppRequest.getDisbursalAmt() : lendingApplication.get().getDisbursalAmount());
         lendingApplication.get().setProcessingFee(!ObjectUtils.isEmpty(modifyAppRequest.getProcessingFee()) ? modifyAppRequest.getProcessingFee() : lendingApplication.get().getProcessingFee());
+        lendingApplication.get().setDisburseTimestamp(!ObjectUtils.isEmpty(modifyAppRequest.getDisbursalDate()) ? modifyAppRequest.getDisbursalDate() : lendingApplication.get().getDisburseTimestamp());
         lendingApplicationDao.save(lendingApplication.get());
         log.info("successfully updated lending app  {}", modifyAppRequest.getApplicationId());
         if (!ObjectUtils.isEmpty(modifyAppRequest.getLenderDetailsId())) {
@@ -174,6 +184,7 @@ public abstract class LendingApplicationServiceV3Base {
                 lendingApplicationLenderDetails.get().setUtrNo((modifyAppRequest.getUtr() != null) ? modifyAppRequest.getUtr() : lendingApplicationLenderDetails.get().getUtrNo());
                 lendingApplicationLenderDetails.get().setLeadId((modifyAppRequest.getLeadId() != null) ? modifyAppRequest.getLeadId() : lendingApplicationLenderDetails.get().getLeadId());
                 lendingApplicationLenderDetails.get().setLender((modifyAppRequest.getLaldLender() != null) ? modifyAppRequest.getLaldLender() : lendingApplicationLenderDetails.get().getLender());
+                lendingApplicationLenderDetails.get().setLoanCreationTimestamp(!ObjectUtils.isEmpty(modifyAppRequest.getDisbursalDate()) ? modifyAppRequest.getDisbursalDate() : lendingApplicationLenderDetails.get().getLoanCreationTimestamp());
                 if (modifyAppRequest.getDocStatusUpdate()) {
                     lendingApplicationLenderDetails.get().setDocUploadStatus(modifyAppRequest.getDocUploadStatus());
                     lendingApplicationLenderDetails.get().setFailedUpload(modifyAppRequest.getFailedUpload());
@@ -226,6 +237,11 @@ public abstract class LendingApplicationServiceV3Base {
                 }
                 lendingPaymentSchedule.get().setStatus("ACTIVE");
                 log.info("active marked loan {}", modifyAppRequest.getLpsId());
+            }
+            if(lendingPaymentSchedule.isPresent() && !ObjectUtils.isEmpty(modifyAppRequest.getLpsStartDate())) {
+                log.info("setting loan start date as {} for lpsId : {} ", modifyAppRequest.getLpsStartDate(), lendingPaymentSchedule.get().getId());
+                lendingPaymentSchedule.get().setStartDate(modifyAppRequest.getLpsStartDate());
+                lendingPaymentSchedule.get().setNextEdiDate(modifyAppRequest.getLpsStartDate());
             }
             lendingPaymentScheduleDao.save(lendingPaymentSchedule.get());
 

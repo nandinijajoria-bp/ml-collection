@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.common.objects.CommonAPIRequest;
@@ -53,7 +54,7 @@ public class LoanDetailsControllerV2 {
         log.info("loan details v2 request:{} for merchant:{}", loanDetailsRequest, merchant.getId());
         ApiResponse<?> response;
         try {
-            response = loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, token, false);
+            response = loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, token, false, EligibilityRequestSource.EASY_LOANS);
         } catch (BureauCallMaskedApiException e){
             throw (e);
         } catch (Exception e) {

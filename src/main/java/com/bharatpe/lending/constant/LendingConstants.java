@@ -102,8 +102,8 @@ public interface LendingConstants {
 		put("SHOP_OPERATIONAL",  Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
 		put("BUSINESS_NAME",  Arrays.asList("BUSINESS_NAME","SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME"));
 		put("SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME", Arrays.asList("BUSINESS_NAME","SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME"));
-		put("SHOP_ADDRESS_INCORRECT", Collections.singletonList("SHOP_ADDRESS"));
-		put("INCORRECT_SELFIE", Collections.singletonList("SELFIE_RESUBMIT"));
+		put("SHOP_ADDRESS_INCORRECT", Collections.singletonList("SHOP_ADDRESS_INCORRECT"));
+		put("INCORRECT_SELFIE", Collections.singletonList("INCORRECT_SELFIE"));
 	}};
 }
 

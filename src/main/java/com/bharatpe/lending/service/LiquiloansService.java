@@ -57,6 +57,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
@@ -144,6 +145,10 @@ public class LiquiloansService {
 
     @Autowired
     KafkaTemplate<String, Object> kafkaTemplate;
+
+    @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 //    @Autowired
 //    CreditApplicationDao creditApplicationDao;
@@ -690,7 +695,7 @@ public class LiquiloansService {
 
                 if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
                         || Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
-                        || Lender.MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                        || Lender.MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.CAPRI.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
 
@@ -701,8 +706,7 @@ public class LiquiloansService {
                 Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
 //                Date tomorrow = new Date();
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
-                if (tomorrow.getDay() == 0 && !lendingApplication.getLender().equalsIgnoreCase("ABFL")
-                   && !lendingApplication.getLender().equalsIgnoreCase("PIRAMAL")) {
+                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI").contains(lendingApplication.getLender())) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
                 }
                 tomorrow = format.parse(format.format(tomorrow));
@@ -855,6 +859,9 @@ public class LiquiloansService {
 //            executorService.execute(() -> initiateEnachCashback(finalLendingPaymentSchedule));
 //        }
         executorService.execute(() -> apiGatewayService.globalLimitTxn(finalLendingApplication.getMerchantId(), "DEBIT", finalLendingPaymentSchedule.getLoanAmount()));
+        if(Arrays.asList("CAPRI").contains(lendingApplication.getLender())) {
+            executorService.execute(() -> saveSignedDocsForLender(finalLendingApplication));
+        }
 //        executorService.execute(() -> pushRedemptionInKafka(finalLendingApplication));
         if (lendingApplication.getDisbursalAmount() > 0 && (lendingApplication.getLoanType().equals(LoanType.HALF_TOPUP.name()) || lendingApplication.getLoanType().equals(LoanType.IO_TOPUP.name()))) {
             prepayDisbursalAmount(lendingPaymentSchedule, lendingApplication.getDisbursalAmount());
@@ -1092,7 +1099,7 @@ public class LiquiloansService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            kafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send("create_gst_invoice", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic create_gst_invoice");
         } catch (Exception e) {
             logger.error("Exception while pushing to topic create_gst_invoice for application:{}", lendingApplication.getId(), e);
@@ -1566,7 +1573,7 @@ public class LiquiloansService {
                 flag = constructAbflTopupEDISchedule(paymentSchedule);
                 retry++;
             } while (!flag && retry < 3);
-        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT").contains(paymentSchedule.getNbfc()))  {
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI").contains(paymentSchedule.getNbfc()))  {
             boolean success = constructLenderEDISchedule(paymentSchedule);
             if(!success) {
                 logger.info("creating bharatPe edi schedule as failed to create lender edi schedule for {}", paymentSchedule.getApplicationId());
@@ -1855,7 +1862,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(lenderEdIScheduleResponse.getTotalInterestPayable());
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(lenderEdIScheduleResponse.getLoanMaturityDate());
-            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(paymentSchedule.getNbfc())) {
+            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(paymentSchedule.getNbfc())) {
                 LendingApplication lendingApplication = paymentSchedule.getLoanApplication();
                 Double totalPayableAmount = lendingApplication.getLoanAmount() + lenderEdIScheduleResponse.getTotalInterestPayable();
                 paymentSchedule.setTotalPayableAmount(totalPayableAmount);
@@ -2060,7 +2067,7 @@ public class LiquiloansService {
     private void saveDisbursalUtr(Long applicationId, String lender, String utr) {
 
         // trim utr string length to 50
-        utr = utr.substring(0, Math.min(utr.length() - 1, 49));
+        utr = utr.substring(0, Math.min(utr.length(), 50));
 
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name(), lender);
 
@@ -2069,9 +2076,31 @@ public class LiquiloansService {
             lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
             lendingApplicationLenderDetails.setApplicationId(applicationId);
             lendingApplicationLenderDetails.setLender(lender.toUpperCase());
+            lendingApplicationLenderDetails.setStatus(com.bharatpe.lending.common.enums.Status.ACTIVE.name());
         }
 
         lendingApplicationLenderDetails.setUtrNo(utr);
         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+    }
+
+    private Boolean saveSignedDocsForLender(LendingApplication lendingApplication) {
+        try {
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+            if (ObjectUtils.isEmpty(lendingKfs)) {
+                logger.info("lendingKfs not found for application {}", lendingApplication.getId());
+                return false;
+            }
+            if(!ObjectUtils.isEmpty(lendingKfs.getSignedKfsDocUrl()) && !ObjectUtils.isEmpty(lendingKfs.getSignedSanctionDocUrl())) {
+                logger.info("Signed docs already exists for applicationId : {}", lendingApplication.getId());
+            }
+            Boolean success = associationServiceUtil.invokeFetchSignedDocsService(lendingApplication.getLender(), lendingApplication);
+            if(success) {
+                logger.info("Successfully fetched and saved signed docs of {} for application {}", lendingApplication.getLender(), lendingApplication.getId());
+            }
+            return success;
+        } catch (Exception ex) {
+            logger.error("Exception while saving signed docs of {} for applicationId {}, Exception is {} {}", lendingApplication.getLender(), lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            return false;
+        }
     }
 }

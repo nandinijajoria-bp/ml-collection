@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.enums.Gst3bSessionStatus;
 
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.Gst3bRejectReason;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.Gst3bSessionCallbackDto;
@@ -343,7 +344,7 @@ public class Gst3bService {
             if(!ObjectUtils.isEmpty(lendingRiskVariables)) {
                 currentLimit = lendingRiskVariables.getFinalOffer();
             }
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(gst3bSessionDetails.getMerchantId(), gst3bSessionDetails.getOrderId(), "GST");
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(gst3bSessionDetails.getMerchantId(), gst3bSessionDetails.getOrderId(), "GST", EligibilityRequestSource.EASY_LOANS);
             String eventValue = gst3bSessionDetails.getMethod().equals("OTP") ? "gst3b_page_with_otp" : "gst3b_page_with_doc";
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGst3bAffectedOffer() != null) {
                 if (globalLimitResponse.getData().getGst3bAffectedOffer()) {

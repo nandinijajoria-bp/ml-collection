@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.services.associationsV2;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.lending.loanV3.dto.DisbursalCallbackCommonDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
@@ -8,6 +9,7 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -89,6 +91,33 @@ public class AssociationServiceUtil {
     @Autowired
     MFRepaymentScheduleService mfRepaymentScheduleService;
 
+    @Autowired
+    CapriLeadService capriLeadService;
+
+    @Autowired
+    CapriCreateClientService capriCreateClientService;
+
+    @Autowired
+    CapriDocUploadService capriDocUploadService;
+
+    @Autowired
+    CapriBreService capriBreService;
+
+    @Autowired
+    CapriNachMandateService capriNachMandateService;
+
+    @Autowired
+    CapriDisbursalCallbackService capriDisbursalCallbackService;
+
+    @Autowired
+    CapriRepaymentScheduleService capriRepaymentScheduleService;
+
+    @Autowired
+    CapriForeclosureService capriForeclosureService;
+
+    @Autowired
+    CapriFetchSignedDocService capriFetchSignedDocService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -97,6 +126,8 @@ public class AssociationServiceUtil {
                 return tlCreateLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             case "MUTHOOT":
                 return mfLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
+            case "CAPRI":
+                return capriLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -119,6 +150,8 @@ public class AssociationServiceUtil {
                 return tlDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "MUTHOOT":
                 return mfDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
+            case "CAPRI":
+                return capriDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             default:
                 return false;
         }
@@ -132,6 +165,8 @@ public class AssociationServiceUtil {
                 return tlUpdateLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
             case "MUTHOOT":
                 return mfLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
+            case "CAPRI":
+                return capriLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -145,6 +180,8 @@ public class AssociationServiceUtil {
                 return tlBreService.invokeBre(lenderAssociationDetailsRequest);
             case "MUTHOOT":
                 return mfBreService.invokeBre(lenderAssociationDetailsRequest);
+            case "CAPRI":
+                return capriBreService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -158,6 +195,8 @@ public class AssociationServiceUtil {
                 return tlDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "MUTHOOT":
                 return mfDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+            case "CAPRI":
+                return capriDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             default:
                 return false;
         }
@@ -171,6 +210,8 @@ public class AssociationServiceUtil {
                 return tlRepaymentScheduleService.invokeRpsGenerate(applicationId);
             case "MUTHOOT":
                 return mfRepaymentScheduleService.invokeRpsGenerate(applicationId);
+            case "CAPRI":
+                return capriRepaymentScheduleService.invokeRpsGenerate(applicationId);
             default:
                 return null;
         }
@@ -184,6 +225,8 @@ public class AssociationServiceUtil {
                 return tlDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
             case "MUTHOOT":
                 return mfDisbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
+            case "CAPRI":
+                return capriDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -195,6 +238,8 @@ public class AssociationServiceUtil {
                 return loanOnboardingService.processLoanOnboardingCallback(nbfcResponseDTO);
             case "MUTHOOT":
                 return mfBreService.processMFBreCallback(nbfcResponseDTO);
+            case "CAPRI":
+                return capriBreService.processBreCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -208,6 +253,8 @@ public class AssociationServiceUtil {
                 return trillionRepaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "MUTHOOT":
                 return null;
+            case "CAPRI":
+                return capriForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             default:
                 return null;
         }
@@ -219,6 +266,8 @@ public class AssociationServiceUtil {
                 return 0D;
             case"MUTHOOT":
                 return mfForeclosureService.getForeclosureDetails(applicationId);
+            case "CAPRI":
+                return capriForeclosureService.getForeclosureDetails(applicationId);
             default:
                 return 0D;
         }
@@ -228,6 +277,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
+            case "CAPRI":
+                return capriCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -277,9 +328,19 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
+            case "CAPRI":
+                return capriNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             default:
                 return false;
         }
     }
 
+    public boolean invokeFetchSignedDocsService(String lender, LendingApplication lendingApplication) {
+        switch (lender) {
+            case "CAPRI":
+                return capriFetchSignedDocService.invokeFetchSignedDocs(lendingApplication);
+            default:
+                return false;
+        }
+    }
 }

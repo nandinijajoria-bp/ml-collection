@@ -63,6 +63,9 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.kyc.api:api/v3/lender/accept-offer}")
     String acceptOfferUrl;
 
+    @Value("${nbfc.getLoan.api:api/v3/lender/download-document}")
+    String downloadDocumentUrl;
+
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
@@ -106,6 +109,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+kycUrl;
             case "ACCEPT_OFFER":
                 return nbfcBaseUrl+acceptOfferUrl;
+            case "DOWNLOAD_DOCUMENT":
+                return nbfcBaseUrl+downloadDocumentUrl;
             default:
                 return null;
         }

@@ -57,7 +57,7 @@ public class MFForeclosureService  {
                 }
             }
         } catch (Exception e) {
-            log.error("exception occurred while parsing response data of MUTHOOT repayment schedule for {} {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("exception occurred while fetching foreclosure details of MUTHOOT for {} {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return 0D;
     }

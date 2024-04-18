@@ -18,10 +18,11 @@ import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
-import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
+import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
+import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -30,39 +31,35 @@ import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingD
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
-import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
-import com.bharatpe.lending.common.slave.entity.SettlementSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 //import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanAgreement;
-import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;
-import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
 import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
@@ -218,6 +215,8 @@ public class LoanDetailsService {
 
 	@Autowired
 	ExcessNachService excessNachService;
+	@Autowired
+	ForeClosureConfigDao foreClosureDao;
 
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -819,7 +818,7 @@ public class LoanDetailsService {
 	private LoanEligibilityDTO getEligibilty(Long merchantId, Experian experian) throws Exception {
 		logger.info("Getting eligibility for merchant:{}", merchantId);
 		Double eligibleAmount = 0D;
-		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+		GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
 		if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 			logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
 			eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
@@ -1204,7 +1203,7 @@ public class LoanDetailsService {
 				}
 			}
 			Double eligibleAmount = 0D;
-			GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantBasicDetails.getId(), "CREDIT_SCORE");
+			GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantBasicDetails.getId(), "CREDIT_SCORE",EligibilityRequestSource.EASY_LOANS);
 			if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
 				logger.info("Global limit for merchant:{} is {}", merchantBasicDetails.getId(), globalLimitResponse.getData().getGlobalLimit());
 				experian = globalLimitResponse.getData().getExperian();
@@ -1522,5 +1521,48 @@ public class LoanDetailsService {
 		data.setNocUrl(nocUrl);
 		documentDetailsDto.setData(data);
 		return documentDetailsDto;
+	}
+
+	public ForeClosureTncDTO getForeClosureTnc(long merchantId) {
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+		if (activeLoan == null) {
+			logger.info("No active loan found for merchant id {}", merchantId);
+			return ForeClosureTncDTO.builder()
+					.success(false)
+					.message("No active loan found for merchant")
+					.data(new ArrayList<>())
+					.build();
+		}
+		List<ForeClosureConfig> foreClosureConfigs = foreClosureDao.findByLender(activeLoan.getNbfc());
+		List<ForeClosureEntityDTO> foreClosureEntityDto = convertToForeClosureEntityDto(foreClosureConfigs);
+		if(ObjectUtils.isEmpty(foreClosureEntityDto))
+		{
+			return ForeClosureTncDTO.builder()
+					.success(false)
+					.message("Fore Closure Charges not applicable for this merchant")
+					.data(foreClosureEntityDto)
+					.build();
+		}
+		return ForeClosureTncDTO.builder()
+				.success(true)
+				.data(foreClosureEntityDto)
+				.build();
+
+	}
+
+	private List<ForeClosureEntityDTO> convertToForeClosureEntityDto(List<ForeClosureConfig> foreClosureConfigs) {
+		if (!CollectionUtils.isEmpty(foreClosureConfigs)) {
+			return foreClosureConfigs.stream()
+					.map(_foreClosure -> {
+						return ForeClosureEntityDTO.builder()
+								.rate(_foreClosure.getRate())
+								.durationFrom(_foreClosure.getDurationFrom())
+								.durationTo(_foreClosure.getDurationTo())
+								.minAmount(_foreClosure.getMinAmount())
+								.tenure(_foreClosure.getTenure())
+								.build();
+					}).collect(Collectors.toList());
+		}
+		return null;
 	}
 }

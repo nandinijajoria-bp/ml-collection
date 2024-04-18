@@ -3,6 +3,7 @@ package com.bharatpe.lending.service;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.ComputeEligibilityRequestDto;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +36,7 @@ public class EligibilityComputationService {
             if (!basicDetailsDto.isPresent())
                 return false;
             merchant = basicDetailsDto.get();
-            loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, null, true);
+            loanDetailsServiceV2.getLoanDetails(loanDetailsRequest, merchant, null, true, EligibilityRequestSource.LMS_BULK);
             log.info("successfully computed eligibility for merchant: {}", dto);
             return true;
         } catch (Exception e) {

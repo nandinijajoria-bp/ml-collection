@@ -23,6 +23,7 @@ import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -184,7 +185,7 @@ public class LoanEligibleService {
         List<EligibleLoan> eligibleLoans = new ArrayList<>();
 
         if (ObjectUtils.isEmpty(eligibleLoans)) {
-            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
             //Todo if global response is null: return
             if ((queryAmount < 10000 && Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) &&
                     !globalLimitResponse.getData().getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name())) || (Objects.nonNull(globalLimitResponse)

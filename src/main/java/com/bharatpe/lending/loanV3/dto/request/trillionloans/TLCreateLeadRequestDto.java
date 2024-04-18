@@ -16,6 +16,7 @@ public class TLCreateLeadRequestDto {
     private Double amount;
     private String losProductKey;
     private LeadApplicationTerms leadApplicationTerms;
+    private String externalId;
 
     @Data
     @Builder

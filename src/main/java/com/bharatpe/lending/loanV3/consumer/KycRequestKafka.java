@@ -62,6 +62,7 @@ public class KycRequestKafka {
     @Autowired
     LenderAssociationStageFactory lenderAssociationStageFactory;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 

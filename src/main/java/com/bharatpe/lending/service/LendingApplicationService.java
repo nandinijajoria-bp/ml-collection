@@ -34,6 +34,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -1873,7 +1874,7 @@ public class LendingApplicationService {
                     && loanDetailsServiceV2.getReapplyTime(lendingApplicationSlave) <= 0
             ) {
 
-                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.FOS);
                 if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
                     loanData.put("experian", Boolean.TRUE);
                     loanData.put("eligible", Boolean.FALSE);

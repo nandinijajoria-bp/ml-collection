@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.enums.CleverTapEvents;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
@@ -304,7 +305,7 @@ public class EligibilityV3Service {
     public GlobalLimitResponse requestForEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {
         GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(eligibilityStateDTO.getMerchant().getId(), null,
                 request.getAppVersion(), eligibilityStateDTO.getClubV2Member(), request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
-                request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO,false);
+                request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO,false, EligibilityRequestSource.EASY_LOANS);
 
         if(globalLimitResponse.getData().getPreApprovedLoan()){
             HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{

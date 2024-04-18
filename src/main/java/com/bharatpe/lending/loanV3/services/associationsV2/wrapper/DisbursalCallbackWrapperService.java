@@ -67,7 +67,7 @@ public class DisbursalCallbackWrapperService {
                 return;
             }
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponse.getApplicationId()));
-            updateLANIfMissingInLendingApplication(disbursalCallbackResponse.getLan(), lendingApplication);
+            updateLANIfMissingInLendingApplication(disbursalCallbackResponse.getLan(), lendingApplication.get());
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.get().getId());
             if (!LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
                 lendingApplicationDetails.setStage(LenderAssociationStages.COMPLETED.name());
@@ -115,14 +115,14 @@ public class DisbursalCallbackWrapperService {
         log.info("loan created successfully of lender {} for {}", nbfcResponse.getLender(), nbfcResponse.getApplicationId());
     }
 
-    private void updateLANIfMissingInLendingApplication(String loanAccountNumber, Optional<LendingApplication> lendingApplication) {
-        if (ObjectUtils.isEmpty(lendingApplication.get().getNbfcId())
+    private void updateLANIfMissingInLendingApplication(String loanAccountNumber, LendingApplication lendingApplication) {
+        if (ObjectUtils.isEmpty(lendingApplication.getNbfcId())
         ) {
-            log.info("update forced NBFC id for application id: {}, {}", loanAccountNumber, lendingApplication.get().getId());
-            lendingApplication.get().setNbfcId(loanAccountNumber);
-            lendingApplication.get().setSendToNbfc("YES");
-            lendingApplication.get().setNbfcSendDate(Calendar.getInstance().getTime());
-            lendingApplicationDao.save(lendingApplication.get());
+            log.info("update forced NBFC id for application id: {}, {}", loanAccountNumber, lendingApplication.getId());
+            lendingApplication.setNbfcId(loanAccountNumber);
+            lendingApplication.setSendToNbfc("YES");
+            lendingApplication.setNbfcSendDate(ObjectUtils.isEmpty(lendingApplication.getNbfcSendDate()) ? Calendar.getInstance().getTime() : lendingApplication.getNbfcSendDate());
+            lendingApplicationDao.save(lendingApplication);
         }
     }
 }

@@ -26,6 +26,7 @@ import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -527,7 +528,7 @@ public class MileStoneProgramService {
         GlobalLimitResponse globalLimitResponse = new GlobalLimitResponse();
         try {
             globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(),
-                    loanDashboardService.isClubV2Member(merchant.getId()));
+                    loanDashboardService.isClubV2Member(merchant.getId()), EligibilityRequestSource.RTE);
         } catch (BureauCallMaskedApiException e) {
             log.error("Exception occurred for merchantId:{},execption:{}", merchant.getId(), e);
         }

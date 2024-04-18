@@ -800,7 +800,7 @@ public class LoanDashboardService {
             MutableBoolean isDerog = new MutableBoolean(false);
             GlobalLimitResponse globalLimitResponse=new GlobalLimitResponse();
             try {
-                globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), isClubV2Member(merchant.getId()));
+                globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), isClubV2Member(merchant.getId()),EligibilityRequestSource.EASY_LOANS);
             }
             catch (BureauCallMaskedApiException e) {
                 log.error("Exception occurred for merchantId:{},execption:{}", merchant.getId(),e);

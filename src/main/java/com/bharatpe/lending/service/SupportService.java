@@ -26,10 +26,7 @@ import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.*;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.BankStatementRejectReason;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -235,6 +232,12 @@ public class SupportService {
 
 	@Value("${aws.s3.bucket:loan-document}")
     private String bucket;
+
+    @Value(("${bankstatement.enabled:false}"))
+    boolean bankStatementEnabled;
+
+    @Value("${account-aggregator.rollout.percent:10}")
+    Integer accountAggregatorRolloutPercent;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -680,7 +683,7 @@ public class SupportService {
                     ApplicationStage.CLOSED_LOAN.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage()) ||
                     (ApplicationStage.REJECTED.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())
                             && Boolean.TRUE.equals(supportApiResponseDto.getEligibleToApplyAgain()))) {
-                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
+                GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId(),EligibilityRequestSource.SUPPORT);
                 experian = experianDao.getByMerchantId(supportApiResponseDto.getMerchantId());
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(supportApiResponseDto.getMerchantId());
                 logger.info("lendingRiskVariables.getExperianRejection() {}",lendingRiskVariables.getExperianRejection());
@@ -833,7 +836,7 @@ public class SupportService {
     }
 
     private void refreshEligibility(SupportApiResponseDto supportApiResponseDto, LendingApplication lendingApplication) throws Exception {
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId());
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(supportApiResponseDto.getMerchantId(),EligibilityRequestSource.SUPPORT);
         Experian experian = globalLimitResponse.getData().getExperian();
         populateExperianData(supportApiResponseDto,experian, lendingApplication,true);
         if(!ApplicationStage.INELIGIBLE.getStage().equalsIgnoreCase(supportApiResponseDto.getApplicationStage())) {
@@ -849,7 +852,7 @@ public class SupportService {
 
     private Boolean getEligibility(Long merchantId) throws Exception {
         Double eligibleAmount = 0D;
-        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId);
+        GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.SUPPORT);
         if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
             logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
@@ -2489,6 +2492,17 @@ public class SupportService {
 
     public UpgradeLoanOfferEligibilityDTO checkBankStatementAndAccountAggregatorSessionEligibility(Long merchantId, UpgradeLoanOfferEligibilityDTO upgradeLoanOfferEligibilityDTO) {
         logger.info("Checking bankStatement and accountAggregator session eligibility for merchantId : {}", merchantId);
+        if(!bankStatementEnabled) {
+            logger.info("BankStatement upload feature not enabled for merchant : {}",merchantId);
+            upgradeLoanOfferEligibilityDTO.setBankStatementEligibility(Boolean.FALSE);
+        }
+        if (!easyLoanUtil.percentScaleUp(merchantId, accountAggregatorRolloutPercent)) {
+            logger.info("merchant {} is not eligible for Account aggregator feature with rollout percentage: {}",merchantId, accountAggregatorRolloutPercent);
+            upgradeLoanOfferEligibilityDTO.setAccountAggregatorEligibility(Boolean.FALSE);
+        }
+        if(!upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility() && !upgradeLoanOfferEligibilityDTO.getBankStatementEligibility()) {
+            return upgradeLoanOfferEligibilityDTO;
+        }
         Pageable pageable = PageRequest.of(0, 2, Sort.by("Id").descending());
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(new Date());
