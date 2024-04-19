@@ -314,7 +314,7 @@ public class LoanDashboardService {
 //            log.error("No experian record for merchantId:{},returning empty records", merchantDetails.getId());
 //            return loanDashboardResponse;
 //        }
-        
+
         //if user has inactive loan, return
         LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), "INACTIVE");
         if (!ObjectUtils.isEmpty(lendingPaymentSchedule1) && "INACTIVE".equalsIgnoreCase(lendingPaymentSchedule1.getStatus()) &&
@@ -805,12 +805,30 @@ public class LoanDashboardService {
             catch (BureauCallMaskedApiException e) {
                 log.error("Exception occurred for merchantId:{},execption:{}", merchant.getId(),e);
             }
+            catch (Exception e){
+            log.error("Exception occurred for merchantId:{} while fetching response form bureau",merchant.getId(),e);
+            loanDashboardResponse.setIneligible(RejectionReason.BUREAU_EXCEPTION.getReason());
+            }
+
             Double eligibleAmount = 0D;
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
+
+                if(!ObjectUtils.isEmpty(globalLimitResponse.getData().getRejectReason()) && globalLimitResponse.getData().getRejectReason().startsWith("Something went wrong"))
+                {
+                    loanDashboardResponse.setIneligible(RejectionReason.BUREAU_EXCEPTION.getReason());
+                    return;
+                }
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 isDerog.setValue(globalLimitResponse.getData().isDerog());
             }
+
+            if(globalLimitResponse != null && globalLimitResponse.getErrorCode() != null)
+            {
+                loanDashboardResponse.setIneligible(RejectionReason.BUREAU_EXCEPTION.getReason());
+                return;
+            }
+
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
                 eligibleLoan = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());

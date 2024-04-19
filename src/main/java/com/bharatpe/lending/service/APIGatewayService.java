@@ -1742,6 +1742,13 @@ public class APIGatewayService {
                 }
                 return globalLimitResponse;
             }
+            else if(responseEntity.getStatusCode().is5xxServerError() && responseEntity.getBody() !=null) {
+                    String errorResponse = responseEntity.getBody();
+                    JsonNode obj = objectMapper.readTree(errorResponse);
+                    GlobalLimitResponse globalLimitResponse1 = objectMapper.treeToValue(obj,GlobalLimitResponse.class);
+                    return globalLimitResponse1;
+
+            }
             logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
         } catch (ResourceAccessException ex) {
             logger.info("Scenaptic Limit Api timed out for merchantId:{} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
