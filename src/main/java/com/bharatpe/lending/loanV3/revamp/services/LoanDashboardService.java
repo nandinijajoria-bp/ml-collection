@@ -805,20 +805,10 @@ public class LoanDashboardService {
             catch (BureauCallMaskedApiException e) {
                 log.error("Exception occurred for merchantId:{},execption:{}", merchant.getId(),e);
             }
-            catch (Exception e){
-            log.error("Exception occurred for merchantId:{} while fetching response form bureau",merchant.getId(),e);
-            loanDashboardResponse.setIneligible(RejectionReason.BUREAU_EXCEPTION.getReason());
-            }
 
             Double eligibleAmount = 0D;
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
-
-                if(!ObjectUtils.isEmpty(globalLimitResponse.getData().getRejectReason()) && globalLimitResponse.getData().getRejectReason().startsWith("Something went wrong"))
-                {
-                    loanDashboardResponse.setIneligible(RejectionReason.BUREAU_EXCEPTION.getReason());
-                    return;
-                }
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 isDerog.setValue(globalLimitResponse.getData().isDerog());
             }
