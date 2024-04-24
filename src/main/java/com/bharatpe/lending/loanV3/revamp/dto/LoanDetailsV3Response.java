@@ -75,6 +75,11 @@ public class LoanDetailsV3Response {
     private Boolean isSelfieResumit;
     private Boolean isPreapprovedRepeatLoan;
 
+    private Boolean upiAutoPayEligible;
+    private String upiAutoPayMandateStatus;
+    private Boolean agreementDone;
+
+
 
     @Data
     @ToString
@@ -159,6 +164,9 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setTopupLoanApplication(kfsStateDTO.getTopupLoanApplication());
         loanDetailsV3Response.setRepeatLoan(kfsStateDTO.isRepeatLoan());
         loanDetailsV3Response.setMobile(kfsStateDTO.getMobile());
+        loanDetailsV3Response.setUpiAutoPayMandateStatus(kfsStateDTO.getUpiAutoPayMandateStatus());
+        loanDetailsV3Response.setUpiAutoPayEligible(kfsStateDTO.getUpiAutoPayEligible());
+        loanDetailsV3Response.setAgreementDone(kfsStateDTO.getAgreementDone());
     }
 
     private static void setKycResponse(KYCStateDTO kycStateDTO, LoanDetailsV3Response loanDetailsV3Response){

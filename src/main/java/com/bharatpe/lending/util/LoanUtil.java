@@ -72,6 +72,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
+import static com.bharatpe.lending.enums.Lender.ABFL;
+import static com.bharatpe.lending.enums.Lender.TRILLIONLOANS;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 
@@ -583,6 +585,20 @@ public class LoanUtil {
 //		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
 //	}
 
+	public boolean isApplicationEligibleForAutoPayUpi(String lender, Long merchantId) {
+
+		if (TRILLIONLOANS.name().equals(lender))
+		{
+			if (String.valueOf(merchantId).endsWith("10")
+			|| String.valueOf(merchantId).endsWith("11")
+			|| String.valueOf(merchantId).endsWith("12")
+			|| String.valueOf(merchantId).endsWith("13")
+			|| String.valueOf(merchantId).endsWith("14"))
+				return true;
+		}
+
+		return false;
+	}
 
 	public String getApplicationTatMessage(LendingApplicationSlave lendingApplication){
 		if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
@@ -1508,7 +1524,7 @@ public class LoanUtil {
 			finalLender = Lender.LDC.name();
 		}
 		if (lender.equals("ABFL")) {
-			finalLender = Lender.ABFL.name();
+			finalLender = ABFL.name();
 		}
 		if (lender.equals("PIRAMAL")) {
 			finalLender = Lender.PIRAMAL.name();

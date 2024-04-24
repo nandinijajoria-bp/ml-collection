@@ -345,6 +345,13 @@ public class APIGatewayService {
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
 
+            if (Objects.nonNull(pgCreateTransactionRequestDTO.getAccountNumber()) && Objects.nonNull(pgCreateTransactionRequestDTO.getIfscCode())) {
+                Map<String, String> bankDetail = new HashMap<>();
+                bankDetail.put("accountNumber", pgCreateTransactionRequestDTO.getAccountNumber());
+                bankDetail.put("ifscCode", pgCreateTransactionRequestDTO.getIfscCode());
+                requestParams.put("bankDetail", bankDetail);
+            }
+
 
             String hash = lendingHmacCalculator.calculateHmac
                     (lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(),

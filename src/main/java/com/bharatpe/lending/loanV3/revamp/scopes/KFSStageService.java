@@ -1,6 +1,11 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
+import com.bharatpe.lending.dao.AutoPayUPIDao;
+import com.bharatpe.lending.dto.MandateUPIStatusResponse;
+import com.bharatpe.lending.entity.AutoPayUPI;
+import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -17,14 +22,19 @@ import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.service.AutoPayUPIService;
 import com.bharatpe.lending.service.LendingApplicationService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -50,17 +60,39 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
+    @Autowired
+    AutoPayUPIService autoPayUPIService;
+
+    @Value("${enable.autopayupi.registration:false}")
+    private Boolean enableAutopayUPIRegistration;
+
     @Override
     public LendingStateDTO<KFSStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<KFSStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+
+        if (Objects.nonNull(lendingStateDTO.getData().getUpiAutoPayEligible()) && lendingStateDTO.getData().getUpiAutoPayEligible()) {
+            // we want the user to be on the kfs page until the autopayupi is successfully done
+            if (!AutoPayStatusEnum.ACTIVE.name().equals(lendingStateDTO.getData().getUpiAutoPayMandateStatus())) {
+                lendingStateDTO.setLendingViewStates(LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
+                loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
+                return lendingStateDTO;
+            } else {
+                lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+            }
+
+        } else lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         if(!ObjectUtils.isEmpty(lendingStateDTO) && !ObjectUtils.isEmpty(lendingStateDTO.getData())){
             if((Objects.nonNull(lendingStateDTO.getData().getLoanApplication()) &&
                     Objects.nonNull(lendingStateDTO.getData().getLoanApplication().getEnachDone()) &&
-                    lendingStateDTO.getData().getLoanApplication().getEnachDone()) ||
-                    (Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication()) &&
+                    lendingStateDTO.getData().getLoanApplication().getEnachDone())
+              ||
+
+              (Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication()) &&
                             Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication().getEnachDone()) &&
-                            lendingStateDTO.getData().getTopupLoanApplication().getEnachDone())){
+                            lendingStateDTO.getData().getTopupLoanApplication().getEnachDone())) {
                 lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
             }
         }
@@ -89,6 +121,28 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 }
                 return new LendingStateDTO<>(kfsStageResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
             }
+
+            if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
+                kfsStageResponseV3.setUpiAutoPayEligible(true);
+
+                AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+
+                if (Objects.nonNull(autoPayUPIExistingEntity)) {
+                    if (autoPayUPIExistingEntity.getStatus().equals(AutoPayStatusEnum.PENDING))
+                    {
+                        final MandateUPIStatusResponse mandateUPIStatusResponse = autoPayUPIService.checkStatus(scopeDataArgs.getMerchant(), autoPayUPIExistingEntity.getOrderId());
+                        kfsStageResponseV3.setUpiAutoPayMandateStatus(mandateUPIStatusResponse.data.getStatus().name());
+                    } else {
+                        kfsStageResponseV3.setUpiAutoPayMandateStatus(autoPayUPIExistingEntity.getStatus().name());
+                    }
+                }
+
+                if (Objects.nonNull(lendingApplication.getAgreementAt()))
+                    kfsStageResponseV3.setAgreementDone(true);
+                else kfsStageResponseV3.setAgreementDone(false);
+
+            } else kfsStageResponseV3.setUpiAutoPayEligible(false);
+
             LoanApplicationDetailsV3 loanApplicationDetails = setApplicationDetails(lendingApplication);
             kfsStageResponseV3.setLoanApplication(loanApplicationDetails);
             return new LendingStateDTO<>(kfsStageResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
