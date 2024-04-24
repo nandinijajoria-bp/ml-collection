@@ -236,6 +236,7 @@ public class BreRequestKafka {
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
                     .productName("LENDING")
+                    .isTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .payload(
                             BreApiRequestDto.Payload.builder()
                                     .accountId(lendingApplication.get().getExternalLoanId())
@@ -253,7 +254,6 @@ public class BreRequestKafka {
                                                                     .lastName(converterUtils.parseNameData(lastName))
                                                                     .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                                                                     .middleName(converterUtils.parseNameData(middleName))
-                                                                    .email(lendingApplication.get().getEmail())
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(Integer.valueOf(cKycResponseDto.getPincode()))
                                                                     .state(cKycResponseDto.getState())

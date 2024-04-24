@@ -22,6 +22,7 @@ public class KycRequestApiDto {
     String lender;
     Long applicationId;
     String productName;
+    Boolean isTopup;
     Payload payload;
     Identifier identifier;
 
