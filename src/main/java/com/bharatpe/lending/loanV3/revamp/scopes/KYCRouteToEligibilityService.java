@@ -3,13 +3,10 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
-import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
-import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCRTEDto;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
@@ -100,9 +97,9 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
     public LendingStateDTO<KYCRTEDto> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         KYCRTEDto initiateKycResponse = new KYCRTEDto();
         try {
-            KycStatusDTO doc = kycHandler.getKycStatus(scopeDataArgs.getMerchant().getId());
-            log.info("kycStatus is {}",doc.getKycStatus());
-            if (!ObjectUtils.isEmpty(doc) && (!"APPROVED".equalsIgnoreCase(doc.getKycStatus().toString()))) {
+            KycStatus doc = kycHandler.getPanStatus(scopeDataArgs.getMerchant().getId());
+            log.info("kycStatus is {}",doc);
+            if (!ObjectUtils.isEmpty(doc) && (!"APPROVED".equalsIgnoreCase(doc.toString()))) {
                     initiateKycResponse = KYCRTEDto.from(initiateKyc(scopeDataArgs.getMerchant().getId()));
                     log.info("kyc response is {}",initiateKycResponse);
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY,
@@ -115,7 +112,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
                         LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY);
 
             }
-            initiateKycResponse.setKycStatus(doc.getKycStatus());
+            initiateKycResponse.setKycStatus(doc);
             initiateKycResponse.setShowKycPage(false);
             String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + scopeDataArgs.getMerchant().getId();
             Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
