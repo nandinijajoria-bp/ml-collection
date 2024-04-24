@@ -209,6 +209,9 @@ public class MerchantLoansService {
     @Autowired
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
+    @Autowired
+    LenderTopupEligibilityDao lenderTopupEligibilityDao;
+
     @Value("${abfl.topup.rollout.percent:1}")
     Integer abflTopupRolloutPercent;
 
@@ -929,6 +932,15 @@ public class MerchantLoansService {
             if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), abflTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 log.info("ABFL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
+            }
+
+            if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+                LenderTopupEligibility lenderTopupEligibility = lenderTopupEligibilityDao.findTopupEligibilityFromLender(
+                        lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+                if(ObjectUtils.isEmpty(lenderTopupEligibility)){
+                    log.info("Merchant not eligible from lender ABFL for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
             }
 
 
