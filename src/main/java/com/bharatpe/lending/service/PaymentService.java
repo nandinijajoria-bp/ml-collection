@@ -17,10 +17,10 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
-import com.bharatpe.lending.common.query.dao.LoanForeClosureChargesDao;
+import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
-import com.bharatpe.lending.common.query.entity.LoanForeClosureCharges;
+import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.*;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
@@ -2092,7 +2092,7 @@ public class PaymentService {
             activeLoan.setStatus("CLOSED");
             activeLoan.setClosingDate(new Date());
             preclosure = true;
-            if(excessCollectionBalance > 0D)excessCollectionAdjusted = true;
+            if(excessCollectionBalance > 0D) excessCollectionAdjusted = true;
             loanStatusFlag=true;
             log.info("setting loan flag as true at AdjustLoanBalanceEdiByEdi for merchantId :{}",activeLoan.getMerchantId());
         }
@@ -2120,7 +2120,7 @@ public class PaymentService {
 
         LendingLedger lendingLedger = createLendingLedger(
                 activeLoan, excessCollectionAdjusted ? paidPrincipalAmount + paidInterestAmount - excessCollectionBalance : paidPrincipalAmount + paidInterestAmount,
-                paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo, preclosure, preclosureWithCharges), source, transferType, terminalOrderId, penaltyFee
+          excessCollectionAdjusted ? paidPrincipalAmount - excessCollectionBalance : paidPrincipalAmount , paidInterestAmount,  getDescription(bankRefNo, preclosure, preclosureWithCharges), source, transferType, terminalOrderId, penaltyFee
         );
         if(excessCollectionAdjusted) {
             logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
