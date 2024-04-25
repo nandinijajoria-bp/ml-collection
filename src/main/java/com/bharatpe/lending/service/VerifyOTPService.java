@@ -859,9 +859,6 @@ public class VerifyOTPService {
                 nbfcService.pushCloseLoanEventToKafka(previousLoan.getApplicationId());
             }
             putCollectionExcessAmountInRefund(previousLoan);
-            if("ABFL".equalsIgnoreCase(previousLoan.getLoanApplication().getLender())) {
-                //paymentService.sendForeclosureEvent(previousLoan.getApplicationId(), lendingApplication.getAlternateMobile(), lendingLedger);
-            }
         }
 
         lendingCollectionAuditService.sendCollectionAudit(lendingLedger, previousLoan);

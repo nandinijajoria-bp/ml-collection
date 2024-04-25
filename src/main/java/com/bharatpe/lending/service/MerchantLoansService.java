@@ -212,7 +212,7 @@ public class MerchantLoansService {
     @Autowired
     LenderTopupEligibilityDao lenderTopupEligibilityDao;
 
-    @Value("${abfl.topup.rollout.percent:1}")
+    @Value("${abfl.topup.rollout.percent}")
     Integer abflTopupRolloutPercent;
 
     @Value("${abfl.topup.rejection.banner.tat:5}")
