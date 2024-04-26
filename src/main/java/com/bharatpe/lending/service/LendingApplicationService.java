@@ -1881,6 +1881,7 @@ public class LendingApplicationService {
                     loanData.put("message", "Merchant maybe eligible for loan");
                     data.put("loan_data", loanData);
                     data.put("task_enable", Boolean.FALSE);
+                    responseDTO.setData(data);
                     return responseDTO;
                 }
                 if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
