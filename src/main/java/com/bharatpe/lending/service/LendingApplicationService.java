@@ -1875,6 +1875,13 @@ public class LendingApplicationService {
             ) {
 
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.FOS);
+                if(globalLimitResponse != null && globalLimitResponse.getErrorCode() != null){
+                    loanData.put("experian", Boolean.TRUE);
+                    loanData.put("eligible", "maybe");
+                    loanData.put("message", "Merchant maybe eligible for loan");
+                    data.put("loan_data", loanData);
+                    data.put("task_enable", Boolean.FALSE);
+                }
                 if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
                     loanData.put("experian", Boolean.TRUE);
                     loanData.put("eligible", Boolean.FALSE);
