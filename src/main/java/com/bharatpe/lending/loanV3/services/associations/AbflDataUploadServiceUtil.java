@@ -18,6 +18,7 @@ import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.*;
@@ -175,6 +176,7 @@ public class AbflDataUploadServiceUtil {
                     .applicationId(lendingApplicationOptional.get().getId())
                     .lender(lendingApplicationOptional.get().getLender())
                     .productName("LENDING")
+                    .isTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplicationOptional.get().getLoanType()))
                     .payload(RegulatoryApiRequestDto.Payload.builder()
                             .accountId(lendingApplicationOptional.get().getExternalLoanId())
                             .auditData(ConverterUtils.convertToBase64String(objectMapper.writeValueAsString(
@@ -331,6 +333,7 @@ public class AbflDataUploadServiceUtil {
                         .applicationId(lendingApplication.getId())
                         .productName("LENDING")
                         .lender(lendingApplication.getLender())
+                        .isTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplicationOptional.get().getLoanType()))
                         .payload(DocUploadApiRequestDto.Payload.builder()
                                 .accountId(lendingApplication.getExternalLoanId())
                                 .cccId(lendingApplicationLenderDetails.getCccId())
@@ -504,6 +507,7 @@ public class AbflDataUploadServiceUtil {
                     .applicationId(lendingApplicationOptional.get().getId())
                     .lender(lendingApplicationOptional.get().getLender())
                     .productName("LENDING")
+                    .isTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplicationOptional.get().getLoanType()))
                     .payload(DigitalDataUploadRequest.Payload.builder()
                             .category(converterUtils.parseDataExtended(lendingMerchantDetails.getBusinessCategory()))
                             .companyCategory(lendingMerchantDetails.getBusinessSubCategory())

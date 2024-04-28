@@ -11,6 +11,7 @@ public class RegulatoryApiRequestDto {
     String lender;
     Long applicationId;
     String productName;
+    Boolean isTopup;
     RegulatoryApiRequestDto.Payload payload;
 
     @Data
