@@ -30,7 +30,6 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -435,12 +434,7 @@ public class KycHandler {
             }
         }catch (HttpClientErrorException.TooManyRequests exception) {
             log.error("Exception in fetching pan details :{} {}", exception.getMessage(), exception);
-            try {
-                JsonNode jsonNode = new ObjectMapper().readValue(exception.getResponseBodyAsString(), JsonNode.class);
-                return new ObjectMapper().convertValue(jsonNode, PanFetchKYCResponseDto.class);
-            } catch (IOException | IllegalArgumentException e) {
-                log.error("Exception in parsing responseBody string : {} {} ", exception.getMessage(), exception);
-            }
+            throw exception;
         }catch (Exception e) {
             log.error("Error occurred while fetching pan details {} {}", e.getMessage(), e);
         }
@@ -477,12 +471,7 @@ public class KycHandler {
             }
         }catch (HttpClientErrorException.TooManyRequests exception) {
             log.error("Exception in verifying pan details :{} {}", exception.getMessage(), exception);
-            try {
-                JsonNode jsonNode = new ObjectMapper().readValue(exception.getResponseBodyAsString(), JsonNode.class);
-                return new ObjectMapper().convertValue(jsonNode, PanVerifyKYCResponseDto.class);
-            } catch (IOException | IllegalArgumentException e) {
-                log.error("Exception in parsing responseBody string : {} {} ", exception.getMessage(), exception);
-            }
+            throw exception;
         }catch (Exception e) {
             log.error("Error occurred while verifying details {} {}", e.getMessage(), e);
         }

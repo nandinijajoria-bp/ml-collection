@@ -18,7 +18,6 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
@@ -70,9 +69,8 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
                 eligibilityStateDTO.setPancard(kycPancard);
             }
-            PanFetchKYCResponseDto response = new PanFetchKYCResponseDto();
             try {
-                response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
                 if (response != null && response.getStatus()) {
                     PanFetchKYCResponseDto.Data data = response.getData();
                     if (data != null) {
@@ -85,12 +83,8 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 }
             }catch (HttpClientErrorException.TooManyRequests e) {
                 log.error("Too Many requests error");
-                if(!ObjectUtils.isEmpty(response)) {
-                    if (response.getData() != null && response.getData().getMaxCountReached() != null && response.getData().getMessage() != null) {
-                        eligibilityStateDTO.setMaxCountReached(response.getData().getMaxCountReached());
-                        eligibilityStateDTO.setMessage(response.getData().getMessage());
-                    }
-                }
+                eligibilityStateDTO.setMaxCountReached(true);
+                eligibilityStateDTO.setMessage("You've reached your daily limit for PAN input. Please try again after 24 hours");
             }
         }
         catch (Exception e) {
