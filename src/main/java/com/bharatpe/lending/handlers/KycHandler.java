@@ -406,7 +406,7 @@ public class KycHandler {
         return null;
     }
 
-    public PanFetchKYCResponseDto panFetch(String token, String panNumber, Long merchantId) throws Exception {
+    public PanFetchKYCResponseDto panFetch(String token, String panNumber, Long merchantId) {
         if (ObjectUtils.isEmpty(panNumber)) {
             log.info("PanNumber of merchantId : {} is empty", merchantId);
             return null;
@@ -418,11 +418,12 @@ public class KycHandler {
         payload.put("userType", "MERCHANT");
         payload.put("source", "LOAN");
 
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-        headers.put("token", token);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        headers.set("token", token);
 
-        PanFetchKYCResponseDto panFetchKYCResponseDto = restUtils.postForObject(url, headers, payload, PanFetchKYCResponseDto.class, RestUtils.ExceptionLevel.INFO);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+        PanFetchKYCResponseDto panFetchKYCResponseDto = restTemplate.postForObject(url, request, PanFetchKYCResponseDto.class);
         log.info("Pan Fetch KYC response {}", panFetchKYCResponseDto);
         return panFetchKYCResponseDto;
     }
@@ -441,11 +442,12 @@ public class KycHandler {
         payload.put("userType", "MERCHANT");
         payload.put("source", "LOAN");
 
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-        headers.put("token", token);
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+        headers.set("token", token);
 
-        PanVerifyKYCResponseDto panVerifyKYCResponseDto = restUtils.postForObject(url, headers, payload, PanVerifyKYCResponseDto.class, RestUtils.ExceptionLevel.INFO);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+        PanVerifyKYCResponseDto panVerifyKYCResponseDto = restTemplate.postForObject(url, request, PanVerifyKYCResponseDto.class);
         log.info("Pan Verify KYC response {}", mapper.writeValueAsString(panVerifyKYCResponseDto));
         return panVerifyKYCResponseDto;
     }
