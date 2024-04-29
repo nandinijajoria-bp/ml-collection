@@ -8,6 +8,6 @@ import org.springframework.stereotype.Repository;
 public interface LendingKfsDao extends JpaRepository<LendingKfs, Long> {
     LendingKfs findTop1ByApplicationIdOrderByIdDesc(long applicationId);
 
-    LendingKfs findTop1ByApplicationIdAndLenderOrderByIdDesc(long applicationId, String lender);
+    LendingKfs findTop1ByApplicationIdAndLenderOrderByIdDesc(Long applicationId, String lender);
 
 }
