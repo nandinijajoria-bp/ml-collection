@@ -1,12 +1,12 @@
 package com.bharatpe.lending.dto;
 
 public class PanVerifyKYCResponseDto {
-    private boolean status;
+    private Boolean status;
     private Data data;
     public class Data {
         private String id;
         private String message;
-        private boolean maxCountReached;
+        private Boolean maxCountReached;
         private String version;
         private String identifier;
         private String active;
@@ -16,9 +16,9 @@ public class PanVerifyKYCResponseDto {
         private String panNumber;
         private String panHolderName;
         private String dob;
-        private boolean panValid;
-        private boolean dobMatch;
-        private boolean nameMatch;
+        private Boolean panValid;
+        private Boolean dobMatch;
+        private Boolean nameMatch;
         private String aadhaarSeedingStatus;
         private String provider;
         private String createdAt;
@@ -138,27 +138,27 @@ public class PanVerifyKYCResponseDto {
             this.panHolderLastName = panHolderLastName;
         }
 
-        public boolean getPanValid() {
+        public Boolean getPanValid() {
             return panValid;
         }
 
-        public void setPanValid(boolean panValid) {
+        public void setPanValid(Boolean panValid) {
             this.panValid = panValid;
         }
 
-        public boolean getDobMatch() {
+        public Boolean getDobMatch() {
             return dobMatch;
         }
 
-        public void setDobMatch(boolean dobMatch) {
+        public void setDobMatch(Boolean dobMatch) {
             this.dobMatch = dobMatch;
         }
 
-        public boolean getNameMatch() {
+        public Boolean getNameMatch() {
             return nameMatch;
         }
 
-        public void setNameMatch(boolean nameMatch) {
+        public void setNameMatch(Boolean nameMatch) {
             this.nameMatch = nameMatch;
         }
 
@@ -186,20 +186,20 @@ public class PanVerifyKYCResponseDto {
             this.message = message;
         }
 
-        public boolean getMaxCountReached() {
+        public Boolean getMaxCountReached() {
             return maxCountReached;
         }
 
-        public void setMaxCountReached(boolean maxCountReached) {
+        public void setMaxCountReached(Boolean maxCountReached) {
             this.maxCountReached = maxCountReached;
         }
     }
 
-    public boolean getStatus() {
+    public Boolean getStatus() {
         return status;
     }
 
-    public void setStatus(boolean status) {
+    public void setStatus(Boolean status) {
         this.status = status;
     }
 

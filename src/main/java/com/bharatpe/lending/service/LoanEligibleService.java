@@ -705,7 +705,9 @@ public class LoanEligibleService {
                     verifyPanCardResponseDto.setIsDobVerified(false);
                     verifyPanCardResponseDto.setIsNameVerified(false);
                     verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
-                    verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());
+                    if (responseDto.getData().getMaxCountReached() != null) {
+                        verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());
+                    }
                 }
                 if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
                     LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
