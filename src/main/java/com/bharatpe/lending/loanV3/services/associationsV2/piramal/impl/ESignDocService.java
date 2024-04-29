@@ -62,7 +62,7 @@ public class ESignDocService {
                 log.info("application {} not found for esign doc event", nbfcResponseDto.getApplicationId());
                 return new ApiResponse<>(false, "lending application doesn't exists !");
             }
-            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.get().getId());
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.get().getId(), lendingApplication.get().getLender());
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
             if (ObjectUtils.isEmpty(lendingKfs)) {
                 log.info("lendingKfs {} not found for esign doc event", nbfcResponseDto.getApplicationId());
