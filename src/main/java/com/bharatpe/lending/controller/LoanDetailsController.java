@@ -191,10 +191,7 @@ Integer lendingEdiModel;
 		logger.info("verify pancard check request for merchant:{} and pancard:{}", merchant.getId(), verifyPanCardRequestDto.getPanNumber());
 		VerifyPanCardResponseDto verifyPanCardResponseDto = verifyDocService.validatePanCard(token, merchant, verifyPanCardRequestDto);
 		logger.info("verify pancard check response for merchant:{} and pancard:{} is :{}", merchant.getId(), verifyPanCardRequestDto.getPanNumber(), verifyPanCardResponseDto);
-		if(verifyPanCardResponseDto.getStatus()) {
-			return new ResponseEntity<>(verifyPanCardResponseDto, HttpStatus.OK);
-		}
-		return new ResponseEntity<>(verifyPanCardResponseDto, HttpStatus.BAD_REQUEST);
+		return new ResponseEntity<>(verifyPanCardResponseDto, HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
