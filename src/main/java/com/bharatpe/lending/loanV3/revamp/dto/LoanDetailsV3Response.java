@@ -74,6 +74,7 @@ public class LoanDetailsV3Response {
     private Boolean isPreapprovedRepeatLoan;
     private String kycMessage;
     private Boolean isPanNsdlVerified;
+    private Boolean maxCountReached;
 
     @Data
     @ToString
@@ -287,6 +288,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setMerchantName(eligibilityStateDTO.getMerchantName());
         loanDetailsV3Response.setIsPanNsdlVerified(eligibilityStateDTO.getIsPanNsdlVerified());
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
+        loanDetailsV3Response.setMaxCountReached(eligibilityStateDTO.getMaxCountReached());
     }
 
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){

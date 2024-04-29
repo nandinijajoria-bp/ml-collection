@@ -49,4 +49,5 @@ public class EligibilityStateDTO {
     private boolean isPincodeChanged;
     private String kycMessage;
     private Boolean isPanNsdlVerified;
+    private Boolean maxCountReached;
 }

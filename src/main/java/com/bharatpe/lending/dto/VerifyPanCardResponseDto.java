@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class VerifyPanCardResponseDto {
     private Boolean status=true;
     private String message;
+    private Boolean maxCountReached;
     private Boolean isPanVerified;
     private Boolean isNameVerified;
     private Boolean isDobVerified;
@@ -60,6 +61,14 @@ public class VerifyPanCardResponseDto {
 
     public void setIsPanVerified(Boolean panVerified) {
         isPanVerified = panVerified;
+    }
+
+    public Boolean getMaxCountReached() {
+        return maxCountReached;
+    }
+
+    public void setMaxCountReached(Boolean maxCountReached) {
+        this.maxCountReached = maxCountReached;
     }
 
     @Override
