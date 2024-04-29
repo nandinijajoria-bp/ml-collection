@@ -78,7 +78,7 @@ public class VerifyDocService {
 			Experian experian =experianDao.getByPancardNumber(verifyPanCardRequestDto.getPanNumber(), merchant.getId());
 			if( (experian != null && !merchant.getId().equals(experian.getMerchantId()))){
 				logger.info("Already Experian Pull On this Pancard :{}",verifyPanCardRequestDto.getPanNumber());
-				return new VerifyPanCardResponseDto(true,"PAN already exists, Please enter a different PAN Number", false, false, false);
+				return new VerifyPanCardResponseDto(true,"PAN already exists, Please enter a different PAN Number");
 			}
 
 			VerifyPanCardResponseDto verifyPanCardResponseDto = new VerifyPanCardResponseDto();
@@ -86,11 +86,11 @@ public class VerifyDocService {
 			if(!ObjectUtils.isEmpty(verifyPanCardResponseDto) && verifyPanCardResponseDto != null) {
 				return verifyPanCardResponseDto;
 			}
-			return new VerifyPanCardResponseDto(true,"Please enter valid details", false, false, false);
+			return new VerifyPanCardResponseDto(false,"Something went wrong");
 		}
 		catch(Exception e) {
 			logger.error("Error occurred while verifying pancard {} for merchant {}: {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
-			return new VerifyPanCardResponseDto(true, "", false, false, false);
+			return new VerifyPanCardResponseDto(false, "Something went wrong");
 		}
 	}
 }

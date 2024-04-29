@@ -84,7 +84,7 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                     eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                 }
             }catch (HttpClientErrorException.TooManyRequests e) {
-                log.error("Too Many requests error {}", e.getMessage());
+                log.error("Too Many requests error");
                 if(!ObjectUtils.isEmpty(response)) {
                     if (response.getData() != null && response.getData().getMaxCountReached() != null && response.getData().getMessage() != null) {
                         eligibilityStateDTO.setMaxCountReached(response.getData().getMaxCountReached());

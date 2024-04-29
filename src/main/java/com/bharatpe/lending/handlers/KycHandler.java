@@ -27,8 +27,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -411,21 +413,38 @@ public class KycHandler {
             log.info("PanNumber of merchantId : {} is empty", merchantId);
             return null;
         }
-        String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_FETCH;
+        try {
+            String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_FETCH;
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("panNumber", panNumber);
-        payload.put("userType", "MERCHANT");
-        payload.put("source", "LOAN");
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("panNumber", panNumber);
+            payload.put("userType", "MERCHANT");
+            payload.put("source", "LOAN");
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-        headers.set("token", token);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+            headers.set("token", token);
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-        PanFetchKYCResponseDto panFetchKYCResponseDto = restTemplate.postForObject(url, request, PanFetchKYCResponseDto.class);
-        log.info("Pan Fetch KYC response {}", panFetchKYCResponseDto);
-        return panFetchKYCResponseDto;
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<PanFetchKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanFetchKYCResponseDto.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+            if(responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException.TooManyRequests exception) {
+            log.error("Exception in fetching pan details :{} {}", exception.getMessage(), exception);
+            try {
+                JsonNode jsonNode = new ObjectMapper().readValue(exception.getResponseBodyAsString(), JsonNode.class);
+                return new ObjectMapper().convertValue(jsonNode, PanFetchKYCResponseDto.class);
+            } catch (IOException | IllegalArgumentException e) {
+                log.error("Exception in parsing responseBody string : {} {} ", exception.getMessage(), exception);
+            }
+        }catch (Exception e) {
+            log.error("Error occurred while fetching pan details {} {}", e.getMessage(), e);
+        }
+        return null;
     }
 
     public PanVerifyKYCResponseDto verifyPanDetails(String token, String panNumber, String name, String dob, Long merchantId) throws Exception {
@@ -433,23 +452,41 @@ public class KycHandler {
             log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
             return null;
         }
-        String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_VERIFY;
+        try {
+            String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_VERIFY;
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("panNumber", panNumber);
-        payload.put("dob", dob);
-        payload.put("name", name);
-        payload.put("userType", "MERCHANT");
-        payload.put("source", "LOAN");
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("panNumber", panNumber);
+            payload.put("dob", dob);
+            payload.put("name", name);
+            payload.put("userType", "MERCHANT");
+            payload.put("source", "LOAN");
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
-        headers.set("token", token);
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+            headers.set("token", token);
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-        PanVerifyKYCResponseDto panVerifyKYCResponseDto = restTemplate.postForObject(url, request, PanVerifyKYCResponseDto.class);
-        log.info("Pan Verify KYC response {}", mapper.writeValueAsString(panVerifyKYCResponseDto));
-        return panVerifyKYCResponseDto;
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            ResponseEntity<PanVerifyKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanVerifyKYCResponseDto.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+
+            if(responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException.TooManyRequests exception) {
+            log.error("Exception in verifying pan details :{} {}", exception.getMessage(), exception);
+            try {
+                JsonNode jsonNode = new ObjectMapper().readValue(exception.getResponseBodyAsString(), JsonNode.class);
+                return new ObjectMapper().convertValue(jsonNode, PanVerifyKYCResponseDto.class);
+            } catch (IOException | IllegalArgumentException e) {
+                log.error("Exception in parsing responseBody string : {} {} ", exception.getMessage(), exception);
+            }
+        }catch (Exception e) {
+            log.error("Error occurred while verifying details {} {}", e.getMessage(), e);
+        }
+        return null;
     }
 
     private List<KycDoc> getPan(Long merchantId) {

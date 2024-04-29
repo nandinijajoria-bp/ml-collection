@@ -701,13 +701,10 @@ public class LoanEligibleService {
                     verifyPanCardResponseDto.setIsPanVerified(!ObjectUtils.isEmpty(responseDto.getData().getPanValid()) ? responseDto.getData().getPanValid() : false);
                     verifyPanCardResponseDto.setIsDobVerified(!ObjectUtils.isEmpty(responseDto.getData().getDobMatch()) ? responseDto.getData().getDobMatch() : false);
                     verifyPanCardResponseDto.setIsNameVerified(!ObjectUtils.isEmpty(responseDto.getData().getNameMatch()) ? responseDto.getData().getNameMatch() : false);
-                    verifyPanCardResponseDto.setMessage("");
                 } else {
-                    verifyPanCardResponseDto.setIsPanVerified(false);
-                    verifyPanCardResponseDto.setIsDobVerified(false);
-                    verifyPanCardResponseDto.setIsNameVerified(false);
                     verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
                 }
+
                 if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
                     LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
                     if (lendingPancard != null) {
@@ -721,7 +718,7 @@ public class LoanEligibleService {
                 return verifyPanCardResponseDto;
             }
         }catch (HttpClientErrorException.TooManyRequests e) {
-            logger.error("Too Many requests error {}", e.getMessage());
+            logger.error("Too Many requests error");
             if(!ObjectUtils.isEmpty(responseDto)) {
                 if (responseDto.getData() != null && responseDto.getData().getMaxCountReached() != null && responseDto.getData().getMessage() != null) {
                     verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());

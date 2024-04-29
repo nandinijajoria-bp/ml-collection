@@ -20,6 +20,11 @@ public class VerifyPanCardResponseDto {
         this.isDobVerified = isDobVerified;
     }
 
+    public VerifyPanCardResponseDto(Boolean status, String message) {
+        this.status = status;
+        this.message = message;
+    }
+
     public VerifyPanCardResponseDto() {
     }
 
