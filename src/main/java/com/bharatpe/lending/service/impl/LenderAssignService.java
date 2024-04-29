@@ -646,7 +646,7 @@ public class LenderAssignService implements ILenderAssignService {
                     limit.getRemainingBalance(), limit.getAssignedAmount(), null, LendingLenderQuota.Classification.REGULAR.name());
             */
             LendingLenderQuota updatedLimit = new LendingLenderQuota(limit.getLender(), limit.getTotalWeeklyAmount(),
-                    limit.getRemainingBalance(), limit.getAssignedAmount(), null);
+                    limit.getRemainingBalance(), limit.getAssignedAmount(), null, limit1.get().getClassification());
             updatedLimit.setCreatedAt(limit1.get().getCreatedAt());
             updatedLimit.setId(id);
             updatedLimit.setEdiModel(LenderOffDays.valueOf(LendingEnum.LENDER.valueOf(limit1.get().getLender()).name()).getEdiModel().name());
