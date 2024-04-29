@@ -18,6 +18,8 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -68,18 +70,26 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
                 eligibilityStateDTO.setPancard(kycPancard);
             }
-            PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
-            if (response != null && response.getStatus()) {
-                PanFetchKYCResponseDto.Data data = response.getData();
-                if (data != null) {
-                    if (data.getIsPanNsdlVerified() != null) {
-                        eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+            PanFetchKYCResponseDto response = new PanFetchKYCResponseDto();
+            try {
+                response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                if (response != null && response.getStatus()) {
+                    PanFetchKYCResponseDto.Data data = response.getData();
+                    if (data != null) {
+                        if (data.getIsPanNsdlVerified() != null) {
+                            eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                        }
                     }
+                } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                    eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                 }
-            } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
-                eligibilityStateDTO.setKycMessage(response.getData().getMessage());
-                if (response.getData().getMaxCountReached() != null) {
-                    eligibilityStateDTO.setMaxCountReached(response.getData().getMaxCountReached());
+            }catch (HttpClientErrorException e) {
+                log.error("Too Many requests error {}", e);
+                if(!ObjectUtils.isEmpty(response)) {
+                    if (response.getData() != null && response.getData().getMaxCountReached() != null && response.getData().getMessage() != null) {
+                        eligibilityStateDTO.setMaxCountReached(response.getData().getMaxCountReached());
+                        eligibilityStateDTO.setMessage(response.getData().getMessage());
+                    }
                 }
             }
         }

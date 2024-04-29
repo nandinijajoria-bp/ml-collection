@@ -52,6 +52,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -692,8 +693,9 @@ public class LoanEligibleService {
 
     public VerifyPanCardResponseDto verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
         logger.info("Calling Pan Verify Api for merchant:{}", merchantId);
+        PanVerifyKYCResponseDto responseDto = new PanVerifyKYCResponseDto();
         try {
-            PanVerifyKYCResponseDto responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
+            responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
             if(!ObjectUtils.isEmpty(responseDto))  {
                 if (responseDto.getStatus()) {
                     verifyPanCardResponseDto.setIsPanVerified(!ObjectUtils.isEmpty(responseDto.getData().getPanValid()) ? responseDto.getData().getPanValid() : false);
@@ -705,9 +707,6 @@ public class LoanEligibleService {
                     verifyPanCardResponseDto.setIsDobVerified(false);
                     verifyPanCardResponseDto.setIsNameVerified(false);
                     verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
-                    if (responseDto.getData().getMaxCountReached() != null) {
-                        verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());
-                    }
                 }
                 if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
                     LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
@@ -721,7 +720,16 @@ public class LoanEligibleService {
                 }
                 return verifyPanCardResponseDto;
             }
-        } catch (Exception e) {
+        }catch (HttpClientErrorException e) {
+            logger.error("Too Many requests error {}", e);
+            if(!ObjectUtils.isEmpty(responseDto)) {
+                if (responseDto.getData() != null && responseDto.getData().getMaxCountReached() != null && responseDto.getData().getMessage() != null) {
+                    verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());
+                    verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
+                }
+                return verifyPanCardResponseDto;
+            }
+        }catch (Exception e) {
             logger.error("Exception in verifyPanDetails for merchant:{}", merchantId, e);
         }
         return null;

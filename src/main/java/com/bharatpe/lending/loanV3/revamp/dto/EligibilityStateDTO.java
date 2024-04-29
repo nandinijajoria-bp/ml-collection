@@ -50,4 +50,5 @@ public class EligibilityStateDTO {
     private String kycMessage;
     private Boolean isPanNsdlVerified;
     private Boolean maxCountReached;
+    private String message;
 }
