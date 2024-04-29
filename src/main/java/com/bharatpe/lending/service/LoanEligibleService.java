@@ -720,8 +720,8 @@ public class LoanEligibleService {
                 }
                 return verifyPanCardResponseDto;
             }
-        }catch (HttpClientErrorException e) {
-            logger.error("Too Many requests error {}", e);
+        }catch (HttpClientErrorException.TooManyRequests e) {
+            logger.error("Too Many requests error {}", e.getMessage());
             if(!ObjectUtils.isEmpty(responseDto)) {
                 if (responseDto.getData() != null && responseDto.getData().getMaxCountReached() != null && responseDto.getData().getMessage() != null) {
                     verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());
