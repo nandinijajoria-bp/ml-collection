@@ -718,14 +718,7 @@ public class LoanEligibleService {
                 return verifyPanCardResponseDto;
             }
         }catch (HttpClientErrorException.TooManyRequests e) {
-            logger.error("Too Many requests error");
-            if(!ObjectUtils.isEmpty(responseDto)) {
-                if (responseDto.getData() != null && responseDto.getData().getMaxCountReached() != null && responseDto.getData().getMessage() != null) {
-                    verifyPanCardResponseDto.setMaxCountReached(responseDto.getData().getMaxCountReached());
-                    verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
-                }
-                return verifyPanCardResponseDto;
-            }
+            throw e;
         }catch (Exception e) {
             logger.error("Exception in verifyPanDetails for merchant:{}", merchantId, e);
         }

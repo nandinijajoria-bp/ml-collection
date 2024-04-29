@@ -25,6 +25,12 @@ public class VerifyPanCardResponseDto {
         this.message = message;
     }
 
+    public VerifyPanCardResponseDto(Boolean status, String message, Boolean maxCountReached) {
+        this.status = status;
+        this.message = message;
+        this.maxCountReached = maxCountReached;
+    }
+
     public VerifyPanCardResponseDto() {
     }
 
