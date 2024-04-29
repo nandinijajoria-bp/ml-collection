@@ -72,9 +72,8 @@ public class LoanDetailsV3Response {
     private String kycDeeplink;
     private Boolean isSelfieResumit;
     private Boolean isPreapprovedRepeatLoan;
-    private String dob;
-    private String fullName;
     private String kycMessage;
+    private Boolean isPanNsdlVerified;
 
     @Data
     @ToString
@@ -286,8 +285,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setPincode(eligibilityStateDTO.getPincode());
         loanDetailsV3Response.setHasExperian(eligibilityStateDTO.isHasExperian());
         loanDetailsV3Response.setMerchantName(eligibilityStateDTO.getMerchantName());
-        loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
-        loanDetailsV3Response.setFullName(eligibilityStateDTO.getFullName());
+        loanDetailsV3Response.setIsPanNsdlVerified(eligibilityStateDTO.getIsPanNsdlVerified());
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
     }
 

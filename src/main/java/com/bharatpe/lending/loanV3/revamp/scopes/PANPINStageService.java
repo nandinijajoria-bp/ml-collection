@@ -72,11 +72,8 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             if (response != null && response.getStatus()) {
                 PanFetchKYCResponseDto.Data data = response.getData();
                 if (data != null) {
-                    if (data.getDateOfBirth() != null) {
-                        eligibilityStateDTO.setDob(data.getDateOfBirth());
-                    }
-                    if (data.getName() != null) {
-                        eligibilityStateDTO.setFullName(data.getName());
+                    if (data.getIsPanNsdlVerified() != null) {
+                        eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
                     }
                 }
             } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {

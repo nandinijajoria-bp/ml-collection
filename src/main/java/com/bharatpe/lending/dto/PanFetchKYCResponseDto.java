@@ -1,12 +1,12 @@
 package com.bharatpe.lending.dto;
 
 public class PanFetchKYCResponseDto {
-    private boolean status;
+    private Boolean status;
     private Data data;
     public class Data {
         private String id;
         private String message;
-        private boolean maxCountReached;
+        private Boolean maxCountReached;
         private String createdAt;
         private String updatedAt;
         private String version;
@@ -20,10 +20,13 @@ public class PanFetchKYCResponseDto {
         private String dateOfBirth;
         private String gender;
         private String maskedAadhaar;
-        private boolean aadhaarLinked;
+        private Boolean aadhaarLinked;
         private String provider;
         private String consumerId;
         private String merchantId;
+        private Boolean isPanNsdlVerified;
+        private String verifiedName;
+        private String verifiedDob;
         private NonNsdladdress nonNsdladdress;
 
         public class NonNsdladdress {
@@ -214,11 +217,11 @@ public class PanFetchKYCResponseDto {
             this.maskedAadhaar = maskedAadhaar;
         }
 
-        public boolean isAadhaarLinked() {
+        public Boolean isAadhaarLinked() {
             return aadhaarLinked;
         }
 
-        public void setAadhaarLinked(boolean aadhaarLinked) {
+        public void setAadhaarLinked(Boolean aadhaarLinked) {
             this.aadhaarLinked = aadhaarLinked;
         }
 
@@ -255,12 +258,36 @@ public class PanFetchKYCResponseDto {
             this.message = message;
         }
 
-        public boolean getMaxCountReached() {
+        public Boolean getMaxCountReached() {
             return maxCountReached;
         }
 
-        public void setMaxCountReached(boolean maxCountReached) {
+        public void setMaxCountReached(Boolean maxCountReached) {
             this.maxCountReached = maxCountReached;
+        }
+
+        public Boolean getIsPanNsdlVerified() {
+            return isPanNsdlVerified;
+        }
+
+        public void setIsPanNsdlVerified(Boolean panNsdlVerified) {
+            isPanNsdlVerified = panNsdlVerified;
+        }
+
+        public String getVerifiedName() {
+            return verifiedName;
+        }
+
+        public void setVerifiedName(String verifiedName) {
+            this.verifiedName = verifiedName;
+        }
+
+        public String getVerifiedDob() {
+            return verifiedDob;
+        }
+
+        public void setVerifiedDob(String verifiedDob) {
+            this.verifiedDob = verifiedDob;
         }
 
         public NonNsdladdress getNonNsdladdress() {
@@ -272,11 +299,11 @@ public class PanFetchKYCResponseDto {
         }
     }
 
-    public boolean getStatus() {
+    public Boolean getStatus() {
         return status;
     }
 
-    public void setStatus(boolean status) {
+    public void setStatus(Boolean status) {
         this.status = status;
     }
 
