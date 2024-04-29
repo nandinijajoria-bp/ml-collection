@@ -1877,7 +1877,6 @@ public class LendingApplicationService {
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.FOS);
                 if(globalLimitResponse != null && globalLimitResponse.getErrorCode() != null){
                     loanData.put("experian", Boolean.TRUE);
-                    loanData.put("eligible", "maybe");
                     loanData.put("header", "Exception while fetching response from bureau");
                     loanData.put("message", "Merchant maybe eligible for loan");
                     data.put("loan_data", loanData);
