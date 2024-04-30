@@ -780,10 +780,12 @@ public class VerifyOTPService {
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             lendingApplicationDao.save(lendingApplication);
 
-            logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
-            activeLoan.setStatus("INACTIVE_TOPUP");
-            lendingPaymentScheduleDao.save(activeLoan);
-            logger.info("active loan marked as INACTIVE_TOP_UP for loanid {}",activeLoan.getId());
+            if(!Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
+                logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
+                activeLoan.setStatus("INACTIVE_TOPUP");
+                lendingPaymentScheduleDao.save(activeLoan);
+                logger.info("active loan marked as INACTIVE_TOP_UP for loanid {}",activeLoan.getId());
+            }
 
             /*if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())
                 && !Lender.ABFL.name().equalsIgnoreCase(activeLoan.getNbfc())) {
