@@ -289,6 +289,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setIsPanNsdlVerified(eligibilityStateDTO.getIsPanNsdlVerified());
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
         loanDetailsV3Response.setMaxCountReached(eligibilityStateDTO.getMaxCountReached());
+        loanDetailsV3Response.setDummyMerchant(eligibilityStateDTO.getDummyMerchant());
     }
 
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){

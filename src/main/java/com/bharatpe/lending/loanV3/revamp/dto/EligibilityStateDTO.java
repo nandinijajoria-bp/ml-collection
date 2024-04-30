@@ -51,4 +51,5 @@ public class EligibilityStateDTO {
     private Boolean isPanNsdlVerified;
     private Boolean maxCountReached;
     private String message;
+    private Boolean dummyMerchant;
 }

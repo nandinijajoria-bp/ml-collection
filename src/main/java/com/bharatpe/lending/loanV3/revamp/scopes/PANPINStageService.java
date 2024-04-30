@@ -4,6 +4,7 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -45,6 +46,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());
@@ -69,22 +73,28 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
                 eligibilityStateDTO.setPancard(kycPancard);
             }
-            try {
-                PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
-                if (response != null && response.getStatus()) {
-                    PanFetchKYCResponseDto.Data data = response.getData();
-                    if (data != null) {
-                        if (data.getIsPanNsdlVerified() != null) {
-                            eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+
+            if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId())) {
+                eligibilityStateDTO.setIsPanNsdlVerified(true);
+                eligibilityStateDTO.setDummyMerchant(true);
+            }else{
+                try {
+                    PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                    if (response != null && response.getStatus()) {
+                        PanFetchKYCResponseDto.Data data = response.getData();
+                        if (data != null) {
+                            if (data.getIsPanNsdlVerified() != null) {
+                                eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                            }
                         }
+                    } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                        eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                     }
-                } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
-                    eligibilityStateDTO.setKycMessage(response.getData().getMessage());
+                }catch (HttpClientErrorException.TooManyRequests e) {
+                    log.error("Too Many requests error");
+                    eligibilityStateDTO.setMaxCountReached(true);
+                    eligibilityStateDTO.setMessage("You've reached your daily limit for PAN input. Please try again after 24 hours");
                 }
-            }catch (HttpClientErrorException.TooManyRequests e) {
-                log.error("Too Many requests error");
-                eligibilityStateDTO.setMaxCountReached(true);
-                eligibilityStateDTO.setMessage("You've reached your daily limit for PAN input. Please try again after 24 hours");
             }
         }
         catch (Exception e) {
