@@ -89,6 +89,8 @@ public class VerifyPanCardResponseDto {
         return "VerifyPanCardResponseDto{" +
                 "status=" + status +
                 ", message='" + message + '\'' +
+                ", maxCountReached=" + maxCountReached +
+                ", isPanVerified=" + isPanVerified +
                 ", isNameVerified=" + isNameVerified +
                 ", isDobVerified=" + isDobVerified +
                 '}';
