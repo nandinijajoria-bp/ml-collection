@@ -12,7 +12,9 @@ import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.BankStatementRejectReason;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.loanV2.dto.*;
@@ -68,8 +70,11 @@ public class BankStatementService {
     @Value("${account-aggregator.lender.traffic.percent:10}")
     Integer[] accountAggregatorTrafficPercent;
 
-    @Value("${default.AA.lender:LDC}")
+    @Value("${default.AA.lender:TRILLIONLOANS}")
     String defaultAALender;
+
+    @Autowired
+    LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
 
     public ApiResponse<?> uploadBankStatementFile(Long merchantId, String fileName, String password, String bankName, String base64) {
         try {
@@ -372,6 +377,11 @@ public class BankStatementService {
     }
 
     public LendingEnum.LENDER assignLender(Long merchantId) {
+        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+        if (!ObjectUtils.isEmpty(lendingLenderQuota)) {
+            log.info("Setting wildCard lender as default lender for AA for merchantId {}", merchantId);
+            defaultAALender = lendingLenderQuota.getLender();
+        }
         LendingEnum.LENDER defaultLender = LendingEnum.LENDER.valueOf(defaultAALender);
         Integer[] percentages = accountAggregatorTrafficPercent;
         if(4 != percentages.length || 100 != percentages[3]) {

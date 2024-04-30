@@ -431,6 +431,15 @@ public class LenderAssignService implements ILenderAssignService {
             decidedLender = LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
         }
+        if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+            LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+            if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                saveLenderChangeAudit(application, lendingLenderQuota.getLender());
+            } else {
+                decidedLender = assignFallackLender(application, ediModel);
+            }
+        }
 
         String oldLender = application.getLender();
         application.setLender(decidedLender);
