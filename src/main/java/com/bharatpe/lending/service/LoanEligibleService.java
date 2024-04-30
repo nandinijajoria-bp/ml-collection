@@ -720,7 +720,7 @@ public class LoanEligibleService {
         }catch (HttpClientErrorException.TooManyRequests e) {
             throw e;
         }catch (Exception e) {
-            logger.error("Exception in verifyPanDetails for merchant:{}", merchantId, e);
+            logger.error("Exception in verifyPanDetails for merchantId: {}", merchantId, e);
         }
         return null;
     }

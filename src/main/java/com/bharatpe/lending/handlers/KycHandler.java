@@ -435,10 +435,10 @@ public class KycHandler {
                 return responseEntity.getBody();
             }
         }catch (HttpClientErrorException.TooManyRequests exception) {
-            log.error("Exception in fetching pan details :{} {}", exception.getMessage(), exception);
+            log.error("Exception in fetching pan details for merchantId:{} {}",merchantId, exception.getMessage());
             throw exception;
         }catch (Exception e) {
-            log.error("Error occurred while fetching pan details {} {}", e.getMessage(), e);
+            log.error("Error occurred while fetching pan details for merchantId:{}", merchantId, e);
         }
         return null;
     }
@@ -473,10 +473,10 @@ public class KycHandler {
                 return responseEntity.getBody();
             }
         }catch (HttpClientErrorException.TooManyRequests exception) {
-            log.error("Exception in verifying pan details :{} {}", exception.getMessage(), exception);
+            log.error("Exception in verifying pan details for merchantId:{} {}",merchantId, exception.getMessage());
             throw exception;
         }catch (Exception e) {
-            log.error("Error occurred while verifying details {} {}", e.getMessage(), e);
+            log.error("Error occurred while verifying pan details for merchantId {}", merchantId, e);
         }
         return null;
     }

@@ -90,10 +90,10 @@ public class VerifyDocService {
 			return new VerifyPanCardResponseDto(false,"Something went wrong");
 		}
 		catch (HttpClientErrorException.TooManyRequests e) {
-			logger.error("Error occurred while verifying pancard {} for merchant {}: {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
+			logger.error("Error occurred while verifying pancard {} for merchant {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
 			return new VerifyPanCardResponseDto(false, "You've reached your daily limit for PAN input. Please try again after 24 hours", true);
 		}catch(Exception e) {
-			logger.error("Error occurred while verifying pancard {} for merchant {}: {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
+			logger.error("Error occurred while verifying pancard {} for merchant {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
 			return new VerifyPanCardResponseDto(false, "Something went wrong");
 		}
 	}
