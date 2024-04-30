@@ -84,7 +84,7 @@ public class VerifyDocService {
 
 			VerifyPanCardResponseDto verifyPanCardResponseDto = new VerifyPanCardResponseDto();
 			verifyPanCardResponseDto = loanEligibleService.verifyPanDetails(verifyPanCardRequestDto, token, merchant.getId(), verifyPanCardResponseDto);
-			if(!ObjectUtils.isEmpty(verifyPanCardResponseDto) && verifyPanCardResponseDto != null) {
+			if(!ObjectUtils.isEmpty(verifyPanCardResponseDto)) {
 				return verifyPanCardResponseDto;
 			}
 			return new VerifyPanCardResponseDto(false,"Something went wrong");
