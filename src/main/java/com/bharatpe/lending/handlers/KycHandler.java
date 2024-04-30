@@ -425,10 +425,12 @@ public class KycHandler {
             headers.set("token", token);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            log.info("Pan Fetch request for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
             ResponseEntity<PanFetchKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanFetchKYCResponseDto.class);
             if(Objects.isNull(responseEntity.getBody())){
                 return null;
             }
+            log.info("Pan Fetch Response {} for merchantId: {}", responseEntity.getBody(),merchantId);
             if(responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
                 return responseEntity.getBody();
             }
@@ -461,11 +463,11 @@ public class KycHandler {
             headers.set("token", token);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<PanVerifyKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanVerifyKYCResponseDto.class);
+            log.info("Pan Verify request for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);            ResponseEntity<PanVerifyKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanVerifyKYCResponseDto.class);
             if(Objects.isNull(responseEntity.getBody())){
                 return null;
             }
-
+            log.info("Pan Verify Response {} for merchantId: {}", responseEntity.getBody(),merchantId);
             if(responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
                 return responseEntity.getBody();
             }
