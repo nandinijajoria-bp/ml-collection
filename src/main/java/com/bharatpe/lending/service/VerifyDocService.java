@@ -8,10 +8,14 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.VerifyPanCardDto;
+import com.bharatpe.lending.dto.VerifyPanCardRequestDto;
+import com.bharatpe.lending.dto.VerifyPanCardResponseDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.List;
 
@@ -68,5 +72,29 @@ public class VerifyDocService {
 			}
 		}
 		return false;
+	}
+
+	public VerifyPanCardResponseDto validatePanCard(String token, BasicDetailsDto merchant, VerifyPanCardRequestDto verifyPanCardRequestDto) {
+		try {
+			Experian experian =experianDao.getByPancardNumber(verifyPanCardRequestDto.getPanNumber(), merchant.getId());
+			if( (experian != null && !merchant.getId().equals(experian.getMerchantId()))){
+				logger.info("Already Experian Pull On this Pancard :{}",verifyPanCardRequestDto.getPanNumber());
+				return new VerifyPanCardResponseDto(true,"PAN already exists, Please enter a different PAN Number");
+			}
+
+			VerifyPanCardResponseDto verifyPanCardResponseDto = new VerifyPanCardResponseDto();
+			verifyPanCardResponseDto = loanEligibleService.verifyPanDetails(verifyPanCardRequestDto, token, merchant.getId(), verifyPanCardResponseDto);
+			if(!ObjectUtils.isEmpty(verifyPanCardResponseDto)) {
+				return verifyPanCardResponseDto;
+			}
+			return new VerifyPanCardResponseDto(false,"Something went wrong");
+		}
+		catch (HttpClientErrorException.TooManyRequests e) {
+			logger.error("Error occurred while verifying pancard {} for merchant {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
+			return new VerifyPanCardResponseDto(true, "You've reached your daily limit for PAN input. Please try again after 24 hours", true);
+		}catch(Exception e) {
+			logger.error("Error occurred while verifying pancard {} for merchant {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
+			return new VerifyPanCardResponseDto(false, "Something went wrong");
+		}
 	}
 }

@@ -2,26 +2,22 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
-import com.bharatpe.lending.loanV3.revamp.dto.*;
+import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
-import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
-import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Objects;
 import java.util.Optional;
 
 @Component
