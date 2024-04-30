@@ -79,7 +79,7 @@ public class VerifyDocService {
 			Experian experian =experianDao.getByPancardNumber(verifyPanCardRequestDto.getPanNumber(), merchant.getId());
 			if( (experian != null && !merchant.getId().equals(experian.getMerchantId()))){
 				logger.info("Already Experian Pull On this Pancard :{}",verifyPanCardRequestDto.getPanNumber());
-				return new VerifyPanCardResponseDto(false,"PAN already exists, Please enter a different PAN Number");
+				return new VerifyPanCardResponseDto(true,"PAN already exists, Please enter a different PAN Number");
 			}
 
 			VerifyPanCardResponseDto verifyPanCardResponseDto = new VerifyPanCardResponseDto();
@@ -91,7 +91,7 @@ public class VerifyDocService {
 		}
 		catch (HttpClientErrorException.TooManyRequests e) {
 			logger.error("Error occurred while verifying pancard {} for merchant {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
-			return new VerifyPanCardResponseDto(false, "You've reached your daily limit for PAN input. Please try again after 24 hours", true);
+			return new VerifyPanCardResponseDto(true, "You've reached your daily limit for PAN input. Please try again after 24 hours", true);
 		}catch(Exception e) {
 			logger.error("Error occurred while verifying pancard {} for merchant {}", verifyPanCardRequestDto.getPanNumber(),merchant.getId(),e);
 			return new VerifyPanCardResponseDto(false, "Something went wrong");

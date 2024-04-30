@@ -701,7 +701,6 @@ public class LoanEligibleService {
                     verifyPanCardResponseDto.setIsDobVerified(!ObjectUtils.isEmpty(responseDto.getData().getDobMatch()) ? responseDto.getData().getDobMatch() : false);
                     verifyPanCardResponseDto.setIsNameVerified(!ObjectUtils.isEmpty(responseDto.getData().getNameMatch()) ? responseDto.getData().getNameMatch() : false);
                 } else {
-                    verifyPanCardResponseDto.setStatus(false);
                     verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
                 }
 
