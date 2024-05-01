@@ -85,6 +85,7 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
             return new LendingStateDTO<>(shopDetailsStateDTO , LendingViewStates.SHOP_DETAILS_PAGE, LendingViewStates.SHOP_DETAILS_PAGE);
         }
         else if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())){
+            shopDetailsStateDTO.setLender(lendingApplication.getLender());
             LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(lendingApplication.getId(), lendingApplication.getMerchantId());
             if(ObjectUtils.isEmpty(lendingResubmitTask) || Objects.isNull(lendingResubmitTask.getResubmitDone()) ||
                     (Objects.nonNull(lendingResubmitTask.getResubmitDone()) && lendingResubmitTask.getResubmitDone())

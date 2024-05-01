@@ -17,4 +17,5 @@ public class ApplicationStatusStateDTO {
     private Long reapplyTime;
     private Long reapplyTimeEpoch;
     private Boolean enachDone;
+    private String lender;
 }

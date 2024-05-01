@@ -125,7 +125,7 @@ public class LoanDetailsV3Response {
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case LENDER_EVALUATION_PAGE:
-//                    setLenderEvaluationResponse((LenderEvaluationStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    setLenderEvaluationResponse((LenderEvaluationStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case PERMISSIONS_PAGE:
@@ -159,6 +159,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setTopupLoanApplication(kfsStateDTO.getTopupLoanApplication());
         loanDetailsV3Response.setRepeatLoan(kfsStateDTO.isRepeatLoan());
         loanDetailsV3Response.setMobile(kfsStateDTO.getMobile());
+        loanDetailsV3Response.setLender(kfsStateDTO.getLender());
     }
 
     private static void setKycResponse(KYCStateDTO kycStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -166,6 +167,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycDeeplink(kycStateDTO.getDeeplink());
         loanDetailsV3Response.setShowKycPage(kycStateDTO.getShowKycPage());
         loanDetailsV3Response.setIsSelfieResumit(kycStateDTO.isSelfieResumit());
+        loanDetailsV3Response.setLender(kycStateDTO.getLender());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());
@@ -218,6 +220,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setBusinessCategory(shopDetailsStateDTO.getBusinessCategory());
         loanDetailsV3Response.setBusinessSubCategory(shopDetailsStateDTO.getBusinessSubCategory());
         loanDetailsV3Response.setPincode(shopDetailsStateDTO.getPincode());
+        loanDetailsV3Response.setLender(shopDetailsStateDTO.getLender());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setApplicationId(shopDetailsStateDTO.getApplicationId());
@@ -232,6 +235,7 @@ public class LoanDetailsV3Response {
 
     private static void setShopPicturesResponse(ShopPicturesStateDTO shopPicturesStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setDummyMerchant(shopPicturesStateDTO.isDummyMerchant());
+        loanDetailsV3Response.setLender(shopPicturesStateDTO.getLender());
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setApplicationId(shopPicturesStateDTO.getApplicationId());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
@@ -249,14 +253,17 @@ public class LoanDetailsV3Response {
         applicationDetails.setReapplyTimeEpoch(applicationStatusStateDTO.getReapplyTimeEpoch());
 
         loanDetailsV3Response.setLoanApplication(applicationDetails);
+        loanDetailsV3Response.setLender(applicationStatusStateDTO.getLender());
     }
 
     private static void setReferencesResponse(ReferenceStateDTO referenceStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setDummyMerchant(referenceStateDTO.isDummyMerchant());
         loanDetailsV3Response.setApplicationStatus(referenceStateDTO.getApplicationStatus());
+        loanDetailsV3Response.setLender(referenceStateDTO.getLender());
     }
 
     private static void setLenderEvaluationResponse(LenderEvaluationStateDTO lenderEvaluationStateDTO, LoanDetailsV3Response loanDetailsV3Response){
+        loanDetailsV3Response.setLender(lenderEvaluationStateDTO.getLender());
     }
 
     private static void setPermissionResponse(PermissionStateDTO permissionStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -295,6 +302,7 @@ public class LoanDetailsV3Response {
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         loanDetailsV3Response.setAccountDetails(enachStateDTO.getBankDetails());
+        loanDetailsV3Response.setLender(enachStateDTO.getLender());
         applicationDetails.setEnachDeeplink(enachStateDTO.getEnachDeeplink());
         applicationDetails.setEnachDone(enachStateDTO.getEnachDone());
         applicationDetails.setEnachMode(enachStateDTO.getEnachMode());

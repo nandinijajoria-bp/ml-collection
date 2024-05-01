@@ -15,5 +15,6 @@ public class ReferenceStateDTO {
     private boolean isDummyMerchant;
 
     private String applicationStatus;
+    private String lender;
 
 }
