@@ -3,13 +3,11 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
-import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCRTEDto;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
@@ -88,7 +86,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
         if (ckycResponseObj.containsKey("ckycId")) {
             initiateKycResponse.setShowKycPage(true);
             initiateKycResponse.setKycStatus(KycStatus.DRAFT);
-            initiateKycResponse.setDeeplink(kycDeepLink);
+            initiateKycResponse.setDeeplink(ckycResponseObj.containsKey("callBackUrl") ? ckycResponseObj.get("callBackUrl") : kycDeepLink);
             return initiateKycResponse;
         }
         log.error("Unable to initiate kyc for merchant :{} with error message:{}", merchantId, ckycResponseObj.get("message"));
