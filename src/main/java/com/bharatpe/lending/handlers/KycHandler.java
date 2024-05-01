@@ -477,7 +477,7 @@ public class KycHandler {
                 return responseEntity.getBody();
             }
         }catch (HttpClientErrorException.TooManyRequests exception) {
-            log.info("Exception in verifying pan details for merchantId:{} {}",merchantId, exception.getMessage());
+            log.info("Too Many Requests error while verifying pan details for merchantId:{} {}",merchantId, exception.getMessage());
             throw exception;
         }catch (Exception e) {
             log.error("Error occurred while verifying pan details for merchantId {}", merchantId, e);

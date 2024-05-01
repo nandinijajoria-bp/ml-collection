@@ -86,7 +86,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
         if (ckycResponseObj.containsKey("ckycId")) {
             initiateKycResponse.setShowKycPage(true);
             initiateKycResponse.setKycStatus(KycStatus.DRAFT);
-            initiateKycResponse.setDeeplink(ckycResponseObj.containsKey("callBackUrl") ? ckycResponseObj.get("callBackUrl") : kycDeepLink);
+            initiateKycResponse.setDeeplink(ckycResponseObj.containsKey("callBackUrl") ? ckycResponseObj.get("callBackUrl") : null);
             return initiateKycResponse;
         }
         log.error("Unable to initiate kyc for merchant :{} with error message:{}", merchantId, ckycResponseObj.get("message"));
