@@ -297,8 +297,12 @@ public class KycHandler {
                     if (jsonNode.has("requestorId")) {
                         responseObj.put("ckycId", jsonNode.get("requestorId").asText());
                     }
-                    if (jsonNode.has("message"))
+                    if (jsonNode.has("message")) {
                         responseObj.put("message", jsonNode.get("message").asText());
+                    }
+                    if (jsonNode.has("callBackUrl")){
+                        responseObj.put("callBackUrl", jsonNode.get("callBackUrl").asText());
+                    }
                 }
             }
         } catch (Exception e) {
@@ -473,7 +477,7 @@ public class KycHandler {
                 return responseEntity.getBody();
             }
         }catch (HttpClientErrorException.TooManyRequests exception) {
-            log.error("Exception in verifying pan details for merchantId:{} {}",merchantId, exception.getMessage());
+            log.info("Too Many Requests error while verifying pan details for merchantId:{} {}",merchantId, exception.getMessage());
             throw exception;
         }catch (Exception e) {
             log.error("Error occurred while verifying pan details for merchantId {}", merchantId, e);
