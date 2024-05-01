@@ -399,9 +399,12 @@ public class LenderAssignService implements ILenderAssignService {
                         LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
                         if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                             log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
-                            saveLenderChangeAudit(application, lendingLenderQuota.getLender());
+                            decidedLender = lendingLenderQuota.getLender();
+                            saveLenderChangeAudit(application, decidedLender);
                         } else {
+                            log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
                             decidedLender = assignFallackLender(application, ediModel);
+                            saveLenderChangeAudit(application, decidedLender);
                         }
                     }
                     saveLenderChangeAudit(application, decidedLender);
@@ -444,9 +447,12 @@ public class LenderAssignService implements ILenderAssignService {
             LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
             if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                 log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
-                saveLenderChangeAudit(application, lendingLenderQuota.getLender());
+                decidedLender = lendingLenderQuota.getLender();
+                saveLenderChangeAudit(application, decidedLender);
             } else {
+                log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
                 decidedLender = assignFallackLender(application, ediModel);
+                saveLenderChangeAudit(application, decidedLender);
             }
         }
 
