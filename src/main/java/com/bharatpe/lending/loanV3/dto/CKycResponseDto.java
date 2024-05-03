@@ -29,4 +29,5 @@ public class CKycResponseDto {
     String email;
     String poaString;
     String selfieString;
+    String panDob;
 }

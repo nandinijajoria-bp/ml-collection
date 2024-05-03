@@ -196,19 +196,21 @@ public class BreRequestKafka {
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.get().getId());
             String name = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
-            String firstName = !ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
-                    (name.indexOf(" ") == -1 ? name :
-                            name.substring(0,name.indexOf(" ")).trim())
-                    : cKycResponseDto.getFirstName().trim();
+            String firstName = !ObjectUtils.isEmpty(cKycResponseDto.getFirstName()) ? cKycResponseDto.getFirstName().trim() :
+                    (!ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
+                            (name.indexOf(" ") == -1 ? name :
+                            name.substring(0,name.indexOf(" ")).trim()) : "");
 
-            String middleName = !ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
-                    getMiddleName(cKycResponseDto.getName()) : cKycResponseDto.getMiddleName().trim();
+            String middleName = !ObjectUtils.isEmpty(cKycResponseDto.getMiddleName()) ? cKycResponseDto.getMiddleName().trim() :
+                    (!ObjectUtils.isEmpty(cKycResponseDto.getName()) ? getMiddleName(cKycResponseDto.getName()) : "");
 
-            String lastName = !ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
+            String lastName = !ObjectUtils.isEmpty(cKycResponseDto.getLastName()) ? cKycResponseDto.getLastName().trim() :
+                    (!ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
                     (name.lastIndexOf(" ") == -1 ? name :
-                            name.substring(name.lastIndexOf(" ") + 1).trim())
-                    : cKycResponseDto.getLastName().trim();
-
+                            name.substring(name.lastIndexOf(" ") + 1).trim()) : "");
+            String dob = !ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ?
+                    DateTimeUtil.formatDate(cKycResponseDto.getPanDob(), "dd/MM/yyyy","yyyy-MM-dd") :
+                    DateTimeUtil.formatDate(cKycResponseDto.getDob(),"dd/MM/yyyy","yyyy-MM-dd");
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -224,7 +226,7 @@ public class BreRequestKafka {
                                                                     .addressLine2("")
                                                                     .addressLine3("")
                                                                     .city(cKycResponseDto.getCity())
-                                                                    .dob(DateTimeUtil.formatDate(cKycResponseDto.getDob(),"dd/MM/yyyy","yyyy-MM-dd"))
+                                                                    .dob(dob)
                                                                     .firstName(converterUtils.parseNameData(firstName))
                                                                     .gender(cKycResponseDto.getGender())
                                                                     .lastName(converterUtils.parseNameData(lastName))
