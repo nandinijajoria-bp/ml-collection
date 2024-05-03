@@ -30,4 +30,5 @@ public class CKycResponseDto {
     String poaString;
     String selfieString;
     String panDob;
+    String panName;
 }

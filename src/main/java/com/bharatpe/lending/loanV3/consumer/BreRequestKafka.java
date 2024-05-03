@@ -195,19 +195,17 @@ public class BreRequestKafka {
             }
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.get().getId());
-            String name = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
+            String panName = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
+            String aadharName = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
             String firstName = !ObjectUtils.isEmpty(cKycResponseDto.getFirstName()) ? cKycResponseDto.getFirstName().trim() :
-                    (!ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
-                            (name.indexOf(" ") == -1 ? name :
-                            name.substring(0,name.indexOf(" ")).trim()) : "");
+                    (!ObjectUtils.isEmpty(panName) ? getFirstName(panName) : getFirstName(aadharName));
 
             String middleName = !ObjectUtils.isEmpty(cKycResponseDto.getMiddleName()) ? cKycResponseDto.getMiddleName().trim() :
-                    (!ObjectUtils.isEmpty(cKycResponseDto.getName()) ? getMiddleName(cKycResponseDto.getName()) : "");
+                    (!ObjectUtils.isEmpty(panName) ? getMiddleName(panName) : getMiddleName(aadharName));
 
             String lastName = !ObjectUtils.isEmpty(cKycResponseDto.getLastName()) ? cKycResponseDto.getLastName().trim() :
-                    (!ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
-                    (name.lastIndexOf(" ") == -1 ? name :
-                            name.substring(name.lastIndexOf(" ") + 1).trim()) : "");
+                    (!ObjectUtils.isEmpty(panName) ? getLastName(panName) : getLastName(aadharName));
+
             String dob = !ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ?
                     DateTimeUtil.formatDate(cKycResponseDto.getPanDob(), "dd/MM/yyyy","yyyy-MM-dd") :
                     DateTimeUtil.formatDate(cKycResponseDto.getDob(),"dd/MM/yyyy","yyyy-MM-dd");
@@ -275,6 +273,22 @@ public class BreRequestKafka {
         if(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getVintage())) {
             Date vintageDate = DateTimeUtil.addDays(new Date(), -lendingRiskVariablesSnapshot.getVintage().intValue());
             return DateTimeUtil.getDateInFormat(vintageDate, "yyyy-MM-dd");
+        }
+        return "";
+    }
+
+    private String getFirstName(String name) {
+        if(!ObjectUtils.isEmpty(name)) {
+            return name.indexOf(" ") == -1 ? name :
+                    name.substring(0, name.indexOf(" ")).trim();
+        }
+        return "";
+    }
+
+    private String getLastName(String name) {
+        if(!ObjectUtils.isEmpty(name)) {
+            return name.lastIndexOf(" ") == -1 ? name :
+                    name.substring(name.lastIndexOf(" ") + 1).trim();
         }
         return "";
     }
