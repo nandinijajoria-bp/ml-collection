@@ -1,6 +1,7 @@
 package com.bharatpe.lending.controller;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -9,7 +10,6 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.*;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,18 +17,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
-import org.springframework.web.bind.annotation.RequestAttribute;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.*;
 
-import com.bharatpe.common.objects.CommonAPIRequest;
-
 import javax.servlet.http.HttpServletResponse;
-import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -191,6 +182,16 @@ Integer lendingEdiModel;
 		VerifyPanCardDto verifyPanCardDto =  verifyDocService.verifyPanCard(merchant, panCard);
 		logger.info("verify pancard check response for merchant:{} and pancard:{} is :{}", merchant.getId(), panCard, verifyPanCardDto);
 		return verifyPanCardDto;
+	}
+
+	@RequestMapping(value = "/verify_pan_card", method = RequestMethod.POST)
+	public ResponseEntity<VerifyPanCardResponseDto> validatePanCard(@RequestHeader(value = "token", required = false) String token,
+													@RequestAttribute BasicDetailsDto merchant,
+													@RequestBody VerifyPanCardRequestDto verifyPanCardRequestDto) {
+		logger.info("verify pancard check request for merchant:{} and pancard:{}", merchant.getId(), verifyPanCardRequestDto.getPanNumber());
+		VerifyPanCardResponseDto verifyPanCardResponseDto = verifyDocService.validatePanCard(token, merchant, verifyPanCardRequestDto);
+		logger.info("verify pancard check response for merchant:{} and pancard:{} is :{}", merchant.getId(), verifyPanCardRequestDto.getPanNumber(), verifyPanCardResponseDto);
+		return new ResponseEntity<>(verifyPanCardResponseDto, HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/offers", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")

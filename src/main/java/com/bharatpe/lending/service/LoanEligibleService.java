@@ -52,6 +52,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -688,6 +689,42 @@ public class LoanEligibleService {
         }
         return null;
     }
+
+
+    public VerifyPanCardResponseDto verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
+        logger.info("Calling Pan Verify Api for merchant:{}", merchantId);
+        try {
+            PanVerifyKYCResponseDto responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
+            if(!ObjectUtils.isEmpty(responseDto))  {
+                if (responseDto.getStatus()) {
+                    verifyPanCardResponseDto.setIsPanVerified(!ObjectUtils.isEmpty(responseDto.getData().getPanValid()) ? responseDto.getData().getPanValid() : false);
+                    verifyPanCardResponseDto.setIsDobVerified(!ObjectUtils.isEmpty(responseDto.getData().getDobMatch()) ? responseDto.getData().getDobMatch() : false);
+                    verifyPanCardResponseDto.setIsNameVerified(!ObjectUtils.isEmpty(responseDto.getData().getNameMatch()) ? responseDto.getData().getNameMatch() : false);
+                } else {
+                    verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
+                }
+
+                if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
+                    LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
+                    if (lendingPancard != null) {
+                        lendingPancard.setName(responseDto.getData().getPanHolderName());
+                        lendingPancard.setPancardNumber(verifyPanCardRequestDto.getPanNumber());
+                        lendingPancardDao.save(lendingPancard);
+                    } else {
+                        lendingPancardDao.save(new LendingPancard(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getData().getPanHolderName()));
+                    }
+                }
+                return verifyPanCardResponseDto;
+            }
+        }catch (HttpClientErrorException.TooManyRequests e) {
+            throw e;
+        }catch (Exception e) {
+            logger.error("Exception in verifyPanDetails for merchantId: {}", merchantId, e);
+        }
+        return null;
+    }
+
+
 
 //    private List<LoanEligibilityDTO> fetchBureauEligibleLoan(ResponseUtil responseUtil, Long merchantId, Double bpScore, Experian experian, boolean repeatedLoan, double avgTpv, boolean isEligibleForConstruct2And3, int loanCount, int previousLoanDays, LendingApplication lendingApplication, boolean yellowPincode) {
 //        int bureauVintage = responseUtil.fetchBureauVintage();//months

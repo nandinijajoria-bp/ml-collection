@@ -4,25 +4,25 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.exception.BureauCallMaskedApiException;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
-import com.bharatpe.lending.loanV3.revamp.dto.*;
+import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
-import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Objects;
 
 @Component
 @Slf4j
@@ -45,6 +45,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
 
     @Autowired
     FunnelService funnelService;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
 
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
@@ -69,6 +72,29 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             else{
                 String kycPancard = kycHandler.getPanNumber(scopeDataArgs.getMerchant().getId());
                 eligibilityStateDTO.setPancard(kycPancard);
+            }
+
+            if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId())) {
+                eligibilityStateDTO.setIsPanNsdlVerified(true);
+                eligibilityStateDTO.setDummyMerchant(true);
+            }else{
+                try {
+                    PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                    if (response != null && response.getStatus()) {
+                        PanFetchKYCResponseDto.Data data = response.getData();
+                        if (data != null) {
+                            if (data.getIsPanNsdlVerified() != null) {
+                                eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                            }
+                        }
+                    } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                        eligibilityStateDTO.setKycMessage(response.getData().getMessage());
+                    }
+                }catch (HttpClientErrorException.TooManyRequests e) {
+                    log.error("Too Many requests error");
+                    eligibilityStateDTO.setMaxCountReached(true);
+                    eligibilityStateDTO.setMessage("You've reached your daily limit for PAN input. Please try again after 24 hours");
+                }
             }
         }
         catch (Exception e) {
