@@ -1875,7 +1875,7 @@ public class LoanUtil {
 	public LendingEnum.LENDER percentLenderTrafficForAA(Long merchantId, Integer[] percentages) {
 		try {
 			logger.info("checking lender assignment for merchant: {} with lender traffic percentages : {}", merchantId, percentages);
-			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.LIQUILOANS_NBFC);
+			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.TRILLIONLOANS);
 			Double maxNumber = 50000000D;
 
 			Integer percentage = (int) Math.ceil((merchantId / maxNumber) * percentages[3]);

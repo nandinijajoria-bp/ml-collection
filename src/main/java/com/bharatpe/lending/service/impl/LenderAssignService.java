@@ -255,28 +255,16 @@ public class LenderAssignService implements ILenderAssignService {
                 }
             }
             if (ObjectUtils.isEmpty(lenders)) {
-                /*
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
-                if (!ObjectUtils.isEmpty(lendingLenderQuota)) {
+                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
-                            lendingLenderQuota.getLender(), application.getId(), lenders);
+                            lendingLenderQuota.getLender() , application.getId(), lenders);
                     try {
                         saveEligibleLenderAudit(application, lendingLenderQuota.getLender(), CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
                     } catch (Exception exception) {
                         log.info("exception while logging the lender assignment details", exception);
                     }
                     lenders.add(lendingLenderQuota.getLender());
-                }
-                */
-                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingWildcardLenderName)) {
-                    log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
-                            lendingWildcardLenderName , application.getId(), lenders);
-                    try {
-                        saveEligibleLenderAudit(application, lendingWildcardLenderName, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
-                    } catch (Exception exception) {
-                        log.info("exception while logging the lender assignment details", exception);
-                    }
-                    lenders.add(lendingWildcardLenderName);
                 }
             }
             decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
@@ -407,6 +395,18 @@ public class LenderAssignService implements ILenderAssignService {
                 calendar.add(Calendar.MONTH, 1);
                 if (new Date().compareTo(calendar.getTime()) < 0) {
                     decidedLender = aaSession.getLender().name();
+                    if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+                        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                        if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                            log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                            decidedLender = lendingLenderQuota.getLender();
+                            saveLenderChangeAudit(application, decidedLender);
+                        } else {
+                            log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
+                            decidedLender = assignFallackLender(application, ediModel);
+                            saveLenderChangeAudit(application, decidedLender);
+                        }
+                    }
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
@@ -442,6 +442,18 @@ public class LenderAssignService implements ILenderAssignService {
         if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(application.getMerchantId()))) {
             decidedLender = LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
+        }
+        if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+            LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+            if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                decidedLender = lendingLenderQuota.getLender();
+                saveLenderChangeAudit(application, decidedLender);
+            } else {
+                log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
+                decidedLender = assignFallackLender(application, ediModel);
+                saveLenderChangeAudit(application, decidedLender);
+            }
         }
 
         String oldLender = application.getLender();
@@ -658,7 +670,7 @@ public class LenderAssignService implements ILenderAssignService {
                     limit.getRemainingBalance(), limit.getAssignedAmount(), null, LendingLenderQuota.Classification.REGULAR.name());
             */
             LendingLenderQuota updatedLimit = new LendingLenderQuota(limit.getLender(), limit.getTotalWeeklyAmount(),
-                    limit.getRemainingBalance(), limit.getAssignedAmount(), null);
+                    limit.getRemainingBalance(), limit.getAssignedAmount(), null, limit1.get().getClassification());
             updatedLimit.setCreatedAt(limit1.get().getCreatedAt());
             updatedLimit.setId(id);
             updatedLimit.setEdiModel(LenderOffDays.valueOf(LendingEnum.LENDER.valueOf(limit1.get().getLender()).name()).getEdiModel().name());
