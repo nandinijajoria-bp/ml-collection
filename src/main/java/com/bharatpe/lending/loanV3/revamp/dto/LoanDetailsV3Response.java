@@ -75,6 +75,8 @@ public class LoanDetailsV3Response {
     private String kycMessage;
     private Boolean isPanNsdlVerified;
     private Boolean maxCountReached;
+    private Boolean bureauExceptionFlag;
+
 
     @Data
     @ToString
@@ -279,6 +281,9 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
         loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
         loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
+        if(Objects.nonNull(eligibilityStateDTO.getBureauExceptionFlag())) {
+            loanDetailsV3Response.setBureauExceptionFlag(eligibilityStateDTO.getBureauExceptionFlag());
+        }
     }
 
     private static void setPanPinResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -290,6 +295,9 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
         loanDetailsV3Response.setMaxCountReached(eligibilityStateDTO.getMaxCountReached());
         loanDetailsV3Response.setDummyMerchant(eligibilityStateDTO.getDummyMerchant());
+        if(Objects.nonNull(eligibilityStateDTO.getBureauExceptionFlag())) {
+            loanDetailsV3Response.setBureauExceptionFlag(eligibilityStateDTO.getBureauExceptionFlag());
+        }
     }
 
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){

@@ -805,20 +805,12 @@ public class LoanDashboardService {
             catch (BureauCallMaskedApiException e) {
                 log.error("Exception occurred for merchantId:{},execption:{}", merchant.getId(),e);
             }
-
             Double eligibleAmount = 0D;
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 isDerog.setValue(globalLimitResponse.getData().isDerog());
             }
-
-            if(globalLimitResponse != null && globalLimitResponse.getErrorCode() != null)
-            {
-                loanDashboardResponse.setIneligible(RejectionReason.BUREAU_EXCEPTION.getReason());
-                return;
-            }
-
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
                 eligibleLoan = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
@@ -848,6 +840,8 @@ public class LoanDashboardService {
             ){
                 setBankName(merchant.getId(), loanDashboardResponse);
             }
+
+            loanDashboardResponse.setBureauExceptionFlag(loanUtil.checkBureauResponse(globalLimitResponse));
         }
 
     private Date parseDate(String stringDate) {

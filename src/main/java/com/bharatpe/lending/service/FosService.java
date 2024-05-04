@@ -948,10 +948,6 @@ public class FosService {
                     return "eligible";
                 }
             }
-           else if(globalLimitResponse != null && globalLimitResponse.getErrorCode() != null)
-            {
-             return "maybe";
-            }
         }
         catch (Exception e) {
             logger.error("Exception occurred for merchantId while checking eligibilty:{},execption:{}", merchantId,Arrays.asList(e.getStackTrace()));
