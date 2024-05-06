@@ -53,6 +53,6 @@ public class EligibilityStateDTO {
     private String message;
     private Boolean dummyMerchant;
 
-    private Boolean eligiblityExceptionFlag;
+    private Boolean bureauExceptionFlag;
 
 }
