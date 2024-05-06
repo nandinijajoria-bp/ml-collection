@@ -3081,6 +3081,8 @@ public class LendingApplicationServiceV2 {
         if(kfsDto.isForeclosureChargesRequired()) {
             List<ForeClosureConfig> foreClosureConfigList = foreClosureConfigDao.findByLender(kfsDto.getLender());
             if (!CollectionUtils.isEmpty(foreClosureConfigList)) {
+                data.put("min_charge", foreClosureConfigList.get(0).getMinAmount());
+                data.put("gst_rate", foreClosureConfigList.get(0).getGst());
                 for (int i = 0; i < foreClosureConfigList.size(); i++) {
                     String value = String.valueOf(i + 1);
                     data.put("foreclosure_tenure_" + value, foreClosureConfigList.get(i).getTenure());
@@ -3088,8 +3090,6 @@ public class LendingApplicationServiceV2 {
                     data.put("rate_of_principle_" + value, foreClosureConfigList.get(i).getRate());
                     data.put("closure_min_" + value, foreClosureConfigList.get(i).getDurationFrom());
                 }
-                data.put("min_charge", foreClosureConfigList.get(foreClosureConfigList.size()-1).getMinAmount());
-                data.put("gst_rate", foreClosureConfigList.get(foreClosureConfigList.size()-1).getGst());
             }
         }
 
