@@ -300,7 +300,7 @@ public class EligibilityV3Service {
         log.info("Eligibility not found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
         eligibilityStateDTO.setIneligible(loanDetailsServiceV2.getIneligibleReason(eligibilityStateDTO.getMerchant().getId(), isDerog, eligibilityStateDTO.getExperian().getPincode(), globalLimitResponse));
         eligibilityStateDTO.setChangeBankAccount(!loanUtil.isEnachBank(eligibilityStateDTO.getMerchant().getId()));
-        eligibilityStateDTO.setBureauExceptionFlag(loanUtil.checkBureauResponse(globalLimitResponse));
+        eligibilityStateDTO.setEligiblityExceptionFlag(loanUtil.checkBureauResponse(globalLimitResponse));
     }
 
     public GlobalLimitResponse requestForEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {

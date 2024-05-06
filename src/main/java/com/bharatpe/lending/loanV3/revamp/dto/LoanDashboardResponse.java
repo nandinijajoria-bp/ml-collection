@@ -1,17 +1,13 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
-import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
-import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-
-import java.util.Date;
 
 @Data
 @ToString
@@ -44,7 +40,7 @@ public class LoanDashboardResponse {
     private MileStoneEligibilityResponseDto routeToEligibilityData;*/
     private String diwaliBannerType;
     private String diwaliBannerEndDate;
-    private Boolean bureauExceptionFlag;
+    private Boolean eligiblityExceptionFlag;
 
 }
 
