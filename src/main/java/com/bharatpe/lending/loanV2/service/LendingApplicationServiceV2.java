@@ -3088,8 +3088,8 @@ public class LendingApplicationServiceV2 {
                     data.put("rate_of_principle_" + value, foreClosureConfigList.get(i).getRate());
                     data.put("closure_min_" + value, foreClosureConfigList.get(i).getDurationFrom());
                 }
-                data.put("min_charge", foreClosureConfigList.get(10).getMinAmount());
-                data.put("gst_rate", foreClosureConfigList.get(10).getGst());
+                data.put("min_charge", foreClosureConfigList.get(foreClosureConfigList.size()-1).getMinAmount());
+                data.put("gst_rate", foreClosureConfigList.get(foreClosureConfigList.size()-1).getGst());
             }
         }
 
