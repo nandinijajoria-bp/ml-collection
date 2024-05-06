@@ -133,6 +133,7 @@ public class CapriLeadService {
                             .amountForUpfrontCollection(100L)
                             .build())
                     .charges(getCharges(lendingApplication))
+                    .externalIdOne(lendingApplication.getExternalLoanId())
                     .build();
             LinkedHashMap<String, Object> identifiers = new LinkedHashMap<>();
             identifiers.put("clientId", lendingApplicationLenderDetails.getCccId());
