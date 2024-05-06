@@ -22,6 +22,7 @@ public class CapriCreateLeadRequestDTO {
      Associations associations;
      LeadApplicationTerms leadApplicationTerms;
      List<Charge> charges;
+     String externalIdOne;
 
     @Data
     @Builder
