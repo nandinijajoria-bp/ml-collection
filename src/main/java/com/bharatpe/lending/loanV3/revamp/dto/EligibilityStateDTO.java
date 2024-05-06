@@ -47,5 +47,9 @@ public class EligibilityStateDTO {
     private String riskSegment;
 
     private boolean isPincodeChanged;
-
+    private String kycMessage;
+    private Boolean isPanNsdlVerified;
+    private Boolean maxCountReached;
+    private String message;
+    private Boolean dummyMerchant;
 }
