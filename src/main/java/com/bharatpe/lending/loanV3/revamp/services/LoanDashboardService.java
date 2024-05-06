@@ -841,7 +841,7 @@ public class LoanDashboardService {
                 setBankName(merchant.getId(), loanDashboardResponse);
             }
 
-            loanDashboardResponse.setBureauExceptionFlag(loanUtil.checkBureauResponse(globalLimitResponse));
+            loanDashboardResponse.setEligibilityExceptionFlag(loanUtil.checkBureauResponse(globalLimitResponse));
         }
 
     private Date parseDate(String stringDate) {

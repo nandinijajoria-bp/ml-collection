@@ -75,7 +75,7 @@ public class LoanDetailsV3Response {
     private String kycMessage;
     private Boolean isPanNsdlVerified;
     private Boolean maxCountReached;
-    private Boolean bureauExceptionFlag;
+    private Boolean eligibilityExceptionFlag;
 
 
     @Data
@@ -281,8 +281,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
         loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
         loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
-        if(Objects.nonNull(eligibilityStateDTO.getBureauExceptionFlag())) {
-            loanDetailsV3Response.setBureauExceptionFlag(eligibilityStateDTO.getBureauExceptionFlag());
+        if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
+            loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
     }
 
@@ -295,8 +295,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
         loanDetailsV3Response.setMaxCountReached(eligibilityStateDTO.getMaxCountReached());
         loanDetailsV3Response.setDummyMerchant(eligibilityStateDTO.getDummyMerchant());
-        if(Objects.nonNull(eligibilityStateDTO.getBureauExceptionFlag())) {
-            loanDetailsV3Response.setBureauExceptionFlag(eligibilityStateDTO.getBureauExceptionFlag());
+        if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
+            loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
     }
 
