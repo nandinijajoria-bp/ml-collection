@@ -304,6 +304,10 @@ public class LendingApplicationServiceV2 {
     @Autowired
     ForeClosureConfigDao foreClosureConfigDao;
 
+    @Value("${vernacular.doc.lender.list}")
+    String  vernacularDocLanguageList;
+
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -2648,12 +2652,17 @@ public class LendingApplicationServiceV2 {
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             String html = "";
             String filePath = "";
+            String language = "";
+
+            if(vernacularDocLanguageList.contains(lender)) {
+                language =  getDocLanguage(merchant.getId(),lender);
+            }
+
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = getFilePathLiquiloans(lendingApplication, penaltyDate, penaltyDateLiquiloans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired());
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                String language=getDocLanguage(merchant.getId());
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL.html";
@@ -2709,7 +2718,7 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    private String getDocLanguage(long merchantId)
+    private String getDocLanguage(long merchantId,String lender)
     {
         String language="";
         try {
@@ -2718,6 +2727,7 @@ public class LendingApplicationServiceV2 {
                 LendingPincodesQuery lendingPincodes = lendingPincodesQueryDao.findByPincode(experian.getPincode());
                 if (!ObjectUtils.isEmpty(lendingPincodes)) {
                     language=DocumentLanguageMap.getDocumentLanguage(lendingPincodes.getState()).name();
+                    language = LenderDocLanguageMap.fetchSupportedLanguageByLender(lender,language);
                     if (!ObjectUtils.isEmpty(language)) {
                         log.info("doc language for merchantId  {} with given pinCode  {} is : {}", merchantId, lendingPincodes.getPincode(), language);
                         language = "_" + language;
@@ -2751,6 +2761,12 @@ public class LendingApplicationServiceV2 {
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
+            String language = "";
+
+            if(vernacularDocLanguageList.contains(lender)) {
+              language =  getDocLanguage(merchant.getId(),lender);
+            }
+
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
@@ -2758,7 +2774,6 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
-                 String language=getDocLanguage(merchant.getId());
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
