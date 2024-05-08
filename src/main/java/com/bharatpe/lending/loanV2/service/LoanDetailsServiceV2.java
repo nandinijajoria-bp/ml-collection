@@ -513,6 +513,8 @@ public class LoanDetailsServiceV2 {
         boolean panCardApproved = false;
         boolean panNoApproved = false;
         try {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingApplicationKycDetails.getApplicationId());
+
             for (KycDoc kycDoc : kycDocs) {
                 // Updating Kyc Details if Doc Type is approved and approved_at is null
                 if (kycDoc.getDocType() != null && KycDocType.SELFIE.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
@@ -552,7 +554,7 @@ public class LoanDetailsServiceV2 {
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
                 log.info("Kyc details verified for merchant : {}", merchant.getId());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
-                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),
+                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),lendingApplication.get().getLoanType(),
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
             }
         } catch (Exception e) {

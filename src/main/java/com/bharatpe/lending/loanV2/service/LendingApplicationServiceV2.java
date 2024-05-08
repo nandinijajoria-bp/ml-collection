@@ -623,7 +623,7 @@ public class LendingApplicationServiceV2 {
             loanUtil.publishApplicationEvent(lendingApplication);
             LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
             if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),
+                funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                 HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
                     put("loanAmount", lendingApplication.getLoanAmount().toString());
@@ -634,7 +634,7 @@ public class LendingApplicationServiceV2 {
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_APPLICATION_INITIATED_BE.name(), cleverTapEvtData, merchant.getMid()));
             }
             else{
-                funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),
+                funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
             }
             return new ApiResponse<>(CreateApplicationResponse.builder().applicationId(lendingApplication.getId()).build());
@@ -2482,11 +2482,11 @@ public class LendingApplicationServiceV2 {
         lendingKfsDao.save(lendingKfs);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-            funnelService.submitEventV3(merchant.getId(), null, applicationId,
+            funnelService.submitEventV3(merchant.getId(), null, applicationId,lendingApplication.getLoanType(),
                     FunnelEnums.StageId.AGREEMENT, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         else{
-            funnelService.submitEvent(merchant.getId(), null, applicationId,
+            funnelService.submitEvent(merchant.getId(), null, applicationId, lendingApplication.getLoanType(),
                     FunnelEnums.StageId.AGREEMENT, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
         }
     }

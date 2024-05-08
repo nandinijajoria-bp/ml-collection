@@ -10,12 +10,14 @@ import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.query.dao.AutoPayUPISlaveDao;
@@ -25,6 +27,7 @@ import com.bharatpe.lending.common.query.entity.LendingEDIScheduleQuery;
 import com.bharatpe.lending.common.query.entity.AutoPayUPISlave;
 import com.bharatpe.lending.common.query.entity.LendingPrepaymentSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
@@ -173,6 +176,9 @@ public class MerchantLoansService {
 
     @Autowired
     LendingGstDao lendingGstDao;
+
+    @Autowired
+    FunnelService funnelService;
 
     @Value("${topup.rollout.percent:10}")
     Integer rolloutTopupPercent;
@@ -580,6 +586,7 @@ public class MerchantLoansService {
                         responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
+                        funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
