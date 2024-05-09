@@ -2145,7 +2145,7 @@ public class LoanUtil {
 	}
 
 
-	public boolean checkBureauResponse(GlobalLimitResponse globalLimitResponse) {
+	public boolean isEligibilityErrorResponse(GlobalLimitResponse globalLimitResponse) {
 		if(Objects.nonNull(globalLimitResponse) && !globalLimitResponse.isSuccess() && Objects.nonNull(globalLimitResponse.getErrorCode())) {
 			return true;
 		}
