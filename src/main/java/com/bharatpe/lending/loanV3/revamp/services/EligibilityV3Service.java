@@ -308,7 +308,7 @@ public class EligibilityV3Service {
                 request.getAppVersion(), eligibilityStateDTO.getClubV2Member(), request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
                 request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO,false, EligibilityRequestSource.EASY_LOANS);
 
-        if(globalLimitResponse.getData().getPreApprovedLoan()){
+        if(Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getPreApprovedLoan())){
             HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
                 put("globalLimit", globalLimitResponse.getData().getGlobalLimit().toString());
                 put("riskSegment", globalLimitResponse.getData().getRiskSegment());
