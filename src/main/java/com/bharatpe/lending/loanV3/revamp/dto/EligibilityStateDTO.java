@@ -52,4 +52,7 @@ public class EligibilityStateDTO {
     private Boolean maxCountReached;
     private String message;
     private Boolean dummyMerchant;
+
+    private Boolean eligibilityExceptionFlag;
+
 }

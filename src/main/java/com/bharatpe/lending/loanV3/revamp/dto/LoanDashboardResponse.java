@@ -44,6 +44,7 @@ public class LoanDashboardResponse {
     private MileStoneEligibilityResponseDto routeToEligibilityData;*/
     private String diwaliBannerType;
     private String diwaliBannerEndDate;
+    private Boolean eligibilityExceptionFlag;
 
 }
 
