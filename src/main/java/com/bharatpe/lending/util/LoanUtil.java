@@ -2143,5 +2143,13 @@ public class LoanUtil {
 	private  double calculateDurationInMonths(Date date) {
 		return calculateDurationInDays(date) / NO_OF_DAYS_IN_A_MONTH;
 	}
+
+
+	public boolean isEligibilityErrorResponse(GlobalLimitResponse globalLimitResponse) {
+		if(Objects.nonNull(globalLimitResponse) && !globalLimitResponse.isSuccess() && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+			return true;
+		}
+		return false;
+	}
 }
 
