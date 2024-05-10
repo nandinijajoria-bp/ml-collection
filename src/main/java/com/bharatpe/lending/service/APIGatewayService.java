@@ -1315,7 +1315,7 @@ public class APIGatewayService {
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         else{
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),lendingApplication.get().getLoanType(),
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),lendingApplication.isPresent()?lendingApplication.get().getLoanType():null,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
         }
 

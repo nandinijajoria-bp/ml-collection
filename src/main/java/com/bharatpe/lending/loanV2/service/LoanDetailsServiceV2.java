@@ -554,7 +554,7 @@ public class LoanDetailsServiceV2 {
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
                 log.info("Kyc details verified for merchant : {}", merchant.getId());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
-                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),lendingApplication.get().getLoanType(),
+                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),lendingApplication.isPresent()?lendingApplication.get().getLoanType():null,
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
             }
         } catch (Exception e) {

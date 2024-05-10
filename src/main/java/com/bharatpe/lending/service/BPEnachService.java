@@ -211,7 +211,7 @@ public class BPEnachService {
 
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
 
-        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, bharatPeEnach.getClientName(),lendingApplication.getLoanType());
+        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, bharatPeEnach.getClientName(),ObjectUtils.isEmpty(lendingApplication)?null:lendingApplication.getLoanType());
     }
 
 

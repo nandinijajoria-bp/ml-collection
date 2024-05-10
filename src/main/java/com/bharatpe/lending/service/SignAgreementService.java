@@ -19,8 +19,10 @@ import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.EdiModel;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -34,6 +36,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.impl.LenderAssignService;
@@ -47,6 +50,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -135,6 +139,9 @@ public class SignAgreementService {
 
 	@Autowired
 	private LoanDetailsV3Service loanDetailsV3Service;
+
+	@Autowired
+	FunnelService funnelService;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -783,6 +790,7 @@ public class SignAgreementService {
 		newApplication.setIp(requestDTO.getIp());
 		newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
 		newApplication = lendingApplicationDao.save(newApplication);
+		funnelService.submitEventV3((merchant.getId()), null, newApplication.getId(), newApplication.getLoanType(), FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG );
 		loanUtil.publishApplicationEvent(newApplication);
 
 		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant);
