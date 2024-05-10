@@ -72,6 +72,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
+import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 
@@ -245,6 +246,8 @@ public class LoanUtil {
 	List<Long> accountAggregatorEligibleMerchants = new ArrayList<>();
 
 	Map<Long, String> forceLendersForMerchants = new HashMap<>();
+
+	Map<String, String> rejectedLenderMapping = new HashMap<>();
 
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
@@ -2151,5 +2154,17 @@ public class LoanUtil {
 		}
 		return false;
 	}
+
+	public String getLenderRejectedMapping(String lender) {
+		if (!ObjectUtils.isEmpty(rejectedLenderMapping)) {
+			return rejectedLenderMapping.getOrDefault(lender, lender);
+		}
+		rejectedLenderMapping.put(MUTHOOT.name(), "MFL");
+		rejectedLenderMapping.put(ABFL.name(), "ABFL");
+		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
+		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
+		return rejectedLenderMapping.getOrDefault(lender, lender);
+	}
+
 }
 
