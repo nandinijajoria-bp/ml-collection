@@ -5,6 +5,7 @@ import com.bharatpe.lending.loanV3.consumer.*;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 
+import com.bharatpe.lending.loanV3.services.associationsV2.AbflPennyDropServiceV2;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.ESignDocService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalLoanCallbackService;
@@ -14,6 +15,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -64,6 +66,9 @@ public class NbfcCallbackControllerV3 {
 
     @Autowired
     DigitalSignCallbackWrapperService digitalSignCallbackWrapperService;
+
+    @Autowired
+    AbflPennyDropServiceV2 abflPennyDropServiceV2;
 
 
     @PostMapping("bre")
