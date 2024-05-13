@@ -13,4 +13,5 @@ public class KFSStateDTO {
     private LoanApplicationDetailsV3 topupLoanApplication;
     private boolean repeatLoan;
     private String mobile;
+    private String lender;
 }
