@@ -114,6 +114,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${thresholdVinatage:151}")
     Integer thresholdVintage;
 
+    @Value("${default.muthoot.minimum.vintage:180}")
+    Integer minimumMuthootVintage;
+
     @Value("${default.assign.abfl:false}")
     boolean defaultAssignAbfl;
 
@@ -184,6 +187,7 @@ public class LenderAssignService implements ILenderAssignService {
         Boolean isGstOffer = null;
         Double summaryTpv = 0D;
         Long vintage = 0L;
+        Double tpvOffer = 0D;
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
             riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
@@ -192,6 +196,7 @@ public class LenderAssignService implements ILenderAssignService {
             isGstOffer = Objects.nonNull(lendingRiskVariables.getGstAffectedOffer())? lendingRiskVariables.getGstAffectedOffer() : Boolean.FALSE;
             vintage = Objects.nonNull(lendingRiskVariables.getVintage())? lendingRiskVariables.getVintage() : 0L;
             summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
+            tpvOffer = Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D;
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
@@ -238,6 +243,14 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (Lender.CAPRI.name().equalsIgnoreCase(lender) && summaryTpv < application.getEdi()) {
                                 log.info("skipping capri {} due to merchant edi is greater than summaryTpv {}", lender, application.getId());
+                                iterator.remove();
+                            }
+                            if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getLoanAmount() > tpvOffer) {
+                                log.info("skipping muthoot for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
+                                iterator.remove();
+                            }
+                            if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getEdi() > 0.9 * summaryTpv) {
+                                log.info("skipping muthoot for application id : {} due to merchant loan edi amount is greater than 0.9 * summary_tpv {}", application.getId(), 0.9 * summaryTpv);
                                 iterator.remove();
                             }
                             if (additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)) {
@@ -395,6 +408,18 @@ public class LenderAssignService implements ILenderAssignService {
                 calendar.add(Calendar.MONTH, 1);
                 if (new Date().compareTo(calendar.getTime()) < 0) {
                     decidedLender = aaSession.getLender().name();
+                    if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+                        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                        if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                            log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                            decidedLender = lendingLenderQuota.getLender();
+                            saveLenderChangeAudit(application, decidedLender);
+                        } else {
+                            log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
+                            decidedLender = assignFallackLender(application, ediModel);
+                            saveLenderChangeAudit(application, decidedLender);
+                        }
+                    }
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
@@ -430,6 +455,18 @@ public class LenderAssignService implements ILenderAssignService {
         if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(application.getMerchantId()))) {
             decidedLender = LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
+        }
+        if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+            LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+            if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                decidedLender = lendingLenderQuota.getLender();
+                saveLenderChangeAudit(application, decidedLender);
+            } else {
+                log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
+                decidedLender = assignFallackLender(application, ediModel);
+                saveLenderChangeAudit(application, decidedLender);
+            }
         }
 
         String oldLender = application.getLender();
@@ -691,7 +728,10 @@ public class LenderAssignService implements ILenderAssignService {
                     log.info("Can't assign PIRAMAL as vintage {} is less than threshold vintage {}",vintage,thresholdVintage);
                     continue;
                 }
-
+                if (MUTHOOT.name().equalsIgnoreCase(lender) && vintage < minimumMuthootVintage && (!loanUtil.isInternalMerchant(merchantId) || runInternalRules)){
+                    log.info("Can't assign MUTHOOT as vintage {} is less than threshold vintage {}", vintage, minimumMuthootVintage);
+                    continue;
+                }
                 if (Lender.CAPRI.name().equalsIgnoreCase(lender) && age > 65) {
                     log.info("Can't assign CAPRI as age is greater than 65 years {} for merchant id {}", age, merchantId);
                     continue;
