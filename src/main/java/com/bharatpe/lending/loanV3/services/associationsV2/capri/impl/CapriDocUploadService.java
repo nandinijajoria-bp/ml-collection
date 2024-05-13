@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -234,7 +235,7 @@ public class CapriDocUploadService {
 
     private NBFCRequestDTO getAdditionalDocPayload(Long applicationId, LendingApplicationLenderDetails lendingApplicationLenderDetails, DocType docName) {
         try {
-            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplicationLenderDetails.getLender());
             if(ObjectUtils.isEmpty(lendingKfs)) {
                 throw new RuntimeException("Unable to fetch lending kfs and loan agreement documents for application " + applicationId);
             }
