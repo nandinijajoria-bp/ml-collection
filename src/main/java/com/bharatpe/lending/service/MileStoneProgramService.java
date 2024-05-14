@@ -6,7 +6,6 @@ import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
@@ -31,9 +30,11 @@ import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
-import com.bharatpe.lending.loanV2.dto.*;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
+import com.bharatpe.lending.loanV2.dto.Eligibility;
+import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
-import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.util.LoanUtil;
@@ -45,12 +46,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
-import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
-import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -115,6 +111,9 @@ public class MileStoneProgramService {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
+    @Value("${enable.rte.v3:true}")
+    boolean isRtev3Enabled;
+
     @Autowired
     DateTimeUtil dateTimeUtil;
 
@@ -127,11 +126,22 @@ public class MileStoneProgramService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
+    @Autowired
+    MileStoneHelperServicev3 mileStoneHelperServicev3;
 
-    public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant) {
+
+    public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant, String loanAmount) {
         log.info("checking milestone eligibility for merchant id {}", merchant.getId());
-        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto;
-        mileStoneEligibilityResponseDto = mileStoneHelperService.calculateEligibility(merchant);
+
+        AddCacheDto addCacheDto = new AddCacheDto();
+        addCacheDto.setKey(RTEConstants.RTE_V3_AMOUNT + merchant.getId());
+        addCacheDto.setValue(ObjectUtils.isEmpty(loanAmount) ? "25000" : loanAmount);
+        addCacheDto.setTtl(15);
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+
+        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = isRtev3Enabled ?
+                mileStoneHelperServicev3.calculateEligibility(merchant) :
+                mileStoneHelperService.calculateEligibility(merchant);
 
         if (Boolean.TRUE.equals(mileStoneEligibilityResponseDto.getMilStoneEligibility())) {
             return new ApiResponse<>(mileStoneEligibilityResponseDto, "200", "ELIGIBLE");
@@ -234,7 +244,10 @@ public class MileStoneProgramService {
         }
 
         try {
-            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(merchant);
+            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
+                    mileStoneHelperServicev3.calculateEligibility(merchant) :
+                    mileStoneHelperService.calculateEligibility(merchant);
+
             if (Boolean.TRUE.equals(responseDto.getMilStoneEligibility())) {
                 entity = mileStoneHelperService.createMileStoneSession(merchant.getId(), dsMileStoneResponse, dsMileStoneResponse.getTarget_duration_days());
                 log.info("created an entry for mileStone Entry {}", entity);
@@ -574,7 +587,10 @@ public class MileStoneProgramService {
                 log.info("exception while fetching response is: {}", e.getMessage());
             }
         }
-        MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(merchant);
+        MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
+                mileStoneHelperServicev3.calculateEligibility(merchant) :
+                mileStoneHelperService.calculateEligibility(merchant);
+
         log.info("response dto is--->{}", responseDto);
         rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
         if (Boolean.FALSE.equals(responseDto.getMilStoneEligibility())) {

@@ -239,6 +239,12 @@ public class SupportService {
     @Value("${account-aggregator.rollout.percent:10}")
     Integer accountAggregatorRolloutPercent;
 
+    @Value("${enable.rte.v3:true}")
+    boolean isRtev3Enabled;
+
+    @Autowired
+    MileStoneHelperServicev3 mileStoneHelperServicev3;
+
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
         SupportResponseDTO responseDTO = new SupportResponseDTO(true, "OK");
@@ -2735,7 +2741,11 @@ public class SupportService {
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
         logger.info("basic Details of Merchant{} for milestone program for merchantId {}", basicDetailsDto, merchantId);
         if (basicDetailsDto.isPresent()) {
-            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+//            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
+                    mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get()) :
+                    mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+
             supportDto.setMileStoneEligibility(responseDto);
             supportDto.setMerchantId(merchantId);
             MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);

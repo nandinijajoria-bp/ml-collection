@@ -2,7 +2,6 @@ package com.bharatpe.lending.dto;
 
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
@@ -23,6 +22,7 @@ public class MileStoneEligibilityResponseDto {
     private Integer pinCode;
     private String panCard;
     private Boolean isEligibleForReapply;
+    private String programType;
 
     @Data
     public static class ProgramActiveData {
