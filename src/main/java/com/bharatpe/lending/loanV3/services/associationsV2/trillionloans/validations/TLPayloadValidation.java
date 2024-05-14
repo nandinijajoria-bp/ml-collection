@@ -33,7 +33,7 @@ public class TLPayloadValidation {
         );
     }
 
-    public boolean isInValidNachMandatePayload(TLNachMandateRequestDto tlNachMandateRequestDto) {
+    public boolean isInvalidNachMandatePayload(TLNachMandateRequestDto tlNachMandateRequestDto) {
         return (ObjectUtils.isEmpty(tlNachMandateRequestDto)
                 || ObjectUtils.isEmpty(tlNachMandateRequestDto.getUmrn()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankAccountHolderName())
                 || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankName()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankAccountNumber())

@@ -142,7 +142,7 @@ public class TLNachMandateService {
                             .build();
                 }
             }
-            if (payloadValidation.isInValidNachMandatePayload(mandateDetails)) {
+            if (payloadValidation.isInvalidNachMandatePayload(mandateDetails)) {
                 log.info("error in getting mandate details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return null;
             }
