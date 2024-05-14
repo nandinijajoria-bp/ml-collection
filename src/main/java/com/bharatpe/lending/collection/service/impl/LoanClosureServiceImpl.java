@@ -26,7 +26,8 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId) {
-        loan = closeLoan(loan);
+        log.info("inside close loan and update lender for loanId {} ",loan.getId());
+        loan = closeLoanAndUpdateStatus(loan);
         log.info("posting closure status to lender for loanId {} and loan-details {}",loan.getId(),loan);
         postClosureStatusToLender( loan,  lendingLedger,  orderId);
     }
@@ -36,6 +37,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     @Override
     public void foreClosureLoan(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId) {
         //TODO : need confrimation from buvnesh to check this logic
+        log.info("inside foreclose loanid {} and loanDetails {}",activeLoan.getId(),activeLoan);
        Double totalPayableAmount = activeLoan.getLoanAmount() + activeLoan.getDueInterest() + activeLoan.getPaidInterest() + activeLoan.getDuePenalty() + activeLoan.getOtherCharges();
        log.info("updating total payable amount {} for loanId {} and loanDetails {} and  ",totalPayableAmount,activeLoan.getId(),activeLoan);
         activeLoan.setTotalPayableAmount(totalPayableAmount);
@@ -45,6 +47,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
     @Override
     public void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId) {
+
         if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
             loanClosurePostingService.sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
         } else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
@@ -61,7 +64,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
     }
 
-    private LendingPaymentSchedule closeLoan(LendingPaymentSchedule loan) {
+    private LendingPaymentSchedule closeLoanAndUpdateStatus(LendingPaymentSchedule loan) {
         log.info("update status closed for loanId {} and loanDetails {}",loan.getId(),loan);
         loan.setStatus("CLOSED");
         loan.setDueAmount(0.0);

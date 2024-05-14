@@ -30,6 +30,7 @@ public class LoanStatusServiceImpl implements LoanStatusService {
 
     @Override
     public void processLoanClosure(LoanClosureDTO loanClosureDTO) {
+        log.info("received request for closing the loanId {} and loanDetails {} ",loanClosureDTO.getActiveLoan().getId(),loanClosureDTO.getActiveLoan());
        if(PaymentType.FORECLOSURE.name().equalsIgnoreCase(loanClosureDTO.getPaymentType()))
            loanClosureService.foreClosureLoan(loanClosureDTO.getActiveLoan(),loanClosureDTO.getLendingLedger(),loanClosureDTO.getOrderId());
         loanClosureService.closeLoanAndUpdateLender(loanClosureDTO.getActiveLoan(),loanClosureDTO.getLendingLedger(),loanClosureDTO.getOrderId());
