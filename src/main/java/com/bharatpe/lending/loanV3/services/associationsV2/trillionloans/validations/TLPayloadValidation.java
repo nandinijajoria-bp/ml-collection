@@ -1,9 +1,9 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations;
 
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLNachMandateRequestDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 @Slf4j
@@ -30,6 +30,18 @@ public class TLPayloadValidation {
         return (ObjectUtils.isEmpty(cKycResponseDto)
                 || ObjectUtils.isEmpty(cKycResponseDto.getSelfieString())
                 || ObjectUtils.isEmpty(cKycResponseDto.getPoaString())
+        );
+    }
+
+    public boolean isInValidNachMandatePayload(TLNachMandateRequestDto tlNachMandateRequestDto) {
+        return (ObjectUtils.isEmpty(tlNachMandateRequestDto)
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getUmrn()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankAccountHolderName())
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankName()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankAccountNumber())
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getIfsc()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getBankAccountType())
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getMandateRegistrationRequestedDate()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getPeriodStartDate())
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getPeriodEndDate()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getDebitTypeEnum())
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getDebitFrequencyEnum()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getAmount())
+                || ObjectUtils.isEmpty(tlNachMandateRequestDto.getMode()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getLeadId())
         );
     }
 }

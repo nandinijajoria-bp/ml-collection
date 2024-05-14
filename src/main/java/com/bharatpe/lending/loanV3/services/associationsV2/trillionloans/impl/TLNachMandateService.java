@@ -17,9 +17,9 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLNachMandateRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
+import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -42,7 +42,7 @@ public class TLNachMandateService {
     ILenderAPIGateway lenderAPIGateway;
 
     @Autowired
-    ObjectMapper objectMapper;
+    TLPayloadValidation payloadValidation;
 
     @Autowired
     EnachHandler enachHandler;
@@ -61,29 +61,29 @@ public class TLNachMandateService {
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequest);
 
-            NBFCRequestDTO nachManadateRequest = getPayload(lenderAssociationDetailsRequest);
+            NBFCRequestDTO<?> nachManadateRequest = getPayload(lenderAssociationDetailsRequest);
             if (ObjectUtils.isEmpty(nachManadateRequest)) {
-                log.info("error in nach mandate payload of Trillion Loa for applicationId: {}", lenderAssociationDetailsRequest.getApplicationId());
+                log.info("error in nach mandate payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequest.getApplicationId());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
                 commonService.manageApplicationState(lenderAssociationDetailsRequest);
                 return false;
             }
-            NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(nachManadateRequest, LenderAssociationStages.NACH_MANDATE);
-            log.info("nach mandate response of Trillion Loa from nbfc: {} with applicationId: {}", nbfcResponseDTO, lenderAssociationDetailsRequest.getApplicationId());
+            NBFCResponseDTO<?> nbfcResponseDTO = lenderAPIGateway.invokeStage(nachManadateRequest, LenderAssociationStages.NACH_MANDATE);
+            log.info("nach mandate response of TrillionLoans from nbfc: {} with applicationId: {}", nbfcResponseDTO, lenderAssociationDetailsRequest.getApplicationId());
             if (Objects.nonNull(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && Objects.nonNull(nbfcResponseDTO.getData())) {
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_SUCCESS.name());
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                 return true;
             }
         } catch (Exception e) {
-            log.error("error while pushing nach mandate request of Trillion Loa for  {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("error while pushing nach mandate request of TrillionLoans for  {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
         commonService.manageApplicationState(lenderAssociationDetailsRequest);
         return Boolean.FALSE;
     }
 
-    private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+    private NBFCRequestDTO<?> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         Date expiryDate = Date.from(LocalDate.now().plusYears(2).atStartOfDay(ZoneId.systemDefault()).toInstant());
         try {
@@ -142,8 +142,8 @@ public class TLNachMandateService {
                             .build();
                 }
             }
-            if (ObjectUtils.isEmpty(mandateDetails)) {
-                log.info("error in getting mandate Details for merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+            if (payloadValidation.isInValidNachMandatePayload(mandateDetails)) {
+                log.info("error in getting mandate details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return null;
             }
             return NBFCRequestDTO.builder()
@@ -153,7 +153,7 @@ public class TLNachMandateService {
                     .payload(mandateDetails)
                     .build();
         } catch (Exception e) {
-            log.info("Exception in creating nach mandate payload of Trillion Loans for applicationId {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.info("Exception in creating nach mandate payload of TrillionLoans for applicationId {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
