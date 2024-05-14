@@ -1,10 +1,10 @@
-package com.bharatpe.lending.collection.impl;
+package com.bharatpe.lending.collection.service.impl;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.collection.LoanClosureService;
-import com.bharatpe.lending.collection.LoanStatusService;
-import com.bharatpe.lending.collection.Utility;
+import com.bharatpe.lending.collection.service.LoanClosureService;
+import com.bharatpe.lending.collection.service.LoanStatusService;
+import com.bharatpe.lending.collection.utils.Utility;
 import com.bharatpe.lending.collection.dto.LoanClosureDTO;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
