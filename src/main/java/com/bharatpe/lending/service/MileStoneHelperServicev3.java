@@ -229,7 +229,7 @@ public class MileStoneHelperServicev3 {
                 if ((ObjectUtils.isEmpty(entity)) || !ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
                     //fresh user or re-enrolling
                     log.info("entity for milestone {}", entity);
-                    responseDto = updateResponse(responseDto, bureauResponseDTO, experian, entity, kycPancard);
+                    return updateResponse(responseDto, bureauResponseDTO, experian, entity, kycPancard);
                 }
                 else {
                     // Old Session Flow->>>> expiry management
