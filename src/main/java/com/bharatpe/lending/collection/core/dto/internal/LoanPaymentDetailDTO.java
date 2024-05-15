@@ -1,4 +1,4 @@
-package com.bharatpe.lending.collection.core.dto;
+package com.bharatpe.lending.collection.core.dto.internal;
 
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -8,7 +8,7 @@ import lombok.*;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoanPaymentDetailDto {
+public class LoanPaymentDetailDTO {
     boolean adjustNach;
     double advanceEdiAmount;
     double otherAmount;
@@ -18,9 +18,6 @@ public class LoanPaymentDetailDto {
     String owner;
     String terminalOrderId;
     boolean foreCloser;
-
-
-
 
     //internal use only
     @JsonIgnore double nachBalanceUsed;

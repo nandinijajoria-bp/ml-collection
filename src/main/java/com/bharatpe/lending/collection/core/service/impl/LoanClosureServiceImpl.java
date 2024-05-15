@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
+import java.util.Date;
 
 @Service
 @Slf4j
@@ -73,6 +74,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         loan.setDueOtherCharges(0.0);
         loan.setDuePenalty(0.0);
         loan.setEdiRemainingCount(0);
+        loan.setClosingDate(new Date());
         //TODO : do we need to check next edi_date also
         lendingPaymentScheduleDao.save(loan);
         return loan;
