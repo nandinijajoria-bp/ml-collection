@@ -36,7 +36,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     //==================================================================================================================
     // __________________________________     Calculation   ____________________________________________________________
     //==================================================================================================================
-    private PaymentCalculation adjustEdiSchedule(LendingPaymentSchedule loan, double amount, boolean adjustPrincipleFirst) {
+    public PaymentCalculation adjustEdiSchedule(LendingPaymentSchedule loan, double amount, boolean adjustPrincipleFirst) {
         PaymentCalculation settleLoanPaymentDTO = settleEDIPrincipleAndInterest(loan, amount, adjustPrincipleFirst);
 
         PaymentCalculation penalty = adjustPenalty(loan, settleLoanPaymentDTO.getBalance());
