@@ -61,6 +61,7 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
                 .received(amount)
                 .used(interestPaid)
                 .balance(amount - interestPaid)
+                .interestSettled(interestPaid)
                 .build();
     }
 
@@ -83,6 +84,7 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
                 .received(amount)
                 .used(principalPaid)
                 .balance(amount - principalPaid)
+                .principleSettled(principalPaid)
                 .build();
     }
 
@@ -103,6 +105,7 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
                 .received(amount)
                 .used(penaltyPaid)
                 .balance(amount - penaltyPaid)
+                .penaltySettled(penaltyPaid)
                 .build();
     }
 
@@ -126,6 +129,7 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
                 .received(amount)
                 .used(chargesPaid)
                 .balance(amount - chargesPaid)
+                .chargesSettled(chargesPaid)
                 .build();
     }
 

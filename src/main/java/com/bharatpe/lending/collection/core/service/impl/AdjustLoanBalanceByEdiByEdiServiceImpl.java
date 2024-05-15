@@ -89,6 +89,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .received(amount)
                 .used(penaltyPaid)
                 .balance(amount - penaltyPaid)
+                .penaltySettled(penaltyPaid)
                 .build();
     }
 
@@ -112,6 +113,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .received(amount)
                 .used(chargesPaid)
                 .balance(amount - chargesPaid)
+                .chargesSettled(chargesPaid)
                 .build();
     }
 
