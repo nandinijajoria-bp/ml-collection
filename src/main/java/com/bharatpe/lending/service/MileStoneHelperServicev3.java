@@ -82,7 +82,7 @@ public class MileStoneHelperServicev3 {
     @Autowired
     MileStoneHelperService mileStoneHelperService;
 
-    public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant) {
+    public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant, Boolean loanAmountPresent) {
         MileStoneEligibilityResponseDto responseDto = new MileStoneEligibilityResponseDto();
         responseDto.setShowHomeWidgets(milestoneWidgetVisible);
         responseDto.setShowSplashBanner(milestoneSplashVisible);
@@ -113,18 +113,22 @@ public class MileStoneHelperServicev3 {
                 log.info("merchantId:{}, createdAt {}", merchant.getId(), merchant.getCreatedAt());
             }
 
-            String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
-            MileStoneEligibilityResponseDto mileStoneOfferResponse = getCachedMileStoneOfferResponse(mileStoneOfferCacheKey);
+            if(!loanAmountPresent) {
+                //loanAmount not provided, then check offer key data in cache, else skip returning from cache.
+                String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
+                MileStoneEligibilityResponseDto mileStoneOfferResponse = getCachedMileStoneOfferResponse(mileStoneOfferCacheKey);
 
-            if (!ObjectUtils.isEmpty(mileStoneOfferResponse)) {
-                log.info("Returning milestone offer response from cache for {}", merchant.getId());
-                return mileStoneOfferResponse;
+                if (!ObjectUtils.isEmpty(mileStoneOfferResponse)) {
+                    log.info("Returning milestone offer response from cache for {}", merchant.getId());
+                    return mileStoneOfferResponse;
+                }
+                if (ObjectUtils.isEmpty(mileStoneOfferResponse)
+                        && !ObjectUtils.isEmpty(entity)
+                        && Boolean.TRUE.equals(entity.getMilestoneOffer())) {
+                    return cacheMileStoneOfferData(merchant, entity, responseDto);
+                }
             }
-            if (ObjectUtils.isEmpty(mileStoneOfferResponse)
-                    && !ObjectUtils.isEmpty(entity)
-                    && Boolean.TRUE.equals(entity.getMilestoneOffer())) {
-                return cacheMileStoneOfferData(merchant, entity, responseDto);
-            }
+
 
             String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
             Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);

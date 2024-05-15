@@ -200,7 +200,7 @@ public class DsHandler {
             ResponseEntity<DSMileStoneResponse> responseEntity = null;
             try {
                 responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
-                log.info("response {} of target for merchantid {} is ", responseEntity.getBody(),merchantId);
+                log.info("response {} of target for merchantid {}", responseEntity.getBody(),merchantId);
                 if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
                     return responseEntity.getBody();
                 }

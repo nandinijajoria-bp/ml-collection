@@ -2743,7 +2743,7 @@ public class SupportService {
         if (basicDetailsDto.isPresent()) {
 //            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
             MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                    mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get()) :
+                    mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get(), false) :
                     mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
 
             supportDto.setMileStoneEligibility(responseDto);

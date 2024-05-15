@@ -140,7 +140,7 @@ public class MileStoneProgramService {
         lendingCache.add(addCacheDto, TimeUnit.MINUTES);
 
         MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = isRtev3Enabled ?
-                mileStoneHelperServicev3.calculateEligibility(merchant) :
+                mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(loanAmount)) :
                 mileStoneHelperService.calculateEligibility(merchant);
 
         if (Boolean.TRUE.equals(mileStoneEligibilityResponseDto.getMilStoneEligibility())) {
@@ -248,7 +248,7 @@ public class MileStoneProgramService {
 
         try {
             MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                    mileStoneHelperServicev3.calculateEligibility(merchant) :
+                    mileStoneHelperServicev3.calculateEligibility(merchant, false) :
                     mileStoneHelperService.calculateEligibility(merchant);
 
             if (Boolean.TRUE.equals(responseDto.getMilStoneEligibility())) {
@@ -591,7 +591,7 @@ public class MileStoneProgramService {
             }
         }
         MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                mileStoneHelperServicev3.calculateEligibility(merchant) :
+                mileStoneHelperServicev3.calculateEligibility(merchant, false) :
                 mileStoneHelperService.calculateEligibility(merchant);
 
         log.info("response dto is--->{}", responseDto);
