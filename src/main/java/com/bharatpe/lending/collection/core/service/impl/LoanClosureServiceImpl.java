@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
+import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,8 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
     @Autowired
     LoanForeClosureChargesDao loanForeClosureChargesDao;
+    @Autowired
+    SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId) {
@@ -62,7 +65,9 @@ public class LoanClosureServiceImpl implements LoanClosureService {
                 || Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(activeLoan.getNbfc())) {
             loanClosurePostingService.sendForeclosureChargesEventLiquiLoans(activeLoan.getApplicationId(), activeLoan.getId(), lendingLedger.getId(), activeLoan.getNbfc(), orderId);
         }
-
+        Long merchantId = activeLoan.getMerchantId();
+        log.info("sending loan flag event in adjustLoanBalance for merchantId : {}",merchantId);
+        sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
     }
 
     private LendingPaymentSchedule closeLoanAndUpdateStatus(LendingPaymentSchedule loan) {
