@@ -135,7 +135,7 @@ public class MileStoneProgramService {
 
         AddCacheDto addCacheDto = new AddCacheDto();
         addCacheDto.setKey(RTEConstants.RTE_V3_AMOUNT + merchant.getId());
-        addCacheDto.setValue(ObjectUtils.isEmpty(loanAmount) ? "25000" : loanAmount);
+        addCacheDto.setValue(ObjectUtils.isEmpty(loanAmount) ? "25k" : loanAmount);
         addCacheDto.setTtl(15);
         lendingCache.add(addCacheDto, TimeUnit.MINUTES);
 
@@ -205,7 +205,7 @@ public class MileStoneProgramService {
         log.info("bureau data {} for merchant id {} is :", responseDTO, merchant.getId());
 
         String rteV3AmountKey = RTEConstants.RTE_V3_AMOUNT + merchant.getId();
-        String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25000" : (String) lendingCache.get(rteV3AmountKey);
+        String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25k" : (String) lendingCache.get(rteV3AmountKey);
 
         if (responseDTO.getIsNTC() == Boolean.TRUE) {
             BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();

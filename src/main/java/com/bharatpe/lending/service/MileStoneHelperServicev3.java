@@ -474,7 +474,7 @@ public class MileStoneHelperServicev3 {
     private void handlingBureauResponse(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
         try {
             String rteV3AmountKey = RTEConstants.RTE_V3_AMOUNT + merchant.getId();
-            String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25000" : (String) lendingCache.get(rteV3AmountKey);
+            String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25k" : (String) lendingCache.get(rteV3AmountKey);
 
             if (!ObjectUtils.isEmpty(bureauResponseDTO)) {
                 if (bureauResponseDTO.getIsNTC() == Boolean.TRUE) {
