@@ -1,4 +1,4 @@
-package com.bharatpe.lending.collection.service;
+package com.bharatpe.lending.collection1.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;

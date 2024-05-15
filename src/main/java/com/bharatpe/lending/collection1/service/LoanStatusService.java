@@ -1,8 +1,7 @@
-package com.bharatpe.lending.collection.service;
+package com.bharatpe.lending.collection1.service;
 
-import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.collection.dto.LoanClosureDTO;
+import com.bharatpe.lending.collection1.dto.LoanClosureDTO;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 
 import java.util.List;
