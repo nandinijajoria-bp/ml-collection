@@ -116,8 +116,12 @@ public class MileStoneHelperServicev3 {
             String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
             String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
 
-            if(!loanAmountPresent) {
-                //loanAmount not provided, then check offer key data in cache, else skip returning from cache.
+            if(loanAmountPresent) {
+                log.info("deleting keys: {} {}", mileStoneCacheKey, mileStoneOfferCacheKey);
+                lendingCache.delete(mileStoneCacheKey);
+                lendingCache.delete(mileStoneOfferCacheKey);
+            }else{
+                //loanAmount not provided, then check offer key data in cache
                 MileStoneEligibilityResponseDto mileStoneOfferResponse = getCachedMileStoneOfferResponse(mileStoneOfferCacheKey);
 
                 if (!ObjectUtils.isEmpty(mileStoneOfferResponse)) {
@@ -134,9 +138,6 @@ public class MileStoneHelperServicev3 {
                 if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
                     return rteDetailsCacheValue(responseDto, merchant, mileStoneCacheResponse);
                 }
-            }else{
-                lendingCache.delete(mileStoneCacheKey);
-                lendingCache.delete(mileStoneOfferCacheKey);
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
         }
