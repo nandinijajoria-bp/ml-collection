@@ -46,8 +46,8 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         log.info("paid-amount {} is less than total-payable amount {} for loanId {} and during processing loan closure",activeLoan.getPaidAmount() , activeLoan.getTotalPayableAmount() , activeLoan.getId());
     }
 
-    @Override
-    public void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId) {
+
+    private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId) {
 
         if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
             loanClosurePostingService.sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);

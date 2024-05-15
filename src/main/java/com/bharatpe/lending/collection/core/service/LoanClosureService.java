@@ -9,5 +9,4 @@ public interface LoanClosureService {
 
     void foreClosureLoan(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId);
 
-    void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId);
 }
