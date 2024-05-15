@@ -1,4 +1,4 @@
-package com.bharatpe.lending.dto;
+package com.bharatpe.lending.collection.core.dto;
 
 
 import com.fasterxml.jackson.annotation.JsonIgnore;

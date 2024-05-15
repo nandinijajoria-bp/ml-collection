@@ -1,4 +1,4 @@
-package com.bharatpe.lending.service;
+package com.bharatpe.lending.collection.core.service;
 
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
@@ -21,9 +21,10 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
-import com.bharatpe.lending.dto.LoanPaymentDetailDto;
+import com.bharatpe.lending.collection.core.dto.LoanPaymentDetailDto;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.service.LendingCollectionAuditService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
