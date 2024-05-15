@@ -214,6 +214,11 @@ public class LendingApplicationController {
 		return new ResponseEntity<>(lendingApplicationService.bankAccountChange(merchantId), HttpStatus.OK);
 	}
 
+	@RequestMapping(value="/check-delete-eligible", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<ResponseDTO> checkDeleteEligible(@RequestParam Long merchantId) {
+		return new ResponseEntity<>(lendingApplicationService.checkDeleteEligible(merchantId), HttpStatus.OK);
+	}
+
 	@PostMapping(value = "/nach_refund")
 	public ResponseEntity<CommonResponse> nachRefund(@RequestBody NachRefundRequest refundRequest) {
 		logger.info("Nach refund request:{}", refundRequest);
