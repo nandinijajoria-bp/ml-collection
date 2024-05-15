@@ -113,9 +113,11 @@ public class MileStoneHelperServicev3 {
                 log.info("merchantId:{}, createdAt {}", merchant.getId(), merchant.getCreatedAt());
             }
 
+            String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
+            String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+
             if(!loanAmountPresent) {
                 //loanAmount not provided, then check offer key data in cache, else skip returning from cache.
-                String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
                 MileStoneEligibilityResponseDto mileStoneOfferResponse = getCachedMileStoneOfferResponse(mileStoneOfferCacheKey);
 
                 if (!ObjectUtils.isEmpty(mileStoneOfferResponse)) {
@@ -127,24 +129,16 @@ public class MileStoneHelperServicev3 {
                         && Boolean.TRUE.equals(entity.getMilestoneOffer())) {
                     return cacheMileStoneOfferData(merchant, entity, responseDto);
                 }
-            }
 
-
-            String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
-            Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
-            RTEProgramDetailsDto rteProgramDetailsDto = null;
-            if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
-                try {
-                    log.info("returning rte details response from cache for {}", merchant.getId());
-                    rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
-                    if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getRouteToEligibilityData())) {
-                        return rteProgramDetailsDto.getRouteToEligibilityData();
-                    }
-                } catch (Exception e) {
-                    log.info("exception while fetching cache rte program details response is: {}", Arrays.asList(e.getStackTrace()));
+                Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
+                if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                    return rteDetailsCacheValue(responseDto, merchant, mileStoneCacheResponse);
                 }
+            }else{
+                lendingCache.delete(mileStoneCacheKey);
+                lendingCache.delete(mileStoneOfferCacheKey);
             }
-            responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto, mileStoneCacheResponse, mileStoneCacheKey, rteProgramDetailsDto);
+            responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
         }
         catch (Exception e) {
             log.error("exception in calculate Eligibility flow for merchantId:{} and exception is {} ",merchant.getId(),Arrays.asList(e.getStackTrace()));
@@ -158,7 +152,20 @@ public class MileStoneHelperServicev3 {
 
     }
 
-    private MileStoneEligibilityResponseDto panExperianAndBureauCallHandler(BasicDetailsDto merchant, MileStoneEntity entity, List<MileStoneEntity> entityList, MileStoneEligibilityResponseDto responseDto, Object mileStoneCacheResponse, String mileStoneCacheKey, RTEProgramDetailsDto rteProgramDetailsDto) {
+    private MileStoneEligibilityResponseDto rteDetailsCacheValue(MileStoneEligibilityResponseDto responseDto, BasicDetailsDto merchant, Object mileStoneCacheResponse) {
+        try {
+            log.info("returning rte details response from cache for {}", merchant.getId());
+            RTEProgramDetailsDto rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
+            if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getRouteToEligibilityData())) {
+                return rteProgramDetailsDto.getRouteToEligibilityData();
+            }
+        } catch (Exception e) {
+            log.info("exception while fetching cache rte program details response is: {}", Arrays.asList(e.getStackTrace()));
+        }
+        return responseDto;
+    }
+
+    private MileStoneEligibilityResponseDto panExperianAndBureauCallHandler(BasicDetailsDto merchant, MileStoneEntity entity, List<MileStoneEntity> entityList, MileStoneEligibilityResponseDto responseDto) {
         try {
             String pinCodeColor = null;
             int pincode = 0;
@@ -202,14 +209,14 @@ public class MileStoneHelperServicev3 {
             }
 
             //lrv checks for both fresh(session is not in progress) & existing(session is in progress) merchants --
-            responseDto = mileStoneLRVHandler(merchant, entity, responseDto, bureauResponseDTO, experian, kycPancard, mileStoneCacheResponse, mileStoneCacheKey, rteProgramDetailsDto);
+            responseDto = mileStoneLRVHandler(merchant, entity, responseDto, bureauResponseDTO, experian, kycPancard);
         }catch (Exception e) {
             log.error("Exception inside panExperianAndBureauCallHandler for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto mileStoneLRVHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, String kycPancard, Object mileStoneCacheResponse, String mileStoneCacheKey, RTEProgramDetailsDto rteProgramDetailsDto) {
+    private MileStoneEligibilityResponseDto mileStoneLRVHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, String kycPancard) {
         log.info("Checks for lrv for merchantId: {}", merchant.getId());
         try {
             List inclusionReasonMilestoneList = Arrays.asList
@@ -243,7 +250,10 @@ public class MileStoneHelperServicev3 {
                     DSMileStoneAchievementResponse achievementResponse = dsHandler.fetchMilestoneAchievements(entity.getMerchantId(), entity.getSessionId());
                     log.info("achievementResponse is {}", achievementResponse);
 
-                    if (achievementResponse == null && (!ObjectUtils.isEmpty(rteProgramDetailsDto))) {
+                    String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+                    Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
+                    RTEProgramDetailsDto rteProgramDetailsDto = null;
+                    if (achievementResponse == null && (!ObjectUtils.isEmpty(mileStoneCacheResponse))) {
                         try {
                             log.info("returning response from cache for when achievements are null for merchantId:{}", merchant.getId());
                             rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
@@ -503,6 +513,11 @@ public class MileStoneHelperServicev3 {
             log.info("milestone data {} for merchantId: {}", fetchMileStoneData, merchant.getId());
 
             if (fetchMileStoneData == null || fetchMileStoneData.getProgram_type() == null || fetchMileStoneData.getTarget().isEmpty() ) {
+                String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+                Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
+                if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+                    lendingCache.delete(mileStoneCacheKey);
+                }
                 responseDto.setDsErrorMessage("error in target ds api");
                 inEligibleForRTEResponse(responseDto);
             }
