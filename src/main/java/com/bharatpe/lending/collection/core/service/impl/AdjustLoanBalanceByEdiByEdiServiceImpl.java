@@ -100,10 +100,10 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             chargesPaid = Math.min(activeLoan.getDueOtherCharges(), amount);
 
             activeLoan.setDueOtherCharges(activeLoan.getDueOtherCharges() - chargesPaid);
-            activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges() + chargesPaid);
+            activeLoan.setPaidOtherCharges((Objects.nonNull(activeLoan.getPaidOtherCharges()) ? activeLoan.getPaidOtherCharges() : 0) + chargesPaid);
 
             activeLoan.setDueAmount(activeLoan.getDueAmount() - chargesPaid);
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + chargesPaid);
+            activeLoan.setPaidAmount((Objects.nonNull(activeLoan.getPaidAmount()) ? activeLoan.getPaidAmount() : 0) + chargesPaid);
             log.info("LoanAdjustment#{} adjustOtherCharges of amount:{} for loan:{}",activeLoan.getId(), chargesPaid, activeLoan);
         }
 

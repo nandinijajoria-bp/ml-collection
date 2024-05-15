@@ -44,17 +44,16 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
     // __________________________________     Calculation   ____________________________________________________________
     //==================================================================================================================
 
-    //TODO: add null check when updating paidIntrest,P,C
     private PaymentCalculation adjustInterest(LendingPaymentSchedule activeLoan, double amount) {
         double interestPaid = 0;
         log.info("LoanAdjustment#{} adjustInterest is started for loan {} with amount :{}",activeLoan.getId(), activeLoan, amount);
         if (amount > 0D && activeLoan.getDueInterest() != null && activeLoan.getDueInterest() > 0D) {
             interestPaid = Math.min(activeLoan.getDueInterest(), amount);
             activeLoan.setDueInterest(activeLoan.getDueInterest() - interestPaid);
-            activeLoan.setPaidInterest((activeLoan.getPaidInterest() != null ? activeLoan.getPaidInterest() : 0) + interestPaid);
+            activeLoan.setPaidInterest((Objects.nonNull(activeLoan.getPaidInterest()) ? activeLoan.getPaidInterest() : 0) + interestPaid);
 
             activeLoan.setDueAmount(activeLoan.getDueAmount() - interestPaid);
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + interestPaid);
+            activeLoan.setPaidAmount((Objects.nonNull(activeLoan.getPaidAmount()) ? activeLoan.getPaidAmount() : 0) + interestPaid);
             log.info("LoanAdjustment#{} Adjusted due interest of amount:{} for loan:{}",activeLoan.getId(), interestPaid, activeLoan);
         }
         log.info("LoanAdjustment#{} adjustInterest is completed for loan {} with adjustment  received :{} adjusted :{} balance {}",activeLoan.getId(), activeLoan, amount, interestPaid, amount - interestPaid);
@@ -73,10 +72,10 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
             principalPaid = Math.min(activeLoan.getDuePrinciple(), amount);
 
             activeLoan.setDuePrinciple(activeLoan.getDuePrinciple() - principalPaid);
-            activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + principalPaid);
+            activeLoan.setPaidPrinciple((Objects.nonNull(activeLoan.getPaidPrinciple()) ? activeLoan.getPaidPrinciple() : 0) + principalPaid);
 
             activeLoan.setDueAmount(activeLoan.getDueAmount() - principalPaid);
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + principalPaid);
+            activeLoan.setPaidAmount((Objects.nonNull(activeLoan.getPaidAmount()) ? activeLoan.getPaidAmount() : 0) + principalPaid);
             log.info("LoanAdjustment#{} adjustPrinciple of amount:{} for loan:{}",activeLoan.getId(), principalPaid, activeLoan);
         }
         log.info("LoanAdjustment#{} adjustPrinciple is completed for loan {} with adjustment  received :{} adjusted :{} balance {}",activeLoan.getId(), activeLoan, amount, principalPaid, amount - principalPaid);
@@ -115,10 +114,10 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
             chargesPaid = Math.min(activeLoan.getDueOtherCharges(), amount);
 
             activeLoan.setDueOtherCharges(activeLoan.getDueOtherCharges() - chargesPaid);
-            activeLoan.setPaidOtherCharges(activeLoan.getPaidOtherCharges() + chargesPaid);
+            activeLoan.setPaidOtherCharges((Objects.nonNull(activeLoan.getPaidOtherCharges()) ? activeLoan.getPaidOtherCharges() : 0) + chargesPaid);
 
             activeLoan.setDueAmount(activeLoan.getDueAmount() - chargesPaid);
-            activeLoan.setPaidAmount(activeLoan.getPaidAmount() + chargesPaid);
+            activeLoan.setPaidAmount((Objects.nonNull(activeLoan.getPaidAmount()) ? activeLoan.getPaidAmount() : 0) + chargesPaid);
             log.info("LoanAdjustment#{} adjustOtherCharges of amount:{} for loan:{}",activeLoan.getId(), chargesPaid, activeLoan);
         }
 
