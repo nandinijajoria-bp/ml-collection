@@ -204,12 +204,15 @@ public class MileStoneProgramService {
 
         log.info("bureau data {} for merchant id {} is :", responseDTO, merchant.getId());
 
+        String rteV3AmountKey = RTEConstants.RTE_V3_AMOUNT + merchant.getId();
+        String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25000" : (String) lendingCache.get(rteV3AmountKey);
+
         if (responseDTO.getIsNTC() == Boolean.TRUE) {
             BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
             variables.setBbs(0D);
             variables.setBureauScore(0D);
-            response = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(),
-                    variables.getBbs(), pinCodeColor);
+            response = dsHandler.fetchMileStoneDatav3(merchant.getId(), variables.getBureauScore(),
+                    variables.getBbs(), pinCodeColor, loanAmountOfMerchant);
 
             if (!ObjectUtils.isEmpty(response) && !ObjectUtils.isEmpty(response.getTarget())) {
                 return new ApiResponse<>(response);
@@ -221,8 +224,8 @@ public class MileStoneProgramService {
                     responseDTO.getVariables().getBureauScore(),
                     responseDTO.getVariables().getBbs(),
                     pinCodeColor);
-            response = dsHandler.fetchMileStoneData(merchant.getId(), responseDTO.getVariables().getBureauScore(),
-                    responseDTO.getVariables().getBbs(), pinCodeColor);
+            response = dsHandler.fetchMileStoneDatav3(merchant.getId(), responseDTO.getVariables().getBureauScore(),
+                    responseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant);
             if (!ObjectUtils.isEmpty(response) && !ObjectUtils.isEmpty(response.getTarget())) {
                 return new ApiResponse<>(response);
             }
