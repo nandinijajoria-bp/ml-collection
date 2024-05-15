@@ -208,7 +208,7 @@ public class AbflDataUploadServiceUtil {
 
     private String getFailedDocMapping(String docType) {
         if ("KFS_SANCTION_AGREEMENT".equalsIgnoreCase(docType))
-            return "KFS;SANCTION_AGREEMENT";
+            return "KFS_SANCTION_AGREEMENT";
         return docType;
     }
 
@@ -230,20 +230,20 @@ public class AbflDataUploadServiceUtil {
                 log.info("{} {} found for {}",docUploadPayload.getDocType(), docUploadPayload.getDocUploadApiRequestDto(), applicationId);
                 if (ObjectUtils.isEmpty(docUploadPayload.getDocUploadApiRequestDto().getPayload().getFileUpload())) {
                     log.info("payload construct incomplete for {} {}", docUploadPayload.getDocType(), applicationId);
-                    failedDocs.append(getFailedDocMapping(docUploadPayload.getDocType()) + ";");
+                    failedDocs.append(docUploadPayload.getDocType() + ";");
                     currentDocumentStatus.delete(0,currentDocumentStatus.length());
                     currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                     continue;
                 }
                 Pair<String, String> resp = uploadDoc(docUploadPayload.getDocUploadApiRequestDto(),apiGatewayV3,docUploadPayload.getDocType());
                 if (ObjectUtils.isEmpty(resp) || LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(resp.getLeft())) {
-                    failedDocs.append(getFailedDocMapping(resp.getRight()) + ";");
+                    failedDocs.append(resp.getRight() + ";");
                     currentDocumentStatus.delete(0,currentDocumentStatus.length());
                     currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
                 }
             } catch (Exception e) {
                 log.error("exception occurred while invoking doc upload {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
-                failedDocs.append(getFailedDocMapping(docUploadPayload.getDocType()) + ";");
+                failedDocs.append(docUploadPayload.getDocType() + ";");
                 currentDocumentStatus.delete(0,currentDocumentStatus.length());
                 currentDocumentStatus.append(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
             }
@@ -438,7 +438,7 @@ public class AbflDataUploadServiceUtil {
 
         // Create the output file
         Document document = new Document();
-        PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get(mergedFileName)));
+        PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
         copy.setCompressionLevel(9);
         document.open();
 
@@ -449,7 +449,7 @@ public class AbflDataUploadServiceUtil {
         // Close the document
         document.close();
 
-        File mergedFile = new File(mergedFileName);
+        File mergedFile = new File("/data/" + mergedFileName);
         s3BucketHandler.uploadFileToS3(mergedFile,"loan-document",mergedFileName);
         String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName,bucket);
 
