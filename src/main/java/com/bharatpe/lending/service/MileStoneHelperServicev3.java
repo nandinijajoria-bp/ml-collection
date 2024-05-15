@@ -91,7 +91,7 @@ public class MileStoneHelperServicev3 {
         try {
             List<Long> rteEligibleMerchants = loanUtil.rteEligibleMerchant();
             if(isNotEligibleForMilestone(merchant, rteEligibleMerchants)) {
-                log.info("ineligible due to not present in percent scale up or not in list for merchant id {}", merchant.getId());
+                log.info("ineligible due to not present in percent scale up or not in list for merchantId:{}", merchant.getId());
                 return inEligibleForRTEResponse(responseDto);
             }
 
@@ -110,7 +110,7 @@ public class MileStoneHelperServicev3 {
                 log.info("setting up date");
                 merchant.setCreatedAt(new Date());
                 merchant.setCreated_at(new Date());
-                log.info("merchant id {}, createdAt {}", merchant.getId(), merchant.getCreatedAt());
+                log.info("merchantId:{}, createdAt {}", merchant.getId(), merchant.getCreatedAt());
             }
 
             String mileStoneOfferCacheKey = RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId();
@@ -137,29 +137,20 @@ public class MileStoneHelperServicev3 {
                         return rteProgramDetailsDto.getRouteToEligibilityData();
                     }
                 } catch (Exception e) {
-                    log.info("exception while fetching cache rte program details response is: {}", e.getMessage());
+                    log.info("exception while fetching cache rte program details response is: {}", Arrays.asList(e.getStackTrace()));
                 }
             }
-
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto, mileStoneCacheResponse, mileStoneCacheKey, rteProgramDetailsDto);
-            if(eligibiltyUpdated(responseDto)) {
-                return responseDto;
-            }
-
-            responseDto.setMilStoneEligibility(false);
-            responseDto.setEnrollState(false);
-            return responseDto;
-
         }
         catch (Exception e) {
-            log.error("exception in calculate Eligibility flow for merchant id: {} and exception is {} ",merchant.getId(),Arrays.asList(e.getStackTrace()));
+            log.error("exception in calculate Eligibility flow for merchantId:{} and exception is {} ",merchant.getId(),Arrays.asList(e.getStackTrace()));
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
             responseDto.setShowHomeWidgets(milestoneWidgetVisible);
             responseDto.setShowSplashBanner(milestoneSplashVisible);
             responseDto.setShowRTELoansFlow(milestoneEasyLoanVisible);
-            return responseDto;
         }
+        return responseDto;
 
     }
 
@@ -170,13 +161,14 @@ public class MileStoneHelperServicev3 {
 
             String kycPancard;
             Experian experian = experianDao.getByMerchantId(merchant.getId());
-            log.info("Experian data for merchant id {} is {} ",merchant.getId(),experian);
+            log.info("Experian data for merchantId:{} is {} ",merchant.getId(),experian);
 
             kycPancard = kycHandler.getPanNumber(merchant.getId());
-            log.info("kycPancard data for merchant id {} is {} ",merchant.getId(),kycPancard);
+            log.info("kycPancard data for merchantId:{} is {} ",merchant.getId(),kycPancard);
 
             BureauResponseDTO bureauResponseDTO = null;
             if (ObjectUtils.isEmpty(entity) || !(RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus()))) {
+                //fresh merchant
                 if (ObjectUtils.isEmpty(kycPancard)) {
                     return panCardNotFound(merchant, pincode, responseDto);
                 }
@@ -186,28 +178,35 @@ public class MileStoneHelperServicev3 {
                 }
 
                 pinCodeColor = processExperianData(merchant, experian, responseDto,kycPancard, pincode, entityList);
-                if(eligibiltyUpdated(responseDto) || pinCodeColor == null) {
+                if(!ObjectUtils.isEmpty(responseDto.getMilStoneEligibility()) || pinCodeColor == null) {
                     return responseDto;
                 }
 
                 bureauResponseDTO = mileStoneHelperService.calculateBureauScore(kycPancard, merchant);
-                responseDto = bureauResponsechecks(merchant, bureauResponseDTO, responseDto, experian, pinCodeColor, kycPancard);
-                if(eligibiltyUpdated(responseDto)) {
+                log.info("bureauResponse {} for merchantId {}", bureauResponseDTO, merchant.getId());
+                bureauResponsechecks(merchant, bureauResponseDTO, responseDto, experian, pinCodeColor, kycPancard);
+                if(!ObjectUtils.isEmpty(responseDto.getMilStoneEligibility()) && !responseDto.getMilStoneEligibility()) {
                     return responseDto;
                 }
             }
-            return mileStoneLRVHandler(merchant, entity, responseDto, bureauResponseDTO, experian, kycPancard, mileStoneCacheResponse, mileStoneCacheKey, rteProgramDetailsDto);
+
+            if (!RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus()) && !ObjectUtils.isEmpty(bureauResponseDTO)) {
+                handlingBureauResponse(merchant, bureauResponseDTO, responseDto, experian,  pinCodeColor, kycPancard);
+                if(!responseDto.getMilStoneEligibility()) {
+                    return responseDto;
+                }
+            }
+
+            //lrv checks for both fresh(session is not in progress) & existing(session is in progress) merchants --
+            responseDto = mileStoneLRVHandler(merchant, entity, responseDto, bureauResponseDTO, experian, kycPancard, mileStoneCacheResponse, mileStoneCacheKey, rteProgramDetailsDto);
         }catch (Exception e) {
             log.error("Exception inside panExperianAndBureauCallHandler for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return responseDto;
     }
 
-    private boolean eligibiltyUpdated(MileStoneEligibilityResponseDto responseDto) {
-        return (!ObjectUtils.isEmpty(responseDto.getMilStoneEligibility()) || !ObjectUtils.isEmpty(responseDto.getEnrollState()));
-    }
-
     private MileStoneEligibilityResponseDto mileStoneLRVHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, String kycPancard, Object mileStoneCacheResponse, String mileStoneCacheKey, RTEProgramDetailsDto rteProgramDetailsDto) {
+        log.info("Checks for lrv for merchantId: {}", merchant.getId());
         try {
             List inclusionReasonMilestoneList = Arrays.asList
                     ("LIMIT BLOCKED: Offer set 0",
@@ -228,6 +227,7 @@ public class MileStoneHelperServicev3 {
                 responseDto.setMilStoneEligibility(true);
 
                 if ((ObjectUtils.isEmpty(entity)) || !ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
+                    //fresh user or re-enrolling
                     log.info("entity for milestone {}", entity);
                     responseDto = updateResponse(responseDto, bureauResponseDTO, experian, entity, kycPancard);
                 }
@@ -239,34 +239,43 @@ public class MileStoneHelperServicev3 {
                     DSMileStoneAchievementResponse achievementResponse = dsHandler.fetchMilestoneAchievements(entity.getMerchantId(), entity.getSessionId());
                     log.info("achievementResponse is {}", achievementResponse);
 
-                    responseDto = checkForExistingMerchant(merchant, bureauResponseDTO, achievementResponse, rteProgramDetailsDto, mileStoneResponse, responseDto, experian, kycPancard, mileStoneCacheResponse);
-                    if(eligibiltyUpdated(responseDto)) {
-                        return responseDto;
+                    if (achievementResponse == null && (!ObjectUtils.isEmpty(rteProgramDetailsDto))) {
+                        try {
+                            log.info("returning response from cache for when achievements are null for merchantId:{}", merchant.getId());
+                            rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
+                            return rteProgramDetailsDto.getRouteToEligibilityData();
+                        } catch (Exception e) {
+                            log.info("exception while fetching response is: {}", e.getMessage());
+                        }
+                    }
+
+                    if (achievementResponse == null && (ObjectUtils.isEmpty(rteProgramDetailsDto))) {
+                        return manageExpiryForExistingMerchant(merchant, bureauResponseDTO, mileStoneResponse, responseDto, experian, kycPancard);
                     }
                     return setGraphData(merchant, mileStoneResponse, achievementResponse, responseDto, bureauResponseDTO, entity, mileStoneCacheKey, mileStoneCacheResponse, experian, kycPancard);
                 }
             }
+
+            log.info("lrv checks not satisfied for merchantId: {}",merchant.getId());
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
         }catch (Exception e) {
             log.error("Exception while handling lrv mileStone for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto bureauResponsechecks(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
+    private void bureauResponsechecks(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
         try {
             if ((ObjectUtils.isEmpty(bureauResponseDTO)
                     || ObjectUtils.isEmpty(bureauResponseDTO.getVariables()))
                     && bureauResponseDTO.getIsNTC() != Boolean.TRUE) {
-                log.info("bureau response {} for merchant id {}", bureauResponseDTO, merchant.getId());
-                return inEligibleForRTEResponse(responseDto);
+                log.info("bureau response {} for merchantId {}", bureauResponseDTO, merchant.getId());
+                inEligibleForRTEResponse(responseDto);
             }
-
-            log.info("bureauResponse {} for merchant {}", bureauResponseDTO, merchant.getId());
-            responseDto = handlingBureauResponse(merchant, bureauResponseDTO, responseDto, experian,  pinCodeColor, kycPancard);
         }catch (Exception e) {
             log.error("Exception while handling bureau response for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
-        return responseDto;
     }
 
     private MileStoneEligibilityResponseDto setGraphData(BasicDetailsDto merchant, DSMileStoneResponse mileStoneResponse, DSMileStoneAchievementResponse achievementResponse, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, MileStoneEntity entity, String mileStoneCacheKey, Object mileStoneCacheResponse, Experian experian, String kycPancard) {
@@ -350,6 +359,7 @@ public class MileStoneHelperServicev3 {
                     mileStoneDao.save(entity);
                     responseDto.setIsMileStoneExpiry(true);
                     responseDto.setEnrollState(false);
+                    responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
                     responseDto.setGraphData(graph);
                     responseDto.setWeekCount(daysCount);
                     responseDto.setPinCode(experian.getPincode());
@@ -386,46 +396,35 @@ public class MileStoneHelperServicev3 {
 
             responseDto.setDeepLinkUrl(deepLink);
             responseDto.setIsEligibleForReapply(true);
+            responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
         }catch (Exception e) {
             log.error("Exception while building graph data for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto checkForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, DSMileStoneAchievementResponse achievementResponse, RTEProgramDetailsDto rteProgramDetailsDto, DSMileStoneResponse response, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard, Object mileStoneCacheResponse) {
+    private MileStoneEligibilityResponseDto manageExpiryForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO,DSMileStoneResponse response, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard) {
         try {
-            if (achievementResponse == null && (!ObjectUtils.isEmpty(rteProgramDetailsDto))) {
-                try {
-                    log.info("returning response from cache for when achievements are null for merchant id {}", merchant.getId());
-                    rteProgramDetailsDto = objectMapper.readValue((String) mileStoneCacheResponse, RTEProgramDetailsDto.class);
-                    return rteProgramDetailsDto.getRouteToEligibilityData();
-                } catch (Exception e) {
-                    log.info("exception while fetching response is: {}", e.getMessage());
-                }
+            log.info("achievement response is null for merchantId:{}", merchant.getId());
+            responseDto.setDsErrorMessage("achievement response is null");
+            responseDto.setMilStoneEligibility(true);
+            responseDto.setEnrollState(true);
+            responseDto.setGraphData(null);
+            responseDto.setWeekCount(null);
+            responseDto.setPinCode(experian.getPincode());
+            responseDto.setPanCard(kycPancard);
+            responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
+            if (bureauResponseDTO!=null){
+                responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
+                responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
+                        mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
+                        mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+            }else {
+                responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
+                responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
             }
-
-            if (achievementResponse == null && (ObjectUtils.isEmpty(rteProgramDetailsDto))) {
-                log.info("achievement response is null for merchant id {}", merchant.getId());
-                responseDto.setDsErrorMessage("achievement response is null");
-                responseDto.setMilStoneEligibility(true);
-                responseDto.setEnrollState(true);
-                responseDto.setGraphData(null);
-                responseDto.setWeekCount(null);
-                responseDto.setPinCode(experian.getPincode());
-                responseDto.setPanCard(kycPancard);
-                responseDto.setProgramType(ObjectUtils.isEmpty(response.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : response.getProgram_type());
-                if (bureauResponseDTO!=null){
-                    responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
-                    responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                            mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
-                            mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                }else {
-                    responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-                    responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                }
-                responseDto.setDeepLinkUrl(deepLink);
-                responseDto.setIsEligibleForReapply(true);
-            }
+            responseDto.setDeepLinkUrl(deepLink);
+            responseDto.setIsEligibleForReapply(true);
         }catch (Exception e) {
             log.error("Exception while checking for existing merchant in rte for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
@@ -436,6 +435,7 @@ public class MileStoneHelperServicev3 {
         responseDto.setEnrollState(false);
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
+        responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
         responseDto.setPinCode(experian.getPincode());
         responseDto.setPanCard(kycPancard);
         responseDto.setIsEligibleForReapply(true);
@@ -465,62 +465,51 @@ public class MileStoneHelperServicev3 {
                 log.info("Returning milestone offer response from cache for {}", mileStoneOfferCacheKey);
                 return objectMapper.readValue((String) mileStoneOfferResponse, MileStoneEligibilityResponseDto.class);
             } catch (Exception  e) {
-                log.error("Exception while parsing cached milestone offer response: {}", e.getMessage());
+                log.error("Exception while parsing cached milestone offer response: {}", Arrays.asList(e.getStackTrace()));
             }
         }
         return null;
     }
 
-    private MileStoneEligibilityResponseDto handlingBureauResponse(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
+    private void handlingBureauResponse(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
         try {
             String rteV3AmountKey = RTEConstants.RTE_V3_AMOUNT + merchant.getId();
             String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25000" : (String) lendingCache.get(rteV3AmountKey);
 
             if (!ObjectUtils.isEmpty(bureauResponseDTO)) {
                 if (bureauResponseDTO.getIsNTC() == Boolean.TRUE) {
-                    responseDto = callMerchantMileStoneDSApi(merchant, 0D, 0D, pinCodeColor, loanAmountOfMerchant, responseDto, experian, kycPancard);
+                    callMerchantMileStoneDSApi(merchant, 0D, 0D, pinCodeColor, loanAmountOfMerchant, responseDto, experian, kycPancard, bureauResponseDTO.getIsNTC());
                 }
                 if (bureauResponseDTO.getIsNTC() != Boolean.TRUE
                         && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
                         (bureauResponseDTO.getVariables().getBureauScore() != null
                                 && bureauResponseDTO.getVariables().getBbs() != null)) {
 
-                    responseDto = callMerchantMileStoneDSApi(merchant, bureauResponseDTO.getVariables().getBureauScore(), bureauResponseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant, responseDto, experian, kycPancard);
+                    callMerchantMileStoneDSApi(merchant, bureauResponseDTO.getVariables().getBureauScore(), bureauResponseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant, responseDto, experian, kycPancard, bureauResponseDTO.getIsNTC());
                 }
             }
         }catch (Exception e) {
             log.error("Exception while bureau call for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
-        return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto callMerchantMileStoneDSApi(BasicDetailsDto merchant, Double bureauScore, Double bbs, String pinCodeColor, String loanAmountOfMerchant, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard) {
+    private void callMerchantMileStoneDSApi(BasicDetailsDto merchant, Double bureauScore, Double bbs, String pinCodeColor, String loanAmountOfMerchant, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard, Boolean isNTC) {
         try {
             DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneDatav3(merchant.getId(), bureauScore, bbs, pinCodeColor, loanAmountOfMerchant);
-            log.info("milestone data {} for merchant id {}", fetchMileStoneData, merchant.getId());
+            log.info("milestone data {} for merchantId: {}", fetchMileStoneData, merchant.getId());
 
             if (fetchMileStoneData == null || fetchMileStoneData.getProgram_type() == null || fetchMileStoneData.getTarget().isEmpty() ) {
                 responseDto.setDsErrorMessage("error in target ds api");
-                return inEligibleForRTEResponse(responseDto);
+                inEligibleForRTEResponse(responseDto);
             }
             else{
-                log.info("milestone response for new user merchant id {} {}", merchant.getId(), fetchMileStoneData);
+                log.info("milestone response for merchantId:{}, isNTC:{} {}", merchant.getId(), isNTC, fetchMileStoneData);
                 responseDto.setMilStoneEligibility(true);
-                responseDto.setEnrollState(true);
                 responseDto.setProgramType(ObjectUtils.isEmpty(fetchMileStoneData.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : fetchMileStoneData.getProgram_type());
-                responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-                responseDto.setGraphData(null);
-                responseDto.setWeekCount(null);
-                responseDto.setPinCode(experian.getPincode());
-                responseDto.setPanCard(kycPancard);
-                responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
-                responseDto.setDeepLinkUrl(deepLink);
-                responseDto.setIsEligibleForReapply(true);
             }
         }catch (Exception e) {
             log.error("Exception while calling merchantMileStone DS Api merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
-        return responseDto;
     }
 
     private MileStoneEligibilityResponseDto inEligibleForRTEResponse(MileStoneEligibilityResponseDto responseDto) {
@@ -535,7 +524,7 @@ public class MileStoneHelperServicev3 {
     }
 
     private MileStoneEligibilityResponseDto experianNotFound(BasicDetailsDto merchant, Experian experian,String kycPancard, int pincode, MileStoneEligibilityResponseDto responseDto) {
-        log.info("experian is {} for merchant id {} ", experian, merchant.getId());
+        log.info("experian is {} for merchantId:{} ", experian, merchant.getId());
         responseDto.setEnrollState(false);
         responseDto.setMilStoneEligibility(true);
         responseDto.setGraphData(null);
@@ -553,6 +542,7 @@ public class MileStoneHelperServicev3 {
 
     private String processExperianData(BasicDetailsDto merchant,Experian experian, MileStoneEligibilityResponseDto responseDto, String kycPancard, int pincode, List<MileStoneEntity> entityList) {
         String pinCodeColor = null;
+        log.info("Processing experian data for pinCode color of merchantId: {}", merchant.getId());
         try {
             if (!ObjectUtils.isEmpty(experian) &&
                     entityList.size() >= 1 && experian.getPincode() != null) {
@@ -578,7 +568,7 @@ public class MileStoneHelperServicev3 {
 
                 // Infer pin code if not available in Experian
                 if (ObjectUtils.isEmpty(experian.getPincode()) && !ObjectUtils.isEmpty(experian.getLatitude()) && !ObjectUtils.isEmpty(experian.getLongitude())) {
-                    log.info("Pincode is empty for merchant id {}", merchant.getId());
+                    log.info("Pincode is empty for merchantId:{}", merchant.getId());
                     DEPinCode pinCodeResponse = dsHandler.getInferredPinCode(merchant.getId(), experian.getLatitude(), experian.getLongitude());
                     log.info("PincodeResponse is {}", pinCodeResponse);
                     if (pinCodeResponse.getPincode() == -1 || ObjectUtils.isEmpty(pinCodeResponse)) {
@@ -610,8 +600,6 @@ public class MileStoneHelperServicev3 {
 
         }catch (Exception e) {
             log.error("Exception occurred while processing experian data for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
-            responseDto.setEnrollState(false);
-            responseDto.setMilStoneEligibility(false);
         }
         return pinCodeColor;
     }
