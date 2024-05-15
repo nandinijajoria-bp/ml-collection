@@ -1,32 +1,16 @@
 package com.bharatpe.lending.collection.core.utils;
 
-import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
-import com.bharatpe.lending.common.entity.LendingCollectionExcess;
-import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.service.APIGatewayService;
-import com.bharatpe.lending.service.LendingCollectionAuditService;
-import com.bharatpe.lending.service.PaymentService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
-import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.IPC;
-import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
 
 @Service
 @Slf4j
@@ -65,6 +49,11 @@ public class LoanPaymentUtil {
     public static String getOrDefaultSettlementMechanismFromLoan(String name, String defaultMechanism) {
         LoanSettlementMechanism loanSettlementMechanism = EnumUtils.getEnumIgnoreCase(LoanSettlementMechanism.class, name);
         return loanSettlementMechanism != null ? loanSettlementMechanism.name() : defaultMechanism;
+    }
+
+    public static long getDateDiffInDays(Date startTime, Date endTime) {
+        long diff = endTime.getTime() - startTime.getTime();
+        return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
     }
 
 }
