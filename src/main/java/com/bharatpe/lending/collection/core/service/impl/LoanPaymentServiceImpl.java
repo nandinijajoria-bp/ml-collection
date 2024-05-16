@@ -273,6 +273,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             loan.setPaidPenalty((loan.getPaidPenalty() != null ? loan.getPaidPenalty() : 0) + paidPenalty);
 
             loan.setDueOtherCharges(0D);
+            loan.setOtherCharges((loan.getOtherCharges() != null ? loan.getOtherCharges() : 0) + foreclosureChargesAmount);
             loan.setPaidOtherCharges((loan.getPaidOtherCharges() != null ? loan.getPaidOtherCharges() : 0) + foreclosureChargesAmount);
             loan.setStatus("CLOSED");
             loan.setClosingDate(new Date());
