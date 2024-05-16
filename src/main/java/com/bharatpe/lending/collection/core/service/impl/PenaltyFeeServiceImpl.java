@@ -2,6 +2,7 @@ package com.bharatpe.lending.collection.core.service.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.collection.core.service.PenaltyFeeService;
 import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
 import com.bharatpe.lending.common.entity.PenalCharges;
@@ -15,6 +16,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.collection.core.dto.PenaltyWaiverResponseDto;
 import com.bharatpe.lending.dto.ResponseDTO;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,8 +33,8 @@ import static com.bharatpe.lending.common.enums.LendingEnum.LENDER.LIQUILOANS_P2
 import static com.bharatpe.lending.common.enums.LendingEnum.LENDER.LIQUILOANS_P2P_OF;
 
 @Component
-public class PenaltyFeeService {
-    private final Logger logger = LoggerFactory.getLogger(PenaltyFeeService.class);
+public class PenaltyFeeServiceImpl implements PenaltyFeeService {
+    private final Logger logger = LoggerFactory.getLogger(PenaltyFeeServiceImpl.class);
 
     List<String> penaltyV1LenderList = Arrays.asList(LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name());
 
@@ -60,7 +62,7 @@ public class PenaltyFeeService {
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
-
+    @Override
     public double createPenaltyFee(LendingPaymentSchedule activeLoan){
         logger.info("Creating Penalty Fee for loan: {}", activeLoan);
 
@@ -80,12 +82,12 @@ public class PenaltyFeeService {
         return createPenaltyFeeV2(activeLoan, lendingApplication);
     }
 
-    public double createPenaltyFeeV1(LendingPaymentSchedule loan){
+    private double createPenaltyFeeV1(LendingPaymentSchedule loan){
         logger.info("Creating Penalty Fee V1 for loan: {}", loan);
         double penaltyFee = 0;
         try {
             double existingPenaltyAmount = Objects.nonNull(loan.getTotalPenaltyAmount()) ? loan.getTotalPenaltyAmount() : 0;
-            int dpd = calculateDpd(loan.getDueAmount(), loan.getEdiAmount());
+            int dpd = LoanUtil.calculateDPD(loan.getDueAmount(), loan.getEdiAmount());
             logger.info("Calculated DPD for loan : {} : {}", loan.getApplicationId(), dpd);
 
             if (dpd > 6 && dpd < 120 && penaltyV1EligibleLenders.contains(loan.getNbfc())) {
@@ -98,7 +100,7 @@ public class PenaltyFeeService {
 
                 // if there is specific config defined at level 1 that will be picked else default level 1 will be picked
                 PenaltyFeeConfigSlave penaltyFeeConfigSlave = penaltyFeeConfigList.get(0);
-                if (!Objects.isNull(penaltyFeeLedger) && getDateDiffInDays(penaltyFeeLedger.getCreatedAt(), new Date()) < 30) {
+                if (!Objects.isNull(penaltyFeeLedger) && LoanUtil.getDateDiffInDays(penaltyFeeLedger.getCreatedAt(), new Date()) < 30) {
                     logger.info("Loan lies in less than 30 days count for next penalty: {}", loan.getApplicationId());
                     return loan.getDuePenalty();
                 }
@@ -126,7 +128,7 @@ public class PenaltyFeeService {
     }
 
 
-    public double createPenaltyFeeV2(LendingPaymentSchedule loan, LendingApplication lendingApplication){
+    private double createPenaltyFeeV2(LendingPaymentSchedule loan, LendingApplication lendingApplication){
         logger.info("Creating Penalty Fee V2 for loan: {}", loan);
         double penaltyFee = 0;
         double existingPenaltyAmount = Objects.nonNull(loan.getTotalPenaltyAmount()) ? loan.getTotalPenaltyAmount() : 0;
@@ -194,6 +196,7 @@ public class PenaltyFeeService {
         penaltyFeeLedgerDao.save(penaltyFeeLedger);
     }
 
+    @Override
     public ResponseDTO applyPenaltyWaiver(Long applicationId, Double amount){
         PenaltyWaiverResponseDto penaltyWaiverResponseDto = new PenaltyWaiverResponseDto();
         try {
@@ -248,7 +251,7 @@ public class PenaltyFeeService {
         return new ResponseDTO(false, "500","Internal Server Error");
     }
 
-    public void updateDuePenaltyFieldsInDb(LendingPaymentSchedule lendingPaymentSchedule, PenaltyFeeLedger penaltyFeeLedger, PenalCharges penalCharges) {
+    private void updateDuePenaltyFieldsInDb(LendingPaymentSchedule lendingPaymentSchedule, PenaltyFeeLedger penaltyFeeLedger, PenalCharges penalCharges) {
         logger.info("Going to update db for penalty waiver fee for loan: {}", lendingPaymentSchedule.getId());
 
         if(!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
@@ -316,15 +319,4 @@ public class PenaltyFeeService {
             logger.info("Exception occurred while saving penal charges for loan: {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), e);
         }
     }
-
-    private int calculateDpd(Double dueAmount, Double ediAmount) {
-        if (dueAmount == null || ediAmount == null || ediAmount == 0) return 0;
-        return (int) Math.round(dueAmount / ediAmount);
-    }
-
-    public long getDateDiffInDays(Date startTime, Date endTime) {
-        long diff = endTime.getTime() - startTime.getTime();
-        return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
-    }
-
 }
