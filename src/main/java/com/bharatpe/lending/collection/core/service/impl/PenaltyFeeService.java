@@ -1,4 +1,4 @@
-package com.bharatpe.lending.service;
+package com.bharatpe.lending.collection.core.service.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -13,7 +13,7 @@ import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dto.PenaltyWaiverResponseDto;
+import com.bharatpe.lending.collection.core.dto.PenaltyWaiverResponseDto;
 import com.bharatpe.lending.dto.ResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
