@@ -14,7 +14,7 @@ public class LoanPaymentDetailDTO {
     double otherAmount;
     long orderId;
     String transferType;
-    String remark;
+    String bankRefNo;
     String source;
     String terminalOrderId;
     boolean foreCloser;

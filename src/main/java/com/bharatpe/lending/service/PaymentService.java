@@ -7,6 +7,8 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
+import com.bharatpe.lending.collection.core.service.LoanPaymentService;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.FunnelEventDto;
@@ -268,6 +270,9 @@ public class PaymentService {
     @Autowired
     LoanForeClosureChargesDao loanForeClosureChargesDao;
 
+    @Autowired
+   LoanPaymentService loanPaymentService;
+
     @Value("${nbfc.usfb.foreclosure.topic:usfb-foreclose-loan}")
     String nbfcUsfbForeclosureTopic;
 
@@ -279,6 +284,7 @@ public class PaymentService {
 
     @Value("${nbfc.trilionloans.foreclosure.charges.topic:post_charges_trillion}")
     String nbfcTrilionLoansForeclosureChargesTopic;
+
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -1037,6 +1043,21 @@ public class PaymentService {
                                    boolean advanceEdi, String transferType, String terminalOrderId,Long orderId) {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
 
+
+        if (checkIfNewPaymentFlowApplicable(activeLoan.getNbfc())) {
+            loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
+                    .adjustNach(false)
+                    .otherAmount(amount)
+                    .orderId(orderId)
+                    .transferType(transferType)
+                    .bankRefNo(bankRefNo)
+                    .source(source)
+                    .terminalOrderId(terminalOrderId)
+                    .build());
+            return;
+        }
+
+
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
         boolean preclosureWithCharges = false;
         double foreclosureChargesAmount = 0.0;
@@ -1306,6 +1327,11 @@ public class PaymentService {
             loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
 
+
+        oldForeclosureFlow(activeLoan, amount, orderId, preclosure, lendingLedger, loanStatusFlag);
+    }
+
+    public void oldForeclosureFlow(LendingPaymentSchedule activeLoan, Double amount, Long orderId, boolean preclosure, LendingLedger lendingLedger, boolean loanStatusFlag) {
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
@@ -1321,22 +1347,22 @@ public class PaymentService {
 
         Double finalAmount = amount;
         notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
-        logger.info("going to post charges for loanId {} and nbfc {}",activeLoan.getId(),activeLoan.getNbfc());
+        logger.info("going to post charges for loanId {} and nbfc {}", activeLoan.getId(), activeLoan.getNbfc());
         if (isLoanClosed && preclosure && !ObjectUtils.isEmpty(lendingLedger)) {
             if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
                 sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
             }
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                postForeclosureReceiptPiramal(activeLoan,lendingLedger);
+                postForeclosureReceiptPiramal(activeLoan, lendingLedger);
             }
             else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
-                sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger,orderId);
+                sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
             } else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
                       || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())
                       || Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(activeLoan.getNbfc())){
-                sendForeclosureChargesEventLiquiLoans(activeLoan.getApplicationId(), activeLoan.getId(), lendingLedger.getId(),activeLoan.getNbfc(), orderId);
+                sendForeclosureChargesEventLiquiLoans(activeLoan.getApplicationId(), activeLoan.getId(), lendingLedger.getId(), activeLoan.getNbfc(), orderId);
             }
         }
 
@@ -2447,6 +2473,10 @@ public class PaymentService {
             );
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }
+    }
+
+    private boolean checkIfNewPaymentFlowApplicable(String nbfc) {
+        return "TRILLIONLOANS".equalsIgnoreCase(nbfc);
     }
 
 

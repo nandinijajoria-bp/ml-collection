@@ -222,7 +222,7 @@ public class CompleteLoanPaymentService {
     private void adjustOtherPaymentAndLedger(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String mode) {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
-        adjustLendingLedger(loan, otherAdjustment, order, payment.getRemark(), payment.getOwner(), payment.getTransferType(), payment.getTerminalOrderId());
+        adjustLendingLedger(loan, otherAdjustment, order, payment.getBankRefNo(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
     }
 
     // TODO : not usable  - fix it
@@ -322,7 +322,7 @@ public class CompleteLoanPaymentService {
                     .penaltySettled(-1*paidPenalty)
                     .chargesSettled(-1*foreclosureChargesAmount)
                     .build();
-            createLendingLedger(loan, paymentAdjusted, description, payment.getOwner(), payment.getTransferType(), payment.getTerminalOrderId());
+            createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
             markExcessNachAdjusted(loan, lendingCollectionExcessList);
             if (lendingPrepayment != null && advanceEdiAmount > 0d) {
                 lendingPrepayment.setAdvanceEdiCount(0);

@@ -27,8 +27,10 @@ import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.service.PaymentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
@@ -87,6 +89,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     LoanStatusService loanStatusService;
     @Autowired
     ExcessNachService excessNachService;
+    @Autowired
+    PaymentService paymentService;
+    @Value("${is.fore.closure.new.flow.enabled:false}")
+    boolean isForeClosureNewFlowEnabled;
 
     @Override
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
@@ -143,7 +149,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void adjustOtherPaymentAndLedger(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String mode) {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
-        ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getRemark(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+        ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getBankRefNo(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
     }
 
     // TODO : not usable  - fix it
@@ -287,6 +293,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             loan.setClosingDate(new Date());
             // todo: add positive ledger and foreclosure
             LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+            if(!isForeClosureNewFlowEnabled) {
+                paymentService.oldForeclosureFlow(loan, payment.getOtherAmount(), payment.getOrderId(), true, positiveEntry, true);
+            }
             loanStatusService.processLoanClosure(LoanClosureDTO.builder()
                     .activeLoan(loan)
                     .lendingLedger(positiveEntry)
