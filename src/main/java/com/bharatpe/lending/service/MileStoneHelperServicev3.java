@@ -375,7 +375,7 @@ public class MileStoneHelperServicev3 {
                     responseDto.setIsMileStoneExpiry(true);
                     responseDto.setEnrollState(false);
                     log.info("setting program type when session is in progress for merchantId: {} {}", merchant.getId(), responseDto);
-                    responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
+                    responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
                     responseDto.setGraphData(graph);
                     responseDto.setWeekCount(daysCount);
                     responseDto.setPinCode(experian.getPincode());
@@ -413,14 +413,14 @@ public class MileStoneHelperServicev3 {
             responseDto.setDeepLinkUrl(deepLink);
             responseDto.setIsEligibleForReapply(true);
             log.info("setting program type while building graph data for merchantId:{} {}", merchant.getId(), responseDto);
-            responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
+            responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
         }catch (Exception e) {
             log.error("Exception while building graph data for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto manageExpiryForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO,DSMileStoneResponse response, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard) {
+    private MileStoneEligibilityResponseDto manageExpiryForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO,DSMileStoneResponse mileStoneResponse, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard) {
         try {
             log.info("achievement response is null for merchantId:{}", merchant.getId());
             responseDto.setDsErrorMessage("achievement response is null");
@@ -431,7 +431,7 @@ public class MileStoneHelperServicev3 {
             responseDto.setPinCode(experian.getPincode());
             responseDto.setPanCard(kycPancard);
             log.info("setting program type during expiry management for merchantId: {} {}", merchant.getId(), responseDto);
-            responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
+            responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
             if (bureauResponseDTO!=null){
                 responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
                 responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
