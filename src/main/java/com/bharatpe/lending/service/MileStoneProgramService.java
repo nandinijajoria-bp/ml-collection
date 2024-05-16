@@ -133,11 +133,13 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant, String loanAmount) {
         log.info("checking milestone eligibility for merchant id {}", merchant.getId());
 
-        AddCacheDto addCacheDto = new AddCacheDto();
-        addCacheDto.setKey(RTEConstants.RTE_V3_AMOUNT + merchant.getId());
-        addCacheDto.setValue(ObjectUtils.isEmpty(loanAmount) ? "25k" : loanAmount);
-        addCacheDto.setTtl(2);
-        lendingCache.add(addCacheDto, TimeUnit.DAYS);
+        if(!ObjectUtils.isEmpty(loanAmount)) {
+            AddCacheDto addCacheDto = new AddCacheDto();
+            addCacheDto.setKey(RTEConstants.RTE_V3_AMOUNT + merchant.getId());
+            addCacheDto.setValue(loanAmount);
+            addCacheDto.setTtl(2);
+            lendingCache.add(addCacheDto, TimeUnit.DAYS);
+        }
 
         MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = isRtev3Enabled ?
                 mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(loanAmount)) :
@@ -248,7 +250,7 @@ public class MileStoneProgramService {
 
         try {
             MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                    mileStoneHelperServicev3.calculateEligibility(merchant, false) :
+                    mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId()))) :
                     mileStoneHelperService.calculateEligibility(merchant);
 
             if (Boolean.TRUE.equals(responseDto.getMilStoneEligibility())) {
@@ -591,7 +593,7 @@ public class MileStoneProgramService {
             }
         }
         MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                mileStoneHelperServicev3.calculateEligibility(merchant, false) :
+                mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId()))) :
                 mileStoneHelperService.calculateEligibility(merchant);
 
         log.info("response dto is--->{}", responseDto);

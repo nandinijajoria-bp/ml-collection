@@ -32,6 +32,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -2743,7 +2744,7 @@ public class SupportService {
         if (basicDetailsDto.isPresent()) {
 //            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
             MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                    mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get(), false) :
+                    mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get(), !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId))) :
                     mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
 
             supportDto.setMileStoneEligibility(responseDto);

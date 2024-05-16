@@ -241,7 +241,7 @@ public class MileStoneHelperServicev3 {
                 if ((ObjectUtils.isEmpty(entity)) || !ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
                     //fresh user or re-enrolling
                     log.info("entity for milestone {}", entity);
-                    return updateResponse(responseDto, bureauResponseDTO, experian, entity, kycPancard);
+                    return updateResponse(merchant, responseDto, bureauResponseDTO, experian, entity, kycPancard);
                 }
                 else {
                     // Old Session Flow->>>> expiry management
@@ -374,6 +374,7 @@ public class MileStoneHelperServicev3 {
                     mileStoneDao.save(entity);
                     responseDto.setIsMileStoneExpiry(true);
                     responseDto.setEnrollState(false);
+                    log.info("setting program type when session is in progress for merchantId: {} {}", merchant.getId(), responseDto);
                     responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
                     responseDto.setGraphData(graph);
                     responseDto.setWeekCount(daysCount);
@@ -411,6 +412,7 @@ public class MileStoneHelperServicev3 {
 
             responseDto.setDeepLinkUrl(deepLink);
             responseDto.setIsEligibleForReapply(true);
+            log.info("setting program type while building graph data for merchantId:{} {}", merchant.getId(), responseDto);
             responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
         }catch (Exception e) {
             log.error("Exception while building graph data for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
@@ -428,6 +430,7 @@ public class MileStoneHelperServicev3 {
             responseDto.setWeekCount(null);
             responseDto.setPinCode(experian.getPincode());
             responseDto.setPanCard(kycPancard);
+            log.info("setting program type during expiry management for merchantId: {} {}", merchant.getId(), responseDto);
             responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
             if (bureauResponseDTO!=null){
                 responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
@@ -446,10 +449,12 @@ public class MileStoneHelperServicev3 {
         return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto updateResponse(MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, MileStoneEntity entity, String kycPancard) {
+    private MileStoneEligibilityResponseDto updateResponse(BasicDetailsDto merchant, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, MileStoneEntity entity, String kycPancard) {
+        log.info("updating response for merchantId: {}", merchant.getId());
         responseDto.setEnrollState(false);
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
+        log.info("setting program type while updating response for either fresh user or re-enroll merchantId:{} {}", merchant.getId(), responseDto);
         responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
         responseDto.setPinCode(experian.getPincode());
         responseDto.setPanCard(kycPancard);
