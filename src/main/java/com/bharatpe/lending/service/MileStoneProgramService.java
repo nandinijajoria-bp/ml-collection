@@ -136,7 +136,7 @@ public class MileStoneProgramService {
         AddCacheDto addCacheDto = new AddCacheDto();
         addCacheDto.setKey(RTEConstants.RTE_V3_AMOUNT + merchant.getId());
         addCacheDto.setValue(ObjectUtils.isEmpty(loanAmount) ? "25k" : loanAmount);
-        addCacheDto.setTtl(15);
+        addCacheDto.setTtl(48);
         lendingCache.add(addCacheDto, TimeUnit.MINUTES);
 
         MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = isRtev3Enabled ?
