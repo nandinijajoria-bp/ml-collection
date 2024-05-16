@@ -188,6 +188,7 @@ public class LenderAssignService implements ILenderAssignService {
         Double summaryTpv = 0D;
         Long vintage = 0L;
         Double tpvOffer = 0D;
+        String rejectedLenders = "";
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
             riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
@@ -197,6 +198,7 @@ public class LenderAssignService implements ILenderAssignService {
             vintage = Objects.nonNull(lendingRiskVariables.getVintage())? lendingRiskVariables.getVintage() : 0L;
             summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
             tpvOffer = Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D;
+            rejectedLenders = Objects.nonNull(lendingRiskVariables.getRejectedLenders()) ? lendingRiskVariables.getRejectedLenders() : "";
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
@@ -222,6 +224,11 @@ public class LenderAssignService implements ILenderAssignService {
                         ListIterator<String> iterator = lenders.listIterator();
                         while (iterator.hasNext()) {
                             String lender = iterator.next().toUpperCase();
+                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                                log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
+                                iterator.remove();
+                                continue;
+                            }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
                                 LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
                                         lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
