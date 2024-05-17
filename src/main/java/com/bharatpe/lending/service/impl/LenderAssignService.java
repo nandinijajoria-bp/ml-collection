@@ -275,6 +275,10 @@ public class LenderAssignService implements ILenderAssignService {
                                 log.info("skipping {} due to business category check failure for {}", lender, application.getId());
                                 iterator.remove();
                             }
+                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                                log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
+                                iterator.remove();
+                            }
                         }
                     }
                 } catch (Exception exception) {
