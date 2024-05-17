@@ -77,6 +77,11 @@ public class LoanDetailsV3Response {
     private Boolean maxCountReached;
     private Boolean eligibilityExceptionFlag;
 
+    private Boolean upiAutoPayEligible;
+    private String upiAutoPayMandateStatus;
+    private Boolean agreementDone;
+
+
 
     @Data
     @ToString
@@ -161,6 +166,9 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setTopupLoanApplication(kfsStateDTO.getTopupLoanApplication());
         loanDetailsV3Response.setRepeatLoan(kfsStateDTO.isRepeatLoan());
         loanDetailsV3Response.setMobile(kfsStateDTO.getMobile());
+        loanDetailsV3Response.setUpiAutoPayMandateStatus(kfsStateDTO.getUpiAutoPayMandateStatus());
+        loanDetailsV3Response.setUpiAutoPayEligible(kfsStateDTO.getUpiAutoPayEligible());
+        loanDetailsV3Response.setAgreementDone(kfsStateDTO.getAgreementDone());
         loanDetailsV3Response.setLender(kfsStateDTO.getLender());
     }
 
