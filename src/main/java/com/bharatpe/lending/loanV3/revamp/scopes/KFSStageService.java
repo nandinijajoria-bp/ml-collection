@@ -113,6 +113,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
             scopeDataArgs.setApplicationId(lendingApplication.getId());
+            kfsStageResponseV3.setLender(lendingApplication.getLender());
             if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingApplication topupApplication = lendingApplicationDao.findOpenTopUpApplication(scopeDataArgs.getMerchant().getId(), "TOPUP");
                 if(!ObjectUtils.isEmpty(topupApplication) && !"rejected".equals(topupApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(topupApplication.getLoanDisbursalStatus())){

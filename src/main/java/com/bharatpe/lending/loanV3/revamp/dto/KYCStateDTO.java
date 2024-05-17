@@ -17,4 +17,5 @@ public class KYCStateDTO {
     private boolean isFreshKyc;
     private boolean isSelfieResumit;
     private boolean isDummyMerchant;
+    private String lender;
 }

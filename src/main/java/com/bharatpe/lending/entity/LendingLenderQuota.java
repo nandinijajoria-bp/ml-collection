@@ -34,13 +34,11 @@ public class LendingLenderQuota extends BaseEntity {
     @Column(name = "edi_model")
     private String ediModel;
 
-    /*
     @Column(name = "classification")
     private String classification;
 
     public enum Classification {
         DEFAULT, WILDCARD, REGULAR
     }
-    */
 
 }

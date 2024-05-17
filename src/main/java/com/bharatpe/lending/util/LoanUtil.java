@@ -74,6 +74,7 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.ABFL;
 import static com.bharatpe.lending.enums.Lender.TRILLIONLOANS;
+import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 
@@ -247,6 +248,8 @@ public class LoanUtil {
 	List<Long> accountAggregatorEligibleMerchants = new ArrayList<>();
 
 	Map<Long, String> forceLendersForMerchants = new HashMap<>();
+
+	Map<String, String> rejectedLenderMapping = new HashMap<>();
 
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
@@ -980,6 +983,8 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setBankBasedAffectedOffer(lendingRiskVariables.getBankBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setApprovalRate(lendingRiskVariables.getApprovalRate());
 				lendingRiskVariablesSnapshot.setClientIdentifier(lendingRiskVariables.getClientIdentifier());
+				lendingRiskVariablesSnapshot.setSummaryTpv60d(lendingRiskVariables.getSummaryTpv60d());
+				lendingRiskVariablesSnapshot.setRejectedLenders(lendingRiskVariables.getRejectedLenders());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -1894,7 +1899,7 @@ public class LoanUtil {
 	public LendingEnum.LENDER percentLenderTrafficForAA(Long merchantId, Integer[] percentages) {
 		try {
 			logger.info("checking lender assignment for merchant: {} with lender traffic percentages : {}", merchantId, percentages);
-			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.LIQUILOANS_NBFC);
+			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.TRILLIONLOANS);
 			Double maxNumber = 50000000D;
 
 			Integer percentage = (int) Math.ceil((merchantId / maxNumber) * percentages[3]);
@@ -2162,5 +2167,25 @@ public class LoanUtil {
 	private  double calculateDurationInMonths(Date date) {
 		return calculateDurationInDays(date) / NO_OF_DAYS_IN_A_MONTH;
 	}
+
+
+	public boolean isEligibilityErrorResponse(GlobalLimitResponse globalLimitResponse) {
+		if(Objects.nonNull(globalLimitResponse) && !globalLimitResponse.isSuccess() && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+			return true;
+		}
+		return false;
+	}
+
+	public String getLenderRejectedMapping(String lender) {
+		if (!ObjectUtils.isEmpty(rejectedLenderMapping)) {
+			return rejectedLenderMapping.getOrDefault(lender, lender);
+		}
+		rejectedLenderMapping.put(MUTHOOT.name(), "MFL");
+		rejectedLenderMapping.put(ABFL.name(), "ABFL");
+		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
+		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
+		return rejectedLenderMapping.getOrDefault(lender, lender);
+	}
+
 }
 

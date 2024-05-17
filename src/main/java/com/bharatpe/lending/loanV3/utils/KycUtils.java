@@ -71,6 +71,8 @@ public class KycUtils {
                     cKycResponseDto.setFirstName(doc.getFirstName());
                     cKycResponseDto.setMiddleName(doc.getMiddleName());
                     cKycResponseDto.setLastName(doc.getLastName());
+                    cKycResponseDto.setPanDob(doc.getDob());
+                    cKycResponseDto.setPanName(doc.getName());
                 } else if ("SELFIE".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setSelfieBase64(ConverterUtils.convertPreSignedUrlToBase64String(doc.getDocFrontImageUrl()));
                     cKycResponseDto.setSelfieString(doc.getDocFrontImageUrl());

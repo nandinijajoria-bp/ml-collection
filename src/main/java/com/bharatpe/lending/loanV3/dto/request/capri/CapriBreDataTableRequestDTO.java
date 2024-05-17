@@ -29,4 +29,5 @@ public class CapriBreDataTableRequestDTO {
     String edi;
     String locale;
     String pincode;
+    Double apr;
 }

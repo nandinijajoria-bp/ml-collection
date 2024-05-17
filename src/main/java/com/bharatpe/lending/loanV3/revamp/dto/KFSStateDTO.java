@@ -16,4 +16,5 @@ public class KFSStateDTO {
     private Boolean upiAutoPayEligible;
     private String upiAutoPayMandateStatus;
     private Boolean agreementDone;
+    private String lender;
 }
