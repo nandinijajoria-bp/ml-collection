@@ -5,7 +5,7 @@ import com.bharatpe.lending.dto.ResponseDTO;
 
 public interface PenaltyFeeService{
 
-    double createPenaltyFee(LendingPaymentSchedule activeLoan);
+    double checkAndApplyPenaltyFee(LendingPaymentSchedule activeLoan);
 
     ResponseDTO applyPenaltyWaiver(Long applicationId, Double amount);
 }
