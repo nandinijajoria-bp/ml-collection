@@ -964,6 +964,8 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setBankBasedAffectedOffer(lendingRiskVariables.getBankBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setApprovalRate(lendingRiskVariables.getApprovalRate());
 				lendingRiskVariablesSnapshot.setClientIdentifier(lendingRiskVariables.getClientIdentifier());
+				lendingRiskVariablesSnapshot.setSummaryTpv60d(lendingRiskVariables.getSummaryTpv60d());
+				lendingRiskVariablesSnapshot.setRejectedLenders(lendingRiskVariables.getRejectedLenders());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {

@@ -224,6 +224,11 @@ public class LenderAssignService implements ILenderAssignService {
                         ListIterator<String> iterator = lenders.listIterator();
                         while (iterator.hasNext()) {
                             String lender = iterator.next().toUpperCase();
+                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                                log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
+                                iterator.remove();
+                                continue;
+                            }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
                                 LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
                                         lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
@@ -233,31 +238,38 @@ public class LenderAssignService implements ILenderAssignService {
                                             FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                                     log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
                                     iterator.remove();
+                                    continue;
                                 }
                             }
                             if (!baseChecksPassedForLenders(application, lender)) {
                                 log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
                             }
                             if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
                                 log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
                             }
                             if (Lender.CAPRI.name().equalsIgnoreCase(lender) && summaryTpv < application.getEdi()) {
                                 log.info("skipping capri {} due to merchant edi is greater than summaryTpv {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
                             }
                             if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getLoanAmount() > tpvOffer) {
                                 log.info("skipping muthoot for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
                                 iterator.remove();
+                                continue;
                             }
                             if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getEdi() > 0.9 * summaryTpv) {
                                 log.info("skipping muthoot for application id : {} due to merchant loan edi amount is greater than 0.9 * summary_tpv {}", application.getId(), 0.9 * summaryTpv);
                                 iterator.remove();
+                                continue;
                             }
                             if (additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)) {
                                 log.info("skipping {} due to additional checks failing for {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
                             }
                             if (!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)) {
                                 log.info("skipping {} due to business category check failure for {}", lender, application.getId());
