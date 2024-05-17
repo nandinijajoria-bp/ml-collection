@@ -118,6 +118,9 @@ public class AssociationServiceUtil {
     @Autowired
     CapriFetchSignedDocService capriFetchSignedDocService;
 
+    @Autowired
+    AbflDigiSignService abflDigiSignService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -319,6 +322,8 @@ public class AssociationServiceUtil {
                 return tlDigitalSignService.processDigitalSignCallback(nbfcResponseDTO);
             case "MUTHOOT":
                 return mfDocUploadService.processMFDocUploadCallback(nbfcResponseDTO);
+            case "ABFL":
+                return abflDigiSignService.processDigitalSignCallback(nbfcResponseDTO);
             default:
                 return false;
         }

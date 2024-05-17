@@ -41,4 +41,6 @@ public abstract class INbfcLenderGateway {
 
     public abstract ForeClosureAmountResponse fetchDueForeclosureAmount(ForeclosureAmountRequest foreclosureAmountRequest);
 
+    public abstract AbflDigiSignResponseDTO invokeDigiSign(AbflDigiSignRequestDTO abflDigiSignRequestDTO);
+
 }
