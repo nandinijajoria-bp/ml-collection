@@ -867,6 +867,10 @@ public class PaymentService {
             }
         }
 
+        if (!ObjectUtils.isEmpty(source) && source.toUpperCase().contains("UPI")) {
+            transferType = "EXTERNAL";
+        } 
+
         lendingLedger.setDescription(description);
         lendingLedger.setTerminalOrderId(terminalOrderId);
         lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ?
