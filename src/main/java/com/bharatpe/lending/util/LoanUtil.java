@@ -275,6 +275,14 @@ public class LoanUtil {
 	@Value("${fore.closure.charges.rollout.date.LIQUILOANS_NBFC:2024-04-10 00:00}")
 	String liquiloansnbfcForeClosureChargesRolloutDate;
 
+
+	@Value("${autopay.upi.lenders:}")
+	String autoPayUpiLenders;
+
+
+	@Value("${max.loan.amount.autopayupi:50000}")
+	Double maxLoanAmountForAutoPayUPI;
+
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 	public List<Long> loadDerogEffectedMerchants() {
@@ -585,11 +593,11 @@ public class LoanUtil {
 //		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
 //	}
 
-	public boolean isApplicationEligibleForAutoPayUpi(String lender, Long merchantId) {
+	public boolean isApplicationEligibleForAutoPayUpi(String lender, Long merchantId, Double loanAmount) {
 
-		if (TRILLIONLOANS.name().equals(lender))
+		if (autoPayUpiLenders.contains(lender) && loanAmount < maxLoanAmountForAutoPayUPI)
 		{
-				return true;
+			return true;
 		}
 
 		return false;

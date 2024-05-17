@@ -330,7 +330,7 @@ public class AutoPayUPIService {
             return new UPIRegisterResponseDto();
         }
 
-        if (!loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId())) {
+        if (!loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), lendingApplication.get().getLoanAmount())) {
             log.info("not eligible for autopayUpi  merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getPayload().getApplicationId());
             return new UPIRegisterResponseDto();
         }
