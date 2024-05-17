@@ -589,11 +589,6 @@ public class LoanUtil {
 
 		if (TRILLIONLOANS.name().equals(lender))
 		{
-			if (String.valueOf(merchantId).endsWith("10")
-			|| String.valueOf(merchantId).endsWith("11")
-			|| String.valueOf(merchantId).endsWith("12")
-			|| String.valueOf(merchantId).endsWith("13")
-			|| String.valueOf(merchantId).endsWith("14"))
 				return true;
 		}
 
