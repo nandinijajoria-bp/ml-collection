@@ -53,12 +53,17 @@ public class GenericOverDueBasedPenaltyService {
         double nachBouncePenaltyCharge = 650.0;
 
         try {
+            checkIfDuesIsZero(loan);
             int overdueEdiCount = getOverdueEdiCount(loan);
             double lastOverDueAmount = Objects.nonNull(loan.getLastOverDueAmount()) ? loan.getLastOverDueAmount() : 0;
             double overdueAmount = Objects.nonNull(loan.getOverdueAmount()) ? loan.getOverdueAmount() : 0;
 
             overdueAmount = Math.max(overdueAmount, loan.getDueAmount() - lastOverDueAmount);
-            overdueEdiCount += 1;
+            if (overdueAmount > 0) {
+                overdueEdiCount += 1;
+            } else {
+                overdueEdiCount = 0;
+            }
 
             if (overDuePenaltyEligibleLenders.contains(loan.getNbfc()) && overdueEdiCount > 30) {
                 logger.info("Applying Penalty Fee for loan: {} with overdueCount: {}", loan.getId(), overdueEdiCount);
@@ -106,6 +111,15 @@ public class GenericOverDueBasedPenaltyService {
             logger.error("Error in Generic Overdue Based Penalty for loan: {}: {}", loan.getId(), e.getMessage(), e);
         }
         return penaltyFee;
+    }
+
+    private void checkIfDuesIsZero(LendingPaymentSchedule loan) {
+        if (Objects.nonNull(loan.getDueAmount()) && loan.getDueAmount() == 0){
+            loan.setOverdueAmount(0d);
+            loan.setLastOverdueAmount(0d);
+            loan.setOverdueEdiCount(0);
+            lendingPaymentScheduleDao.save(loan);
+        }
     }
 
     private int getOverdueEdiCount(LendingPaymentSchedule lendingPaymentSchedule) {
