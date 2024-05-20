@@ -6,6 +6,7 @@ import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentService;
 import com.bharatpe.lending.collection.core.service.LoanStatusService;
 import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
+import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.PaymentType;
@@ -26,6 +27,8 @@ public class LoanStatusServiceImpl implements LoanStatusService {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
     @Autowired
     LoanClosureService loanClosureService;
+    @Autowired
+    LendingCollectionExcessDao lendingCollectionExcessDao;
 
 
     @Override
@@ -37,8 +40,16 @@ public class LoanStatusServiceImpl implements LoanStatusService {
 
 
     @Override
-    public void waiverSettleLoan(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList) {
+    public void waiverSettleLoan(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String terminalOrderId) {
         log.info("inside settle loan for loanId {}",activeLoan.getId());
+
+        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
+        Double excessCollectionBalance = 0D;
+        for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+            if(lendingCollectionExcess.getAmount() > 0){
+                excessCollectionBalance += lendingCollectionExcess.getAmount();
+            }
+        }
         Double dueAmount = amount - activeLoan.getDueInterest() + activeLoan.getOtherCharges() + activeLoan.getInterest() - activeLoan.getPaidInterest();
         ledgerAdjustmentService.createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
                 0d, "PREPAYMENT", source, "SETTLED", terminalOrderId, 0d, 0d);

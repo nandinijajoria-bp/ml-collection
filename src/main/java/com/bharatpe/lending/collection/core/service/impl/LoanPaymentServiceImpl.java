@@ -25,6 +25,7 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,6 +91,13 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Override
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
         log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
+
+        if( Objects.nonNull(payment) && Objects.nonNull(payment.getSource()) && WaiverType.SCHEME1.name().equals(payment.getSource())){
+            log.info("Waiver Settlement V2: active Loan: {}, amount: {}, bankRefNo: {}, source: {}, transferType: {}, terminal Order Id: {}, orderId: {}", loan, payment.getOtherAmount(), payment.getBankRefNumber(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId(), payment.getOrderId());
+
+            loanStatusService.waiverSettleLoan(loan, payment.getOtherAmount(), payment.getBankRefNumber(), payment.getSource(), payment.getTerminalOrderId());
+            return loan;
+        }
         String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
         adjustMoney(loan, payment, mechanism);
         log.info("adjustMoney for loan: {} and payment {} complete", loan, payment);

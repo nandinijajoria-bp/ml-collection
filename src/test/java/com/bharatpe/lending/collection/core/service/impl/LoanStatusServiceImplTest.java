@@ -64,7 +64,7 @@ class LoanStatusServiceImplTest {
         Double excessCollectionBalance = 0.0;
         List<LendingCollectionExcess> lendingCollectionExcessList = Collections.emptyList();
         // Call method under test
-        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
+        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId);
         // Verify that the appropriate methods were called
         verify(ledgerAdjustmentService, times(2)).createLendingLedger(any(), anyDouble(), anyDouble(), anyDouble(), anyString(), anyString(), anyString(), anyString(), anyDouble(), anyDouble());
         verify(ledgerAdjustmentService, times(0)).createLendingLedgerForExcessCollectionOnForeclosure(any(), any());
@@ -87,7 +87,7 @@ class LoanStatusServiceImplTest {
         Double excessCollectionBalance = 10.0;
         List<LendingCollectionExcess> lendingCollectionExcessList = Collections.emptyList();
         // Call method under test
-        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
+        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId);
         // Verify that the appropriate methods were called
         verify(ledgerAdjustmentService, times(2)).createLendingLedger(any(), anyDouble(), anyDouble(), anyDouble(), anyString(), anyString(), anyString(), anyString(), anyDouble(), anyDouble());
         verify(ledgerAdjustmentService, times(1)).createLendingLedgerForExcessCollectionOnForeclosure(any(), any());

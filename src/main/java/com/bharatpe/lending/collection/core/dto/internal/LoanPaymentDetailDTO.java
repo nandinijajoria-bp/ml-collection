@@ -15,9 +15,10 @@ public class LoanPaymentDetailDTO {
     long orderId;
     String transferType;
     String remark;
-    String owner;
+    String source;
     String terminalOrderId;
     boolean foreCloser;
+    String bankRefNumber;
 
     //internal use only
     @JsonIgnore double nachBalanceUsed;

@@ -10,5 +10,5 @@ public interface LoanStatusService {
 
     void processLoanClosure(LoanClosureDTO loanClosureDTO);
 
-    void waiverSettleLoan(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList);
+    void waiverSettleLoan(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String terminalOrderId);
 }
