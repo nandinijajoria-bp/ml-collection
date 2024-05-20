@@ -6,6 +6,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.AbflBreServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -20,7 +21,8 @@ import java.util.Optional;
 public class AbflBreService implements ILenderAssociationService<Optional> {
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -39,7 +41,7 @@ public class AbflBreService implements ILenderAssociationService<Optional> {
                 put("application_id", applicationId.toString());
             }};
             if (kafkaEnabled) {
-                kafkaTemplate.send("invoke_bre", request);
+                confluentKafkaTemplate.send("invoke_bre", request);
                 log.info("request pushed to bre_invoke kafka {}", request);
             } else {
                 abflBreServiceV2.invokeBreViaAsyncApi(request);
