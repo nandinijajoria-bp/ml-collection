@@ -143,7 +143,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void adjustOtherPaymentAndLedger(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String mode) {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
-        ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getRemark(), payment.getOwner(), payment.getTransferType(), payment.getTerminalOrderId());
+        ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getRemark(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
     }
 
     // TODO : not usable  - fix it
@@ -261,7 +261,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     .penaltySettled(-1 * paidPenalty)
                     .chargesSettled(-1 * foreclosureChargesAmount)
                     .build();
-            ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getOwner(), payment.getTransferType(), payment.getTerminalOrderId());
+            ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
             markExcessNachAdjusted(loan, lendingCollectionExcessList);
             if (lendingPrepayment != null && advanceEdiAmount > 0d) {
                 lendingPrepayment.setAdvanceEdiCount(0);
@@ -286,7 +286,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             loan.setStatus("CLOSED");
             loan.setClosingDate(new Date());
             // todo: add positive ledger and foreclosure
-            LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getOwner(), payment.getTransferType(), payment.getTerminalOrderId());
+            LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
             loanStatusService.processLoanClosure(LoanClosureDTO.builder()
                     .activeLoan(loan)
                     .lendingLedger(positiveEntry)
