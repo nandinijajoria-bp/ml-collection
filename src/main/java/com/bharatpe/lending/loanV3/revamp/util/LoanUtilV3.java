@@ -14,7 +14,9 @@ import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.enums.CleverTapEvents;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
@@ -66,6 +68,9 @@ public class LoanUtilV3 {
 
     @Autowired
     private LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    private KycHandler kycHandler;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -178,6 +183,23 @@ public class LoanUtilV3 {
         if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
             return true;
         }
+        return false;
+    }
+
+    public boolean isPanNsdlVerified(String token, Long merchantId){
+        String kycPancard = kycHandler.getPanNumber(merchantId);
+        log.info("pancard fetched from kyc : {}", kycPancard);
+        PanFetchKYCResponseDto response = kycHandler.panFetch(token, kycPancard, merchantId);
+        if (!ObjectUtils.isEmpty(response) && Objects.nonNull(response.getStatus()) && response.getStatus()) {
+            PanFetchKYCResponseDto.Data data = response.getData();
+            if (!ObjectUtils.isEmpty(data)) {
+                if (Objects.nonNull(data.getIsPanNsdlVerified()) && data.getIsPanNsdlVerified()) {
+                    log.info("pan is nsdl verified for {}", merchantId);
+                    return true;
+                }
+            }
+        }
+        log.info("nsdl verified pan not available for {}", merchantId);
         return false;
     }
 }
