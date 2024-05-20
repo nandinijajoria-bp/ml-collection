@@ -1,7 +1,6 @@
 package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -21,6 +20,7 @@ import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.service.LendingDelayedMessagePublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -51,7 +51,7 @@ public class KycRequestKafka {
     ILenderAssignment iLenderAssignment;
 
     @Autowired
-    DelayedMessagePublisher delayedMessagePublisher;
+    LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
 
     @Autowired
     LenderGatewayFactory lenderGatewayFactory;
@@ -74,6 +74,11 @@ public class KycRequestKafka {
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
+    @KafkaListener(
+            topics= "${abfl.kyc.topic:invoke_kyc}",
+            concurrency = "5",
+            autoStartup = "${kafka.confluent.consumer:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void kycRequestListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
@@ -133,6 +138,10 @@ public class KycRequestKafka {
     }
 
     @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
+    @KafkaListener(
+            topics= "${abfl.kyc.callback.topic:kyc-callback}",
+            autoStartup = "${kafka.confluent.consumer:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void kycCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;

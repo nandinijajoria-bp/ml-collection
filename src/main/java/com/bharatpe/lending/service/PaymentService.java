@@ -87,6 +87,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
@@ -197,7 +198,8 @@ public class PaymentService {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -1391,7 +1393,7 @@ public class PaymentService {
                     .chargeType(8)  // defined by lender
                     .build();
             logger.info(" {}  foreclosure charges event Sending {}",lender, liquiLoansForeclosureChargesRequestDto);
-            Object metadata = kafkaTemplate.send(nbfcLiquiLoansForeclosureTopic, objectMapper.writeValueAsString(liquiLoansForeclosureChargesRequestDto)).get();
+            Object metadata = confluentKafkaTemplate.send(nbfcLiquiLoansForeclosureTopic, objectMapper.writeValueAsString(liquiLoansForeclosureChargesRequestDto)).get();
             logger.info(" {}  foreclosure charges event sent {}",lender, objectMapper.writeValueAsString(liquiLoansForeclosureChargesRequestDto));
             postingStatus = "POSTED";
         } catch (Exception e) {
@@ -1470,7 +1472,7 @@ public class PaymentService {
             LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
             lendingCollectionAudit.setStatus("SUCCESS");
             lendingCollectionAuditDao.save(lendingCollectionAudit);
-            kafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
+            confluentKafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
             log.info("foreclosure event sent for application {} {}", activeLoan.getApplicationId(), nbfcRequest);
         } catch (Exception e){
             logger.error("Exception {} while posting the foreclosure receipt for application id {} {}",e.getMessage(),activeLoan.getApplicationId(), e);
@@ -1949,7 +1951,7 @@ public class PaymentService {
                             .build())
                     .build();
             logger.info("foreclosure event sent {}", foreclosureRequestDto);
-            kafkaTemplate.send("foreclose-loan", objectMapper.readValue(objectMapper.writeValueAsString(foreclosureRequestDto), new TypeReference<Map<String, Object>>() {
+            confluentKafkaTemplate.send("foreclose-loan", objectMapper.readValue(objectMapper.writeValueAsString(foreclosureRequestDto), new TypeReference<Map<String, Object>>() {
             }));
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
@@ -2016,7 +2018,7 @@ public class PaymentService {
                             .build())
                     .build();
             logger.info("TrillionLoans: foreclosure event sent {}", trillionForeclosureRequestDto);
-            kafkaTemplate.send(nbfcTrillionForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(trillionForeclosureRequestDto), new TypeReference<Map<String, Object>>() {}));
+            confluentKafkaTemplate.send(nbfcTrillionForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(trillionForeclosureRequestDto), new TypeReference<Map<String, Object>>() {}));
             logger.info("TrillionLoans: updating LCA for foreclosed event for application id : {} ", lendingApplicationLenderDetails.getApplicationId());
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
