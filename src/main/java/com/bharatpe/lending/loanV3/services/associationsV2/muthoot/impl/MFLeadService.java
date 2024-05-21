@@ -6,7 +6,6 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.NachStatusResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
@@ -38,8 +37,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import javax.validation.ConstraintViolation;
-import javax.validation.Validator;
 import java.util.*;
 
 @Slf4j
@@ -74,9 +71,6 @@ public class MFLeadService {
 
     @Autowired
     DsHandler dsHandler;
-
-    @Autowired
-    private Validator validator;
 
     @Lazy
     @Autowired
@@ -219,15 +213,9 @@ public class MFLeadService {
                                 .build())
                         .mandateDetails(getMandateDetails(lendingApplication))
                         .build();
-            }
-
-            Set<ConstraintViolation<MFUpdateLeadRequestDTO>> violations = validator.validate(payload);
-            if (!violations.isEmpty()) {
-                StringBuilder sb = new StringBuilder();
-                for (ConstraintViolation<MFUpdateLeadRequestDTO> violation : violations) {
-                    sb.append(violation.getMessage()).append("\n");
+                if(leadPayloadValidation.isInValidUpdateLeadPayload(payload)){
+                    throw new RuntimeException("update lead validation failed for applicationId" + lendingApplication.getId());
                 }
-                throw new IllegalArgumentException("update lead validation failed: " + sb.toString());
             }
             return NBFCRequestDTO.builder().applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
@@ -257,7 +245,7 @@ public class MFLeadService {
             address1 = address.substring(0, 40);
             address2 = address.substring(40, addressSize);
         }
-        MFUpdateLeadRequestDTO.BusinessDetail businessAddress = MFUpdateLeadRequestDTO.BusinessDetail.builder()
+        return MFUpdateLeadRequestDTO.BusinessDetail.builder()
                 .address(MFUpdateLeadRequestDTO.Address.builder()
                         .businessAddressType("OWNED")
                         .line1(address1)
@@ -269,7 +257,6 @@ public class MFLeadService {
                         .location(getAddressLocation(lendingApplication.getMerchantId(), lendingApplication.getId()))
                         .build())
                 .build();
-        return businessAddress;
     }
 
     private List<MFUpdateLeadRequestDTO.Consent> getConsents(LendingApplication lendingApplication) {
