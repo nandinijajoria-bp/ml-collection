@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import java.util.List;
 
@@ -69,6 +70,7 @@ public class MFUpdateLeadRequestDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Valid
     public static class MandateDetails {
         private String accountNumber;
         private String accountType;
@@ -89,6 +91,7 @@ public class MFUpdateLeadRequestDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Valid
     public static class Address {
         private String businessAddressType;
         @NotBlank(message = "address line 1 can not be blank")
