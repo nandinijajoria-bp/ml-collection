@@ -295,6 +295,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
             if(!isForeClosureNewFlowEnabled) {
                 paymentService.oldForeclosureFlow(loan, payment.getOtherAmount(), payment.getOrderId(), true, positiveEntry, true);
+                return;
             }
             loanStatusService.processLoanClosure(LoanClosureDTO.builder()
                     .activeLoan(loan)
