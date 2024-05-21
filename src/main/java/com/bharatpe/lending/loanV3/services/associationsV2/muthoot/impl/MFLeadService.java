@@ -36,6 +36,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
+import javax.validation.ConstraintViolation;
+import javax.validation.Validator;
 import java.util.*;
 
 @Slf4j
@@ -70,6 +72,9 @@ public class MFLeadService {
 
     @Autowired
     DsHandler dsHandler;
+
+    @Autowired
+    private Validator validator;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -208,6 +213,15 @@ public class MFLeadService {
                         .mandateDetails(getMandateDetails(lendingApplication))
                         .build();
             }
+
+            Set<ConstraintViolation<MFUpdateLeadRequestDTO>> violations = validator.validate(payload);
+            if (!violations.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (ConstraintViolation<MFUpdateLeadRequestDTO> violation : violations) {
+                    sb.append(violation.getMessage()).append("\n");
+                }
+                throw new IllegalArgumentException("update lead validation failed: " + sb.toString());
+            }
             return NBFCRequestDTO.builder().applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
@@ -291,21 +305,18 @@ public class MFLeadService {
         if (lendingApplicationDetails.getIsNachSkip()) {
             MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), LendingEnum.LENDER.MUTHOOT.name());
             if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
-                NachStatusResponseDTO nachStatusResponseDTO = enachHandler.findEnachStatusByOwnerIdAndAccountNumber(lendingApplication.getMerchantId(), merchantNachDetailsResponseDTO.getOwnerId(), merchantNachDetailsResponseDTO.getAccountNumber());
-                if (!ObjectUtils.isEmpty(nachStatusResponseDTO)) {
-                    mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
-                            .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                            .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
-                            .accountType(ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getAccountType()) ? "savings" : merchantNachDetailsResponseDTO.getAccountType().toLowerCase())
-                            .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
-                            .bankName(merchantNachDetailsResponseDTO.getBankName())
-                            .mandateAmount(merchantNachDetailsResponseDTO.getNachAmount())
-                            .mandateType("E_MANDATE")
-                            .vendor(merchantNachDetailsResponseDTO.getProvider())
-                            .vendorDocID(merchantNachDetailsResponseDTO.getProviderUmrn())
-                            .npciTxnID(nachStatusResponseDTO.getNpciTxnId())
-                            .build();
-                }
+                mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
+                        .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
+                        .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
+                        .accountType(ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getAccountType()) ? "savings" : merchantNachDetailsResponseDTO.getAccountType().toLowerCase())
+                        .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
+                        .bankName(merchantNachDetailsResponseDTO.getBankName())
+                        .mandateAmount(merchantNachDetailsResponseDTO.getNachAmount())
+                        .mandateType("E_MANDATE")
+                        .vendor(merchantNachDetailsResponseDTO.getProvider())
+                        .vendorDocID(merchantNachDetailsResponseDTO.getProviderUmrn())
+                        .npciTxnID(merchantNachDetailsResponseDTO.getNpciTxnId())
+                        .build();
             }
         } else {
             BharatPeEnachResponseDTO bharatPeEnachResponseDTO = enachHandler.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
