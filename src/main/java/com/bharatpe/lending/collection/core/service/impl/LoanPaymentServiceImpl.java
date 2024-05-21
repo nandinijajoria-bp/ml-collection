@@ -12,15 +12,16 @@ import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentS
 import com.bharatpe.lending.collection.core.service.LoanPaymentService;
 import com.bharatpe.lending.collection.core.service.LoanStatusService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
-import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
-import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
-import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
-import com.bharatpe.lending.common.entity.LendingCollectionExcess;
-import com.bharatpe.lending.common.entity.LendingPrepayment;
-import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.enums.LoanPaymentMode;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
+import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -33,15 +34,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
+import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
 
 
 @Service
@@ -93,6 +93,18 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     PaymentService paymentService;
     @Value("${is.fore.closure.new.flow.enabled:false}")
     boolean isForeClosureNewFlowEnabled;
+
+    @Autowired
+    LendingRefundAuditDao lendingRefundAuditDao;
+
+    @Autowired
+    LendingNotificationService lendingNotificationService;
+
+    @Autowired
+    MerchantService merchantService;
+
+    @Autowired
+    LendingCollectionAuditDao lendingCollectionAuditDao;
 
     @Override
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
@@ -148,8 +160,91 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     private void adjustOtherPaymentAndLedger(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String mode) {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
+        adjustExtraAmountIfAny(loan, otherAdjustment.getBalance(), payment, true);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getBankRefNo(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+    }
+
+    private void adjustExtraAmountIfAny(LendingPaymentSchedule loan, double balance, LoanPaymentDetailDTO payment, boolean refund) {
+        if (balance > 0) {
+            refund = refund || "CLOSED".equalsIgnoreCase(loan.getStatus());
+            if (refund) {
+                createLoanRefund(loan, balance, payment);
+            } else {
+                createLoanExcess(loan, balance, payment);
+            }
+        }
+    }
+
+    private void createLoanExcess(LendingPaymentSchedule loan, double amount, LoanPaymentDetailDTO payment) {
+        log.info("Creating Excess Nach Ledger for merchant:{}", loan.getMerchantId());
+        LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
+        lendingCollectionExcess.setLoanId(loan.getId());
+        lendingCollectionExcess.setMerchantId(loan.getMerchantId());
+        lendingCollectionExcess.setStatus("ACTIVE");
+        lendingCollectionExcess.setAmount(amount);
+        lendingCollectionExcess.setExcessNachCreditAmount(amount);
+        lendingCollectionExcess.setTerminalOrderId(payment.getTerminalOrderId());
+        lendingCollectionExcess.setDeductionCount(0);
+        lendingCollectionExcess.setCreditDate(new Date());
+        lendingCollectionExcess.setDeductedAmount(0D);
+        lendingCollectionExcessDao.save(lendingCollectionExcess);
+        log.info("Creating Excess Nach Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
+        sendExcessNachCollectionSMS(loan.getMerchantId(), loan.getId());
+        createLendingCollectionAuditForExcessNachCredit(loan, payment.getTerminalOrderId(), amount, lendingCollectionExcess.getId());
+    }
+
+    private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, Double amount, Long refId){
+        LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
+                .merchantId(lendingPaymentSchedule.getMerchantId())
+                .merchantStoreId(lendingPaymentSchedule.getMerchantStoreId())
+                .loanId(lendingPaymentSchedule.getId())
+                .applicationId(lendingPaymentSchedule.getLoanApplication().getId())
+                .bpLoanId(lendingPaymentSchedule.getLoanApplication().getExternalLoanId())
+                .nbfcId(lendingPaymentSchedule.getLoanApplication().getNbfcId())
+                .txnType("EXCESS_NACH_CREDIT")
+                .transferType(DIRECT_TRANSFER_LENDER.name())
+                .status("PENDING")
+                .amount(amount)
+                .otherCharges(0D)
+                .penalty(0D)
+                .adjustmentMode("EXCESS_NACH_CREDIT")
+                .transferDate(DateTimeUtil.getCurrentDayStartTime())
+                .terminalOrderId(txnId)
+                .lender(lendingPaymentSchedule.getNbfc())
+                .loanStatus(lendingPaymentSchedule.getStatus())
+                .loanClosingDate(lendingPaymentSchedule.getClosingDate())
+                .mobile(lendingPaymentSchedule.getMobile())
+                .ledgerId(refId)
+                .build();
+        lendingCollectionAuditDao.save(lendingCollectionAudit);
+    }
+    private void sendExcessNachCollectionSMS(Long merchantId, Long loanId) {
+        Optional<BasicDetailsDto> merchantBasicDetails = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (ObjectUtils.isEmpty(merchantBasicDetails)) {
+            return;
+        }
+        String identifier = "LENDING_EXCESS_NACH_COLLECTION_V1";
+        Map<String, Object> templateParams = new HashMap<>();
+        templateParams.put("loan_id", loanId);
+        NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+        notificationPayloadDto.setTemplateIdentifier(identifier);
+        notificationPayloadDto.setMobile(merchantBasicDetails.get().getMobile());
+        notificationPayloadDto.setClientName("LENDING");
+        notificationPayloadDto.setTemplateParams(templateParams);
+        lendingNotificationService.notify(notificationPayloadDto);
+    }
+
+    private void createLoanRefund(LendingPaymentSchedule loan, double amount, LoanPaymentDetailDTO payment) {
+        LendingRefundAudit lendingRefundAudit = new LendingRefundAudit();
+        lendingRefundAudit.setDueAmount(loan.getDueAmount());
+        lendingRefundAudit.setLoanId(loan.getId());
+        lendingRefundAudit.setMerchantId(loan.getMerchantId());
+        lendingRefundAudit.setMode(payment.getSource());
+        lendingRefundAudit.setBankRefNo(payment.getBankRefNo());
+        lendingRefundAudit.setRefundAmount(amount);
+        lendingRefundAudit.setOrderAmount(0d);
+        lendingRefundAuditDao.save(lendingRefundAudit);
     }
 
     // TODO : not usable  - fix it

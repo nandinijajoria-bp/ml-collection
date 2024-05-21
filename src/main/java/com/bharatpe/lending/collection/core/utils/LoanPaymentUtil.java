@@ -2,9 +2,9 @@ package com.bharatpe.lending.collection.core.utils;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
-import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
@@ -18,10 +18,13 @@ public class LoanPaymentUtil {
 
     public static final String DEFAULT_LOAN_SETTLEMENT_MECHANISM = IPC.name();
 
+    @Value("${is.new.payment.settlement.enabled:false}")
+    public static boolean newPaymentSettlementModeAllowed;
+
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
 
-        int dpdCount = LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount());
+        int dpdCount = calculateDPD(loan.getEdiAmount(), loan.getDueAmount());
         log.info("getLoanSettlementMechanism for loanId: {} dpd is  {}", loan.getId(), dpdCount);
 
         if (dpdCount > 90) {
@@ -56,4 +59,12 @@ public class LoanPaymentUtil {
         return TimeUnit.DAYS.convert(diff, TimeUnit.MILLISECONDS);
     }
 
+    public static int calculateDPD(Double ediAmount, Double dueAmount) {
+        if (dueAmount < ediAmount) return 0;
+        return (int) Math.round(dueAmount / ediAmount);
+    }
+
+    public static boolean checkIfNewPaymentSettlementModeActive()  {
+        return newPaymentSettlementModeAllowed;
+    }
 }

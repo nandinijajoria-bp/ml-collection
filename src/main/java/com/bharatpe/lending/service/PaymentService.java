@@ -9,6 +9,7 @@ import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
 import com.bharatpe.lending.collection.core.service.LoanPaymentService;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.FunnelEventDto;
@@ -271,7 +272,7 @@ public class PaymentService {
     LoanForeClosureChargesDao loanForeClosureChargesDao;
 
     @Autowired
-   LoanPaymentService loanPaymentService;
+    LoanPaymentService loanPaymentService;
 
     @Value("${nbfc.usfb.foreclosure.topic:usfb-foreclose-loan}")
     String nbfcUsfbForeclosureTopic;
@@ -1043,8 +1044,7 @@ public class PaymentService {
                                    boolean advanceEdi, String transferType, String terminalOrderId,Long orderId) {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
 
-
-        if (checkIfNewPaymentFlowApplicable(activeLoan.getNbfc())) {
+        if (LoanPaymentUtil.checkIfNewPaymentSettlementModeActive()) {
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
                     .adjustNach(false)
                     .otherAmount(amount)
