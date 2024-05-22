@@ -107,6 +107,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
         }
+        initiateKycResponse.setLender(lendingApplication.getLender());
         boolean isResubmittedApplication = false;
         LendingResubmitReasonCount lendingResubmitReasonCount = null;
         if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())){
@@ -254,6 +255,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
 
     private KYCStateDTO initiateKyc(LendingApplication lendingApplication,Long merchantId, Boolean isTopup, boolean isFreshKyc, boolean isResubmittedApplication, Date validAfter){
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
+        initiateKycResponse.setLender(lendingApplication.getLender());
         initiateKycResponse.setTopup(isTopup);
         List<KycDocType> docTypes = new ArrayList<>();
 //        docTypes.add(KycDocType.PAN_CARD);

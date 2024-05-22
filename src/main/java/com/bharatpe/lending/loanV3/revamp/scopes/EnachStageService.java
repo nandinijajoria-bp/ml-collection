@@ -117,6 +117,8 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
         }
 
+        enachStateDTO.setLender(openApplication.getLender());
+
         Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setEnachDeeplink(getEnachDeeplink(openApplication,scopeDataArgs.getToken(),scopeDataArgs.getLoanDetailsV3Request().isIOS()));
 
@@ -191,7 +193,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         lendingApplication.setNachStatus(null);
         lendingApplication.setNachReferenceNumber(null);
         lendingApplicationDao.save(lendingApplication);
-
+        enachStateDTO.setLender(lendingApplication.getLender());
 
         Experian experian = experianDao.getByMerchantId(merchantId);
         enachStateDTO.setEnachDeeplink(getEnachDeeplinkForRenach(lendingApplication,token,scopeDataArgs.getLoanDetailsV3Request().isIOS()));

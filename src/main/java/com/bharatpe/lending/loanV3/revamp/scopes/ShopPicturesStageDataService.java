@@ -65,6 +65,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()))shopPicturesStateDTO.setDummyMerchant(true);
             scopeDataArgs.setApplicationId(lendingApplication.getId());
             shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
+            shopPicturesStateDTO.setLender(lendingApplication.getLender());
 
             LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(lendingApplication.getId());
             if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){

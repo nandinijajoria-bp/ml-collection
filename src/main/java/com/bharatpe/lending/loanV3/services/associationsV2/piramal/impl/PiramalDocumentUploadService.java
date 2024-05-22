@@ -253,7 +253,7 @@ public class PiramalDocumentUploadService {
         }
         log.info("lending shop doc {} {}", docType, lendingShopDocument);
         if (DocType.KEY_FACT_STATEMENT.equals(docType) || DocType.LOAN_AGREEMENT.equals(docType) || DocType.SANCTION_LETTER.equals(docType)) {
-            lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+            lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lendingKfs)) {
                 return new DocumentUploadDTO();
             }
