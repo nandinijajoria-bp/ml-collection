@@ -56,7 +56,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
         List<KycDocType> docTypes = new ArrayList<>();
         docTypes.add(KycDocType.PAN_NO);
 //        docTypes.add(KycDocType.SELFIE);
-//        docTypes.add(KycDocType.EKYC);
+        docTypes.add(KycDocType.EKYC);
 //        String callBackURL = callback + "&wroute=program-summary&backFrom=kyc";
         String callBackURL = callback + "&backFrom=kyc";
         Experian experian = experianDao.getByMerchantId(merchantId);
