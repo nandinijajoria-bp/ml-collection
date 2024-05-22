@@ -213,11 +213,11 @@ public class SancWrapperRequestKafka {
 
     private void rejectApplication(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {
         log.info("rejecting application as sanction stage failed of ABFL for {}", lendingApplication.getId());
-        if(ObjectUtils.isEmpty(lendingApplication)) {
+        if(!ObjectUtils.isEmpty(lendingApplication)) {
             lendingApplication.setStatus("rejected");
             lendingApplicationDao.save(lendingApplication);
         }
-        if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+        if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             lendingApplicationLenderDetails.setSanctionStatus(status);
             lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
