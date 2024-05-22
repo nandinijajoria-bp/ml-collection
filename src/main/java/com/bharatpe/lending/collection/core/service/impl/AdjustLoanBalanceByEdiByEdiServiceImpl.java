@@ -13,10 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 
 @Service
@@ -139,9 +136,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
         PaymentCalculation paymentCalculation;
         if (settleAllPrincipleFirst) {
-            paymentCalculation =  settleAllPrincipleFirstThenAllInterest(loanId, (Slice<LendingEDIScheduleLendingCommon>) unpaidSchedulesForALoan, remainingAmountToSettle);
+            paymentCalculation =  settleAllPrincipleFirstThenAllInterest(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
         } else {
-            paymentCalculation =  settleEdiByEdi(loanId, (Slice<LendingEDIScheduleLendingCommon>) unpaidSchedulesForALoan, remainingAmountToSettle);
+            paymentCalculation =  settleEdiByEdi(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
         }
 
         remainingAmountToSettle = paymentCalculation.getBalance();
@@ -177,7 +174,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         while(continueAmountDeduction) {
             Pageable pageable = PageRequest.of(pageCount, PAGE_SIZE);
             Slice<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan = lendingEDIScheduleLendingCommonDao.findAllUnpaidSchedulesForALoan(loanId, pageable);
-            PaymentCalculation principalAdjusted =  settleAllPrinciple(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
+            PaymentCalculation principalAdjusted =  settleAllPrinciple(loanId, unpaidSchedulesForALoan.getContent(), remainingAmountToSettle);
             remainingAmountToSettle = principalAdjusted.getBalance();
             paidPrinciple += principalAdjusted.getPrincipleSettled();
             if (unpaidSchedulesForALoan.hasNext() && remainingAmountToSettle > 0) {
@@ -226,9 +223,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             Slice<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan = lendingEDIScheduleLendingCommonDao.findAllUnpaidSchedulesForALoan(loanId, pageable);
             PaymentCalculation paymentCalculation;
             if (settleAllPrincipleFirst) {
-                paymentCalculation =  settleAllPrincipleFirstThenAllInterest(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
+                paymentCalculation =  settleAllPrincipleFirstThenAllInterest(loanId,unpaidSchedulesForALoan.getContent(), remainingAmountToSettle);
             } else {
-                paymentCalculation =  settleEdiByEdi(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
+                paymentCalculation =  settleEdiByEdi(loanId, unpaidSchedulesForALoan.getContent(), remainingAmountToSettle);
             }
 
             remainingAmountToSettle = paymentCalculation.getBalance();
@@ -252,7 +249,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .build();
     }
 
-    private PaymentCalculation settleEdiByEdi(Long loanId, Slice<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, Double amount) {
+    private PaymentCalculation settleEdiByEdi(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, Double amount) {
         log.info("settling Edi by Edi for loanId : {}", loanId);
         double paidPrinciple = 0;
         double paidInterest = 0;
@@ -287,7 +284,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
     }
 
-    private PaymentCalculation settleAllPrincipleFirstThenAllInterest(Long loanId, Slice<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
+    private PaymentCalculation settleAllPrincipleFirstThenAllInterest(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
         log.info("settling all principle first for loanId : {}", loanId);
         double paidPrinciple = 0;
         double paidInterest = 0;
@@ -326,7 +323,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     }
 
 
-    private PaymentCalculation settleAllPrinciple(Long loanId, Slice<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
+    private PaymentCalculation settleAllPrinciple(Long loanId, List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan, double amount) {
         log.info("settling all principle for loanId : {}", loanId);
         double paidPrinciple = 0;
         double paidInterest = 0;
