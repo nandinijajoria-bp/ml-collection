@@ -1049,9 +1049,10 @@ public class PaymentService {
                     .adjustNach(false)
                     .otherAmount(amount)
                     .orderId(orderId)
+                    .description(getDescription(bankRefNo, false, false))
+                    .source(source)
                     .transferType(transferType)
                     .bankRefNo(bankRefNo)
-                    .source(source)
                     .terminalOrderId(terminalOrderId)
                     .build());
             return;

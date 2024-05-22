@@ -110,10 +110,11 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
         log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
 
-        if( Objects.nonNull(payment) && Objects.nonNull(payment.getSource()) && WaiverType.SCHEME1.name().equals(payment.getSource())){
-            log.info("Waiver Settlement V2: active Loan: {}, amount: {}, bankRefNo: {}, source: {}, transferType: {}, terminal Order Id: {}, orderId: {}", loan, payment.getOtherAmount(), payment.getBankRefNumber(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId(), payment.getOrderId());
+        if (Objects.isNull(loan) || Objects.isNull(payment)) return loan;
 
-            loanStatusService.waiverSettleLoan(loan, payment.getOtherAmount(), payment.getBankRefNumber(), payment.getSource(), payment.getTerminalOrderId());
+        if( Objects.nonNull(payment) && Objects.nonNull(payment.getSource()) && WaiverType.SCHEME1.name().equals(payment.getSource())){
+            log.info("Waiver Settlement V2: active Loan: {}, amount: {}, bankRefNo: {}, source: {}, transferType: {}, terminal Order Id: {}, orderId: {}", loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId(), payment.getOrderId());
+            loanStatusService.waiverSettleLoan(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), payment.getTerminalOrderId());
             return loan;
         }
         String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
@@ -162,7 +163,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
         adjustExtraAmountIfAny(loan, otherAdjustment.getBalance(), payment, true);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
-        ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getBankRefNo(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+        ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
     }
 
     private void adjustExtraAmountIfAny(LendingPaymentSchedule loan, double balance, LoanPaymentDetailDTO payment, boolean refund) {
@@ -386,8 +387,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             loan.setPaidOtherCharges((loan.getPaidOtherCharges() != null ? loan.getPaidOtherCharges() : 0) + foreclosureChargesAmount);
             loan.setStatus("CLOSED");
             loan.setClosingDate(new Date());
-            // todo: add positive ledger and foreclosure
-            LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+            String preclosureDescription = ((preclosureWithCharges) ? "PRECLOSER_WITH_CHARGES_UPI : " : "PRECLOSER_UPI : ") + payment.getBankRefNo();
+            LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, preclosureDescription  , payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
             if(!isForeClosureNewFlowEnabled) {
                 paymentService.oldForeclosureFlow(loan, payment.getOtherAmount(), payment.getOrderId(), true, positiveEntry, true);
                 return;

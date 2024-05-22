@@ -13,12 +13,15 @@ public class LoanPaymentDetailDTO {
     double advanceEdiAmount;
     double otherAmount;
     long orderId;
+
+    //ledger fields
+    String description;
     String transferType;
     String bankRefNo;
     String source;
     String terminalOrderId;
+
     boolean foreCloser;
-    String bankRefNumber;
 
     //internal use only
     @JsonIgnore double nachBalanceUsed;
