@@ -93,9 +93,9 @@ public class SancWrapperRequestKafka {
                     !sanctionWrapperApiResponse.getSuccess()
 //            || !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(sanctionWrapperApiResponse.getData().getResponseStatus())
         ) {
-                log.info("request resulted in sanction failure, modifying lender for {}", request);
+                log.info("request resulted in sanction failure, rejecting application for {}", request);
                 // TODO: 24/11/22 rollback stage in case of failure
-                nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.SANCTION_FAILED);
+                rejectApplication(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.SANCTION_FAILED.name());
             } else {
                 // todo final this is for async response
                 lendingApplicationLenderDetails.setSanctionStatus(LenderAssociationStatus.SANCTION_IN_PROGRESS.name());
@@ -122,7 +122,7 @@ public class SancWrapperRequestKafka {
             }
         } catch (Exception e) {
             log.error("Exception occurred while invoking sanction for {}", request, e);
-            nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.SANC_REQUEST_CLIENT_FAILURE);
+            rejectApplication(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.SANC_REQUEST_CLIENT_FAILURE.name());
         }
     }
 
@@ -148,8 +148,8 @@ public class SancWrapperRequestKafka {
                 return;
             }
             if (Boolean.FALSE.equals(sanctionCallbackResponseDto.getSuccess())) {
-                log.info("modifying lender as sanction callback resulted in failure for  {}", lendingApplication.get().getId());
-                nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.SANCTION_FAILED);
+                log.info("rejecting application as sanction callback resulted in failure for  {}", lendingApplication.get().getId());
+                rejectApplication(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.SANCTION_FAILED.name());
                 return;
             }
             SanctionCallbackResponseDto.Data data = sanctionCallbackResponseDto.getData().getData();
@@ -169,7 +169,7 @@ public class SancWrapperRequestKafka {
         } catch (Exception ex) {
             log.error("exception occurred while processing bre callback request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
 //            throw new RuntimeException("unable to ack kyc callback event" + request);
-            nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.SANC_CALLBACK_CLIENT_FAILURE);
+            rejectApplication(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.SANC_CALLBACK_CLIENT_FAILURE.name());
         }
     }
 
@@ -209,5 +209,18 @@ public class SancWrapperRequestKafka {
             log.error("exception occurred while initiating sanction workflow for  {}", applicationId, e);
         }
         return  null;
+    }
+
+    private void rejectApplication(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {
+        log.info("rejecting application as sanction stage failed of ABFL for {}", lendingApplication.getId());
+        if(!ObjectUtils.isEmpty(lendingApplication)) {
+            lendingApplication.setStatus("rejected");
+            lendingApplicationDao.save(lendingApplication);
+        }
+        if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            lendingApplicationLenderDetails.setSanctionStatus(status);
+            lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        }
     }
 }
