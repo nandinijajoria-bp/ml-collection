@@ -179,7 +179,8 @@ public class MileStoneHelperServicev3 {
             log.info("kycPancard data for merchantId:{} is {} ",merchant.getId(),kycPancard);
 
             BureauResponseDTO bureauResponseDTO = null;
-            if (ObjectUtils.isEmpty(entity) || !(RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus()))) {
+            String sessionStatus = ObjectUtils.isEmpty(entity) ? null : entity.getSessionStatus();
+            if (ObjectUtils.isEmpty(entity) || !(RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(sessionStatus))) {
                 //fresh merchant
                 if (ObjectUtils.isEmpty(kycPancard)) {
                     return panCardNotFound(merchant, pincode, responseDto);
@@ -202,7 +203,8 @@ public class MileStoneHelperServicev3 {
                 }
             }
 
-            if (!RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus()) && !ObjectUtils.isEmpty(bureauResponseDTO)) {
+
+            if (!RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(sessionStatus) && !ObjectUtils.isEmpty(bureauResponseDTO)) {
                 handlingBureauResponse(merchant, bureauResponseDTO, responseDto, experian,  pinCodeColor, kycPancard);
                 if(!responseDto.getMilStoneEligibility()) {
                     return responseDto;
