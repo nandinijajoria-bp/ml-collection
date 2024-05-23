@@ -3549,7 +3549,7 @@ public class LendingApplicationServiceV2 {
             throw new Exception("Unable to generate Authorization Letter doc for applicationID" + lendingApplication.getId());
         }
     }
-    private String constructShopAddress(LendingApplication lendingApplication) {
+    public String constructShopAddress(LendingApplication lendingApplication) {
         return (ObjectUtils.isEmpty(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark()) + "," +
