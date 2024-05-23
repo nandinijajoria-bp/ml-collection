@@ -940,6 +940,10 @@ public class FosService {
         try {
             GlobalLimitResponse globalLimitResponse=new GlobalLimitResponse();
             globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, loanDashboardService.isClubV2Member(merchantId),EligibilityRequestSource.FOS);
+            if(!ObjectUtils.isEmpty(globalLimitResponse) && "EXPERIAN_DATA_MISSING".equals(globalLimitResponse.getErrorCode())){
+                logger.info("Experian data is missing for merchant:{}", merchantId);
+                return "maybe";
+            }
             if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
                 logger.info("Global limit for merchant:{} is {}", merchantId, globalLimitResponse.getData().getGlobalLimit());
                 Double eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
