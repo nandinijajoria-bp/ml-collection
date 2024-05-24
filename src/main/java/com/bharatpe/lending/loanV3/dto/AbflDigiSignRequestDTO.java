@@ -23,12 +23,12 @@ public class AbflDigiSignRequestDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Payload {
-         String accountId;
-         String mobile_number;
-         boolean merged_pdf_flag;
-         String unsigned_merged_pdf;
-         String sanction_letter;
-         String loan_agreement;
-         String key_fact_statement;
+        String accountId;
+        String mobile_number;
+        Boolean merged_pdf_flag;
+        String sanction_letter;
+        String loan_agreement;
+        String key_fact_statement;
     }
 }
+

@@ -14,7 +14,7 @@ public class AbflDigiSignResponseDTO {
     String lender;
     Boolean success;
     String productName;
-    AbflTopupRpsResponseDTO.RpsResponse data;
+    RpsResponse data;
 
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -42,17 +42,28 @@ public class AbflDigiSignResponseDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ResponseData{
-            String accountId;
-            SuccessMessage success_message;
-            String pdf_request_type;
+        String accountId;
+        SuccessMessage success_message;
+        String pdf_request_type;
     }
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SuccessMessage{
-            String Message;
-            String Status;
+        String Message;
+        String Status;
+    }
+
+    // todo to be discussed with Tarsem about using this here instead of AbflTopupRpsResponseDTO.RpsResponse data;
+    @Data
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RpsResponse {
+        String responseStatus;
+        Error error;
+        ResponseData data;
     }
 
 }

@@ -41,6 +41,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.AbflTopupRpsResponseDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
+import com.bharatpe.lending.loanV3.dto.AbflDigiSignResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
@@ -48,6 +49,7 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
+import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
 import com.bharatpe.lending.util.Finance;
@@ -272,6 +274,9 @@ public class LiquiloansService {
 
     @Autowired
     AssociationServiceUtil associationServiceUtil;
+
+    @Autowired
+    private LenderAssociationStageFactory lenderAssociationStageFactory;
 
     public void publishForDisbursal(Long lendingAppId) {
 
@@ -834,6 +839,14 @@ public class LiquiloansService {
         LendingPaymentSchedule finalLendingPaymentSchedule = lendingPaymentSchedule;
         final BasicDetailsDto finalBasicDetailDto = basicDetailsDto;
 
+
+        if("ABFL".equalsIgnoreCase(lendingApplication.getLender()) && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+            ILenderAssociationService iLenderAssociationService =
+                    lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DIGI_SIGN.name()).getLenderAssociationService(finalLendingApplication.getLender());
+            if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
+                iLenderAssociationService.invoke(finalLendingApplication.getId(), new HashMap<>());
+            }
+        }
 
         LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingKfs)){
