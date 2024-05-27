@@ -19,7 +19,7 @@ public class LoanPaymentUtil {
     public static final String DEFAULT_LOAN_SETTLEMENT_MECHANISM = IPC.name();
 
     @Value("${is.new.payment.settlement.enabled:false}")
-    public static boolean newPaymentSettlementModeAllowed;
+    public  boolean newPaymentSettlementModeAllowed;
 
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
@@ -64,7 +64,7 @@ public class LoanPaymentUtil {
         return (int) Math.round(dueAmount / ediAmount);
     }
 
-    public static boolean checkIfNewPaymentSettlementModeActive()  {
+    public boolean checkIfNewPaymentSettlementModeActive()  {
         return newPaymentSettlementModeAllowed;
     }
 }

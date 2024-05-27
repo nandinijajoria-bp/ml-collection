@@ -286,6 +286,8 @@ public class PaymentService {
     @Value("${nbfc.trilionloans.foreclosure.charges.topic:post_charges_trillion}")
     String nbfcTrilionLoansForeclosureChargesTopic;
 
+    @Autowired
+    LoanPaymentUtil loanPaymentUtil;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -1043,8 +1045,8 @@ public class PaymentService {
     private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
                                    boolean advanceEdi, String transferType, String terminalOrderId,Long orderId) {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
-
-        if (LoanPaymentUtil.checkIfNewPaymentSettlementModeActive()) {
+        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
+        if (loanPaymentUtil.checkIfNewPaymentSettlementModeActive() && amount < principalDueAmount) {
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
                     .adjustNach(false)
                     .otherAmount(amount)
@@ -1077,7 +1079,6 @@ public class PaymentService {
 
         LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
-        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
         Double excessCollectionBalance = 0D;
@@ -1328,74 +1329,6 @@ public class PaymentService {
             loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
 
-        lendingPaymentScheduleDao.save(activeLoan);
-
-        if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
-            if ("LDC".equals(activeLoan.getNbfc())) {
-                nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
-            }
-        }
-
-        if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
-            redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
-        }
-        boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
-
-        Double finalAmount = amount;
-        notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, isLoanClosed));
-        logger.info("going to post charges for loanId {} and nbfc {}", activeLoan.getId(), activeLoan.getNbfc());
-        if (isLoanClosed && preclosure && !ObjectUtils.isEmpty(lendingLedger)) {
-            if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
-                sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
-            }
-            else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                postForeclosureReceiptPiramal(activeLoan, lendingLedger);
-            }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
-                postForeclosureReceipt(activeLoan, lendingLedger);
-            } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
-                sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
-            } else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
-                    || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())
-                    || Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(activeLoan.getNbfc())){
-                sendForeclosureChargesEventLiquiLoans(activeLoan.getApplicationId(), activeLoan.getId(), lendingLedger.getId(), activeLoan.getNbfc(), orderId);
-            }
-        }
-
-        if(loanStatusFlag)
-        {
-            Long merchantId = activeLoan.getMerchantId();
-            log.info("sending loan flag event in adjustLoanBalance for merchantId : {}",merchantId);
-            sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, activeLoan.getStatus());
-        }
-
-//		if(isLoanClosed) {
-//			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
-//			notificationExecutor.execute(() -> {
-//				LoyaltyServiceRequest requestBean = new LoyaltyServiceRequest.LoyaltyServiceRequestBuilder(activeLoan.getMerchantId(), LoyaltyTransactionType.PRE_LOAN_CLOSURE)
-//						.amount(finalAmount)
-//						.merchantStoreId(null)
-//						.transactionId(activeLoan.getId())
-//						.build();
-//				loyaltyService.pushToKafka(requestBean);
-//				if(topupLoans.contains(activeLoan.getLoanApplication().getLoanType())){
-//					LendingPaymentSchedule topupLoan = lendingPaymentScheduleDao.findTopupLoan(activeLoan.getMerchantId());
-//					if(topupLoan != null) {
-//						refundProcessingFee(topupLoan);
-//					}
-//				}else{
-//					refundProcessingFee(activeLoan);
-//				}
-//				if (activeLoan.getDueAmount() < 0) {
-//					logger.info("Extra amount:{} received for loanId:{}, initiating refund", activeLoan.getDueAmount(), activeLoan.getId());
-//					refundExtraAmount(activeLoan);
-//				}
-//			});
-//		}
-
-    }
-
-    public void oldForeclosureFlow(LendingPaymentSchedule activeLoan, Double amount, Long orderId, boolean preclosure, LendingLedger lendingLedger, boolean loanStatusFlag) {
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {

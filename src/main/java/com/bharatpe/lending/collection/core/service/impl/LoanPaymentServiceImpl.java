@@ -90,10 +90,6 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     LoanStatusService loanStatusService;
     @Autowired
     ExcessNachService excessNachService;
-    @Autowired
-    PaymentService paymentService;
-    @Value("${is.fore.closure.new.flow.enabled:false}")
-    boolean isForeClosureNewFlowEnabled;
 
     @Autowired
     LendingRefundAuditDao lendingRefundAuditDao;
@@ -391,10 +387,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             loan.setClosingDate(new Date());
             String preclosureDescription = ((preclosureWithCharges) ? "PRECLOSER_WITH_CHARGES_UPI : " : "PRECLOSER_UPI : ") + payment.getBankRefNo();
             LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, preclosureDescription  , payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
-            if(!isForeClosureNewFlowEnabled) {
-                paymentService.oldForeclosureFlow(loan, payment.getOtherAmount(), payment.getOrderId(), true, positiveEntry, true);
-                return;
-            }
+
             loanStatusService.processLoanClosure(LoanClosureDTO.builder()
                     .activeLoan(loan)
                     .lendingLedger(positiveEntry)
