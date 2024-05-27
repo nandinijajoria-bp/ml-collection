@@ -2225,7 +2225,7 @@ public class PaymentService {
         }
     }
 
-    private void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
+    public void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
                                   String transferType, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList) {
 
         createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),

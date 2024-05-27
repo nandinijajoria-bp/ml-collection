@@ -26,6 +26,7 @@ import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.PaymentService;
@@ -102,6 +103,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     LendingCollectionAuditDao lendingCollectionAuditDao;
+    @Autowired
+    PaymentService paymentService;
 
     @Override
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
@@ -109,9 +112,17 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
         if (Objects.isNull(loan) || Objects.isNull(payment)) return loan;
 
-        if( Objects.nonNull(payment) && Objects.nonNull(payment.getSource()) && WaiverType.SCHEME1.name().equals(payment.getSource())){
-            log.info("Waiver Settlement V2: active Loan: {}, amount: {}, bankRefNo: {}, source: {}, transferType: {}, terminal Order Id: {}, orderId: {}", loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId(), payment.getOrderId());
-            loanStatusService.waiverSettleLoan(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), payment.getTerminalOrderId());
+        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if (Objects.nonNull(payment.getSource()) && waiverList.contains(payment.getSource()) &&
+                (loan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || loan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
+            Double excessCollectionBalance = 0D;
+            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+                if(lendingCollectionExcess.getAmount() > 0){
+                    excessCollectionBalance += lendingCollectionExcess.getAmount();
+                }
+            }
+            paymentService.waiverSettlement(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), "SETTLED", payment.getTerminalOrderId(), excessCollectionBalance, lendingCollectionExcessList);
             return loan;
         }
         String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
