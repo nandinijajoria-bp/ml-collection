@@ -7,7 +7,6 @@ import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
-import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCRTEDto;
 import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
@@ -57,7 +56,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
         List<KycDocType> docTypes = new ArrayList<>();
         docTypes.add(KycDocType.PAN_NO);
 //        docTypes.add(KycDocType.SELFIE);
-        docTypes.add(KycDocType.EKYC);
+//        docTypes.add(KycDocType.EKYC);
 //        String callBackURL = callback + "&wroute=program-summary&backFrom=kyc";
         String callBackURL = callback + "&backFrom=kyc";
         Experian experian = experianDao.getByMerchantId(merchantId);
