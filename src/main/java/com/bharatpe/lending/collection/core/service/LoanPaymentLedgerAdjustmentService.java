@@ -23,7 +23,7 @@ public interface LoanPaymentLedgerAdjustmentService {
     LendingLedger createLendingLedger(LendingPaymentSchedule loan, Double amount, Double principle,
                                       Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges);
 
-    LoanPaymentOrder createLoanPaymentOrder(LendingPaymentSchedule loan, double orderAmount, String paymentReferenceNo, String status, String source);
+    LoanPaymentOrder createLoanPaymentOrder(LendingPaymentSchedule loan, double orderAmount, String paymentReferenceNo, String status, String source, String orderId);
 
     void markOrderSuccess(LoanPaymentOrder order);
 

@@ -27,8 +27,6 @@ import java.util.Objects;
 @Slf4j
 public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedgerAdjustmentService {
 
-    public static final String LOAN_PAYMENT_ORDER_ID_PREFIX = "LOAN";
-
     public static final String LOAN_PAYMENT_ORDER_OWNER = "LOAN";
 
     public static final String EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX = "_adjust_";
@@ -114,8 +112,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
 
     @Override
-    public LoanPaymentOrder createLoanPaymentOrder(LendingPaymentSchedule loan, double orderAmount, String paymentReferenceNo, String status, String source) {
-        String orderId = LOAN_PAYMENT_ORDER_ID_PREFIX + loan.getId() + System.currentTimeMillis();
+    public LoanPaymentOrder createLoanPaymentOrder(LendingPaymentSchedule loan, double orderAmount, String paymentReferenceNo, String status, String source, String orderId) {
         log.info("createLoanPaymentOrder : creating LPO loanId:{} amount:{} status:{} source :{}", loan.getId(), orderAmount, status, source);
         LoanPaymentOrder order = new LoanPaymentOrder();
         order.setMerchantId(loan.getMerchantId());

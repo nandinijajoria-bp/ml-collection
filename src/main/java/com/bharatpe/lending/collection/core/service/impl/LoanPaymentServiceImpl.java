@@ -48,6 +48,7 @@ import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFE
 @Slf4j
 public class LoanPaymentServiceImpl implements LoanPaymentService {
 
+    public static final String LOAN_PAYMENT_ORDER_ID_PREFIX = "LOAN";
 
     //Allowed -  Arrays.asList(NACH, ADVANCE, OTHER)
     public static final List<LoanPaymentMode> PAYMENT_ADJUSTMENT_PREFRENCE_LIST = Arrays.asList(NACH, OTHER);
@@ -251,7 +252,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     // TODO : not usable  - fix it
     private void adjustAdvancePaymentAndLedger(LendingPaymentSchedule loan, double advanceEdiAmount, String mode) {
         PaymentCalculation advanceAdjustment = adjustPayment(loan, advanceEdiAmount, mode);
-        LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, advanceAdjustment.getUsed(), null, CreditConstants.PaymentStatus.PENDING.name(), "ADVANCE_EDI");
+        LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, advanceAdjustment.getUsed(), null, CreditConstants.PaymentStatus.PENDING.name(), "ADVANCE_EDI", null);
         ledgerAdjustmentService.adjustAdvanceEdiLedger(loan, advanceAdjustment);
         //todo:ask how to adjust in ledger
         ledgerAdjustmentService.adjustLendingLedger(loan, advanceAdjustment, order, null, null, null, null);
@@ -270,7 +271,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
                 //Creating loan payment order for deduction from excess nach credit
                 String source = LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH + lendingCollectionExcess.getId();
-                LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, deductionAmount, lendingCollectionExcess.getTerminalOrderId(), CreditConstants.PaymentStatus.PENDING.name(), source);
+                String orderId = LOAN_PAYMENT_ORDER_ID_PREFIX + loan.getId() + System.currentTimeMillis();
+                LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, deductionAmount, lendingCollectionExcess.getTerminalOrderId(), CreditConstants.PaymentStatus.PENDING.name(), source, orderId);
 
                 PaymentCalculation nachAdjustment = adjustPayment(loan, lendingCollectionExcess.getAmount(), mode);
                 String status = (deductionAmount == nachAdjustment.getUsed()) ? "OK" : "MISMATCH";
