@@ -6,7 +6,9 @@ import com.bharatpe.common.enums.Loan;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.ExperianRawResponseDao;
 import com.bharatpe.lending.common.dao.LendingMerchantDropoffDao;
+import com.bharatpe.lending.common.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.entity.LendingPancardDetails;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -169,6 +171,9 @@ public class LoanEligibleService {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
@@ -694,24 +699,41 @@ public class LoanEligibleService {
     public VerifyPanCardResponseDto verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
         logger.info("Calling Pan Verify Api for merchant:{}", merchantId);
         try {
-            PanVerifyKYCResponseDto responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
-            if(!ObjectUtils.isEmpty(responseDto))  {
+            LendingPancardDetails lendingPancard = lendingPancardDetailsDao.findByMerchantId(merchantId);
+            PanVerifyKYCResponseDto responseDto=new PanVerifyKYCResponseDto();
+            // PAN previously verified or not
+            Boolean isPanVerified = !ObjectUtils.isEmpty(lendingPancard) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancard.getVersion());
+            if(!isPanVerified){
+                // verify PAN if not already verified
+                responseDto = kycHandler.verifyPanDetails(token, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), verifyPanCardRequestDto.getDob(), merchantId);
+
+            }
+            if(!ObjectUtils.isEmpty(responseDto) || isPanVerified)  {
+                isPanVerified = !ObjectUtils.isEmpty(responseDto) && !ObjectUtils.isEmpty(responseDto.getData()) && !ObjectUtils.isEmpty(responseDto.getData().getPanValid())?responseDto.getData().getPanValid():false;
                 if (responseDto.getStatus()) {
-                    verifyPanCardResponseDto.setIsPanVerified(!ObjectUtils.isEmpty(responseDto.getData().getPanValid()) ? responseDto.getData().getPanValid() : false);
+                    verifyPanCardResponseDto.setIsPanVerified(isPanVerified);
                     verifyPanCardResponseDto.setIsDobVerified(!ObjectUtils.isEmpty(responseDto.getData().getDobMatch()) ? responseDto.getData().getDobMatch() : false);
                     verifyPanCardResponseDto.setIsNameVerified(!ObjectUtils.isEmpty(responseDto.getData().getNameMatch()) ? responseDto.getData().getNameMatch() : false);
                 } else {
                     verifyPanCardResponseDto.setMessage(responseDto.getData().getMessage());
                 }
+                String aadhaarSeedingStatus= ObjectUtils.isEmpty(responseDto) && ObjectUtils.isEmpty(responseDto.getData()) && ObjectUtils.isEmpty(responseDto.getData().getAadhaarSeedingStatus())? responseDto.getData().getAadhaarSeedingStatus():null;
+
+                // save PAN verification status and API response if not saved
+                if(isPanVerified && !ObjectUtils.isEmpty(responseDto)){
+                    lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
+                    lendingPancard.setResponse(responseDto.toString());
+                    lendingPancard.setAadhaarSeedingStatus(aadhaarSeedingStatus);
+                    lendingPancardDetailsDao.save(lendingPancard);
+                }
 
                 if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
-                    LendingPancard lendingPancard = lendingPancardDao.findByMerchantId(merchantId);
                     if (lendingPancard != null) {
                         lendingPancard.setName(responseDto.getData().getPanHolderName());
                         lendingPancard.setPancardNumber(verifyPanCardRequestDto.getPanNumber());
-                        lendingPancardDao.save(lendingPancard);
+                        lendingPancardDetailsDao.save(lendingPancard);
                     } else {
-                        lendingPancardDao.save(new LendingPancard(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getData().getPanHolderName()));
+                        lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getData().getPanHolderName(), ObjectUtils.isEmpty(responseDto)?null:responseDto.toString(), isPanVerified?LendingConstants.PAN_VERIFICATION_VERSION:null, aadhaarSeedingStatus));
                     }
                 }
                 return verifyPanCardResponseDto;
