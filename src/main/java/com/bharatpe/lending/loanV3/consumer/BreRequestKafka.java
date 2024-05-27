@@ -238,7 +238,7 @@ public class BreRequestKafka {
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
                     .productName("LENDING")
-                    .isTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .payload(
                             BreApiRequestDto.Payload.builder()
                                     .accountId(lendingApplication.get().getExternalLoanId())

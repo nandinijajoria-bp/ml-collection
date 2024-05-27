@@ -275,9 +275,6 @@ public class LiquiloansService {
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
-    @Autowired
-    private LenderAssociationStageFactory lenderAssociationStageFactory;
-
     public void publishForDisbursal(Long lendingAppId) {
 
         Map<String, String> payloadMap = new HashMap<>();

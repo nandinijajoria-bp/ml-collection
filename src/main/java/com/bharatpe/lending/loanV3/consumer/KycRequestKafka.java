@@ -232,7 +232,7 @@ public class KycRequestKafka {
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
                     .productName("LENDING")
-                    .isTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .identifier(KycRequestApiDto.Identifier.builder()
                             .accountId(lendingApplication.get().getExternalLoanId())
                             .cccId(lendingApplicationLenderDetails.getCccId())
