@@ -29,16 +29,19 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.PaymentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import javax.transaction.Transactional;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
@@ -106,7 +109,13 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Autowired
     PaymentService paymentService;
 
+    ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
+
+    @Autowired
+    APIGatewayService apiGatewayService;
+
     @Override
+    @Transactional
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
         log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
 
@@ -149,8 +158,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             if (!loanForeClosed) {
                 for (LoanPaymentMode paymentMode : loanPaymentModes) {
                     log.info("adjustMoney for loanId: {} paymentMode {} by mechanism {} ", loan.getId(), paymentMode, settlementMechanism.name());
-                    if (NACH.equals(paymentMode))
-                        adjustNachPaymentAndLedger(loan, payment.isAdjustNach(), settlementMechanism.name());
+                    if (NACH.equals(paymentMode) && payment.isAdjustExcessNach())
+                        adjustExcessNachBalanceAndLedger(loan, settlementMechanism.name());
                     if (ADVANCE.equals(paymentMode))
                         adjustAdvancePaymentAndLedger(loan, payment.getAdvanceEdiAmount(), settlementMechanism.name());
                     if (OTHER.equals(paymentMode))
@@ -172,6 +181,14 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         adjustExtraAmountIfAny(loan, otherAdjustment.getBalance(), payment, true);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+        if (payment.isUpdateGlobalTxnlimit()) updateGlobaltxnLimit(loan.getMerchantId(), "CREDIT", otherAdjustment.getPrincipleSettled());
+    }
+
+    private void updateGlobaltxnLimit(Long merchantId, String mode, double amount) {
+        log.info("amount:{} in lending global limit for merchant:{} type :{}", amount, merchantId, mode);
+        if(StringUtils.hasLength(mode) && amount > 0) {
+            notificationExecutor.execute(() -> apiGatewayService.globalLimitTxn(merchantId, mode, amount));
+        }
     }
 
     private void adjustExtraAmountIfAny(LendingPaymentSchedule loan, double balance, LoanPaymentDetailDTO payment, boolean refund) {
@@ -265,30 +282,28 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         ledgerAdjustmentService.adjustLendingLedger(loan, advanceAdjustment, order, null, null, null, null);
     }
 
-    private void adjustNachPaymentAndLedger(LendingPaymentSchedule loan, boolean adjustNach, String mode) {
-        log.info("adjustNach : checking eligibility nach for loanId :{} and nach settlement required :{} and mode : {} ", loan.getId(), adjustNach, mode);
-        if (adjustNach) {
-            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
-            for (LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList) {
-                log.info("adjustNachWithIPC : processing excess nach for loanId :{} and NachId :{}", loan.getId(), lendingCollectionExcess.getId());
-                double penaltyFee = Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0d;
-                Double deductionAmount = Math.min(lendingCollectionExcess.getAmount(), (loan.getDueAmount() + penaltyFee));
-                if (deductionAmount < 1D) continue;
-                if (Objects.isNull(lendingCollectionExcess.getTerminalOrderId())) continue;
+    private void adjustExcessNachBalanceAndLedger(LendingPaymentSchedule loan, String mode) {
+        log.info("adjustExcessNachBalanceAndLedger : processing nach adjustment for loanId :{} mode : {} ", loan.getId(), mode);
+        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
+        for (LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList) {
+            log.info("adjustExcessNachBalanceAndLedger : processing excess nach for loanId :{} and NachId :{} and balance : {}", loan.getId(), lendingCollectionExcess.getId(), lendingCollectionExcess.getAmount());
+            double penaltyFee = Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0d;
+            Double deductionAmount = Math.min(lendingCollectionExcess.getAmount(), (loan.getDueAmount() + penaltyFee));
+            if (deductionAmount < 1D) continue;
+            if (Objects.isNull(lendingCollectionExcess.getTerminalOrderId())) continue;
 
-                //Creating loan payment order for deduction from excess nach credit
-                String source = LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH + lendingCollectionExcess.getId();
-                String orderId = LOAN_PAYMENT_ORDER_ID_PREFIX + loan.getId() + System.currentTimeMillis();
-                LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, deductionAmount, lendingCollectionExcess.getTerminalOrderId(), CreditConstants.PaymentStatus.PENDING.name(), source, orderId);
+            //Creating loan payment order for deduction from excess nach credit
+            String source = LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH + lendingCollectionExcess.getId();
+            String orderId = LOAN_PAYMENT_ORDER_ID_PREFIX + loan.getId() + System.currentTimeMillis();
+            LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, deductionAmount, lendingCollectionExcess.getTerminalOrderId(), CreditConstants.PaymentStatus.PENDING.name(), source, orderId);
 
-                PaymentCalculation nachAdjustment = adjustPayment(loan, lendingCollectionExcess.getAmount(), mode);
-                String status = (deductionAmount == nachAdjustment.getUsed()) ? "OK" : "MISMATCH";
-                log.info("adjustNachWithIPC :  order vs ledger status: {} order: {} and nachAdjustment: {}", status, order, nachAdjustment);
+            PaymentCalculation nachAdjustment = adjustPayment(loan, lendingCollectionExcess.getAmount(), mode);
+            String status = (deductionAmount == nachAdjustment.getUsed()) ? "OK" : "MISMATCH";
+            log.info("adjustExcessNachBalanceAndLedger :  order vs ledger status: {} order: {} and nachAdjustment: {}", status, order, nachAdjustment);
 
-                ledgerAdjustmentService.adjustNachLedger(lendingCollectionExcess, nachAdjustment);
-                String terminalOrderId = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + lendingCollectionExcess.getDeductionCount().toString();
-                ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, "EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), terminalOrderId);
-            }
+            ledgerAdjustmentService.adjustNachLedger(lendingCollectionExcess, nachAdjustment);
+            String terminalOrderId = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + lendingCollectionExcess.getDeductionCount().toString();
+            ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, "EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), terminalOrderId);
         }
     }
 

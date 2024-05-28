@@ -9,7 +9,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoanPaymentDetailDTO {
-    boolean adjustNach;
+    boolean adjustExcessNach;
     double advanceEdiAmount;
     double otherAmount;
     long orderId;
@@ -22,6 +22,7 @@ public class LoanPaymentDetailDTO {
     String terminalOrderId;
 
     boolean foreCloser;
+    boolean updateGlobalTxnlimit;
 
     //internal use only
     @JsonIgnore double nachBalanceUsed;

@@ -92,11 +92,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.util.concurrent.ListenableFuture;
 
 import javax.transaction.Transactional;
 
@@ -1047,16 +1045,29 @@ public class PaymentService {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         if (loanPaymentUtil.checkIfNewPaymentSettlementModeActive() && amount < principalDueAmount) {
+
+            if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
+                    transferType = "EXTERNAL";
+            }
+
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
-                    .adjustNach(false)
+                    .adjustExcessNach(false)
                     .otherAmount(amount)
                     .orderId(orderId)
                     .description(getDescription(bankRefNo, false, false))
-                    .source(source)
-                    .transferType(transferType)
+                    .source(StringUtils.hasLength(source) ? source : "UPI")
+                    .transferType("EXTERNAL".equalsIgnoreCase(transferType) ? CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : CollectionTransferTypeEnum.TRANSFER_BY_BP.name())
                     .bankRefNo(bankRefNo)
                     .terminalOrderId(terminalOrderId)
+                    .updateGlobalTxnlimit(true)
                     .build());
+
+            if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+                redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
+            }
+            double finalAmount = amount;
+            // Todo: fix when opening  for roll out
+            notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, false));
             return;
         }
 

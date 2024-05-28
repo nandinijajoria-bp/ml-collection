@@ -4,14 +4,12 @@ import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
-import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentService;
 import com.bharatpe.lending.collection.core.service.LoanStatusService;
 import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
-import com.bharatpe.lending.dto.PaymentDetailDto;
 import com.bharatpe.lending.util.LoanUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +20,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,7 +71,7 @@ class LoanPaymentServiceImplTest {
         loan.setSettlementMechanism("IPC");
         LoanPaymentDetailDTO paymentDetailDTO = new LoanPaymentDetailDTO();
         paymentDetailDTO.setOtherAmount(1000);
-        paymentDetailDTO.setAdjustNach(false);
+        paymentDetailDTO.setAdjustExcessNach(false);
         paymentDetailDTO.setOrderId(1L);
 
         Mockito.when(loanUtil.getForeclosureAmount(loan)).thenReturn(principalDueAmount);
