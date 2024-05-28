@@ -2,13 +2,13 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
-import com.bharatpe.lending.common.dao.LendingPancardDetailsDao;
-import com.bharatpe.lending.common.entity.LendingPancardDetails;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
+import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
