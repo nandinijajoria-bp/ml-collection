@@ -699,7 +699,7 @@ public class LoanEligibleService {
     public VerifyPanCardResponseDto verifyPanDetails(VerifyPanCardRequestDto verifyPanCardRequestDto, String token, Long merchantId, VerifyPanCardResponseDto verifyPanCardResponseDto) {
         logger.info("Calling Pan Verify Api for merchant:{}", merchantId);
         try {
-            LendingPancardDetails lendingPancard = lendingPancardDetailsDao.findByMerchantId(merchantId);
+            LendingPancardDetails lendingPancard = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             PanVerifyKYCResponseDto responseDto=new PanVerifyKYCResponseDto();
             // PAN previously verified or not
             Boolean isPanVerified = !ObjectUtils.isEmpty(lendingPancard) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancard.getVersion());

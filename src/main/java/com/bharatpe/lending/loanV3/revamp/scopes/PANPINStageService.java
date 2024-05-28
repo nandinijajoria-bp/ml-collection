@@ -2,9 +2,12 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
+import com.bharatpe.lending.common.dao.LendingPancardDetailsDao;
+import com.bharatpe.lending.common.entity.LendingPancardDetails;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -19,10 +22,12 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Objects;
 
 @Component
 @Slf4j
@@ -48,6 +53,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
 
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
@@ -78,8 +86,15 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 eligibilityStateDTO.setIsPanNsdlVerified(true);
                 eligibilityStateDTO.setDummyMerchant(true);
             }else{
+                PanFetchKYCResponseDto response = null;
                 try {
-                    PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                    LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
+                    if(ObjectUtils.isEmpty(lendingPancardDetails) || !LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
+                            response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+
+                        } else {
+                        eligibilityStateDTO.setIsPanNsdlVerified(true);
+                    }
                     if (response != null && response.getStatus()) {
                         PanFetchKYCResponseDto.Data data = response.getData();
                         if (data != null) {
