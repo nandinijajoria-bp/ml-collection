@@ -2776,7 +2776,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.USFB.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_USFB.html";
             } else if (Lender.CAPRI.name().equalsIgnoreCase(lender)) {
