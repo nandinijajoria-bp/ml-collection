@@ -719,31 +719,23 @@ public class LoanEligibleService {
                 }
 
                 if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
-                    if (lendingPancard != null) {
+                    String aadhaarSeedingStatus = !ObjectUtils.isEmpty(responseDto.getData()) && !ObjectUtils.isEmpty(responseDto.getData().getAadhaarSeedingStatus()) ? responseDto.getData().getAadhaarSeedingStatus() : null;
+                    if (!ObjectUtils.isEmpty(lendingPancard)) {
                         lendingPancard.setName(responseDto.getData().getPanHolderName());
                         lendingPancard.setPancardNumber(verifyPanCardRequestDto.getPanNumber());
+                        lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
+                        lendingPancard.setAadhaarSeedingStatus(aadhaarSeedingStatus);
                         lendingPancardDetailsDao.save(lendingPancard);
                     } else {
-                        lendingPancardDao.save(new LendingPancard(merchantId, verifyPanCardRequestDto.getPanNumber(), responseDto.getData().getPanHolderName()));
+                        lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), responseDto.toString(), LendingConstants.PAN_VERIFICATION_VERSION, aadhaarSeedingStatus));
                     }
                 }
                 return verifyPanCardResponseDto;
             }
-            String aadhaarSeedingStatus = !ObjectUtils.isEmpty(responseDto) && !ObjectUtils.isEmpty(responseDto.getData()) && !ObjectUtils.isEmpty(responseDto.getData().getAadhaarSeedingStatus()) ? responseDto.getData().getAadhaarSeedingStatus() : null;
-            if (verifyPanCardResponseDto.getIsPanVerified() && verifyPanCardResponseDto.getIsDobVerified() && verifyPanCardResponseDto.getIsNameVerified()) {
-                if (lendingPancard != null) {
-                    lendingPancard.setName(verifyPanCardRequestDto.getFullName());
-                    lendingPancard.setPancardNumber(verifyPanCardRequestDto.getPanNumber());
-                    lendingPancardDetailsDao.save(lendingPancard);
-                } else {
-                    lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), ObjectUtils.isEmpty(responseDto) ? null : responseDto.toString(), verifyPanCardResponseDto.getIsPanVerified() ? LendingConstants.PAN_VERIFICATION_VERSION : null, aadhaarSeedingStatus));
-                }
-            }
-                return verifyPanCardResponseDto;
         }catch (HttpClientErrorException.TooManyRequests e) {
             throw e;
         }catch (Exception e) {
-            logger.error("Exception in verifyPanDetails for merchantId: {}", merchantId, e);
+            logger.error("Exception in verifyPanDetails for merchantId: {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
