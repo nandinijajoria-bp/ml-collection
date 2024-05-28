@@ -26,7 +26,12 @@ public class LendingPancardDetails extends BaseEntity {
     private String response;
 
     @Column(name="version")
-    public String version;
+    private String version;
+
+    @Column(name = "dob")
+    private String dob;
+
+
 
     @Column(name = "aadhaar_seeding_status")
     public String aadhaarSeedingStatus;
@@ -38,13 +43,14 @@ public class LendingPancardDetails extends BaseEntity {
         this.response = response;
     }
 
-    public LendingPancardDetails(Long merchantId, String pancardNumber, String name, String response, String version, String aadhaarSeedingStatus) {
+    public LendingPancardDetails(Long merchantId, String pancardNumber, String name, String response, String version, String aadhaarSeedingStatus, String dob) {
         this.merchantId = merchantId;
         this.pancardNumber = pancardNumber;
         this.name = name;
         this.response = response;
         this.version = version;
         this.aadhaarSeedingStatus = aadhaarSeedingStatus;
+        this.dob = dob;
     }
 
     public LendingPancardDetails(Long merchantId, String pancardNumber, String name) {
@@ -112,6 +118,14 @@ public class LendingPancardDetails extends BaseEntity {
         this.aadhaarSeedingStatus = aadhaarSeedingStatus;
     }
 
+    public String getDob() {
+        return dob;
+    }
+
+    public void setDob(String dob) {
+        this.dob = dob;
+    }
+
     @Override
     public String toString() {
         return "LendingPancardDetails{" +
@@ -121,6 +135,7 @@ public class LendingPancardDetails extends BaseEntity {
                 ", gstNumber='" + gstNumber + '\'' +
                 ", response='" + response + '\'' +
                 ", version='" + version + '\'' +
+                ", dob='" + dob + '\'' +
                 ", aadhaarSeedingStatus='" + aadhaarSeedingStatus + '\'' +
                 '}';
     }
