@@ -1,22 +1,15 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
 
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV3.revamp.config.StageServiceFactory;
-import com.bharatpe.lending.loanV3.revamp.dto.*;
+import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Request;
+import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Response;
+import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
-import com.bharatpe.lending.loanV3.revamp.scopes.IStageDataService;
-import com.bharatpe.lending.loanV3.revamp.stateManager.IRenderStateViaScope;
-import com.bharatpe.lending.loanV3.revamp.stateManager.IRenderStateWithoutScope;
 import com.bharatpe.lending.loanV3.revamp.stateManager.RenderStateViaScope;
 import com.bharatpe.lending.loanV3.revamp.stateManager.RenderStateWithoutScope;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +19,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.Optional;
 
 @Service
 @Slf4j
@@ -61,7 +53,7 @@ public class LoanDetailsV3Service {
         throw new LoanDetailsException(LoanDetailExceptionEnum.NO_SCOPE_PROVIDED.getErrorCode(),LoanDetailExceptionEnum.NO_SCOPE_PROVIDED.getErrorMessage());
     }
 
-    public LoanDetailsV3Response getLoanDetailsWithoutScope(BasicDetailsDto merchant, String scope, Long applicationId){
+    public LoanDetailsV3Response getLoanDetailsWithoutScope(BasicDetailsDto merchant, String scope, Long applicationId, String token){
         if (null == scope) {
             ScopeDataArgs scopeDataArgs = ScopeDataArgs.builder()
                     .loanDetailsV3Request(new LoanDetailsV3Request())
@@ -75,6 +67,7 @@ public class LoanDetailsV3Service {
                     .currentState(LendingViewStates.valueOf(scope))
                     .loanDetailsV3Request(new LoanDetailsV3Request())
                     .merchant(merchant)
+                    .token(token)
                     .build();
             renderStateViaScope.fetchLendingStateData(scopeDataArgs);
            return LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response);

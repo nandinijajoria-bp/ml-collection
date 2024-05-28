@@ -3096,6 +3096,8 @@ public class LendingApplicationServiceV2 {
         if(kfsDto.isForeclosureChargesRequired()) {
             List<ForeClosureConfig> foreClosureConfigList = foreClosureConfigDao.findByLender(kfsDto.getLender());
             if (!CollectionUtils.isEmpty(foreClosureConfigList)) {
+                data.put("min_charge", foreClosureConfigList.get(0).getMinAmount());
+                data.put("gst_rate", foreClosureConfigList.get(0).getGst());
                 for (int i = 0; i < foreClosureConfigList.size(); i++) {
                     String value = String.valueOf(i + 1);
                     data.put("foreclosure_tenure_" + value, foreClosureConfigList.get(i).getTenure());
@@ -3103,8 +3105,6 @@ public class LendingApplicationServiceV2 {
                     data.put("rate_of_principle_" + value, foreClosureConfigList.get(i).getRate());
                     data.put("closure_min_" + value, foreClosureConfigList.get(i).getDurationFrom());
                 }
-                data.put("min_charge", foreClosureConfigList.get(10).getMinAmount());
-                data.put("gst_rate", foreClosureConfigList.get(10).getGst());
             }
         }
 
@@ -3571,7 +3571,7 @@ public class LendingApplicationServiceV2 {
             throw new Exception("Unable to generate Authorization Letter doc for applicationID" + lendingApplication.getId());
         }
     }
-    private String constructShopAddress(LendingApplication lendingApplication) {
+    public String constructShopAddress(LendingApplication lendingApplication) {
         return (ObjectUtils.isEmpty(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark()) + "," +

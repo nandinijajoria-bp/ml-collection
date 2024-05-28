@@ -85,6 +85,7 @@ public class ApplicationStatusStageDataService implements IStageDataService<Appl
             }
 
             applicationStatusStateDTO.setApplicationId(lendingApplication.getId());
+            applicationStatusStateDTO.setLender(lendingApplication.getLender());
             applicationStatusStateDTO.setEnachBank(loanUtil.isEnachBank(lendingApplication.getMerchantId()));
 
             if (applicationStatusStateDTO.getEnachBank()) {

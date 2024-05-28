@@ -58,6 +58,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
@@ -344,6 +345,13 @@ public class APIGatewayService {
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
+
+            if (Objects.nonNull(pgCreateTransactionRequestDTO.getAccountNumber()) && Objects.nonNull(pgCreateTransactionRequestDTO.getIfscCode())) {
+                Map<String, String> bankDetail = new HashMap<>();
+                bankDetail.put("accountNumber", pgCreateTransactionRequestDTO.getAccountNumber());
+                bankDetail.put("ifscCode", pgCreateTransactionRequestDTO.getIfscCode());
+                requestParams.put("bankDetail", bankDetail);
+            }
 
 
             String hash = lendingHmacCalculator.calculateHmac
@@ -1745,6 +1753,20 @@ public class APIGatewayService {
             logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
         } catch (ResourceAccessException ex) {
             logger.info("Scenaptic Limit Api timed out for merchantId:{} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        } catch (HttpServerErrorException | HttpClientErrorException exception) {
+            logger.info("exception in fetching reponse for bureau :{} {}", exception.getMessage(), exception.getResponseBodyAsString());
+            try {
+                XmlMapper xmlMapper = new XmlMapper();
+                ScenapticResponseDTO scenapticResponseDTO =  xmlMapper.readValue(exception.getResponseBodyAsString(), ScenapticResponseDTO.class);
+                logger.info(" scenapticResponseDTO {}",scenapticResponseDTO.toString());
+                GlobalLimitResponse globalLimitResponse = new GlobalLimitResponse();
+                globalLimitResponse.setSuccess(scenapticResponseDTO.getSuccess());
+                globalLimitResponse.setMessage(scenapticResponseDTO.getMessage());
+                globalLimitResponse.setErrorCode(scenapticResponseDTO.getErrorCode());
+                return globalLimitResponse;
+            } catch (IOException | IllegalArgumentException e) {
+                logger.error("Exception in parsing responseBody string : {} {} ", e.getMessage(), e);
+            }
         } catch (Exception e) {
             logger.error("Error occurred while getting Scenaptic limit for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }

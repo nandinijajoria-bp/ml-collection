@@ -9,4 +9,5 @@ import lombok.*;
 @NoArgsConstructor
 public class LenderEvaluationStateDTO {
     private Long applicationId;
+    private String lender;
 }

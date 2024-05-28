@@ -830,7 +830,11 @@ public class PaymentService {
     }
 
     private LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle,
-                                     Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee) {
+                                              Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee) {
+        return createLendingLedger(lendingPaymentSchedule, amount, principle, interest, description, source, transferType, terminalOrderId, penaltyFee, null);
+    }
+    private LendingLedger createLendingLedger(LendingPaymentSchedule lendingPaymentSchedule, Double amount, Double principle,
+                                     Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double otherCharges) {
         if(amount == 0) {
             return null;
         }
@@ -846,7 +850,7 @@ public class PaymentService {
         lendingLedger.setTxnType("EDI");
         lendingLedger.setAmount(amount);
         lendingLedger.setInterest(interest);
-        lendingLedger.setOtherCharges(0D);
+        lendingLedger.setOtherCharges((otherCharges != null) ? otherCharges : 0);
         lendingLedger.setPenalty(penaltyFee);
         lendingLedger.setPrinciple(principle);
         if (source != null) {
@@ -862,6 +866,10 @@ public class PaymentService {
                 transferType = "EXTERNAL";
             }
         }
+
+        if (!ObjectUtils.isEmpty(source) && source.toUpperCase().contains("UPI")) {
+            transferType = "EXTERNAL";
+        } 
 
         lendingLedger.setDescription(description);
         lendingLedger.setTerminalOrderId(terminalOrderId);
@@ -1094,12 +1102,12 @@ public class PaymentService {
             String description = (preclosureWithCharges) ? "PREPAYMENT_WITH_CHARGES" : "PREPAYMENT";
             if(activeLoan.getDueAmount() >= 0) {
                 createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + advanceEdiAmount + excessCollectionBalance) ,
-                        -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance),
-                        Double.valueOf(ediHolidayInterestAmount), description, source, transferType, terminalOrderId, 0d);
+                        -1 * Math.abs(amount - activeLoan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance - penaltyFee - foreclosureChargesAmount),
+                        Double.valueOf(ediHolidayInterestAmount), description, source, transferType, terminalOrderId, -1*penaltyFee, -1*foreclosureChargesAmount);
             } else {
                 createLendingLedger(activeLoan, -1 * (amount + advanceEdiAmount + excessCollectionBalance),
-                        -1 * (amount - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance),
-                        Double.valueOf(ediHolidayInterestAmount), description, source, transferType, terminalOrderId, 0d);
+                        -1 * (amount - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance - penaltyFee - foreclosureChargesAmount),
+                        Double.valueOf(ediHolidayInterestAmount), description, source, transferType, terminalOrderId, -1*penaltyFee, -1*foreclosureChargesAmount);
             }
 
             activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + advanceEdiAmount + excessCollectionBalance);
@@ -1286,7 +1294,7 @@ public class PaymentService {
         logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 
         LendingLedger lendingLedger = createLendingLedger(activeLoan, amount, excessCollectionAdjusted ? paidPrincipalAmount - excessCollectionBalance : paidPrincipalAmount, paidInterestAmount,  getDescription(bankRefNo,
-                preclosure, preclosureWithCharges), source, transferType, terminalOrderId, penaltyFee);
+                preclosure, preclosureWithCharges), source, transferType, terminalOrderId, penaltyFee, foreclosureChargesAmount);
         if(excessCollectionAdjusted){
             logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
             createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
@@ -2072,11 +2080,11 @@ public class PaymentService {
 
             if(activeLoan.getDueAmount() >= 0) {
                 createLendingLedger(activeLoan, -1 * Math.abs(amount - activeLoan.getDueAmount() + excessCollectionBalance) ,
-                  -1 * Math.abs(amount - activeLoan.getDueAmount() + excessCollectionBalance),
-                  0d, description, source, transferType, terminalOrderId, 0d);
+                  -1 * Math.abs(amount - activeLoan.getDueAmount() + excessCollectionBalance - penaltyFee - foreclosureChargesAmount),
+                  0d, description, source, transferType, terminalOrderId, -1*penaltyFee, -1*foreclosureChargesAmount);
             } else {
-                createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
-                        0d, description, source, transferType, terminalOrderId, 0d);
+                createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance -penaltyFee -foreclosureChargesAmount),
+                        0d, description, source, transferType, terminalOrderId, -1*penaltyFee, -1*foreclosureChargesAmount);
             }
 
             activeLoan.setPaidAmount(activeLoan.getPaidAmount() + amount + excessCollectionBalance);
@@ -2119,8 +2127,8 @@ public class PaymentService {
         logger.info("Adjusted breakup amount for loan:{} is principle:{} and interest:{}", activeLoan.getId(), paidPrincipalAmount, paidInterestAmount);
 
         LendingLedger lendingLedger = createLendingLedger(
-                activeLoan, excessCollectionAdjusted ? paidPrincipalAmount + paidInterestAmount - excessCollectionBalance : paidPrincipalAmount + paidInterestAmount,
-          excessCollectionAdjusted ? paidPrincipalAmount - excessCollectionBalance : paidPrincipalAmount , paidInterestAmount,  getDescription(bankRefNo, preclosure, preclosureWithCharges), source, transferType, terminalOrderId, penaltyFee
+                activeLoan, excessCollectionAdjusted ? paidPrincipalAmount + paidInterestAmount + penaltyFee + foreclosureChargesAmount - excessCollectionBalance : paidPrincipalAmount + paidInterestAmount + penaltyFee + foreclosureChargesAmount,
+          excessCollectionAdjusted ? paidPrincipalAmount - excessCollectionBalance : paidPrincipalAmount , paidInterestAmount,  getDescription(bankRefNo, preclosure, preclosureWithCharges), source, transferType, terminalOrderId, penaltyFee, foreclosureChargesAmount
         );
         if(excessCollectionAdjusted) {
             logger.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
