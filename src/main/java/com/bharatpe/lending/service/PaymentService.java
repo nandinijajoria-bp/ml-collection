@@ -1044,7 +1044,8 @@ public class PaymentService {
                                    boolean advanceEdi, String transferType, String terminalOrderId,Long orderId) {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
-        if (loanPaymentUtil.checkIfNewPaymentSettlementModeActive() && amount < principalDueAmount) {
+        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if (loanPaymentUtil.checkIfNewPaymentSettlementModeActive() && amount < principalDueAmount && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
 
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
                     transferType = "EXTERNAL";
@@ -1113,7 +1114,6 @@ public class PaymentService {
         logger.info("Excess collection balance for loanId:{} is:{}", activeLoan.getId(), excessCollectionBalance);
         logger.info("Due amount for loanId:{} is due amount:{} due principle:{} due interest:{}", activeLoan.getId(), activeLoan.getDueAmount(), activeLoan.getDuePrinciple(), activeLoan.getDueInterest());
 
-        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
         if (Objects.nonNull(source) && waiverList.contains(source) &&
                 (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
             waiverSettlement(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
