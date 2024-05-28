@@ -1,0 +1,633 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        p {
+          margin: 0;
+        }
+
+        .mb2 {
+          margin-bottom: 10px;
+        }
+
+        .mt10 {
+          margin-top: 10px;
+        }
+
+        .mt16 {
+          margin-top: 16px;
+        }
+
+        .content-center {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+<!--        l2-->
+                ol {
+            margin: 0;
+            padding: 0
+        }
+
+        table td,
+        table th {
+            padding: 0
+        }
+
+        .c4 {
+            border-right-style: solid;
+            padding: 0pt 5pt 0pt 5pt;
+            border-bottom-color: #000000;
+            border-top-width: 1pt;
+            border-right-width: 1pt;
+            border-left-color: #000000;
+            vertical-align: top;
+            border-right-color: #000000;
+            border-left-width: 1pt;
+            border-top-style: solid;
+            border-left-style: solid;
+            border-bottom-width: 1pt;
+            width: 135pt;
+            border-top-color: #000000;
+            border-bottom-style: solid
+        }
+
+        .c3 {
+            -webkit-text-decoration-skip: none;
+            color: #000000;
+            font-weight: 700;
+            text-decoration: underline;
+            vertical-align: baseline;
+            text-decoration-skip-ink: none;
+            font-size: 11pt;
+            font-family: "Arial";
+            font-style: normal
+        }
+
+        .c8 {
+            margin-left: 54pt;
+            padding-top: 0pt;
+            text-indent: -18pt;
+            padding-bottom: 0pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: justify
+        }
+
+        .c1 {
+            margin-left: 7pt;
+            padding-top: 12pt;
+            padding-bottom: 12pt;
+            line-height: 1.15;
+            orphans: 2;
+            widows: 2;
+            text-align: left;
+            margin-right: 7pt
+        }
+
+        .c16 {
+            margin-left: 36pt;
+            padding-top: 0pt;
+            text-indent: 36pt;
+            padding-bottom: 8pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: center
+        }
+
+        .c12 {
+            margin-left: 18pt;
+            padding-top: 0pt;
+            padding-bottom: 0pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .c18 {
+            margin-left: 36pt;
+            padding-top: 0pt;
+            padding-bottom: 0pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: justify
+        }
+
+        .c2 {
+            margin-left: 36pt;
+            padding-top: 0pt;
+            padding-bottom: 8pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: justify
+        }
+
+        .c0 {
+            color: #000000;
+            font-weight: 400;
+            text-decoration: none;
+            vertical-align: baseline;
+            font-size: 11pt;
+            font-family: "Arial";
+            font-style: normal
+        }
+
+        .c5 {
+            padding-top: 0pt;
+            padding-bottom: 8pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .c21 {
+            color: #000000;
+            text-decoration: none;
+            vertical-align: baseline;
+            font-size: 11pt;
+            font-family: "Arial";
+            font-style: normal
+        }
+
+        .c19 {
+            padding-top: 0pt;
+            padding-bottom: 8pt;
+            line-height: 1.0699977272727272;
+            orphans: 2;
+            widows: 2;
+            text-align: right
+        }
+
+        .c10 {
+            padding-top: 0pt;
+            padding-bottom: 0pt;
+            line-height: 1.15;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .c17 {
+            padding-top: 0pt;
+            padding-bottom: 8pt;
+            line-height: 1.15;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .c14 {
+            border-spacing: 0;
+            border-collapse: collapse;
+            margin-right: auto
+        }
+
+        .c20 {
+            background-color: #ffffff;
+            max-width: 468pt;
+            padding: 72pt 72pt 72pt 72pt
+        }
+
+        .c9 {
+            font-size: 7pt;
+            font-family: "Times New Roman";
+            font-weight: 400
+        }
+
+        .c15 {
+            margin-left: 18pt
+        }
+
+        .c6 {
+            background-color: #ffff00
+        }
+
+        .c13 {
+            height: 11pt
+        }
+
+        .c11 {
+            font-weight: 700
+        }
+
+        .c7 {
+            height: 18.8pt
+        }
+
+        .title {
+            padding-top: 0pt;
+            color: #000000;
+            font-size: 26pt;
+            padding-bottom: 3pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        .subtitle {
+            padding-top: 0pt;
+            color: #666666;
+            font-size: 15pt;
+            padding-bottom: 16pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        li {
+            color: #000000;
+            font-size: 11pt;
+            font-family: "Arial"
+        }
+
+        p {
+            margin: 0;
+            color: #000000;
+            font-size: 11pt;
+            font-family: "Arial"
+        }
+
+        h1 {
+            padding-top: 20pt;
+            color: #000000;
+            font-size: 20pt;
+            padding-bottom: 6pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h2 {
+            padding-top: 18pt;
+            color: #000000;
+            font-size: 16pt;
+            padding-bottom: 6pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h3 {
+            padding-top: 16pt;
+            color: #434343;
+            font-size: 14pt;
+            padding-bottom: 4pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h4 {
+            padding-top: 14pt;
+            color: #666666;
+            font-size: 12pt;
+            padding-bottom: 4pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h5 {
+            padding-top: 12pt;
+            color: #666666;
+            font-size: 11pt;
+            padding-bottom: 4pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+
+        h6 {
+            padding-top: 12pt;
+            color: #666666;
+            font-size: 11pt;
+            padding-bottom: 4pt;
+            font-family: "Arial";
+            line-height: 1.15;
+            page-break-after: avoid;
+            font-style: italic;
+            orphans: 2;
+            widows: 2;
+            text-align: left
+        }
+    </style>
+</head>
+<body data-new-gr-c-s-check-loaded="14.1154.0" data-gr-ext-installed="">
+<div style="padding:20px 30px;">
+    <p style="text-align: center; font-size: 22px;">
+        <strong><u><span>PAYMENT INSTRUCTION/AUTHORIZATION</span></u></strong>
+    </p>
+    <p style="text-align: right;">
+        <span>Date:{{date}} </span>
+    </p>
+    <p class="mt16">
+        <span>Resilient Innovations Private Limited (<strong>RIPL/ Offline PA</strong>)</span>
+    </p>
+    <p>
+        3rd Floor, Ramnath House, 18, Community
+        <span class="SpellE">Center</span>,
+    </p>
+    <p>Opp. Jet Airways, Yusuf Sarai, New Delhi-110049</p>
+    <p>
+        <span>(acting as the offline payment aggregator)</span>
+    </p>
+    <p class="mt10">
+        <span><strong><u>Sub: Deduction of Due Amounts from the Settlement Amount<br><br></u></strong>Dear Sir/ Ma'am,<br></span>
+    </p>
+    <p class="mt10">
+        <span>1.&nbsp;&nbsp;&nbsp;</span><span>This is in reference to loan sanctioned to the undersigned by
+        {{name_of_lender_nbfc}} (<strong>"Lender"</strong>) vide the {{loan_id}}
+        (<strong>"Loan ID"</strong>).</span>
+    </p>
+    <p class="mt10">
+        <span>2.&nbsp;&nbsp;&nbsp;</span><span>Pursuant to the KFS, Sanction Letter and other loan documents ("<strong>Loan Documents</strong>") accepted by the undersigned, the undersigned have agreed to give an
+        irrevocable, unconditional and express consent/authorization to the
+        Offline PA to deduct the applicable installment amounts as per the
+        agreed frequency and/or any other dues stated under the Loan Documents
+        ("<strong>Due Amounts</strong>"). The Offline PA, shall upon receipt of
+        such communication/information from the Lender, deduct the Due Amounts
+        from the Settlement Amount and transfer such Due Amounts to the Lender's
+        bank account against repayment of the loan availed by the undersigned
+        vide the above-mentioned Loan ID.&nbsp;&nbsp;For clarification,
+        Settlement Amount shall&nbsp;</span><span>mean the total amount collected and payable (after adjustment of the
+        applicable service charges) by the Offline PA to the Borrower on account
+        of transactions carried out on UPI, POS machines and/or or such other
+        product offerings made available to the Borrower through BharatPe
+        app.</span>
+    </p>
+    <p class="mt10">
+        <span>3.&nbsp;&nbsp;&nbsp;</span><span>The undersigned hereby gives its irrevocable, unconditional, and
+        express consent to the Offline PA to deduct the Due Amounts from the
+        Settlement Amount as communicated by the Lender and/or its
+        representatives and transfer such amounts to Lender's bank account as
+        repayment for the loan availed by the undersigned vide the
+        above-mentioned Loan ID.</span>
+    </p>
+    <p class="mt10">
+        <span>4.&nbsp;&nbsp;&nbsp;</span><span>The undersigned hereby irrevocably and unconditionally confirm that
+        these instructions/authorization in favor of the Offline PA as mentioned
+        above shall be irrevocable and shall not be revoked until the loan has
+        been repaid in full to the satisfaction of the Lender.<br><br></span>
+    </p>
+    <p><span>Yours Sincerely,</span></p>
+    <p>
+        <span><br></span><span>{{borrower_name}} ("Borrower")</span>
+    </p>
+    <p><span>{{pan_of_borrower}}</span></p>
+    <div class="content-center">
+        <table class="mt16" style="height: 365px; width: 50%; text-align: left;" cellspacing="0" cellpadding="0" border="1">
+            <tbody>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Borrower Name</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{borrower_name}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p><span lang="EN-US">&nbsp;Date</span></p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{date}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Mobile No.</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{mobile_number_for_otp}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Platform</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{platform}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">IP Address</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{ip_address}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Time Stamp</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{time_stamp}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Loan ID</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{loan_id}}</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p><span>&nbsp;</span></p>
+
+    <div>
+        <p class="c16"><span class="c3">చెల్లింపు సూచనలు /అధికారం</span></p>
+        <p class="c19"><span>తేదీ: </span><span>{{date}}</span></p>
+        <p class="c10"><span>రిసీలియంట్‌ ఇన్నోవేషన్స్‌ ప్రైవేట్‌ లిమిటెడ్‌ (</span><span class="c11">RIPL/ ఆఫ్‌లైన్‌
+            PA</span><span class="c0">)</span></p>
+        <p class="c10"><span class="c0">3వ అంతస్తు, రామ్‌నాథ్‌ హౌస్‌, 18, కమ్యూనిసిటీ సెంటర్‌,</span></p>
+        <p class="c10"><span class="c0">జెట్‌ ఎయిర్‌వేస్‌ ఎదురుగా, యూసుఫ్‌ సరాయి, న్యూఢిల్లీ -110049</span></p>
+        <p class="c17"><span class="c0">(ఆఫ్‌లైన్‌ పేమెంట్‌ అగ్రిగేటర్‌గా వ్యవహరిస్తారు)</span></p>
+        <p class="c5"><span class="c3">విషం: సెటిల్‌మెంట్‌ మొత్తం నుంచి బకాయి మొత్తాల మినహాయింపు</span></p>
+        <p class="c5"><span class="c0">డియర్‌ సర్‌/ మేడమ్‌,</span></p>
+        <p class="c8"><span>1.</span><span class="c9">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span>దిగువ సంతకందారు
+            </span><span> {{name_of_lender_nbfc}} </span><span>&nbsp;(</span><span class="c11">“రుణదాత”</span><span>) లోన్‌ ఐడీ {{loan_id}}  (</span><span class="c11">“లోన్‌ ఐడీ”</span><span class="c0">) మంజూరు చేసిన రుణానికి సంబంధించి.</span></p>
+        <p class="c8"><span>2.</span><span class="c9">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span>దిగువ సంతకందారు అంగీకరించిన
+            కేఎఫ్‌ఎస్‌, శాంక్షన్‌ లేఖ, ఇతర పత్రాల (“</span><span class="c11">రుణ పత్రాలు</span><span>”) &nbsp;ప్రకారం
+            వర్తించే వాయిదా మొత్తాలు మరియు/లేదా రుణపత్రాల (</span><span class="c11">బకాయి మొత్తాలు</span><span class="c0">) ప్రకారం పేర్కొన్న ఇతర బకాయిలను అంగీకరించిన కాలవ్యవధిలో మినహాయించుకునేందుకు దిగువ సంతకందారు
+            తిరిగి మార్చడానికి వీల్లేని బేషరతుతో కూడిన స్పష్టమైన సమ్మతి/అధికారాన్ని ఆఫ్‌లైన్‌ PAకు ఇస్తున్నారు. అట్టి
+            సమాచారాన్ని రుణదాత నుంచి అట్టి సమాచారం/కమ్యూనికేషన్‌ అందుకున్న తర్వాత ఆఫ్‌లైన్‌ PA, సెటిల్‌మెంట్‌ మొత్తం
+            నుంచి బకాయి మొత్తాన్ని మినహయించుకొని అట్టి బకాయి మొత్తాన్ని దిగువ సంతకందారు పైన పేర్కొన్న లోన్ ఐడీతో
+            తీసుకున్న రుణానికి సంబంధించి తిరిగి చెల్లించిన మొత్తంగా &nbsp;రుణదాత అకౌంట్‌కు బదిలీ చేస్తారు. వివరణ కోసం,
+            సెటిల్‌మెంట్‌ మొత్తం అనేది &nbsp;UPI, POS మెషీన్లు మరియు/లేదా భారత్‌ పే ద్వారా రుణగ్రహీతకు అందించే ఇతర
+            ఉత్పత్తుల ద్వారా ఆఫ్‌లైన్‌ PA వసూలు చేసి, రుణగ్రహీతకు చెల్లించాల్సిన మొత్తం అని అర్థం.</span></p>
+        <p class="c8"><span>3.</span><span class="c9">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="c0">పైన పేర్కొన్న లోన్ ఐడీ కోసం రుణదాత మరియు/లేదా వారి ప్రతినిధుల ద్వారా తెలియజేసిన విధంగా
+            సెటిల్‌మెంట్ మొత్తం నుంచి బకాయి మొత్తాలను మినహాయించుకొని రుణం కోసం తిరిగి చెల్లింపుగా అటువంటి మొత్తాన్ని
+            రుణదాత బ్యాంక్ ఖాతాకు బదిలీ చేసేందుకు దిగువ సంతకందారు ఆఫ్‌లైన్ PAకి &nbsp;మార్చడానికి వీల్లేని విధంగా
+            బేషరతుగా స్పష్టమైన సమ్మతిని ఇందుమూలంగా ఇస్తున్నారు.</span></p>
+        <p class="c8"><span>4.</span><span class="c9">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="c0">పైన పేర్కొన్న ఈ ఆదేశాలు/అధికారాన్ని తిరిగి మార్చడం కుదరదని, రుణదాత సంతృప్తి మేరకు రుణం మొత్తం
+            తిరిగి చెల్లించేంత వరకు వాటిని రద్దు చేయడం కుదరదని దిగువ సంతకందారు తిరిగిమార్చడానికి వీల్లేని రీతిలో
+            బేషరతుగా నిర్థారిస్తున్నారు.</span></p>
+        <p class="c18"><span class="c0">&nbsp;</span></p>
+        <p class="c2"><span class="c0">&nbsp;</span></p>
+        <p class="c5 c15"><span class="c0">ఇట్లు మీ విధేయలు,</span></p>
+        <p class="c12"><span>{{borrower_name}} (“రుణగ్రహీత”)</span></p>
+        <p class="c12"><span>{{pan_of_borrower}}</span></p>
+        <p class="c12"><span class="c0">&nbsp; </span></p>
+        <p class="c12 c13"><span class="c0"></span></p><a id="t.e4eda3a8dd31e429be7aa410660d522edb1ed4e5"></a><a id="t.0"></a>
+        <div class="content-center">
+            <table class="mt16" style="height: 365px; width: 50%; text-align: left;" cellspacing="0" cellpadding="0" border="1">
+                <tbody>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p>
+                            <span lang="EN-US">రుణగ్రహీత పేరు</span>
+                        </p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{borrower_name}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p><span lang="EN-US">తేదీ</span></p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{date}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p>
+                            <span lang="EN-US">మొబైల్‌ నెం.</span>
+                        </p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{mobile_number_for_otp}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p>
+                            <span lang="EN-US">ఫ్లాట్‌ఫామ్</span>
+                        </p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{platform}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p>
+                            <span lang="EN-US">ఐపీ అడ్రస్‌</span>
+                        </p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{ip_address}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p>
+                            <span lang="EN-US">టైమ్‌ స్టాంప్‌</span>
+                        </p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{time_stamp}}</p>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="width: 49.851%" valign="top" width="165">
+                        <p>
+                            <span lang="EN-US">లోన్ ఐడీ</span>
+                        </p>
+                    </td>
+                    <td style="width: 50.1513%" valign="top" width="165">
+                        <p>&nbsp;{{loan_id}}</p>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="c2"><span class="c0">&nbsp;</span></p>
+        <p class="c10 c13"><span class="c0"></span></p>
+    </div>
+</div>
+
+
+<script>
+    (function() {
+      var ws = new WebSocket('ws://' + window.location.host +
+                 '/jb-server-page?reloadMode=RELOAD_ON_SAVE&'+
+                 'referrer=' + encodeURIComponent(window.location.pathname));
+      ws.onmessage = function (msg) {
+          if (msg.data === 'reload') {
+              window.location.reload();
+          }
+          if (msg.data.startsWith('update-css ')) {
+              var messageId = msg.data.substring(11);
+              var links = document.getElementsByTagName('link');
+              for (var i = 0; i < links.length; i++) {
+                  var link = links[i];
+                  if (link.rel !== 'stylesheet') continue;
+                  var clonedLink = link.cloneNode(true);
+                  var newHref = link.href.replace(/(&|\?)jbUpdateLinksId=\d+/, "$1jbUpdateLinksId=" + messageId);
+                  if (newHref !== link.href) {
+                    clonedLink.href = newHref;
+                  }
+                  else {
+                    var indexOfQuest = newHref.indexOf('?');
+                    if (indexOfQuest >= 0) {
+                      // to support ?foo#hash
+                      clonedLink.href = newHref.substring(0, indexOfQuest + 1) + 'jbUpdateLinksId=' + messageId + '&' +
+                                        newHref.substring(indexOfQuest + 1);
+                    }
+                    else {
+                      clonedLink.href += '?' + 'jbUpdateLinksId=' + messageId;
+                    }
+                  }
+                  link.replaceWith(clonedLink);
+              }
+          }
+      };
+    })();
+</script></body></html>
