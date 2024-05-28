@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+        p {
+          margin: 0;
+        }
+
+        .mb2 {
+          margin-bottom: 10px;
+        }
+
+        .mt10 {
+          margin-top: 10px;
+        }
+
+        .mt16 {
+          margin-top: 16px;
+        }
+
+        .content-center {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+    </style>
+</head>
+<body data-new-gr-c-s-check-loaded="14.1154.0" data-gr-ext-installed="">
+<div style = "padding:20px 30px;">
+
+
+    <p style="text-align: center; font-size: 22px;">
+        <strong
+        ><u
+        ><span>PAYMENT INSTRUCTION/AUTHORIZATION</span></u
+        ></strong
+        >
+    </p>
+    <p style="text-align: right;">
+        <span>Date:{{date}} </span>
+    </p>
+    <p class="mt16">
+      <span
+      >Resilient Innovations Private Limited (<strong>RIPL/ Offline PA</strong
+      >)</span
+      >
+    </p>
+    <p>
+        3rd Floor, Ramnath House, 18, Community
+        <span class="SpellE">Center</span>,
+    </p>
+    <p>Opp. Jet Airways, Yusuf Sarai, New Delhi-110049</p>
+    <p>
+        <span>(acting as the offline payment aggregator)</span>
+    </p>
+    <p class="mt10">
+      <span
+      ><strong
+      ><u
+      >Sub: Deduction of Due Amounts from the Settlement Amount<br /><br /></u></strong
+      >Dear Sir/ Ma'am,<br
+      /></span>
+    </p>
+    <p class="mt10">
+      <span>1.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >This is in reference to loan sanctioned to the undersigned by
+        {{name_of_lender_nbfc}} (<strong>"Lender"</strong>) vide the {{loan_id}}
+        (<strong>"Loan ID"</strong>).</span
+    >
+    </p>
+    <p class="mt10">
+      <span>2.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >Pursuant to the KFS, Sanction Letter and other loan documents ("<strong
+    >Loan Documents</strong
+    >") accepted by the undersigned, the undersigned have agreed to give an
+        irrevocable, unconditional and express consent/authorization to the
+        Offline PA to deduct the applicable installment amounts as per the
+        agreed frequency and/or any other dues stated under the Loan Documents
+        ("<strong>Due Amounts</strong>"). The Offline PA, shall upon receipt of
+        such communication/information from the Lender, deduct the Due Amounts
+        from the Settlement Amount and transfer such Due Amounts to the Lender's
+        bank account against repayment of the loan availed by the undersigned
+        vide the above-mentioned Loan ID.&nbsp;&nbsp;For clarification,
+        Settlement Amount shall&nbsp;</span
+    ><span
+    >mean the total amount collected and payable (after adjustment of the
+        applicable service charges) by the Offline PA to the Borrower on account
+        of transactions carried out on UPI, POS machines and/or or such other
+        product offerings made available to the Borrower through BharatPe
+        app.</span
+    >
+    </p>
+    <p class="mt10">
+      <span>3.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >The undersigned hereby gives its irrevocable, unconditional, and
+        express consent to the Offline PA to deduct the Due Amounts from the
+        Settlement Amount as communicated by the Lender and/or its
+        representatives and transfer such amounts to Lender's bank account as
+        repayment for the loan availed by the undersigned vide the
+        above-mentioned Loan ID.</span
+    >
+    </p>
+    <p class="mt10">
+      <span>4.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >The undersigned hereby irrevocably and unconditionally confirm that
+        these instructions/authorization in favor of the Offline PA as mentioned
+        above shall be irrevocable and shall not be revoked until the loan has
+        been repaid in full to the satisfaction of the Lender.<br /><br
+        /></span>
+    </p>
+    <p><span>Yours Sincerely,</span></p>
+    <p>
+      <span><br /></span
+      ><span>{{borrower_name}} ("Borrower")</span>
+    </p>
+    <p><span>{{pan_of_borrower}}</span></p>
+    <div class="content-center">
+        <table
+                class="mt16"
+                style="height: 365px; width: 50%; text-align: left;"
+                cellspacing="0"
+                cellpadding="0"
+                border="1"
+        >
+            <tbody>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Borrower Name</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{borrower_name}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p><span lang="EN-US">&nbsp;Date</span></p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{date}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Mobile No.</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{mobile_number_for_otp}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Platform</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{platform}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">IP Address</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{ip_address}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Time Stamp</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{time_stamp}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">Loan ID</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{loan_id}}</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p><span>&nbsp;</span></p>
+
+
+
+    <p style="text-align: center; font-size: 22px;">
+        <strong
+        ><u
+        ><span>भुगतान निर्देश/स्वीकृति</span></u
+        ></strong
+        >
+    </p>
+    <p style="text-align: right;">
+        <span>तिथि:{{date}} </span>
+    </p>
+    <p class="mt16">
+        <span>रेजिलिएंट इनोवेशंस प्राइवेट लिमिटेड <strong>(आरआईपीएल/ऑफलाइन पीए)</strong></span>
+    </p>
+    <p>
+        तीसरी मंजिल, रामनाथ हाउस, 18, सामुदायिक
+        <span class="SpellE">केंद्र</span>,
+    </p>
+    <p>जेट एयरवेज, यूसुफ सराय के सामने, नई दिल्ली-110049</p>
+    <p>
+        <span>(ऑफलाइन भुगतान एग्रीगेटर के रूप में कार्यरत)</span>
+    </p>
+    <p class="mt10">
+      <span
+      ><strong
+      ><u
+      >विषय: निपटान राशि से देय राशि की कटौती<br /><br /></u></strong
+      >प्रिय महोदय/महोदया,<br
+      /></span>
+    </p>
+    <p class="mt10">
+      <span>1.&nbsp;&nbsp;&nbsp;</span
+      ><span>
+        यह अधोहस्ताक्षरी को स्वीकृत ऋण {{name_of_lender_nbfc}} ("<strong>ऋणदाता"</strong>") ऋण आईडी {{loan_id}} ("<strong>ऋण आईडी"</strong>"). के संदर्भ में है।
+    </span>
+    </p>
+    <p class="mt10">
+      <span>2.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >अधोहस्ताक्षरी द्वारा स्वीकृत KFS, स्वीकृति पत्र और अन्य ऋण दस्तावेजों  ("<strong>ऋण दस्तावेज"</strong>") के अनुसार, अधोहस्ताक्षरी ने ऑफलाइन पीए को अपरिवर्तनीय, बिना शर्त और लागू किस्त राशि के अनुसार, आवृत्ति और/या ऋण दस्तावेजों
+        ("<strong>देय राशि</strong>"). में उल्लिखित कोई अन्य बकाया राशि की किस्त की कटौती करने हेतु सहमति/स्वीकृति व्यक्त की है। ऑफलाइन पीए को, ऋणदाता से इस तरह के संचार/सूचना की प्राप्ति के बाद, निपटान राशि से देय राशि को घटा देना चाहिए और उपर्युक्त ऋण आईडी के तहत अधोहस्ताक्षरी द्वारा प्राप्त ऋण के पुनर्भुगतान के बदले में ऐसी देय राशि को ऋणदाता के बैंक खाते में जमा करना चाहिए। स्पष्ट करने के लिए, निपटान राशि UPI, POS मशीनों और/या अन्य उत्पाद पेशकशों के माध्यम से किए गए लेनदेन के कारण ऑफलाइन पीए द्वारा ऋणी को एकत्रित और देय (लागू सेवा शुल्क के समायोजन के बाद) कुल राशि को संदर्भित करती है जो BharatPe ऐप के माध्यम से ऋणी के लिए उपलब्ध है।
+    </span>
+    </p>
+    <p class="mt10">
+      <span>3.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >इसके द्वारा अधोहस्ताक्षरी ऑफलाइन पीए को ऋणदाता और/या उसके प्रतिनिधियों द्वारा सूचित निपटान राशि से देय राशि से कटौती करने और प्राप्त ऋण के पुनर्भुगतान के रूप में ऐसी राशि ऋणदाता के बैंक खाते में उपरोक्त ऋण आईडी के तहत अधोहस्ताक्षरी द्वारा स्थानांतरित करने के लिए अपनी अपरिवर्तनीय, बिना शर्त और स्पष्ट सहमति देता है।
+</span
+    >
+    </p>
+    <p class="mt10">
+      <span>4.&nbsp;&nbsp;&nbsp;</span
+      ><span
+    >अधोहस्ताक्षरी इसके द्वारा अपरिवर्तनीय और बिना शर्त पुष्टि करता है कि ऊपर वर्णित ऑफलाइन पीए के पक्ष में निर्देश/स्वीकृति अपरिवर्तनीय हैं और जब तक ऋणदाता की संतुष्टि के अनुसार ऋण पूरी तरह से चुकाया नहीं जाता, तब तक इसे रद्द नहीं किया जाएगा।
+<br /><br
+        /></span>
+    </p>
+    <p><span>सादर, </span></p>
+    <p>
+      <span><br /></span
+      ><span>{{borrower_name}} ("Borrower")</span>
+    </p>
+    <p><span>{{pan_of_borrower}}</span></p>
+    <div class="content-center">
+        <table
+                class="mt16"
+                style="height: 365px; width: 50%; text-align: left;"
+                cellspacing="0"
+                cellpadding="0"
+                border="1"
+        >
+            <tbody>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">ऋण लेने वाले का नाम</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{borrower_name}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p><span lang="EN-US">&nbsp;तिथि</span></p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{date}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">मोबाइल नं.</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{mobile_number_for_otp}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">प्लेटफॉर्म</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{platform}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">आईपी पता</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{ip_address}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">समय मोहर</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{time_stamp}}</p>
+                </td>
+            </tr>
+            <tr>
+                <td style="width: 49.851%" valign="top" width="165">
+                    <p>
+                        <span lang="EN-US">ऋण आईडी</span>
+                    </p>
+                </td>
+                <td style="width: 50.1513%" valign="top" width="165">
+                    <p>&nbsp;{{loan_id}}</p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+    <p><span>&nbsp;</span></p>
+</div>
+</body>
+</html>

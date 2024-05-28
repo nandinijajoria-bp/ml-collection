@@ -11,7 +11,8 @@ public enum DocumentLanguageMap {
     MARATHI(Collections.singletonList("MAHARASHTRA")),
     MALAYALAM(Collections.singletonList("KERALA")),
     TAMIL(Collections.singletonList("TAMIL NADU")),
-    HINDI(Collections.singletonList(""));
+    HINDI(Collections.singletonList("")),
+    TELUGU(Arrays.asList("TELANGANA","ANDHRA PRADESH"));
 
     private final List<String> languageMap;
 
