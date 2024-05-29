@@ -726,6 +726,7 @@ public class LoanEligibleService {
                         lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
                         lendingPancard.setAadhaarSeedingStatus(aadhaarSeedingStatus);
                         lendingPancard.setDob(verifyPanCardResponseDto.getIsDobVerified()?verifyPanCardRequestDto.getDob():null);
+                        lendingPancard.setResponse(responseDto.toString());
                         lendingPancardDetailsDao.save(lendingPancard);
                     } else {
                         lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, verifyPanCardRequestDto.getPanNumber(), verifyPanCardRequestDto.getFullName(), responseDto.toString(), LendingConstants.PAN_VERIFICATION_VERSION, aadhaarSeedingStatus, verifyPanCardRequestDto.getDob()));
