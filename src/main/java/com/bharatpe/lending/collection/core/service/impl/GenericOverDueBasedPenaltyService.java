@@ -144,9 +144,9 @@ public class GenericOverDueBasedPenaltyService {
     }
 
     private double getPenaltyFromConfig(PenaltyFeeConfigSlave penaltyFeeConfigSlave, Double dueAmount) {
-        if("FLAT".equals(penaltyFeeConfigSlave.getType())){
+        /*if("FLAT".equals(penaltyFeeConfigSlave.getType())){
             return penaltyFeeConfigSlave.getPenalty();
-        }
+        }*/
         double rate = penaltyFeeConfigSlave.getPenalty();
         return dueAmount * rate;
     }
