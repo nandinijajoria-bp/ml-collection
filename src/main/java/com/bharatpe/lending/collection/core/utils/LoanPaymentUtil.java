@@ -6,7 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
@@ -20,6 +22,9 @@ public class LoanPaymentUtil {
 
     @Value("${is.new.payment.settlement.enabled:false}")
     public  boolean newPaymentSettlementModeAllowed;
+
+    @Value("${settlement.new.rollout.date:}")
+    String newSettlementRolloutDate;
 
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
@@ -66,5 +71,25 @@ public class LoanPaymentUtil {
 
     public boolean checkIfNewPaymentSettlementModeActive()  {
         return newPaymentSettlementModeAllowed;
+    }
+
+    public boolean checkIfNewSettlementAllowed(Date createdAt)  {
+        return newPaymentSettlementModeAllowed && checkNewPaymentEligibility(createdAt);
+    }
+
+    public boolean checkNewPaymentEligibility(Date createdAt)  {
+        try {
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+            String rolloutDate = newSettlementRolloutDate;
+            if (!StringUtils.isEmpty(rolloutDate)) {
+                Date date = sdf.parse(rolloutDate);
+                if (createdAt.after(date)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.info("An exception occurred while checking new loan settlement eligibility");
+        }
+        return false;
     }
 }
