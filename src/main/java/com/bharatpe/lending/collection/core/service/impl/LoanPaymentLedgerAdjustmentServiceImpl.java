@@ -6,8 +6,12 @@ import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentService;
 import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
+import com.bharatpe.lending.common.dao.PenalChargesDao;
+import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
+import com.bharatpe.lending.common.entity.PenalCharges;
+import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -19,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -45,6 +50,12 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
     @Autowired
     LendingCollectionAuditService lendingCollectionAuditService;
+
+    @Autowired
+    PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+
+    @Autowired
+    PenalChargesDao penalChargesDao;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -161,4 +172,39 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         }
     }
 
+    @Override
+    public void adjustPenaltyLedger(LendingPaymentSchedule loan, double amount, String source, boolean waveOff) {
+        if (amount > 0.5) {
+            PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), amount, source, waveOff, loan.getNbfc());
+            penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            savePenalCharges(loan, amount);
+        }
+    }
+
+    public void savePenalCharges(LendingPaymentSchedule loan, Double penaltyAdjusted) {
+        try {
+            PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
+            if (ObjectUtils.isEmpty(penalCharge)) {
+                return;
+            }
+            double nachBounceAdjusted = 0;
+            double netPenaltyAdjusted = 0;
+            if (Objects.nonNull(penalCharge.getDueNachBounce())) {
+                nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
+                netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
+                double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
+                penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
+                penalCharge.setPaidNachBounce(paidNachBounce);
+            }
+
+            if (Objects.nonNull(penalCharge.getDuePenalty())) {
+                double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
+                penalCharge.setPaidPenalty(paidPenalty);
+                penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+            }
+            penalChargesDao.save(penalCharge);
+        } catch (Exception e) {
+            log.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
+        }
+    }
 }

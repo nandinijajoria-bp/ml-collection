@@ -2,7 +2,6 @@ package com.bharatpe.lending.collection.core.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
 import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -30,4 +29,6 @@ public interface LoanPaymentLedgerAdjustmentService {
     void createLendingLedgerForExcessCollectionOnForeclosure(LendingPaymentSchedule activeLoan, List<LendingCollectionExcess> lendingCollectionExcessList);
 
     void settleExcessCollectionBalance(Long loanId, List<LendingCollectionExcess> lendingCollectionExcessList);
+
+    void adjustPenaltyLedger(LendingPaymentSchedule loan, double amount, String source, boolean waveOff);
 }

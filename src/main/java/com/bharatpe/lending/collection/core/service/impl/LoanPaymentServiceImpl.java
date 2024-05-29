@@ -181,6 +181,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         adjustExtraAmountIfAny(loan, otherAdjustment.getBalance(), payment, true);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+        ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment.getPenaltySettled(), payment.getSource(), false);
         if (payment.isUpdateGlobalTxnlimit()) updateGlobaltxnLimit(loan.getMerchantId(), "CREDIT", otherAdjustment.getPrincipleSettled());
     }
 
@@ -304,6 +305,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             ledgerAdjustmentService.adjustNachLedger(lendingCollectionExcess, nachAdjustment);
             String terminalOrderId = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + lendingCollectionExcess.getDeductionCount().toString();
             ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, "EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), terminalOrderId);
+            ledgerAdjustmentService.adjustPenaltyLedger(loan, nachAdjustment.getPenaltySettled(), source, false);
         }
     }
 
