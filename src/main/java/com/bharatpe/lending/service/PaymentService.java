@@ -203,6 +203,9 @@ public class PaymentService {
     KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
+    KafkaTemplate kafkaTemplate;
+
+    @Autowired
     ObjectMapper objectMapper;
 
     @Autowired
@@ -1507,7 +1510,7 @@ public class PaymentService {
             LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
             lendingCollectionAudit.setStatus("SUCCESS");
             lendingCollectionAuditDao.save(lendingCollectionAudit);
-            confluentKafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
+            kafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
             log.info("foreclosure event sent for application {} {}", activeLoan.getApplicationId(), nbfcRequest);
         } catch (Exception e){
             logger.error("Exception {} while posting the foreclosure receipt for application id {} {}",e.getMessage(),activeLoan.getApplicationId(), e);
