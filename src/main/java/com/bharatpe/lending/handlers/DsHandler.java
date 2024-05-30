@@ -32,6 +32,9 @@ public class DsHandler {
     @Value("${de.reference.base.url}")
     String deBaseUrl;
 
+    @Value("${de.reference.milestone.base.url}")
+    String deMileStoneBaseUrl;
+
 
     @Value("${ds.inferred.reference.base.url}")
     String globalDsBaseUrl;
@@ -193,7 +196,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deBaseUrl + "/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
+            String url = deMileStoneBaseUrl + "/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
 
             log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
 
@@ -221,7 +224,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
+            String url = deMileStoneBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
 
             log.info("DE Achieve MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
             ResponseEntity<DSMileStoneAchievementResponse> responseEntity = null;
