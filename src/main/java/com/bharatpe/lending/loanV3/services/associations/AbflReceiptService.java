@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,8 @@ import java.util.Optional;
 public class AbflReceiptService implements ILenderAssociationService<Optional> {
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -86,7 +88,7 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
                                 .build()
                 );
                 log.info("receipt msg : {}", message);
-                kafkaTemplate.send("loan-receipt", objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {
+                confluentKafkaTemplate.send("loan-receipt", objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {
                 }));
             } catch (IOException e) {
                 log.error("error occurred while posting receipt {} {} {} {}", applicationId, referenceNo, amount, e.getMessage());
@@ -131,7 +133,7 @@ public class AbflReceiptService implements ILenderAssociationService<Optional> {
             log.info("repaymentRequestDto : {} for ledgerId : {}", repaymentRequestDto, ledgerId);
             String message = objectMapper.writeValueAsString(repaymentRequestDto);
             log.info("receipt msg : {}", message);
-            kafkaTemplate.send("loan-receipt", objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {}));
+            confluentKafkaTemplate.send("loan-receipt", objectMapper.readValue(message, new TypeReference<Map<String, Object>>() {}));
             return true;
         } catch (Exception exception) {
             log.error("exception while processing the loan receipt for ledger id : {}", ledgerId, exception);

@@ -5,6 +5,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AbflKycServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,8 @@ import java.util.Optional;
 public class AbflKycService implements ILenderAssociationService<Optional> {
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -36,7 +38,7 @@ public class AbflKycService implements ILenderAssociationService<Optional> {
                 put("application_id", applicationId.toString());
             }};
             if (kafkaEnabled) {
-                kafkaTemplate.send("invoke_kyc", request);
+                confluentKafkaTemplate.send("invoke_kyc", request);
                 log.info("request pushed to kyc_invoke kafka {}", request);
             } else {
                 abflKycServiceV2.invokeKycViaAsyncApi(request);

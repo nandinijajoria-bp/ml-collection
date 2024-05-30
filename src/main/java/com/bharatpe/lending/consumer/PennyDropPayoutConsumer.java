@@ -29,6 +29,12 @@ public class PennyDropPayoutConsumer {
     @KafkaListener(concurrency = "${kafka.consumerGroup.pennydrop.payout.status.callback.concurrency:1}"
             , topics = PENNYDROP_CALLBACK_TOPIC
             , groupId = "PENNYDROP", autoStartup = "${kafka.consumerGroup.pennydrop.payout.status.callback.enabled:false}")
+    @KafkaListener(
+            concurrency = "${kafka.consumerGroup.pennydrop.payout.status.callback.concurrency:1}",
+            topics = PENNYDROP_CALLBACK_TOPIC,
+            groupId = "PENNYDROP",
+            autoStartup = "${kafka.confluent.consumer:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void handlePaymentNotifications(@Payload String rawData, @Header(KafkaHeaders.RECEIVED_PARTITION_ID) String partition
             , @Header(KafkaHeaders.OFFSET) String offset) {
         MDC.put("requestId", UUID.randomUUID().toString());
