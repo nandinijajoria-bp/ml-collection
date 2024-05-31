@@ -60,11 +60,6 @@ public class SancWrapperRequestKafka {
     MerchantService merchantService;
 
     @KafkaListener(topics = "${abfl.sanction.topic:invoke_sanction}", concurrency = "5")
-    @KafkaListener(
-            topics = "${abfl.sanction.topic:invoke_sanction}",
-            concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer:false}",
-            containerFactory = "ConfluentKafkaListenerContainer")
     public void sanctionRequestInvoke(String request) {
         MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received sanction request:{}", request);
@@ -132,11 +127,6 @@ public class SancWrapperRequestKafka {
     }
 
     @KafkaListener(topics = "${abfl.sanction.callback.topic:sanction-callback}", concurrency = "5")
-    @KafkaListener(
-            topics = "${abfl.sanction.callback.topic:sanction-callback}",
-            concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer:false}",
-            containerFactory = "ConfluentKafkaListenerContainer")
     public void sanctionCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;

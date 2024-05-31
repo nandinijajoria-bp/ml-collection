@@ -6,7 +6,6 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AbflSanctionServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -20,8 +19,7 @@ import java.util.Optional;
 @Slf4j
 public class AbflSancWrapperService implements ILenderAssociationService<Optional> {
     @Autowired
-    @Qualifier("ConfluentKafkaTemplate")
-    KafkaTemplate confluentKafkaTemplate;
+    KafkaTemplate kafkaTemplate;
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
@@ -44,7 +42,7 @@ public class AbflSancWrapperService implements ILenderAssociationService<Optiona
                 put("application_id", applicationId.toString());
             }};
             if (kafkaEnabled) {
-                confluentKafkaTemplate.send("invoke_sanction", request);
+                kafkaTemplate.send("invoke_sanction", request);
                 log.info("request pushed to invoke_sanction kafka {}", request);
             } else {
                 abflSanctionServiceV2.invokeSanctionViaAsyncApi(request);

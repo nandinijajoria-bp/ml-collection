@@ -72,11 +72,6 @@ public class BreRequestKafka {
     ConverterUtils converterUtils;
 
     @KafkaListener(topics="${abfl.bre.topic:invoke_bre}", concurrency = "5")
-    @KafkaListener(
-            topics="${abfl.bre.topic:invoke_bre}",
-            concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer:false}",
-            containerFactory = "ConfluentKafkaListenerContainer")
     public void breRequestListener(String request) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -142,10 +137,6 @@ public class BreRequestKafka {
 
     // for callback kafka event from nbfc service
     @KafkaListener(topics = "${abfl.bre.callback.topic:bureau-callback}", concurrency = "5")
-    @KafkaListener(
-            topics="${abfl.bre.callback.topic:bureau-callback}",
-            concurrency = "5",
-            containerFactory = "ConfluentKafkaListenerContainer")
     public void breCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;

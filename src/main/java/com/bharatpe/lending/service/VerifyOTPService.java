@@ -923,7 +923,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            confluentKafkaTemplate.send("check_pennydrop", merchantId.toString(), detailMap);
+            kafkaTemplate.send("check_pennydrop", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic check_pennydrop");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_pennydrop", e);
@@ -955,7 +955,7 @@ public class VerifyOTPService {
             Map<String, Long> detailMap = new HashMap<>();
             detailMap.put("merchantId", merchantId);
             detailMap.put("applicationId", applicationId);
-            confluentKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
+            kafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
             logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
@@ -1135,7 +1135,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            confluentKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
+            kafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic check_duplicate_pancard");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_duplicate_pancard", e);
