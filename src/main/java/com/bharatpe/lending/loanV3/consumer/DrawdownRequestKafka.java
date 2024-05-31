@@ -41,11 +41,6 @@ public class DrawdownRequestKafka {
 
 
     @KafkaListener(topics = "${abfl.drawdown.callback.topic:drawdown-callback}", concurrency = "5")
-    @KafkaListener(
-            topics = "${abfl.drawdown.callback.topic:drawdown-callback}",
-            concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer:false}",
-            containerFactory = "ConfluentKafkaListenerContainer")
     public void drawdownEventListener(String request) {
         try {
             MDC.put("requestId", UUID.randomUUID().toString());

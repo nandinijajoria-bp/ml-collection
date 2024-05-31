@@ -4,6 +4,7 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status.LendingStatus;
+import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
@@ -174,7 +175,7 @@ public class LoanDetailsService {
 	LendingCache lendingCache;
 
 	@Autowired
-	LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
+	DelayedMessagePublisher delayedMessagePublisher;
 
 	@Autowired
 	LendingNotificationService lendingNotificationService;

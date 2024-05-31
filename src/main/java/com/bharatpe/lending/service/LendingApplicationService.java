@@ -1631,8 +1631,7 @@ public class LendingApplicationService {
             payloadMap.put("merchant_id", merchantId);
             payloadMap.put("amount", requestDTO.getAmount());
             payloadMap.put("order_id", requestDTO.getOrderId());
-            logger.info("Deprecated topic:lending_pull_payment payload: {}", payloadMap);
-//            kafkaTemplate.send("lending_pull_payment", merchantId.toString(), payloadMap);
+            kafkaTemplate.send("lending_pull_payment", merchantId.toString(), payloadMap);
         } catch (Exception e) {
             logger.error("Error publishing to kafka ", e);
         }
