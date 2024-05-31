@@ -1582,7 +1582,10 @@ public class LiquiloansService {
             do {
                 flag = constructAbflTopupEDISchedule(paymentSchedule);
                 retry++;
-            } while (!flag && retry < 3);
+            } while (!flag && retry < 5);
+            if(!flag) {
+                constructBharatPeEDISchedule(paymentSchedule);
+            }
         } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI").contains(paymentSchedule.getNbfc()))  {
             boolean success = constructLenderEDISchedule(paymentSchedule);
             if(!success) {

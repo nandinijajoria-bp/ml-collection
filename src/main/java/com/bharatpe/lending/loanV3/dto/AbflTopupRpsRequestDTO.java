@@ -16,6 +16,7 @@ public class AbflTopupRpsRequestDTO {
     Long applicationId;
     Payload payload;
     String productName;
+    boolean topup;
 
     @Data
     @Builder

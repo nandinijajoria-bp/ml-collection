@@ -64,6 +64,7 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
                 .applicationId(applicationId)
                 .productName("LENDING")
                 .lender("ABFL")
+                .topup(true)
                 .payload(AbflTopupRpsRequestDTO.Payload.builder().applicationId(applicationId.toString()).build())
                 .build();
     }
