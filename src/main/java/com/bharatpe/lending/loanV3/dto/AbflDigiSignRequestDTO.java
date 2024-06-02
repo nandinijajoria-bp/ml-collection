@@ -16,6 +16,7 @@ public class AbflDigiSignRequestDTO {
     Long applicationId;
     Payload payload;
     String productName;
+    boolean topup;
 
     @Data
     @Builder

@@ -837,7 +837,7 @@ public class LiquiloansService {
         final BasicDetailsDto finalBasicDetailDto = basicDetailsDto;
 
 
-        if("ABFL".equalsIgnoreCase(lendingApplication.getLender()) && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+        if("ABFL".equalsIgnoreCase(lendingApplication.getLender())) {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DIGI_SIGN.name()).getLenderAssociationService(finalLendingApplication.getLender());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
@@ -1817,10 +1817,6 @@ public class LiquiloansService {
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(parsedDate);
             lendingPaymentScheduleDao.save(paymentSchedule);
-            iLenderAssociationService =
-                    lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DIGI_SIGN.name()).getLenderAssociationService(Lender.ABFL.name());
-            logger.info("Invoking digiSign API for application : {}", paymentSchedule.getApplicationId());
-            iLenderAssociationService.invoke(paymentSchedule.getApplicationId(), new HashMap<>());
             return true;
         } catch (Exception ex) {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);

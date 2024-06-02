@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
@@ -87,6 +88,7 @@ public class AbflDigiSignService {
                 .applicationId(lendingApplication.getId())
                 .lender("ABFL")
                 .productName("LENDING")
+                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
                 .payload(AbflDigiSignRequestDTO.Payload.builder()
                         .accountId(lendingApplication.getExternalLoanId())
                         .key_fact_statement(lendingKfs.getKfsDocUrl())
