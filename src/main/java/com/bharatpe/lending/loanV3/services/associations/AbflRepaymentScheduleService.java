@@ -46,7 +46,7 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
                 log.info("no lender assc record found for {}", applicationId);
                 return null;
             }
-            AbflTopupRpsRequestDTO rpsRequestDTO = createPayload(lendingApplication.get().getId());
+            AbflTopupRpsRequestDTO rpsRequestDTO = createPayload(lendingApplication.get());
             INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(rpsRequestDTO.getLender());
             AbflTopupRpsResponseDTO responseDTO = apiGatewayV3.fetchRepaymentSchedule(rpsRequestDTO);
             if (ObjectUtils.isEmpty(responseDTO)) {
@@ -59,13 +59,15 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
         }
     }
 
-    private AbflTopupRpsRequestDTO createPayload(Long applicationId) {
+    private AbflTopupRpsRequestDTO createPayload(LendingApplication lendingApplication) {
         return AbflTopupRpsRequestDTO.builder()
-                .applicationId(applicationId)
+                .applicationId(lendingApplication.getId())
                 .productName("LENDING")
                 .lender("ABFL")
                 .topup(true)
-                .payload(AbflTopupRpsRequestDTO.Payload.builder().applicationId(applicationId.toString()).build())
+                .payload(AbflTopupRpsRequestDTO.Payload.builder()
+                        .accountId(lendingApplication.getExternalLoanId())
+                        .lanNumber(lendingApplication.getNbfcId()).build())
                 .build();
     }
 

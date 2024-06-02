@@ -24,6 +24,8 @@ public class AbflTopupRpsRequestDTO {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class Payload {
-        String applicationId;
+        String accountId;
+        String txnId;
+        String lanNumber;
     }
 }
