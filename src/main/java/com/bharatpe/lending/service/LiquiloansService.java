@@ -1776,7 +1776,7 @@ public class LiquiloansService {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.RPS.name()).getLenderAssociationService(Lender.ABFL.name());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                Object abflTopupRpsResponse = iLenderAssociationService.invoke(paymentSchedule.getApplicationId(), new HashMap<>());
+                Object abflTopupRpsResponse = iLenderAssociationService.invoke(paymentSchedule.getLoanApplication().getId(), new HashMap<>());
                 abflTopupRpsResponseDTO = objectMapper.convertValue(abflTopupRpsResponse, AbflTopupRpsResponseDTO.class);
                 logger.info("response from abfl repayment schedule api for application id : {} is : {}", paymentSchedule.getLoanApplication().getId(), abflTopupRpsResponse);
             }
