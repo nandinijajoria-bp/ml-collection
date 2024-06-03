@@ -18,6 +18,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -67,7 +68,8 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
                 .topup(true)
                 .payload(AbflTopupRpsRequestDTO.Payload.builder()
                         .accountId(lendingApplication.getExternalLoanId())
-                        .lanNumber(lendingApplication.getNbfcId()).build())
+                        .lanNumber(lendingApplication.getNbfcId())
+                        .txnId(UUID.randomUUID().toString()).build())
                 .build();
     }
 
