@@ -63,6 +63,11 @@ public class DataUploadRequestKafka {
     ExecutorService executorService = Executors.newFixedThreadPool(2);
 
     @KafkaListener(topics = "${abfl.dataupload.topic:invoke_data_upload}", concurrency = "5")
+    @KafkaListener(
+            topics="${abfl.dataupload.topic:invoke_data_upload}",
+            concurrency = "5",
+            autoStartup = "${kafka.confluent.consumer:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void invokeDocUpload(String request) {
         MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received doc upload request:{}", request);
