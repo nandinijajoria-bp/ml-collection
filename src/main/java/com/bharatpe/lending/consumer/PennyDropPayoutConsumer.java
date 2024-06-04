@@ -33,7 +33,7 @@ public class PennyDropPayoutConsumer {
             concurrency = "${kafka.consumerGroup.pennydrop.payout.status.callback.concurrency:1}",
             topics = PENNYDROP_CALLBACK_TOPIC,
             groupId = "PENNYDROP",
-            autoStartup = "${kafka.confluent.consumer:false}",
+            autoStartup = "${kafka.confluent.consumer.new:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void handlePaymentNotifications(@Payload String rawData, @Header(KafkaHeaders.RECEIVED_PARTITION_ID) String partition
             , @Header(KafkaHeaders.OFFSET) String offset) {

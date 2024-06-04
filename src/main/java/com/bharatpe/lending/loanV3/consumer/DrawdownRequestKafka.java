@@ -44,7 +44,7 @@ public class DrawdownRequestKafka {
     @KafkaListener(
             topics="${abfl.drawdown.callback.topic:drawdown-callback}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer:false}",
+            autoStartup = "${kafka.confluent.consumer.new:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void drawdownEventListener(String request) {
         try {

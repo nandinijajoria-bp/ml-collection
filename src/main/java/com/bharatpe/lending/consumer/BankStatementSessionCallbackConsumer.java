@@ -29,7 +29,7 @@ public class BankStatementSessionCallbackConsumer {
             topics = BANK_STATEMENT_SESSION_CALLBACK_TOPIC,
             concurrency = "${kafka.consumerGroup.bank.statement.session.callback.concurrency:1}",
             groupId = "BANKSTATEMENT",
-            autoStartup = "${kafka.confluent.consumer:false}",
+            autoStartup = "${kafka.confluent.consumer.new:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void bankStatementSessionCallback(@Payload String rawData, @Header(KafkaHeaders.RECEIVED_PARTITION_ID) String partition
             , @Header(KafkaHeaders.OFFSET) String offset){
