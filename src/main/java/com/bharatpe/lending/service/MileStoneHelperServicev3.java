@@ -9,7 +9,6 @@ import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
@@ -65,17 +64,10 @@ public class MileStoneHelperServicev3 {
     ObjectMapper objectMapper;
 
     @Autowired
-    EasyLoanUtil easyLoanUtil;
-
-    @Autowired
     ExperianDao experianDao;
 
     @Autowired
     LendingPincodesDao lendingPincodesDao;
-
-    @Value("${merchant.milestone.target.user:100}")
-    Integer milestoneTargetUser;
-
     @Autowired
     KycHandler kycHandler;
 
@@ -90,10 +82,6 @@ public class MileStoneHelperServicev3 {
 
         try {
             List<Long> rteEligibleMerchants = loanUtil.rteEligibleMerchant();
-            if(isNotEligibleForMilestone(merchant, rteEligibleMerchants)) {
-                log.info("ineligible due to not present in percent scale up or not in list for merchantId:{}", merchant.getId());
-                return inEligibleForRTEResponse(responseDto);
-            }
 
             List<MileStoneEntity> entityList = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), RTESessionStatus.COMPLETED.name());
             log.info("entityList is {}", entityList.size());
@@ -543,11 +531,6 @@ public class MileStoneHelperServicev3 {
         responseDto.setMilStoneEligibility(false);
         responseDto.setEnrollState(false);
         return responseDto;
-    }
-
-    private boolean isNotEligibleForMilestone(BasicDetailsDto merchant, List<Long> rteEligibleMerchants) {
-        return (!easyLoanUtil.percentScaleUp(merchant.getId(), milestoneTargetUser)
-                && !rteEligibleMerchants.contains(merchant.getId()));
     }
 
     private MileStoneEligibilityResponseDto experianNotFound(BasicDetailsDto merchant, Experian experian,String kycPancard, int pincode, MileStoneEligibilityResponseDto responseDto) {

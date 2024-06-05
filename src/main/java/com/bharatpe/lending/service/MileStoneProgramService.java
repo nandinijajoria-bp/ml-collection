@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.query.entity.MileStoneSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.MapperUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -114,6 +115,9 @@ public class MileStoneProgramService {
     @Value("${enable.rte.v3:true}")
     boolean isRtev3Enabled;
 
+    @Value("${rte.v3.rollout:10}")
+    int rtev3RolloutPercent;
+
     @Autowired
     DateTimeUtil dateTimeUtil;
 
@@ -129,6 +133,9 @@ public class MileStoneProgramService {
     @Autowired
     MileStoneHelperServicev3 mileStoneHelperServicev3;
 
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
 
     public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant, String loanAmount) {
         log.info("checking milestone eligibility for merchant id {}", merchant.getId());
@@ -141,9 +148,9 @@ public class MileStoneProgramService {
             lendingCache.add(addCacheDto, TimeUnit.DAYS);
         }
 
-        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = isRtev3Enabled ?
-                mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(loanAmount)) :
-                mileStoneHelperService.calculateEligibility(merchant);
+        MileStoneEligibilityResponseDto mileStoneEligibilityResponseDto = isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)
+                ? mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(loanAmount))
+                : mileStoneHelperService.calculateEligibility(merchant);
 
         if (Boolean.TRUE.equals(mileStoneEligibilityResponseDto.getMilStoneEligibility())) {
             return new ApiResponse<>(mileStoneEligibilityResponseDto, "200", "ELIGIBLE");
@@ -213,8 +220,14 @@ public class MileStoneProgramService {
             BureauResponseDTO.BureauVariables variables = new BureauResponseDTO.BureauVariables();
             variables.setBbs(0D);
             variables.setBureauScore(0D);
-            response = dsHandler.fetchMileStoneDatav3(merchant.getId(), variables.getBureauScore(),
-                    variables.getBbs(), pinCodeColor, loanAmountOfMerchant);
+
+            if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
+                response = dsHandler.fetchMileStoneDatav3(merchant.getId(), variables.getBureauScore(),
+                        variables.getBbs(), pinCodeColor, loanAmountOfMerchant);
+            }else{
+                response = dsHandler.fetchMileStoneData(merchant.getId(), variables.getBureauScore(),
+                        variables.getBbs(), pinCodeColor);
+            }
 
             if (!ObjectUtils.isEmpty(response) && !ObjectUtils.isEmpty(response.getTarget())) {
                 return new ApiResponse<>(response);
@@ -226,8 +239,15 @@ public class MileStoneProgramService {
                     responseDTO.getVariables().getBureauScore(),
                     responseDTO.getVariables().getBbs(),
                     pinCodeColor);
-            response = dsHandler.fetchMileStoneDatav3(merchant.getId(), responseDTO.getVariables().getBureauScore(),
-                    responseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant);
+
+            if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
+                response = dsHandler.fetchMileStoneDatav3(merchant.getId(), responseDTO.getVariables().getBureauScore(),
+                        responseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant);
+            }else{
+                response = dsHandler.fetchMileStoneData(merchant.getId(), responseDTO.getVariables().getBureauScore(),
+                        responseDTO.getVariables().getBbs(), pinCodeColor);
+            }
+
             if (!ObjectUtils.isEmpty(response) && !ObjectUtils.isEmpty(response.getTarget())) {
                 return new ApiResponse<>(response);
             }
@@ -249,9 +269,9 @@ public class MileStoneProgramService {
         }
 
         try {
-            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                    mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId()))) :
-                    mileStoneHelperService.calculateEligibility(merchant);
+            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)
+                    ? mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId())))
+                    : mileStoneHelperService.calculateEligibility(merchant);
 
             if (Boolean.TRUE.equals(responseDto.getMilStoneEligibility())) {
                 entity = mileStoneHelperService.createMileStoneSession(merchant.getId(), dsMileStoneResponse, dsMileStoneResponse.getTarget_duration_days());
@@ -592,9 +612,9 @@ public class MileStoneProgramService {
                 log.info("exception while fetching response is: {}", e.getMessage());
             }
         }
-        MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
-                mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId()))) :
-                mileStoneHelperService.calculateEligibility(merchant);
+        MileStoneEligibilityResponseDto responseDto = isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)
+                ? mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId())))
+                : mileStoneHelperService.calculateEligibility(merchant);
 
         log.info("response dto is--->{}", responseDto);
         rteProgramDetailsDto.setRouteToEligibilityData(responseDto);

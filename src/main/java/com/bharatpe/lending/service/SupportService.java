@@ -243,6 +243,9 @@ public class SupportService {
     @Value("${enable.rte.v3:true}")
     boolean isRtev3Enabled;
 
+    @Value("${rte.v3.rollout:10}")
+    int rtev3RolloutPercent;
+
     @Autowired
     MileStoneHelperServicev3 mileStoneHelperServicev3;
 
@@ -2743,7 +2746,7 @@ public class SupportService {
         logger.info("basic Details of Merchant{} for milestone program for merchantId {}", basicDetailsDto, merchantId);
         if (basicDetailsDto.isPresent()) {
 //            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
-            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled ?
+            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled && easyLoanUtil.percentScaleUp(merchantId, rtev3RolloutPercent)?
                     mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get(), !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId))) :
                     mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
 
