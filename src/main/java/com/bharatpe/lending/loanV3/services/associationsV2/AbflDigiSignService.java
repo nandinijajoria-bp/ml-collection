@@ -132,7 +132,7 @@ public class AbflDigiSignService {
             lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_DOC_UPLOAD_HARD_FAILED.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         } catch (Exception e) {
-            log.error("exception while processing KYC callback of Muthoot for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("exception while processing DIGI sign callback of ABFL for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return false;
     }
