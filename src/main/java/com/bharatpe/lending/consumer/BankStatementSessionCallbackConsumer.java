@@ -25,6 +25,12 @@ public class BankStatementSessionCallbackConsumer {
     @KafkaListener(concurrency = "${kafka.consumerGroup.bank.statement.session.callback.concurrency:1}"
             , topics = BANK_STATEMENT_SESSION_CALLBACK_TOPIC
             , groupId = "BANKSTATEMENT", autoStartup = "${kafka.consumerGroup.bank.statement.session.callback.enabled:false}")
+    @KafkaListener(
+            topics = BANK_STATEMENT_SESSION_CALLBACK_TOPIC,
+            concurrency = "${kafka.consumerGroup.bank.statement.session.callback.concurrency:1}",
+            groupId = "BANKSTATEMENT",
+            autoStartup = "${kafka.confluent.consumer.new:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void bankStatementSessionCallback(@Payload String rawData, @Header(KafkaHeaders.RECEIVED_PARTITION_ID) String partition
             , @Header(KafkaHeaders.OFFSET) String offset){
         log.info("Start processing bank statement session callback for : {}, partition: {}, offset: {}", rawData, partition, offset);
