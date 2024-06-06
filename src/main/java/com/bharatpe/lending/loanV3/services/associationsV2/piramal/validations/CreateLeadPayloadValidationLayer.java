@@ -1,8 +1,10 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.validations;
 
+import com.bharatpe.lending.loanV3.NameDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -22,9 +24,13 @@ public class CreateLeadPayloadValidationLayer {
     @Autowired
     APIGatewayService apiGatewayService;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     public boolean isInValidPayload(CKycResponseDto cKycResponseDto) {
-        return ( ObjectUtils.isEmpty(kycUtils.getFirstName(cKycResponseDto)) ||
-                ObjectUtils.isEmpty(kycUtils.getLastName(cKycResponseDto)) ||
+        NameDetailsDto nameDetailsDto = loanUtil.getSegregatedNameDetails(cKycResponseDto);
+        return ( ObjectUtils.isEmpty(nameDetailsDto.getFirstName()) ||
+                ObjectUtils.isEmpty(nameDetailsDto.getLastName()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getDob()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getCity()) ||

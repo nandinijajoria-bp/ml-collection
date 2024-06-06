@@ -44,6 +44,8 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.NameDetailsDto;
+import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -2185,6 +2187,27 @@ public class LoanUtil {
 		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
+	}
+
+	public NameDetailsDto getSegregatedNameDetails(CKycResponseDto cKycResponseDto){
+		String fullName = cKycResponseDto.getPanName();
+		fullName = fullName.trim();
+		NameDetailsDto nameDetailsDto = new NameDetailsDto();
+		nameDetailsDto.setFirstName("");
+		nameDetailsDto.setMiddleName("");
+		nameDetailsDto.setLastName("");
+		if(ObjectUtils.isEmpty(fullName)){
+			return nameDetailsDto;
+		}
+		if(fullName.contains(" ")){
+			String firstName = fullName.substring(0, fullName.indexOf(" ")).trim();
+			String lastName = fullName.substring(fullName.indexOf(" ")).trim();
+			nameDetailsDto.setFirstName(firstName);
+			nameDetailsDto.setLastName(lastName);
+			return nameDetailsDto;
+		}
+		nameDetailsDto.setFirstName(fullName);
+		return nameDetailsDto;
 	}
 
 }

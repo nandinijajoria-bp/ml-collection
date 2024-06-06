@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.NameDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.enums.StateMapping;
@@ -16,6 +17,7 @@ import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,9 @@ public class CreateLeadService {
 
     @Autowired
     CreateLeadPayloadValidationLayer createLeadPayloadValidationLayer;
+
+    @Autowired
+    LoanUtil loanUtil;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -104,9 +109,10 @@ public class CreateLeadService {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsDto.getCKycResponseDto();
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
-            String firstName = kycUtils.getFirstName(cKycResponseDto);
-            String middleName = kycUtils.getMiddleName(cKycResponseDto);
-            String lastName = kycUtils.getLastName(cKycResponseDto);
+            NameDetailsDto nameDetailsDto = loanUtil.getSegregatedNameDetails(cKycResponseDto);
+            String firstName = nameDetailsDto.getFirstName();
+            String middleName = nameDetailsDto.getMiddleName();
+            String lastName = nameDetailsDto.getLastName();
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
             applicant.add(getApplicantDetails(cKycResponseDto, firstName, middleName, lastName));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
