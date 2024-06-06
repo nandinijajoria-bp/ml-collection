@@ -13,6 +13,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +95,14 @@ public class NbfcUtils {
 //        lendingApplicationDetailsDao.save(lendingApplicationDetails);
         // TODO: 12/12/22 todo final uncomment this
         if (enableLenderChange) {
+            if(!Arrays.asList(LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE, LendingViewStates.LENDER_EVALUATION_PAGE).contains(lendingApplicationDetails.getApplicationViewState())
+                    || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
+                log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
+                lendingApplication.setStatus("rejected");
+                lendingApplicationDao.save(lendingApplication);
+                lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
+                return;
+            }
             Lender modifiedLender = lenderAssignService.modifyLender(lendingApplication.getId());
             if(ObjectUtils.isEmpty(modifiedLender)) {
                 log.info("modifiedLender is null, rejecting application for applicationId {}", lendingApplication.getId());
