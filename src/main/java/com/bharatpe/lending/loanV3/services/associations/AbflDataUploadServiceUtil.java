@@ -127,6 +127,9 @@ public class AbflDataUploadServiceUtil {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
+    @Autowired
+    ABFLDigiSignService abflDigiSignService;
+
     private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public void uploadRegulatoryData(Long applicationId) {
@@ -474,7 +477,7 @@ public class AbflDataUploadServiceUtil {
         try {
             DigitalDataUploadResponse digitalDataUploadResponse = apiGatewayV3.invokeDigitalDataUpload(digitalDataUploadRequest);
             if (ObjectUtils.isEmpty(digitalDataUploadResponse) || ObjectUtils.isEmpty(digitalDataUploadResponse.getData()) ||
-                !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digitalDataUploadResponse.getData().getResponseStatus())
+                    !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digitalDataUploadResponse.getData().getResponseStatus())
             ) {
                 response = LenderAssociationStatus.DGTL_UPLOAD_FAILED.name();
             }
@@ -527,7 +530,7 @@ public class AbflDataUploadServiceUtil {
     }
 
     @Async
-    public void pushDataToNbfc(Long applicationId, List<String> documents, boolean systemMangedState) {
+    public void pushDataToNbfc(Long applicationId, List<String> documents, boolean systemMangedState, boolean digiSignRetry) {
         if (systemMangedState) {
             try {
                 log.info("invoking regulatory for {}", applicationId);
@@ -547,6 +550,14 @@ public class AbflDataUploadServiceUtil {
             uploadDocuments(applicationId, documents, systemMangedState);
         } catch (Exception e) {
             log.error("error occurred while uploading docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+        }
+        if(digiSignRetry){
+            try {
+                log.info("invoking digiSign for {}", applicationId);
+                abflDigiSignService.invoke(applicationId, new HashMap<>());
+            } catch (Exception e) {
+                log.error("error occurred while uploading digisign docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+            }
         }
     }
 }

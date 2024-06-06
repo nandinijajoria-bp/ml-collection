@@ -47,21 +47,29 @@ public class AbflDigiSignService {
     @Autowired
     DocUploadUtils docUploadUtils;
 
-    public AbflDigiSignResponseDTO invokeDigiSign(Long applicationId) {
+    public AbflDigiSignResponseDTO invokeDigiSign(Long applicationId, LendingApplication lendingApplication) {
         try {
-            Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
-            if (!lendingApplicationOptional.isPresent()) {
-                log.info("DIGI sign: no application found for id {}", applicationId);
-                return null;
-            }
-            LendingApplication lendingApplication = lendingApplicationOptional.get();
+            log.info("DIGI sign: initiating for abfl lender for applicationId: {}", applicationId);
             AbflDigiSignRequestDTO digiSignRequest = createPayload(lendingApplication);
             INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(digiSignRequest.getLender());
             AbflDigiSignResponseDTO digiSignResponseDTO = apiGatewayV3.invokeDigiSign(digiSignRequest);
-            if (ObjectUtils.isEmpty(digiSignResponseDTO) || !digiSignResponseDTO.getSuccess() ||
-                    ObjectUtils.isEmpty(digiSignResponseDTO.getData()) || !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digiSignResponseDTO.getData().getResponseStatus())
+            if (ObjectUtils.isEmpty(digiSignResponseDTO)
+                    || !digiSignResponseDTO.getSuccess()
+                    || ObjectUtils.isEmpty(digiSignResponseDTO.getData())
+                    || !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digiSignResponseDTO.getData().getResponseStatus())
+                    || (!ObjectUtils.isEmpty(digiSignResponseDTO.getData())
+                    && !ObjectUtils.isEmpty(digiSignResponseDTO.getData().getData())
+                    && !ObjectUtils.isEmpty(digiSignResponseDTO.getData().getData().getSuccess_message())
+                    && !ObjectUtils.isEmpty(digiSignResponseDTO.getData().getData().getSuccess_message().getStatus()))
             ) {
                 log.error("DIGI sign: Unable to initiate digiSign request at lender for : {}", applicationId);
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
+                if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                    lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_DOC_UPLOAD_INIT_FAILED.name());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                }else {
+                    log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+                }
                 return digiSignResponseDTO;
             }
             log.info("DIGI sign: successfully placed the digi sign request at lender for {}", applicationId);
@@ -113,15 +121,15 @@ public class AbflDigiSignService {
             if (Objects.nonNull(nbfcResponseDTO.getData()) && nbfcResponseDTO.getSuccess()) {
                 AbflDigiSignStatusResponseDTO digitalSignCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), AbflDigiSignStatusResponseDTO.class);
                 log.info("DIGI sign: callback Response for id {} {}", nbfcResponseDTO.getApplicationId(), digitalSignCallbackResponseDto);
-                    if (!ObjectUtils.isEmpty(digitalSignCallbackResponseDto) && !ObjectUtils.isEmpty(digitalSignCallbackResponseDto.getData()) && !ObjectUtils.isEmpty(digitalSignCallbackResponseDto.getData().getShortUrl())) {
-                        lendingApplicationLenderDetails.setDigitalDataUploadStatus(LenderAssociationStatus.DIGI_SIGN_COMPLETE.name());
-                        lendingApplicationLenderDetails.setESignedSanc(Boolean.TRUE);
-                        lendingApplicationLenderDetails.setESignedKfs(Boolean.TRUE);
-                        docUploadUtils.saveESignedDocs(lendingApplication.getId(), digitalSignCallbackResponseDto.getData().getShortUrl(), digitalSignCallbackResponseDto.getData().getShortUrl());
-                        return true;
-                    }
+                if (!ObjectUtils.isEmpty(digitalSignCallbackResponseDto) && !ObjectUtils.isEmpty(digitalSignCallbackResponseDto.getData()) && !ObjectUtils.isEmpty(digitalSignCallbackResponseDto.getData().getShortUrl())) {
+                    lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_DOC_UPLOAD_COMPLETED.name());
+                    lendingApplicationLenderDetails.setESignedSanc(Boolean.TRUE);
+                    lendingApplicationLenderDetails.setESignedKfs(Boolean.TRUE);
+                    docUploadUtils.saveESignedDocs(lendingApplication.getId(), digitalSignCallbackResponseDto.getData().getShortUrl(), digitalSignCallbackResponseDto.getData().getShortUrl());
+                    return true;
+                }
             }
-            lendingApplicationLenderDetails.setDigitalDataUploadStatus(LenderAssociationStatus.DIGI_SIGN_FAILED.name());
+            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_DOC_UPLOAD_HARD_FAILED.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         } catch (Exception e) {
             log.error("exception while processing KYC callback of Muthoot for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
