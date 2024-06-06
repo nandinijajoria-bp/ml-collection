@@ -193,26 +193,30 @@ public class LoanUtilV3 {
     }
 
     public boolean isPanNsdlVerified(String token, Long merchantId){
-        LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-        if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
-            log.info("PAN previously verifies for merchant:{}", merchantId);
-            return true;
-        }
-        else {
-            String kycPancard = kycHandler.getPanNumber(merchantId);
-            log.info("pancard fetched from kyc : {}", kycPancard);
-            PanFetchKYCResponseDto response = kycHandler.panFetch(token, kycPancard, merchantId);
-            if (!ObjectUtils.isEmpty(response) && Objects.nonNull(response.getStatus()) && response.getStatus()) {
-                PanFetchKYCResponseDto.Data data = response.getData();
-                if (!ObjectUtils.isEmpty(data)) {
-                    if (Objects.nonNull(data.getIsPanNsdlVerified()) && data.getIsPanNsdlVerified()) {
-                        log.info("pan is nsdl verified for {}", merchantId);
-                        return true;
+        try{
+            LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
+                log.info("PAN previously verifies for merchant:{}", merchantId);
+                return true;
+            }
+            else {
+                String kycPancard = kycHandler.getPanNumber(merchantId);
+                log.info("pancard fetched from kyc : {}", kycPancard);
+                PanFetchKYCResponseDto response = kycHandler.panFetch(token, kycPancard, merchantId);
+                if (!ObjectUtils.isEmpty(response) && Objects.nonNull(response.getStatus()) && response.getStatus()) {
+                    PanFetchKYCResponseDto.Data data = response.getData();
+                    if (!ObjectUtils.isEmpty(data)) {
+                        if (Objects.nonNull(data.getIsPanNsdlVerified()) && data.getIsPanNsdlVerified()) {
+                            log.info("pan is nsdl verified for {}", merchantId);
+                            return true;
+                        }
                     }
                 }
             }
+            log.info("nsdl verified pan not available for {}", merchantId);
+        }catch (Exception e) {
+            log.error("error while fetching pan nsdl validity for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
-        log.info("nsdl verified pan not available for {}", merchantId);
         return false;
     }
 }

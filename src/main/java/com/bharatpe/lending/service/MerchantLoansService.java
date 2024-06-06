@@ -40,6 +40,7 @@ import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -217,6 +218,9 @@ public class MerchantLoansService {
 
     @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
+
+    @Autowired
+    LoanUtilV3 loanUtilV3;
 
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
@@ -587,7 +591,7 @@ public class MerchantLoansService {
                         responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
-                        responseDTO.setIsPanNsdlVerified(isPanNsdlVerified(merchantId, token));
+                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(token, merchantId));
                     }
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
@@ -616,31 +620,6 @@ public class MerchantLoansService {
         }
         return responseDTO;
     }
-
-    private boolean isPanNsdlVerified(Long merchantId, String token){
-        try {
-            LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
-                logger.info("pan is already nsdl verified for {}", merchantId);
-                return true;
-            }
-            String kycPancard = kycHandler.getPanNumber(merchantId);
-            PanFetchKYCResponseDto response = kycHandler.panFetch(token, kycPancard, merchantId);
-            if (response != null && response.getStatus()) {
-                PanFetchKYCResponseDto.Data data = response.getData();
-                if (data != null) {
-                    if (data.getIsPanNsdlVerified() != null) {
-                        logger.info("pan nsdl validity fetched from api for {}", merchantId);
-                        return true;
-                    }
-                }
-            }
-        }catch (Exception e) {
-            log.error("error while fetching pan nsdl validity for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
-        }
-        return false;
-    }
-
 
     public boolean showChangeBankAccountBanner(BankAccountDetails bankAccountDetails, Long merchantId) {
 
