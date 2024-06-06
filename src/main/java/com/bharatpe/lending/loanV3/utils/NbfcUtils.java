@@ -70,7 +70,6 @@ public class NbfcUtils {
             lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
         }
         log.info("changing lender for the application {}", lendingApplication.getId());
-        // restore this
         if (enableLenderChange) {
             existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
         }
@@ -82,18 +81,6 @@ public class NbfcUtils {
             existingLendingApplicationLenderDetails.setSanctionStatus(lenderAssociationStatus.name());
         }
         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-        // TODO: 08/11/22 todo final integrate with lender change svc (set lender in app and modify app details params)
-//        Lender lender = iLenderAssignment.changeLender(lendingApplication.getId());
-//        Lender lender = Lender.LDC;
-//        lendingApplication.setLender(lender.name());
-//        lendingApplicationDao.save(lendingApplication);
-//        // TODO: 08/11/22  todo final these can be removed later
-//        if (!lendingApplicationDetails.getEdiModel().equalsIgnoreCase(LenderOffDays.valueOf(lender.name()).getEdiModel().name())) {
-//            lendingApplicationDetails.setEdiModel(LenderOffDays.valueOf(lender.name()).getEdiModel().name());
-//            lendingApplicationDetails.setEdiModelModified(Boolean.TRUE);
-//        }
-//        lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        // TODO: 12/12/22 todo final uncomment this
         if (enableLenderChange) {
             if(!Arrays.asList(LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE, LendingViewStates.LENDER_EVALUATION_PAGE).contains(lendingApplicationDetails.getApplicationViewState())
                     || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
