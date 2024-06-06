@@ -2197,7 +2197,10 @@ public class LoanUtil {
 		nameDetailsDto.setMiddleName("");
 		nameDetailsDto.setLastName("");
 		if(ObjectUtils.isEmpty(fullName)){
-			return nameDetailsDto;
+			if(ObjectUtils.isEmpty(cKycResponseDto.getName())){
+				return nameDetailsDto;
+			}
+			fullName = cKycResponseDto.getName();
 		}
 		if(fullName.contains(" ")){
 			String firstName = fullName.substring(0, fullName.indexOf(" ")).trim();
