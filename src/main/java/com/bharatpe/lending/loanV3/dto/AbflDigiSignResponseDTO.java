@@ -55,7 +55,6 @@ public class AbflDigiSignResponseDTO {
         String Status;
     }
 
-    // todo to be discussed with Tarsem about using this here instead of AbflTopupRpsResponseDTO.RpsResponse data;
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @NoArgsConstructor
