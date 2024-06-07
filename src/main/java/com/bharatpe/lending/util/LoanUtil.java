@@ -53,6 +53,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -155,6 +156,10 @@ public class LoanUtil {
 
 	@Autowired
 	KafkaTemplate<String, Object> kafkaTemplate;
+
+	@Autowired
+	@Qualifier("ConfluentKafkaTemplate")
+	KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -1990,7 +1995,7 @@ public class LoanUtil {
 		loanDisbursalDto.setGenerateReport(generateReportFlag);
 		loanDisbursalDto.setRequestId(requestId);
 		logger.info("loanDisbursalDto for {} : {}", lendingApplication.getId(), loanDisbursalDto);
-		kafkaTemplate.send(
+		confluentKafkaTemplate.send(
 				Objects.requireNonNull(LendingConstants.PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC),
 				lendingApplication.getId().toString(),
 				loanDisbursalDto
