@@ -115,7 +115,7 @@ public class MileStoneProgramService {
     @Value("${enable.rte.v3:true}")
     boolean isRtev3Enabled;
 
-    @Value("${rte.v3.rollout:10}")
+    @Value("${rte.v3.rollout.percent:10}")
     int rtev3RolloutPercent;
 
     @Autowired
