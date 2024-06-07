@@ -18,6 +18,7 @@ public class DSMileStoneResponse {
 
     public int target_duration_days;
     public String loan_amount;
+    public Integer max_limit;
 
     @JsonProperty("target")
     public ArrayList<Target> target;

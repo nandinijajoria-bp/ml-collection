@@ -193,7 +193,7 @@ public class MileStoneHelperServicev3 {
 
 
             if (!RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(sessionStatus) && !ObjectUtils.isEmpty(bureauResponseDTO)) {
-                handlingBureauResponse(merchant, bureauResponseDTO, responseDto, experian,  pinCodeColor, kycPancard);
+                callDSMileStoneApi(merchant, bureauResponseDTO, responseDto, experian,  pinCodeColor, kycPancard);
                 if(!responseDto.getMilStoneEligibility()) {
                     return responseDto;
                 }
@@ -284,6 +284,7 @@ public class MileStoneHelperServicev3 {
     }
 
     private MileStoneEligibilityResponseDto setGraphData(BasicDetailsDto merchant, DSMileStoneResponse mileStoneResponse, DSMileStoneAchievementResponse achievementResponse, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, MileStoneEntity entity, String mileStoneCacheKey, Object mileStoneCacheResponse, Experian experian, String kycPancard) {
+        log.info("Building graph data for merchantId: {}", merchant.getId());
         try {
             //TODO
             int value = 100 / mileStoneResponse.getTarget().size();
@@ -366,10 +367,12 @@ public class MileStoneHelperServicev3 {
                     responseDto.setEnrollState(false);
                     log.info("setting program type when session is in progress for merchantId: {} {}", merchant.getId(), responseDto);
                     responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
+                    responseDto.setMaxLimit(ObjectUtils.isEmpty(mileStoneResponse.getMax_limit()) ? null : mileStoneResponse.getMax_limit());
                     responseDto.setGraphData(graph);
                     responseDto.setWeekCount(daysCount);
                     responseDto.setPinCode(experian.getPincode());
                     responseDto.setPanCard(kycPancard);
+
                     if (bureauResponseDTO!=null){
                         responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
                         responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
@@ -404,6 +407,7 @@ public class MileStoneHelperServicev3 {
             responseDto.setIsEligibleForReapply(true);
             log.info("setting program type while building graph data for merchantId:{} {}", merchant.getId(), responseDto);
             responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
+            responseDto.setMaxLimit(ObjectUtils.isEmpty(mileStoneResponse.getMax_limit()) ? null : mileStoneResponse.getMax_limit());
         }catch (Exception e) {
             log.error("Exception while building graph data for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
@@ -411,8 +415,8 @@ public class MileStoneHelperServicev3 {
     }
 
     private MileStoneEligibilityResponseDto manageExpiryForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO,DSMileStoneResponse mileStoneResponse, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard) {
+        log.info("achievement response is null for merchantId:{}", merchant.getId());
         try {
-            log.info("achievement response is null for merchantId:{}", merchant.getId());
             responseDto.setDsErrorMessage("achievement response is null");
             responseDto.setMilStoneEligibility(true);
             responseDto.setEnrollState(true);
@@ -422,6 +426,8 @@ public class MileStoneHelperServicev3 {
             responseDto.setPanCard(kycPancard);
             log.info("setting program type during expiry management for merchantId: {} {}", merchant.getId(), responseDto);
             responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
+            responseDto.setMaxLimit(ObjectUtils.isEmpty(mileStoneResponse.getMax_limit()) ? null : mileStoneResponse.getMax_limit());
+
             if (bureauResponseDTO!=null){
                 responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
                 responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
@@ -446,6 +452,7 @@ public class MileStoneHelperServicev3 {
         responseDto.setWeekCount(null);
         log.info("setting program type while updating response for either fresh user or re-enroll merchantId:{} {}", merchant.getId(), responseDto);
         responseDto.setProgramType(ObjectUtils.isEmpty(responseDto.getProgramType()) ? RTEProgramType.NEW_MERCHANT.name() : responseDto.getProgramType());
+        responseDto.setMaxLimit(ObjectUtils.isEmpty(responseDto.getMaxLimit()) ? null : responseDto.getMaxLimit());
         responseDto.setPinCode(experian.getPincode());
         responseDto.setPanCard(kycPancard);
         responseDto.setIsEligibleForReapply(true);
@@ -481,21 +488,21 @@ public class MileStoneHelperServicev3 {
         return null;
     }
 
-    private void handlingBureauResponse(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
+    private void callDSMileStoneApi(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
         try {
             String rteV3AmountKey = RTEConstants.RTE_V3_AMOUNT + merchant.getId();
             String loanAmountOfMerchant = ObjectUtils.isEmpty(lendingCache.get(rteV3AmountKey)) ? "25k" : (String) lendingCache.get(rteV3AmountKey);
 
             if (!ObjectUtils.isEmpty(bureauResponseDTO)) {
                 if (bureauResponseDTO.getIsNTC() == Boolean.TRUE) {
-                    callMerchantMileStoneDSApi(merchant, 0D, 0D, pinCodeColor, loanAmountOfMerchant, responseDto, experian, kycPancard, bureauResponseDTO.getIsNTC());
+                    callMerchantMileStoneDSApi(merchant, 0D, 0D, pinCodeColor, loanAmountOfMerchant, responseDto, bureauResponseDTO.getIsNTC());
                 }
                 if (bureauResponseDTO.getIsNTC() != Boolean.TRUE
                         && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) &&
                         (bureauResponseDTO.getVariables().getBureauScore() != null
                                 && bureauResponseDTO.getVariables().getBbs() != null)) {
 
-                    callMerchantMileStoneDSApi(merchant, bureauResponseDTO.getVariables().getBureauScore(), bureauResponseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant, responseDto, experian, kycPancard, bureauResponseDTO.getIsNTC());
+                    callMerchantMileStoneDSApi(merchant, bureauResponseDTO.getVariables().getBureauScore(), bureauResponseDTO.getVariables().getBbs(), pinCodeColor, loanAmountOfMerchant, responseDto, bureauResponseDTO.getIsNTC());
                 }
             }
         }catch (Exception e) {
@@ -503,12 +510,12 @@ public class MileStoneHelperServicev3 {
         }
     }
 
-    private void callMerchantMileStoneDSApi(BasicDetailsDto merchant, Double bureauScore, Double bbs, String pinCodeColor, String loanAmountOfMerchant, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard, Boolean isNTC) {
+    private void callMerchantMileStoneDSApi(BasicDetailsDto merchant, Double bureauScore, Double bbs, String pinCodeColor, String loanAmountOfMerchant, MileStoneEligibilityResponseDto responseDto, Boolean isNTC) {
         try {
-            DSMileStoneResponse fetchMileStoneData = dsHandler.fetchMileStoneDatav3(merchant.getId(), bureauScore, bbs, pinCodeColor, loanAmountOfMerchant);
-            log.info("milestone data {} for merchantId: {}", fetchMileStoneData, merchant.getId());
+            DSMileStoneResponse dsMileStoneResponse = dsHandler.fetchMileStoneDatav3(merchant.getId(), bureauScore, bbs, pinCodeColor, loanAmountOfMerchant);
+            log.info("milestone data {} for merchantId: {}", dsMileStoneResponse, merchant.getId());
 
-            if (fetchMileStoneData == null || fetchMileStoneData.getProgram_type() == null || fetchMileStoneData.getTarget().isEmpty() ) {
+            if (dsMileStoneResponse == null || dsMileStoneResponse.getProgram_type() == null || dsMileStoneResponse.getTarget().isEmpty() ) {
                 String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
                 Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
                 if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
@@ -518,9 +525,10 @@ public class MileStoneHelperServicev3 {
                 inEligibleForRTEResponse(responseDto);
             }
             else{
-                log.info("milestone response for merchantId:{}, isNTC:{} {}", merchant.getId(), isNTC, fetchMileStoneData);
+                log.info("milestone response for merchantId:{}, isNTC:{} {}", merchant.getId(), isNTC, dsMileStoneResponse);
                 responseDto.setMilStoneEligibility(true);
-                responseDto.setProgramType(ObjectUtils.isEmpty(fetchMileStoneData.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : fetchMileStoneData.getProgram_type());
+                responseDto.setProgramType(ObjectUtils.isEmpty(dsMileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : dsMileStoneResponse.getProgram_type());
+                responseDto.setMaxLimit(ObjectUtils.isEmpty(dsMileStoneResponse.getMax_limit()) ? null : dsMileStoneResponse.getMax_limit());
             }
         }catch (Exception e) {
             log.error("Exception while calling merchantMileStone DS Api merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));

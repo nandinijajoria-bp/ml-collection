@@ -23,6 +23,7 @@ public class MileStoneEligibilityResponseDto {
     private String panCard;
     private Boolean isEligibleForReapply;
     private String programType;
+    private Integer maxLimit;
 
     @Data
     public static class ProgramActiveData {
