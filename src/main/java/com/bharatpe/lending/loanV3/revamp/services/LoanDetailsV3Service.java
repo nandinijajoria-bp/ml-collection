@@ -59,7 +59,6 @@ public class LoanDetailsV3Service {
                     .loanDetailsV3Request(new LoanDetailsV3Request())
                     .merchant(merchant)
                     .applicationId(applicationId)
-                    .token(token)
                     .build();
            return renderStateWithoutScope.fetchLendingStateData(scopeDataArgs);
         } else {

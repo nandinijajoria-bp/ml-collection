@@ -217,9 +217,6 @@ public class MerchantLoansService {
     PenalChargesDao penalChargesDao;
 
     @Autowired
-    LendingPancardDetailsDao lendingPancardDetailsDao;
-
-    @Autowired
     LoanUtilV3 loanUtilV3;
 
 
