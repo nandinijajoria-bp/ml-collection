@@ -218,6 +218,7 @@ public class LoanUtilV3 {
                             if(!ObjectUtils.isEmpty((kycDoc.getDob())) && !ObjectUtils.isEmpty(kycDoc.getAadhaarSeedingStatus())){
                                 log.info("pan is nsdl verified for {}", merchantId);
                                 saveLendingPancardData(lendingPancardDetails, kycDoc, merchantId);
+                                return true;
                             }
                         }
                     }
