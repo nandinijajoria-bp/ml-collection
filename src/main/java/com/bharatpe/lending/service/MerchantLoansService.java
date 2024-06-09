@@ -393,7 +393,7 @@ public class MerchantLoansService {
         return diffMinutes;
     }
 
-    public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId, String token) {
+    public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentScheduleSlave> merchantLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndCreditLoan(merchantId, false);
@@ -591,7 +591,7 @@ public class MerchantLoansService {
                         responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
-                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(token, merchantId));
+                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(merchantId));
                     }
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);

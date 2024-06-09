@@ -235,7 +235,6 @@ Integer lendingEdiModel;
 
 	@RequestMapping(value="/merchant_loans", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<LendingMerchantLoansResponseDTO> merchantLoans(
-			@RequestHeader(value = "token", required = false) String token,
 			@RequestAttribute(required = false) BasicDetailsDto merchant,
 			@RequestParam(required = false) Long merchantId
 	) {
@@ -243,7 +242,7 @@ Integer lendingEdiModel;
 			merchantId = merchant.getId();
 		}
 		logger.info("merchantLoans request merchant_id: {}", merchantId);
-		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchantId, token);
+		LendingMerchantLoansResponseDTO resp = merchantLoansService.getMerchantLoans(merchantId);
 		logger.info("merchantLoans response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}

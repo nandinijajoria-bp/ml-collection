@@ -89,21 +89,21 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 PanFetchKYCResponseDto response = null;
                 try {
                     LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
-                    if(ObjectUtils.isEmpty(lendingPancardDetails) || !LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
-                            response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
-
-                        } else {
+                    if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
                         eligibilityStateDTO.setIsPanNsdlVerified(true);
                     }
-                    if (response != null && response.getStatus()) {
-                        PanFetchKYCResponseDto.Data data = response.getData();
-                        if (data != null) {
-                            if (data.getIsPanNsdlVerified() != null) {
-                                eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                    else{
+                        response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                        if (response != null && response.getStatus()) {
+                            PanFetchKYCResponseDto.Data data = response.getData();
+                            if (data != null) {
+                                if (data.getIsPanNsdlVerified() != null) {
+                                    eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                                }
                             }
+                        } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                            eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                         }
-                    } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
-                        eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                     }
                 }catch (HttpClientErrorException.TooManyRequests e) {
                     log.error("Too Many requests error");

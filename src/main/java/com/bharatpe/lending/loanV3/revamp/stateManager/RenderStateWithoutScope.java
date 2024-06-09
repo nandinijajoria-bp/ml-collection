@@ -175,7 +175,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             lendingStateDTO = new LendingStateDTO<>();
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         }
-        if(!loanUtilV3.isPanNsdlVerified(scopeDataArgs.getToken(), scopeDataArgs.getMerchant().getId())){
+        if(!loanUtilV3.isPanNsdlVerified(scopeDataArgs.getMerchant().getId())){
             lendingStateDTO = new LendingStateDTO<>();
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         }
