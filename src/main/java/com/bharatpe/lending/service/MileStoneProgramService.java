@@ -297,6 +297,13 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneDashboardDetails> dashboardDetails(BasicDetailsDto merchant) {
 
         MileStoneDashboardDetails mileStoneDashboardDetails = new MileStoneDashboardDetails();
+
+        String mileStoneProgramCache = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
+        Object mileStoneCacheResponse = lendingCache.get(mileStoneProgramCache);
+        if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
+            lendingCache.delete(mileStoneProgramCache);
+        }
+
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 
         if (ObjectUtils.isEmpty(entity)) {
