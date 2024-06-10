@@ -297,7 +297,7 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneDashboardDetails> dashboardDetails(BasicDetailsDto merchant) {
 
         MileStoneDashboardDetails mileStoneDashboardDetails = new MileStoneDashboardDetails();
-        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(), "IN_PROGRESS");
 
         if (ObjectUtils.isEmpty(entity)) {
             log.info("entry not found for this merchantId");
