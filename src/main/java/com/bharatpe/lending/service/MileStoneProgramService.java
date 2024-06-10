@@ -27,6 +27,7 @@ import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
+import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -34,7 +35,6 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
-import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
@@ -297,7 +297,7 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneDashboardDetails> dashboardDetails(BasicDetailsDto merchant) {
 
         MileStoneDashboardDetails mileStoneDashboardDetails = new MileStoneDashboardDetails();
-        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(), "IN_PROGRESS");
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 
         if (ObjectUtils.isEmpty(entity)) {
             log.info("entry not found for this merchantId");
@@ -622,8 +622,8 @@ public class MileStoneProgramService {
             return new ApiResponse<>(rteProgramDetailsDto);
         }
 
-        KycStatusDTO doc = kycHandler.getKycStatus(merchant.getId());
-        rteProgramDetailsDto.setKycStatus(doc.getKycStatus());
+        KycStatus doc = kycHandler.getPanStatus(merchant.getId());
+        rteProgramDetailsDto.setKycStatus(doc);
         checkEligibility(rteProgramDetailsDto, merchant);
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(),"IN_PROGRESS");
         log.info("entity is {} for merchant id {}",entity,merchant.getId());
