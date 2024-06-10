@@ -201,7 +201,7 @@ public class KycRequestKafka {
             }
             String currDate = String.valueOf(new Date().getTime());
             String txnId = lendingApplication.get().getId() + currDate.substring(currDate.length() - 5);
-            String name = cKycResponseDto.getPanName();
+            String name = ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ? cKycResponseDto.getName() : cKycResponseDto.getPanName();
             KycRequestApiDto kycRequestApiDto = KycRequestApiDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
