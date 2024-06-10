@@ -28,7 +28,6 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
-import com.bharatpe.lending.enums.RTESessionStatus;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -288,6 +287,12 @@ public class MileStoneProgramService {
                     lendingCache.delete(mileStoneProgramCache);
                 }
 
+                String milestoneDashboardCacheKey = RTEConstants.RTE_MILESTONE_DASHBOARD + merchant.getId();
+                Object dashboardDetailsCacheKey = lendingCache.get(milestoneDashboardCacheKey);
+                if (!ObjectUtils.isEmpty(dashboardDetailsCacheKey)) {
+                    lendingCache.delete(milestoneDashboardCacheKey);
+                }
+
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.RTE_SESSION_CREATED, "RTE Session Creation");
                 return new ApiResponse<>(true, "200", "OK");
@@ -302,15 +307,6 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneDashboardDetails> dashboardDetails(BasicDetailsDto merchant) {
 
         MileStoneDashboardDetails mileStoneDashboardDetails = new MileStoneDashboardDetails();
-
-        MileStoneEntity mileStoneEntity = mileStoneDao.findTop1ByMerchantIdAndSessionStatus(merchant.getId(), RTESessionStatus.COMPLETED.name());
-        if(!ObjectUtils.isEmpty(mileStoneEntity)) {
-            String milestoneDashboardCacheKey = RTEConstants.RTE_MILESTONE_DASHBOARD + merchant.getId();
-            Object dashboardDetailsCacheKey = lendingCache.get(milestoneDashboardCacheKey);
-            if (!ObjectUtils.isEmpty(dashboardDetailsCacheKey)) {
-                lendingCache.delete(milestoneDashboardCacheKey);
-            }
-        }
 
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 
