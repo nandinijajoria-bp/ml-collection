@@ -177,6 +177,10 @@ public class MileStoneProgramService {
             String eligibilityCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchantId;
             log.info("deleting cached key of eligibility details in RTE for merchant: {}", merchantId);
             lendingCache.delete(eligibilityCacheKey);
+
+            String loanAmountKey = RTEConstants.RTE_V3_AMOUNT + merchantId;
+            log.info("deleting cached key of loanAmount details in RTE for merchant: {}", merchantId);
+            lendingCache.delete(loanAmountKey);
         } catch (Exception e) {
             log.info("unable to evict cache for : {}", merchantId);
         }
