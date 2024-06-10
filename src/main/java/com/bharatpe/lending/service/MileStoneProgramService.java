@@ -290,6 +290,7 @@ public class MileStoneProgramService {
                 String milestoneDashboardCacheKey = RTEConstants.RTE_MILESTONE_DASHBOARD + merchant.getId();
                 Object dashboardDetailsCacheKey = lendingCache.get(milestoneDashboardCacheKey);
                 if (!ObjectUtils.isEmpty(dashboardDetailsCacheKey)) {
+                    log.info("deleting milestone dashboard details data for merchantId: {}",merchant.getId());
                     lendingCache.delete(milestoneDashboardCacheKey);
                 }
 
