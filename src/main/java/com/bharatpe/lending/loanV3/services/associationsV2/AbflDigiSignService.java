@@ -53,16 +53,15 @@ public class AbflDigiSignService {
             log.info("DIGI sign: initiating for abfl lender for applicationId: {}", applicationId);
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
 
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return null;
             }
             AbflDigiSignRequestDTO digiSignRequest = createPayload(lendingApplication);
             INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(digiSignRequest.getLender());
             AbflDigiSignResponseDTO digiSignResponseDTO = apiGatewayV3.invokeDigiSign(digiSignRequest);
-            if (ObjectUtils.isEmpty(digiSignResponseDTO)
-                    || (StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digiSignResponseDTO.getData().getResponseStatus())
-                    && (!ObjectUtils.isEmpty(digiSignResponseDTO.getData())))){
+            if (!ObjectUtils.isEmpty(digiSignResponseDTO)
+                    && (!ObjectUtils.isEmpty(digiSignResponseDTO.getData()) && StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digiSignResponseDTO.getData().getResponseStatus()))){
                 log.info("DIGI sign: successfully placed the digi sign request at lender for {}", applicationId);
                 lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_IN_PROGRESS.name());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
