@@ -562,8 +562,12 @@ public class AbflDataUploadServiceUtil {
             }
         }
         try {
-            log.info("invoking docs for {}", applicationId);
-            uploadDocuments(applicationId, documents, systemMangedState);
+            if(!ObjectUtils.isEmpty(documents) && documents.get(0).equalsIgnoreCase("skip_docs")){
+                log.info("skipping doc upload as pushDataToNbfc called via digi sign");
+            } else {
+                log.info("invoking docs for {}", applicationId);
+                uploadDocuments(applicationId, documents, systemMangedState);
+            }
         } catch (Exception e) {
             log.error("error occurred while uploading docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
         }
