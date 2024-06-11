@@ -826,7 +826,7 @@ public class LiquiloansService {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DIGI_SIGN.name()).getLenderAssociationService(finalLendingApplication.getLender());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                iLenderAssociationService.invoke(finalLendingApplication.getId(), new HashMap<>());
+                executorService.execute(() -> iLenderAssociationService.invoke(finalLendingApplication.getId(), new HashMap<>()));
             }
         }
 
