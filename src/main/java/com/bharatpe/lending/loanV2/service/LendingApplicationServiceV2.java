@@ -310,8 +310,9 @@ public class LendingApplicationServiceV2 {
                 log.info("merchantId not found");
                 return new ApiResponse<>(false, "MerchantID not found");
             }
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(initiateKycRequest.getApplicationId(), merchant.getId());
             executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, merchant.getMid()));
-            funnelService.submitEvent(merchant.getId(), null, initiateKycRequest.getApplicationId(),
+            funnelService.submitEvent(merchant.getId(), null, initiateKycRequest.getApplicationId(),ObjectUtils.isEmpty(lendingApplication)?null:lendingApplication.getLoanType(),
                     FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
             cacheInitiateKycCall(merchant.getId(), loanDetailsRefreshWindow);
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
