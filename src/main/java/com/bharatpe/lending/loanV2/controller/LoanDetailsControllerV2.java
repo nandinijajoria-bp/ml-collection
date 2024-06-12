@@ -1,15 +1,14 @@
 package com.bharatpe.lending.loanV2.controller;
 
-import com.bharatpe.common.entities.Merchant;
+import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
 import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
 import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
-import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.loanV2.dto.EligibilityIframeConsumptionDTO;
 import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
@@ -130,6 +129,16 @@ public class LoanDetailsControllerV2 {
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
         return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantPermissions(merchant, lendingMerchantPermissionsDto));
+    }
+
+    @GetMapping(value = "/getMerchantReferencesVersion")
+    public ResponseEntity<ApiResponse<?>> getMerchantReferencesVersion(@RequestAttribute(required = true) BasicDetailsDto merchant) {
+        if (Objects.isNull(merchant)  || Objects.isNull(merchant.getId())) {
+            log.info("Incorrect request details");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Fetching version details to redirect for merchant : {}", merchant.getId());
+        return ResponseEntity.ok(loanDetailsServiceV2.getMerchantRefVersion(merchant.getId()));
     }
 
     @GetMapping(value = "/getMerchantReferences")
