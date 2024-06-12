@@ -47,10 +47,9 @@ public class AbflDigiSignService {
     DocUploadUtils docUploadUtils;
 
     public AbflDigiSignResponseDTO invokeDigiSign(Long applicationId, LendingApplication lendingApplication) {
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
         try {
             log.info("DIGI sign: initiating for abfl lender for applicationId: {}", applicationId);
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
-
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return null;
@@ -65,14 +64,12 @@ public class AbflDigiSignService {
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 return digiSignResponseDTO;
             }
-            log.error("DIGI sign: Unable to initiate digiSign request at lender for : {}", applicationId);
-            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_INIT_FAILED.name());
-            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-
-            return digiSignResponseDTO;
         } catch (Exception ex) {
             log.error("DIGI sign: exception occurred while processing digiSign request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
+        log.error("DIGI sign: Unable to initiate digiSign request at lender for : {}", applicationId);
+        lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_INIT_FAILED.name());
+        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         return null;
     }
 
@@ -103,13 +100,13 @@ public class AbflDigiSignService {
     }
 
     public Boolean processDigitalSignCallback(NBFCResponseDTO nbfcResponseDTO) {
+        LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
+        if (ObjectUtils.isEmpty(lendingApplication)) {
+            log.info("No application found for applicationId : {}", nbfcResponseDTO.getApplicationId());
+            return false;
+        }
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
         try {
-            LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
-            if (ObjectUtils.isEmpty(lendingApplication)) {
-                log.info("No application found for applicationId : {}", nbfcResponseDTO.getApplicationId());
-                return false;
-            }
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !nbfcResponseDTO.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
@@ -125,10 +122,10 @@ public class AbflDigiSignService {
                     return true;
                 }
             }
-            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_HARD_FAILED.name());
-            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         } catch (Exception e) {
             log.error("exception while processing DIGI sign callback of ABFL for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_HARD_FAILED.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
         return false;
     }
