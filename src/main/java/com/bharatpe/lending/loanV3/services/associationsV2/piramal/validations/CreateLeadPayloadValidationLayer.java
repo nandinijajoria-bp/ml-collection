@@ -1,6 +1,6 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.validations;
 
-import com.bharatpe.lending.loanV3.NameDetailsDto;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -24,13 +24,10 @@ public class CreateLeadPayloadValidationLayer {
     @Autowired
     APIGatewayService apiGatewayService;
 
-    @Autowired
-    LoanUtil loanUtil;
-
-    public boolean isInValidPayload(CKycResponseDto cKycResponseDto) {
-        NameDetailsDto nameDetailsDto = loanUtil.getSegregatedNameDetails(cKycResponseDto);
-        return ( ObjectUtils.isEmpty(nameDetailsDto.getFirstName()) ||
-                ObjectUtils.isEmpty(nameDetailsDto.getLastName()) ||
+    public boolean isInValidPayload(CKycResponseDto cKycResponseDto, Long merchantId) {
+        NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, merchantId);
+        return ( ObjectUtils.isEmpty(nameAndDobDetailsDto.getFirstName()) ||
+                ObjectUtils.isEmpty(nameAndDobDetailsDto.getLastName()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getDob()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getCity()) ||

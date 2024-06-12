@@ -7,9 +7,11 @@ import lombok.*;
 @Builder
 @ToString
 @Data
-public class NameDetailsDto {
+public class NameAndDobDetailsDto {
 
     String firstName;
     String middleName;
     String LastName;
+    String dob;
+    String fullName;
 }

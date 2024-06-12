@@ -9,6 +9,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -201,7 +202,8 @@ public class KycRequestKafka {
             }
             String currDate = String.valueOf(new Date().getTime());
             String txnId = lendingApplication.get().getId() + currDate.substring(currDate.length() - 5);
-            String name = ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ? cKycResponseDto.getName() : cKycResponseDto.getPanName();
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
+            String name = nameAndDobDetailsDto.getFullName();
             KycRequestApiDto kycRequestApiDto = KycRequestApiDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -223,7 +225,7 @@ public class KycRequestKafka {
                             .okycXml(cKycResponseDto.getPoAXml())
                             .okycDocType("digixmlaadhaar")
                             .declaredName(converterUtils.parseNameData(name).trim())
-                            .declaredDob(cKycResponseDto.getDob())
+                            .declaredDob(nameAndDobDetailsDto.getDob())
                             .declaredPan(cKycResponseDto.getPanNumber())
                             .declaredState(ObjectUtils.isEmpty(cKycResponseDto.getState()) ? "" : cKycResponseDto.getState().toUpperCase())
                             .declaredPincode(Integer.valueOf(cKycResponseDto.getPincode()))

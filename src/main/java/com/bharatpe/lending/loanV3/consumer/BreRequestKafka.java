@@ -10,7 +10,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.NameDetailsDto;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -212,10 +212,8 @@ public class BreRequestKafka {
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.get().getId());
             String panName = Optional.ofNullable(cKycResponseDto.getPanName()).orElse("").trim();
             String aadharName = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
-            NameDetailsDto nameDetailsDto = loanUtil.getSegregatedNameDetails(cKycResponseDto);
-            String dob = !ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ?
-                    DateTimeUtil.formatDate(cKycResponseDto.getPanDob(), "dd/MM/yyyy","yyyy-MM-dd") :
-                    DateTimeUtil.formatDate(cKycResponseDto.getDob(),"dd/MM/yyyy","yyyy-MM-dd");
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
+            String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -232,11 +230,11 @@ public class BreRequestKafka {
                                                                     .addressLine3("")
                                                                     .city(cKycResponseDto.getCity())
                                                                     .dob(dob)
-                                                                    .firstName(converterUtils.parseNameData(nameDetailsDto.getFirstName()))
+                                                                    .firstName(converterUtils.parseNameData(nameAndDobDetailsDto.getFirstName()))
                                                                     .gender(cKycResponseDto.getGender())
-                                                                    .lastName(converterUtils.parseNameData(nameDetailsDto.getLastName()))
+                                                                    .lastName(converterUtils.parseNameData(nameAndDobDetailsDto.getLastName()))
                                                                     .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
-                                                                    .middleName(converterUtils.parseNameData(nameDetailsDto.getMiddleName()))
+                                                                    .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(Integer.valueOf(cKycResponseDto.getPincode()))
                                                                     .state(cKycResponseDto.getState())
