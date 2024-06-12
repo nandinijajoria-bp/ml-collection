@@ -1661,7 +1661,7 @@ public class LoanDetailsServiceV2 {
                         lendingMerchantReferences.setApplicationId(applicationId);
 
                         if(!lendingRiskVariables.getNewContactReferenceLogic()) {
-                            //old flow
+                            //update below parameters in old flow
                             lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
                             lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
                             lendingMerchantReferences.setInferredName(requestedReferences.getInferredName());
@@ -2682,7 +2682,7 @@ public class LoanDetailsServiceV2 {
             lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 
             MerchantRedirectToNewRefResponseDto merchantRedirectToNewRefResponseDto = new MerchantRedirectToNewRefResponseDto();
-            merchantRedirectToNewRefResponseDto.setVersion(lendingRiskVariables.getNewContactReferenceLogic() ? "V2" : "V1");
+            merchantRedirectToNewRefResponseDto.setVersion(lendingRiskVariables.getNewContactReferenceLogic() ? "v2" : "v1");
             return new ApiResponse<>(merchantRedirectToNewRefResponseDto);
         }catch (Exception e) {
             log.error("Error while fetching if merchant should redirect to new reference logic or not", Arrays.asList(e.getStackTrace()));
