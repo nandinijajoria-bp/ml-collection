@@ -2,7 +2,10 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
@@ -33,6 +36,9 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     @Autowired
     LendingApplicationServiceV3 lendingApplicationServiceV3;
 
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     @Override
     public LendingStateDTO<AgreementStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<AgreementStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -51,11 +57,15 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         }
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
+
         AgreementStateDTO agreementResponseV3 = AgreementStateDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())
                 .loanAmount(lendingApplication.getLoanAmount())
                 .interestRate(lendingApplication.getInterestRate())
+                .annualRoi(lendingApplicationLenderDetails.getAnnualRoi())
                 .arrangerFee(lendingApplication.getProcessingFee().intValue())
                 .disbursalAmount(lendingApplication.getDisbursalAmount())
                 .tenure(lendingApplication.getTenure())

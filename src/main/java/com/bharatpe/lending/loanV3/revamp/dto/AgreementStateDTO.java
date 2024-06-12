@@ -13,6 +13,7 @@ public class AgreementStateDTO {
     private String lender;
     private Double loanAmount;
     private Double interestRate;
+    private Double annualRoi;
     private Integer arrangerFee;
     private Double disbursalAmount;
     private String tenure;
