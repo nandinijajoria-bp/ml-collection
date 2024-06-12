@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.revamp.util;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingResubmitReasonCountDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -12,9 +13,18 @@ import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dao.LendingPancardDetailsDao;
+import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
+import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.CleverTapEvents;
+import com.bharatpe.lending.enums.KycDocStatus;
+import com.bharatpe.lending.enums.KycDocType;
+import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
@@ -24,6 +34,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -66,6 +77,12 @@ public class LoanUtilV3 {
 
     @Autowired
     private LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    private KycHandler kycHandler;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -179,5 +196,51 @@ public class LoanUtilV3 {
             return true;
         }
         return false;
+    }
+
+    public boolean isPanNsdlVerified(Long merchantId){
+        try{
+            LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
+                log.info("PAN previously verifies for merchant:{}", merchantId);
+                return true;
+            }
+            else {
+                List<KycDoc> kycDocs = kycHandler.getPan(merchantId);
+                log.info("pancard fetched from kyc : {}", kycDocs);
+                if (!CollectionUtils.isEmpty(kycDocs)) {
+                    if (kycDocs.size() < 1) {
+                        log.info("unable to fetch PAN_NO for {}", merchantId);
+                        return false;
+                    }
+                    for (KycDoc kycDoc : kycDocs) {
+                        if(KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())){
+                            if(!ObjectUtils.isEmpty((kycDoc.getDob())) && !ObjectUtils.isEmpty(kycDoc.getAadhaarSeedingStatus())){
+                                log.info("pan is nsdl verified for {}", merchantId);
+                                saveLendingPancardData(lendingPancardDetails, kycDoc, merchantId);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            log.info("nsdl verified pan not available for {}", merchantId);
+        }catch (Exception e) {
+            log.error("error while fetching pan nsdl validity for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+        }
+        return false;
+    }
+
+    private void saveLendingPancardData(LendingPancardDetails lendingPancard, KycDoc kycPan, Long merchantId){
+        if (!ObjectUtils.isEmpty(lendingPancard)) {
+            lendingPancard.setName(kycPan.getName());
+            lendingPancard.setPancardNumber(kycPan.getDocIdentifier());
+            lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
+            lendingPancard.setAadhaarSeedingStatus(kycPan.getAadhaarSeedingStatus());
+            lendingPancard.setDob(kycPan.getDob());
+            lendingPancardDetailsDao.save(lendingPancard);
+        } else {
+            lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, kycPan.getDocIdentifier(), kycPan.getName(), null, LendingConstants.PAN_VERIFICATION_VERSION, kycPan.getAadhaarSeedingStatus(), kycPan.getDob()));
+        }
     }
 }
