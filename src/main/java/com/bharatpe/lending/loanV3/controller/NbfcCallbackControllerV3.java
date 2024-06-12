@@ -163,9 +163,9 @@ public class NbfcCallbackControllerV3 {
         log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
         Map<String, String> request = new HashMap() {{
             put("application_id", nbfcResponseDTO.getApplicationId().toString());
-            put("digi_sign_retry", true);
+            put("digi_sign_retry", "true");
             put("documents", "skip_docs");
-            put("systemManagedState", false);
+            put("systemManagedState", "false");
         }};
 
         dataUploadRequestKafka.invokeDocUpload(convertToJson(request));
