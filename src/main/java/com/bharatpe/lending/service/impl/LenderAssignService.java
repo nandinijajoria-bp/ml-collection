@@ -28,7 +28,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -115,6 +114,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${thresholdVinatage:151}")
     Integer thresholdVintage;
 
+    @Value("${default.muthoot.minimum.vintage:180}")
+    Integer minimumMuthootVintage;
+
     @Value("${default.assign.abfl:false}")
     boolean defaultAssignAbfl;
 
@@ -166,6 +168,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Value("${max.eligible.lenders.for.modify:2}")
+    Integer maxEligibleLendersCountForModify;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -180,7 +185,10 @@ public class LenderAssignService implements ILenderAssignService {
         String riskGroupLike = null;
         String pincodeColor = null;
         Boolean isGstOffer = null;
+        Double summaryTpv = 0D;
         Long vintage = 0L;
+        Double tpvOffer = 0D;
+        String rejectedLenders = "";
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
             riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
@@ -188,6 +196,9 @@ public class LenderAssignService implements ILenderAssignService {
             pincodeColor = Objects.nonNull(lendingRiskVariables.getPincodeColor()) ? "%"+lendingRiskVariables.getPincodeColor().name() + "%" : "";
             isGstOffer = Objects.nonNull(lendingRiskVariables.getGstAffectedOffer())? lendingRiskVariables.getGstAffectedOffer() : Boolean.FALSE;
             vintage = Objects.nonNull(lendingRiskVariables.getVintage())? lendingRiskVariables.getVintage() : 0L;
+            summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
+            tpvOffer = Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D;
+            rejectedLenders = Objects.nonNull(lendingRiskVariables.getRejectedLenders()) ? lendingRiskVariables.getRejectedLenders() : "";
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
@@ -213,6 +224,11 @@ public class LenderAssignService implements ILenderAssignService {
                         ListIterator<String> iterator = lenders.listIterator();
                         while (iterator.hasNext()) {
                             String lender = iterator.next().toUpperCase();
+                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                                log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
+                                iterator.remove();
+                                continue;
+                            }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
                                 LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
                                         lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
@@ -222,22 +238,45 @@ public class LenderAssignService implements ILenderAssignService {
                                             FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                                     log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
                                     iterator.remove();
+                                    continue;
                                 }
                             }
                             if (!baseChecksPassedForLenders(application, lender)) {
                                 log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
                             }
                             if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
                                 log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
+                            }
+                            if (Lender.CAPRI.name().equalsIgnoreCase(lender) && summaryTpv < application.getEdi()) {
+                                log.info("skipping capri {} due to merchant edi is greater than summaryTpv {}", lender, application.getId());
+                                iterator.remove();
+                                continue;
+                            }
+                            if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getLoanAmount() > tpvOffer) {
+                                log.info("skipping muthoot for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getEdi() > 0.9 * summaryTpv) {
+                                log.info("skipping muthoot for application id : {} due to merchant loan edi amount is greater than 0.9 * summary_tpv {}", application.getId(), 0.9 * summaryTpv);
+                                iterator.remove();
+                                continue;
                             }
                             if (additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)) {
                                 log.info("skipping {} due to additional checks failing for {}", lender, application.getId());
                                 iterator.remove();
+                                continue;
                             }
                             if (!negativeCategoryAndLoanAmountCheckPassed(application, lendingRiskVariables.getRiskSegment(), lender)) {
                                 log.info("skipping {} due to business category check failure for {}", lender, application.getId());
+                                iterator.remove();
+                            }
+                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                                log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
                                 iterator.remove();
                             }
                         }
@@ -247,28 +286,16 @@ public class LenderAssignService implements ILenderAssignService {
                 }
             }
             if (ObjectUtils.isEmpty(lenders)) {
-                /*
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
-                if (!ObjectUtils.isEmpty(lendingLenderQuota)) {
+                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
-                            lendingLenderQuota.getLender(), application.getId(), lenders);
+                            lendingLenderQuota.getLender() , application.getId(), lenders);
                     try {
                         saveEligibleLenderAudit(application, lendingLenderQuota.getLender(), CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
                     } catch (Exception exception) {
                         log.info("exception while logging the lender assignment details", exception);
                     }
                     lenders.add(lendingLenderQuota.getLender());
-                }
-                */
-                if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingWildcardLenderName)) {
-                    log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
-                            lendingWildcardLenderName , application.getId(), lenders);
-                    try {
-                        saveEligibleLenderAudit(application, lendingWildcardLenderName, CollectionUtils.isEmpty(lenders) ? "" : String.join(",", lenders), "WILDCARD_LENDER");
-                    } catch (Exception exception) {
-                        log.info("exception while logging the lender assignment details", exception);
-                    }
-                    lenders.add(lendingWildcardLenderName);
                 }
             }
             decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
@@ -399,6 +426,18 @@ public class LenderAssignService implements ILenderAssignService {
                 calendar.add(Calendar.MONTH, 1);
                 if (new Date().compareTo(calendar.getTime()) < 0) {
                     decidedLender = aaSession.getLender().name();
+                    if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+                        LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                        if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                            log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                            decidedLender = lendingLenderQuota.getLender();
+                            saveLenderChangeAudit(application, decidedLender);
+                        } else {
+                            log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
+                            decidedLender = assignFallackLender(application, ediModel);
+                            saveLenderChangeAudit(application, decidedLender);
+                        }
+                    }
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
@@ -434,6 +473,18 @@ public class LenderAssignService implements ILenderAssignService {
         if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(application.getMerchantId()))) {
             decidedLender = LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
+        }
+        if(LIQUILOANS_NBFC.name().equalsIgnoreCase(decidedLender)) {
+            LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+            if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
+                log.info("Assigning Wild Card Lender as : {} for application id : {} because decided lender is : {}", lendingLenderQuota.getLender(), application.getId(), decidedLender);
+                decidedLender = lendingLenderQuota.getLender();
+                saveLenderChangeAudit(application, decidedLender);
+            } else {
+                log.info("Assigning fallback Lender for application id : {} because decided lender is : {} and wildCard lender is not available", application.getId(), decidedLender);
+                decidedLender = assignFallackLender(application, ediModel);
+                saveLenderChangeAudit(application, decidedLender);
+            }
         }
 
         String oldLender = application.getLender();
@@ -650,7 +701,7 @@ public class LenderAssignService implements ILenderAssignService {
                     limit.getRemainingBalance(), limit.getAssignedAmount(), null, LendingLenderQuota.Classification.REGULAR.name());
             */
             LendingLenderQuota updatedLimit = new LendingLenderQuota(limit.getLender(), limit.getTotalWeeklyAmount(),
-                    limit.getRemainingBalance(), limit.getAssignedAmount(), null);
+                    limit.getRemainingBalance(), limit.getAssignedAmount(), null, limit1.get().getClassification());
             updatedLimit.setCreatedAt(limit1.get().getCreatedAt());
             updatedLimit.setId(id);
             updatedLimit.setEdiModel(LenderOffDays.valueOf(LendingEnum.LENDER.valueOf(limit1.get().getLender()).name()).getEdiModel().name());
@@ -695,6 +746,15 @@ public class LenderAssignService implements ILenderAssignService {
                     log.info("Can't assign PIRAMAL as vintage {} is less than threshold vintage {}",vintage,thresholdVintage);
                     continue;
                 }
+                if (MUTHOOT.name().equalsIgnoreCase(lender) && vintage < minimumMuthootVintage && (!loanUtil.isInternalMerchant(merchantId) || runInternalRules)){
+                    log.info("Can't assign MUTHOOT as vintage {} is less than threshold vintage {}", vintage, minimumMuthootVintage);
+                    continue;
+                }
+                if (Lender.CAPRI.name().equalsIgnoreCase(lender) && age > 65) {
+                    log.info("Can't assign CAPRI as age is greater than 65 years {} for merchant id {}", age, merchantId);
+                    continue;
+                }
+
                 log.info("adding {} to the eligible list for merchantId: {}", lender, merchantId);
                 if(Lender.PIRAMAL.name().equalsIgnoreCase(lender) && !loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, piramalRolloutPercentage)) {
                     log.info("removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
@@ -743,23 +803,29 @@ public class LenderAssignService implements ILenderAssignService {
         Optional<LendingApplication> application = lendingApplicationDao.findById(applicationId);
         if(application.isPresent()){
             log.info("Modifying lender for application:{}", application.get().getId());
-            List<LendingAuditTrial> auditLenderList = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndType(application.get().getId(),
-                    application.get().getMerchantId(), "OFFER_MODIFIED_LENDER_CHANGE");
-            if(auditLenderList.size() > 2 ){
-                log.info("Lender already changed twice for application: {}", application.get().getId());
-                EdiModel ediModel = LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel();
-//                EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
+            String eligibleLenders = lendingAuditTrialDao.findByApplicationIdAndMerchantIdAndTypeOrderByIdDesc(application.get().getId(),
+                    application.get().getMerchantId(), "ELIGIBLE_LENDER");
+            List<String> initialEligibleLenders = ObjectUtils.isEmpty(eligibleLenders) ? new ArrayList<>() : Arrays.asList(eligibleLenders.split(","));
+            log.info("Initial eligible lenders for applicationId : {} {}", application.get().getId(), initialEligibleLenders);
+            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
+            log.info("Already assigned lenders for applicationId : {} {}", application.get().getId(), alreadyAssignedLender);
+            List<String> availableLenders = initialEligibleLenders.stream().filter(lender -> !alreadyAssignedLender.contains(lender)).collect(Collectors.toCollection(ArrayList::new));
+            log.info("Available lenders {} from initial eligible lenders for applicationId : {} ", availableLenders, application.get().getId());
+            if(availableLenders.size() > 0 && alreadyAssignedLender.size() < maxEligibleLendersCountForModify) {
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-                if (!ediDetails.getEdiModel().equals(ediModel.name())) {
-                    modifyEdiModel(application.get(), ediModel);
+                String decidedLender = getLender(application.get(), availableLenders, EdiModel.valueOf(ediDetails.getEdiModel()), false, null);
+                if(!ObjectUtils.isEmpty(decidedLender)) {
+                    log.info("assigning lender {} from available lenders {} for applicationId {} with old lender {}", decidedLender, availableLenders, applicationId, application.get().getLender());
+                    EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
+                    String oldLender = application.get().getLender();
+                    application.get().setLender(decidedLender);
+                    lendingApplicationDao.save(application.get());
+                    updateOfferDetailsInApplication(application.get(), ediModel, oldLender);
+                    return Lender.valueOf(decidedLender);
                 }
-                String oldLender = application.get().getLender();
-                application.get().setLender(Lender.LIQUILOANS_P2P.name());
-                updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
-                lendingApplicationDao.save(application.get());
-                return Lender.LIQUILOANS_P2P;
             }
-            if(Arrays.asList(Lender.PIRAMAL.name(), Lender.ABFL.name(), TRILLIONLOANS.name(), MUTHOOT.name(), Lender.CAPRI.name()).contains(application.get().getLender())) {
+            LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+            if(!ObjectUtils.isEmpty(fallbackLender) && !alreadyAssignedLender.contains(fallbackLender.getLender())){
                 log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
@@ -769,10 +835,10 @@ public class LenderAssignService implements ILenderAssignService {
                 lendingApplicationDao.save(application.get());
                 updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 return Lender.valueOf(newLender);
+            } else {
+                log.info("Fallback lender already assigned for applicationId : {}", application.get().getId());
+                return null;
             }
-            EdiModel ediModel = LenderOffDays.valueOf(application.get().getLender()).getEdiModel();
-            assignLender(application.get(), ediModel, null);
-            return Lender.valueOf(application.get().getLender());
         }
         log.info("Application with id:{} not found.", applicationId);
         return null;

@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.muthoot.validations;
 
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.dto.request.muthoot.MFUpdateLeadRequestDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -18,6 +19,18 @@ public class LeadPayloadValidation {
                 || ObjectUtils.isEmpty(cKycResponseDto.getAddress())
                 || ObjectUtils.isEmpty(cKycResponseDto.getPincode())
                 || ObjectUtils.isEmpty(cKycResponseDto.getGender())
+        );
+    }
+
+    public boolean isInValidUpdateLeadPayload(MFUpdateLeadRequestDTO requestDTO) {
+        return (ObjectUtils.isEmpty(requestDTO)
+                || ObjectUtils.isEmpty(requestDTO.getMandateDetails())
+                || ObjectUtils.isEmpty(requestDTO.getMandateDetails().getNpciTxnID())
+                || ObjectUtils.isEmpty(requestDTO.getMandateDetails().getVendorDocID())
+                || ObjectUtils.isEmpty(requestDTO.getBasicDetails())
+                || ObjectUtils.isEmpty(requestDTO.getBasicDetails().getBusinessDetails()))
+                || ObjectUtils.isEmpty(requestDTO.getBasicDetails().getBusinessDetails().getAddress())
+                || ObjectUtils.isEmpty(requestDTO.getBasicDetails().getBusinessDetails().getAddress().getLine1()
         );
     }
 }

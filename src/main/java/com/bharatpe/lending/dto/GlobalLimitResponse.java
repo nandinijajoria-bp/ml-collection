@@ -16,6 +16,7 @@ public class GlobalLimitResponse {
     private boolean success;
     private String message;
     private Data data;
+    private String errorCode;
 
     @Getter
     @Setter

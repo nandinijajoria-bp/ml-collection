@@ -58,6 +58,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
@@ -344,6 +345,13 @@ public class APIGatewayService {
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
+
+            if (Objects.nonNull(pgCreateTransactionRequestDTO.getAccountNumber()) && Objects.nonNull(pgCreateTransactionRequestDTO.getIfscCode())) {
+                Map<String, String> bankDetail = new HashMap<>();
+                bankDetail.put("accountNumber", pgCreateTransactionRequestDTO.getAccountNumber());
+                bankDetail.put("ifscCode", pgCreateTransactionRequestDTO.getIfscCode());
+                requestParams.put("bankDetail", bankDetail);
+            }
 
 
             String hash = lendingHmacCalculator.calculateHmac
@@ -1745,6 +1753,20 @@ public class APIGatewayService {
             logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
         } catch (ResourceAccessException ex) {
             logger.info("Scenaptic Limit Api timed out for merchantId:{} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        } catch (HttpServerErrorException | HttpClientErrorException exception) {
+            logger.info("exception in fetching reponse for bureau :{} {}", exception.getMessage(), exception.getResponseBodyAsString());
+            try {
+                XmlMapper xmlMapper = new XmlMapper();
+                ScenapticResponseDTO scenapticResponseDTO =  xmlMapper.readValue(exception.getResponseBodyAsString(), ScenapticResponseDTO.class);
+                logger.info(" scenapticResponseDTO {}",scenapticResponseDTO.toString());
+                GlobalLimitResponse globalLimitResponse = new GlobalLimitResponse();
+                globalLimitResponse.setSuccess(scenapticResponseDTO.getSuccess());
+                globalLimitResponse.setMessage(scenapticResponseDTO.getMessage());
+                globalLimitResponse.setErrorCode(scenapticResponseDTO.getErrorCode());
+                return globalLimitResponse;
+            } catch (IOException | IllegalArgumentException e) {
+                logger.error("Exception in parsing responseBody string : {} {} ", e.getMessage(), e);
+            }
         } catch (Exception e) {
             logger.error("Error occurred while getting Scenaptic limit for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
@@ -1880,85 +1902,14 @@ public class APIGatewayService {
 //    }
 
     public Boolean eligibleForProcessingFee(Long merchantId) {
-
-        try {
-            logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
-            Map<String, Object> requestParams = new HashMap<String, Object>() {{
-                put("merchant_id", merchantId);
-            }};
-            String payload = lendingHmacCalculator.getObjectPayload(requestParams);
-            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("clientName", CLIENT);
-            headers.set("hash", hash);
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestParams, headers);
-
-            logger.info("processing fee redemption eligibility request:{} for merchant:{}", request, merchantId);
-
-            ResponseEntity<Map<String, Object>> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL, HttpMethod.POST, request, new ParameterizedTypeReference<Map<String, Object>>() {
-            });
-
-            logger.info("processing fee redemption eligibility response:{} for merchant:{}", responseEntity, merchantId);
-            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().containsKey("success") && Boolean.parseBoolean(responseEntity.getBody().get("success").toString())) {
-                JsonNode response = mapper.convertValue(responseEntity.getBody(), JsonNode.class);
-                if (Objects.nonNull(response.get("data")) && Objects.nonNull(response.get("data").get("eligibile"))
-                  && response.get("data").get("eligibile").asBoolean() && Objects.nonNull(response.get("data").get("club_id"))
-                  && response.get("data").get("club_id").asText().equalsIgnoreCase("1")) {
-                    if (Objects.isNull(response.get("data").get("rewards"))) {
-                        return true;
-                    }
-
-                    List<Map> rewards = mapper.convertValue(response.get("data").get("rewards"), List.class);
-                    System.out.println(rewards);
-                    for (Map reward : rewards) {
-                        if (Objects.nonNull(reward.get("source_module")) && reward.get("source_module").toString().equals("LOAN")) {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }
-            }
-        } catch (Exception ex) {
-            logger.error("Error occurred while checking processing fee redemption eligibility", ex);
-        }
-
+        // Club Memberships expired so returning false for all
+        logger.info("BP club api deprecated. returning false for merchant:{}",merchantId);
         return false;
     }
 
     public Boolean checkClubV2(Long merchantId) {
-        try {
-            logger.info("processing fee redemption eligibility check for merchant:{}", merchantId);
-
-            Map<String, Object> body = new HashMap<>();
-            body.put("merchant_id", merchantId);
-            String payload = lendingHmacCalculator.getObjectPayload(body);
-            String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("clientName", CLIENT);
-            headers.set("hash", hash);
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            logger.info("checking for clubV2 request:{} for merchant:{}", request, merchantId);
-            ResponseEntity<ClubV2DTO> responseEntity = restTemplate.exchange(BHARATPE_CLUB_URL_V2, HttpMethod.POST, request, ClubV2DTO.class);
-            logger.info("clubV2 eligibility response:{} for merchant:{}", responseEntity, merchantId);
-            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
-                ClubV2DTO clubV2DTO = responseEntity.getBody();
-                logger.info("clubV2DTO: {}", clubV2DTO);
-                if (Objects.nonNull(clubV2DTO.getData())) {
-                    if (clubV2DTO.getData().isEligibile() && clubV2DTO.getData().getClub_id() > 1) {
-                        return true;
-                    }
-                }
-
-            }
-        } catch (Exception ex) {
-            logger.error("Error occurred while checking processing fee redemption eligibility", ex);
-        }
-
+        // Club Memberships expired so returning false for all
+        logger.info("BP club api deprecated. returning false for merchant:{}",merchantId);
         return false;
     }
 

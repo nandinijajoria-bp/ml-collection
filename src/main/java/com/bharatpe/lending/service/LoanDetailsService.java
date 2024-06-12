@@ -18,7 +18,6 @@ import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
-import com.bharatpe.lending.common.entity.LendingBharatswipeOffers;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
@@ -32,18 +31,13 @@ import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingD
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
-import com.bharatpe.lending.common.slave.entity.MerchantDocumentProofSlave;
-import com.bharatpe.lending.common.slave.entity.SettlementSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
 //import com.bharatpe.lending.entity.LendingBlockedPancard;
 import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.entity.LendingPrebookTarget;
 import com.bharatpe.lending.entity.LoanAgreement;
-import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -52,7 +46,6 @@ import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
-import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,7 +57,6 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;
-import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -1536,13 +1528,24 @@ public class LoanDetailsService {
 		if (activeLoan == null) {
 			logger.info("No active loan found for merchant id {}", merchantId);
 			return ForeClosureTncDTO.builder()
-					.foreClosureCharges(new ArrayList<>())
+					.success(false)
+					.message("No active loan found for merchant")
+					.data(new ArrayList<>())
 					.build();
 		}
 		List<ForeClosureConfig> foreClosureConfigs = foreClosureDao.findByLender(activeLoan.getNbfc());
 		List<ForeClosureEntityDTO> foreClosureEntityDto = convertToForeClosureEntityDto(foreClosureConfigs);
+		if(ObjectUtils.isEmpty(foreClosureEntityDto))
+		{
+			return ForeClosureTncDTO.builder()
+					.success(false)
+					.message("Fore Closure Charges not applicable for this merchant")
+					.data(foreClosureEntityDto)
+					.build();
+		}
 		return ForeClosureTncDTO.builder()
-				.foreClosureCharges(foreClosureEntityDto)
+				.success(true)
+				.data(foreClosureEntityDto)
 				.build();
 
 	}
@@ -1560,6 +1563,6 @@ public class LoanDetailsService {
 								.build();
 					}).collect(Collectors.toList());
 		}
-		return new ArrayList<>();
+		return null;
 	}
 }

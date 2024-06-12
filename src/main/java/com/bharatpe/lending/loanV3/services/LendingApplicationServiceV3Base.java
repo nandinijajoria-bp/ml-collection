@@ -61,6 +61,15 @@ public abstract class LendingApplicationServiceV3Base {
     public ApiResponse<?> fetchApplicationStatus(Long merchantId) {
         LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
+            LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
+            if(!ObjectUtils.isEmpty(currentRejectApplication)) {
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(LenderAssociationStatus.LENDER_ASSOCIATION_FAILED)
+                        .stage(LenderAssociationStages.FAILED)
+                        .ediModelModified(false)
+                        .lender(currentRejectApplication.getLender())
+                        .build());
+            }
             return new ApiResponse<>(false,"open draft lending application not found");
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
@@ -74,14 +83,6 @@ public abstract class LendingApplicationServiceV3Base {
             invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
             invokeLenderAssociationRequest.setForceEnable(false);
             initLenderAssociation(invokeLenderAssociationRequest);
-        }
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                    .stage(LenderAssociationStages.COMPLETED)
-                    .ediModelModified(false)
-                    .lender(currentDraftApplication.getLender())
-                    .build());
         }
         else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             return new ApiResponse<>(false,"lead creation triggered ! Please retry for status in few minutes");

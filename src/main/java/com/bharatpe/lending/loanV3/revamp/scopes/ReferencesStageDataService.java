@@ -53,6 +53,7 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
             log.info("lendingApplication {} and status {}", lendingApplication, lendingApplication.getStatus());
             if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
                 referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
+                referenceStateDTO.setLender(lendingApplication.getLender());
             }
 
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);

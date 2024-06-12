@@ -35,6 +35,7 @@ public class LendingMerchantLoansResponseDTO {
 
     private Boolean topup = false;
 
+    private Boolean isPanNsdlVerified;
     private Double totalPaidAmount = 0D;
     private Double totalAmount = 0D;
     private Double totalDueAmount = 0D;

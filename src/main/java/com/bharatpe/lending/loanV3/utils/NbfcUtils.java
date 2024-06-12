@@ -8,16 +8,19 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -54,6 +57,10 @@ public class NbfcUtils {
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
 
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -62,13 +69,7 @@ public class NbfcUtils {
             lendingApplicationDetails.setEdiModel(LoanUtil.getEdiModal(lendingApplication).name());
             lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
         }
-        List<LendingApplicationLenderDetails> lendingApplicationLenderDetailsList = lendingApplicationLenderDetailsDao.findByApplicationId(lendingApplication.getId());
-        if(lendingApplicationLenderDetailsList.size() >= 2) {
-           log.info("lender changes twice for application {} ", lendingApplication.getId());
-           return;
-        }
         log.info("changing lender for the application {}", lendingApplication.getId());
-        // restore this
         if (enableLenderChange) {
             existingLendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
         }
@@ -80,20 +81,23 @@ public class NbfcUtils {
             existingLendingApplicationLenderDetails.setSanctionStatus(lenderAssociationStatus.name());
         }
         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-        // TODO: 08/11/22 todo final integrate with lender change svc (set lender in app and modify app details params)
-//        Lender lender = iLenderAssignment.changeLender(lendingApplication.getId());
-//        Lender lender = Lender.LDC;
-//        lendingApplication.setLender(lender.name());
-//        lendingApplicationDao.save(lendingApplication);
-//        // TODO: 08/11/22  todo final these can be removed later
-//        if (!lendingApplicationDetails.getEdiModel().equalsIgnoreCase(LenderOffDays.valueOf(lender.name()).getEdiModel().name())) {
-//            lendingApplicationDetails.setEdiModel(LenderOffDays.valueOf(lender.name()).getEdiModel().name());
-//            lendingApplicationDetails.setEdiModelModified(Boolean.TRUE);
-//        }
-//        lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        // TODO: 12/12/22 todo final uncomment this
         if (enableLenderChange) {
+            if(!Arrays.asList(LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
+                    || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
+                log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
+                lendingApplication.setStatus("rejected");
+                lendingApplicationDao.save(lendingApplication);
+                lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
+                return;
+            }
             Lender modifiedLender = lenderAssignService.modifyLender(lendingApplication.getId());
+            if(ObjectUtils.isEmpty(modifiedLender)) {
+                log.info("modifiedLender is null, rejecting application for applicationId {}", lendingApplication.getId());
+                lendingApplication.setStatus("rejected");
+                lendingApplicationDao.save(lendingApplication);
+                lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
+                return;
+            }
             if (Arrays.asList(LenderAssociationStatus.SANCTION_FAILED.name(), LenderAssociationStatus.SANC_CALLBACK_CLIENT_FAILURE.name(), LenderAssociationStatus.SANC_REQUEST_CLIENT_FAILURE.name()).contains(lenderAssociationStatus.name())) {
 
                 log.info("modified lender for applicationId : {} and lenderAssociationStatus : {}", lendingApplication.getId(), lenderAssociationStatus.name());

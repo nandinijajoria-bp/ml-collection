@@ -1,26 +1,11 @@
 package com.bharatpe.lending.loanV2.service;
 
-import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.cache.DTO.AddCacheDto;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.cache.service.LendingCache;
+import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
-import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
-import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
-import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
-import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
-import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
-import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.common.service.merchant.constants.Constants;
-import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
-import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
-import com.bharatpe.lending.common.enums.EdiModel;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -28,39 +13,58 @@ import com.bharatpe.lending.common.dto.AddLeadRequestNimbusDto;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
+import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
+import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
+import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
+import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.KfsConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanDowngradeConfigEntity;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.exceptions.DowngradeConfigNotFoundException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
+import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeRequestDto;
+import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeResponseDto;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
-import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
-import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
+import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.service.LenderMappingService;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
-import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -91,7 +95,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
@@ -244,6 +251,7 @@ public class LendingApplicationServiceV2 {
     @Value("${downgrade.config.version:1.1}")
     double downgradeConfigVersion;
 
+    @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
 
@@ -286,9 +294,19 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     KycUtils kycUtils;
+    @Autowired
+    ILenderAPIGateway lenderAPIGateway;
+    @Autowired
+    CommonService commonService;
+    @Autowired
+    ObjectMapper objectMapper;
 
     @Autowired
     ForeClosureConfigDao foreClosureConfigDao;
+
+    @Value("${vernacular.doc.lender.list}")
+    String  vernacularDocLanguageList;
+
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -1771,9 +1789,15 @@ public class LendingApplicationServiceV2 {
 
             } else if(resubmitApplicationDTO.getType().name().equalsIgnoreCase(LendingResubmitEnum.DOWNGRADE.name())){
                 Double previousOferAmount = lendingApplication.getLoanAmount();
+                Integer previousTenureInMonths = lendingApplication.getTenureInMonths();
                 Boolean downGradeStatus= downgradeApplication(lendingApplication, resubmitApplicationDTO);
                 double loanAmountDifference = previousOferAmount - lendingApplication.getLoanAmount();
-                if(downGradeStatus && loanAmountDifference > 0){
+                if(downGradeStatus && (loanAmountDifference > 0 || !Objects.equals(previousTenureInMonths, lendingApplication.getTenureInMonths()))){
+                    if(lendingApplication.getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.toString())) {
+                        if(!invokeUpdateLeadApi(lendingApplication, true)) {
+                            return new ApiResponse<>(false, "Downgrade initiation failed for lender "+lendingApplication.getLender());
+                        }
+                    }
                     lendingResubmitTask.setPreviousOfferAmount(previousOferAmount);
                     lendingResubmitTask.setNewOfferAmount(lendingApplication.getLoanAmount());
                     lendingResubmitTask.setDowngrade(Boolean.TRUE);
@@ -1808,11 +1832,90 @@ public class LendingApplicationServiceV2 {
 
             loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
             return new ApiResponse<>(true,"Application Submitted Successfully");
+        }catch (DowngradeConfigNotFoundException e) {
+            log.info("Exception while downgrading application for applicationId:{} {}", resubmitApplicationDTO.getApplicationId(), e.getMessage());
+            return new ApiResponse<>(false, "Downgrade config not found");
         }catch (Exception e){
             log.error("Exception in resubmit application for application:{}, {}, {}", resubmitApplicationDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         loanDashboardService.deleteLoanDashboardCache(resubmitApplicationDTO.getMerchantId());
         return new ApiResponse<>(false,"Something went wrong");
+    }
+
+    public boolean invokeUpdateLeadApi(LendingApplication lendingApplication, boolean isDowngradeInitiateFlow) {
+        log.info("Calling update lead api for applicationId: {} & merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+        LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+        if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.error("Lending application lender details not found for applicationId: {} & lender: {}", lendingApplication.getId(), lendingApplication.getLender());
+            return false;
+        }
+        try {
+            if(lendingApplicationLenderDetails.getLeadStatus().equals(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_COMPLETED.name())) {
+                return true;
+            }
+
+            lenderAssociationDetailsRequestDto.setApplicationId(lendingApplication.getId());
+            lenderAssociationDetailsRequestDto.setManageState(true);
+            lenderAssociationDetailsRequestDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_PENDING.name());
+            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+
+            NBFCRequestDTO updateLeadRequestDto = getPayload(lendingApplicationLenderDetails, lendingApplication);
+            if (Objects.isNull(updateLeadRequestDto)) {
+                log.info("error in creating payload while invoking update-lead api of applicationId: {}", lendingApplication.getId());
+                return false;
+            }
+
+            int retry = 0;
+            while (retry < 3) {
+                NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(updateLeadRequestDto, LenderAssociationStages.UPDATE_LEAD);
+                log.info("update lead response from nbfc: {} with applicationId: {}", nbfcResponseDTO, lendingApplication.getId());
+                if (Objects.nonNull(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && Objects.nonNull(nbfcResponseDTO.getData())) {
+                    TLUpdateLeadDowngradeResponseDto tlUpdateLeadDowngradeResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLUpdateLeadDowngradeResponseDto.class);
+                    lendingApplicationLenderDetails.setLeadId(String.valueOf(tlUpdateLeadDowngradeResponseDto.getResourceId()));
+                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_COMPLETED.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                    return true;
+                }
+                retry++;
+            }
+        }catch (Exception e) {
+            log.error("Exception while calling updateLead api for applicationId: {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        lenderAssociationDetailsRequestDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_DOWNGRADE_FAILED.name());
+        lenderAssociationDetailsRequestDto.setManageState(true);
+        commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+
+        if(isDowngradeInitiateFlow){
+            log.info("Error response from update-lead api for applicationId: {}", lendingApplication.getId());
+            lendingApplication.setManualKyc("REJECTED");
+            lendingApplication.setManualKycReason("DOWNGRADE_REJECT");
+            lendingApplication.setLmsStage("QC_REJECTED");
+            lendingApplication.setStatus("rejected");
+            lendingApplicationDao.save(lendingApplication);
+        }
+        return false;
+    }
+
+    public NBFCRequestDTO getPayload(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication) {
+        try {
+            return NBFCRequestDTO.builder()
+                    .applicationId(lendingApplication.getId())
+                    .lender(lendingApplication.getLender())
+                    .productName("LENDING")
+                    .payload(TLUpdateLeadDowngradeRequestDto.builder()
+                            .leadId(lendingApplicationLenderDetails.getLeadId())
+                            .loanAmountRequested(String.valueOf(lendingApplication.getLoanAmount()))
+                            .tenure(lendingApplication.getPayableDays())
+                            .rateOfInterest(String.valueOf(lendingApplicationLenderDetails.getAnnualRoi()))
+                            .build())
+                    .build();
+        }catch (Exception e) {
+            log.info("Exception in getPayload for applicationId: {} {}", lendingApplication.getId(), e);
+        }
+        return null;
     }
 
     private void createLendingResubmitReasonCountRecord(LendingApplication lendingApplication, String resubmitReasons, Integer resubmitCount) {
@@ -1885,7 +1988,9 @@ public class LendingApplicationServiceV2 {
             executorService.execute(() -> apiGatewayService.globalLimitTxn(lendingApplication.getMerchantId(), "CREDIT", amountDiffrence));
 
             return true;
-        }catch (Exception e){
+        }catch (DowngradeConfigNotFoundException e) {
+            throw e;
+        }catch(Exception e){
             log.error("Exception while downgrading application for applicationId:{}",lendingApplication.getId(),e);
         }
         return false;
@@ -1904,12 +2009,15 @@ public class LendingApplicationServiceV2 {
                         lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.getTenureInMonths());
                 return loanAmount;
             }
-            LoanDowngradeConfigEntity loanDowngradeConfigEntity = loanDowngradeConfigEntities.get(0);
+            LoanDowngradeConfigEntity loanDowngradeConfigEntity = null;
             for (LoanDowngradeConfigEntity loanDowngradeConfig: loanDowngradeConfigEntities) {
                 if (loanDowngradeConfig.getTenure() <= lendingApplication.getTenureInMonths()) {
                     loanDowngradeConfigEntity = loanDowngradeConfig;
                     break;
                 }
+            }
+            if(ObjectUtils.isEmpty(loanDowngradeConfigEntity)) {
+                throw new DowngradeConfigNotFoundException("Downgrade config not found");
             }
             log.info("downgrade config entity used for downgrade: {} for application: {}", loanDowngradeConfigEntity, lendingApplication.getId());
             Double maxLimit = shopType.equalsIgnoreCase("movable") ? loanDowngradeConfigEntity.getMaxLimitMov() : loanDowngradeConfigEntity.getMaxLimitTemp();
@@ -1929,7 +2037,9 @@ public class LendingApplicationServiceV2 {
             }
 
             return amount;
-        } catch (Exception e) {
+        } catch (DowngradeConfigNotFoundException e){
+            throw e;
+        }catch (Exception e) {
             log.error("exception while downgrade loan amount according to config for applicationId: {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return loanAmount;
@@ -2542,15 +2652,20 @@ public class LendingApplicationServiceV2 {
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             String html = "";
             String filePath = "";
+            String language = "";
+
+            if(vernacularDocLanguageList.contains(lender)) {
+                language =  getDocLanguage(merchant.getId(),lender);
+            }
+
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = getFilePathLiquiloans(lendingApplication, penaltyDate, penaltyDateLiquiloans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired());
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                String language=getDocLanguage(merchant.getId());
                 filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
-                filePath = "/templates/KFS_NONP2P_ABFL.html";
+                filePath = "/templates/KFS_NONP2P_ABFL" + language +".html";
             } else if(lender.equalsIgnoreCase(Lender.USFB.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_USFB" + ".html";
             } else if(Lender.CAPRI.name().equalsIgnoreCase(lender)) {
@@ -2558,7 +2673,7 @@ public class LendingApplicationServiceV2 {
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath = (kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/KFS_TRILLION_PC_v2.html" : "/templates/KFS_TRILLION_PC_v2.html"  ;
+                filePath = (kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html"  ;
             } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + ".html";
             } else {
@@ -2603,7 +2718,7 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    private String getDocLanguage(long merchantId)
+    private String getDocLanguage(long merchantId,String lender)
     {
         String language="";
         try {
@@ -2612,6 +2727,7 @@ public class LendingApplicationServiceV2 {
                 LendingPincodesQuery lendingPincodes = lendingPincodesQueryDao.findByPincode(experian.getPincode());
                 if (!ObjectUtils.isEmpty(lendingPincodes)) {
                     language=DocumentLanguageMap.getDocumentLanguage(lendingPincodes.getState()).name();
+                    language = LenderDocLanguageMap.fetchSupportedLanguageByLender(lender,language);
                     if (!ObjectUtils.isEmpty(language)) {
                         log.info("doc language for merchantId  {} with given pinCode  {} is : {}", merchantId, lendingPincodes.getPincode(), language);
                         language = "_" + language;
@@ -2645,6 +2761,12 @@ public class LendingApplicationServiceV2 {
             String lender = kfsDto.getLender();
             String html = "";
             String filePath = "";
+            String language = "";
+
+            if(vernacularDocLanguageList.contains(lender)) {
+              language =  getDocLanguage(merchant.getId(),lender);
+            }
+
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
@@ -2652,10 +2774,9 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
-                 String language=getDocLanguage(merchant.getId());
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL.html";
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.USFB.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_USFB.html";
             } else if (Lender.CAPRI.name().equalsIgnoreCase(lender)) {
@@ -2663,7 +2784,7 @@ public class LendingApplicationServiceV2 {
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath =(kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+                filePath =(kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
             } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT.html";
             } else {
@@ -2975,6 +3096,8 @@ public class LendingApplicationServiceV2 {
         if(kfsDto.isForeclosureChargesRequired()) {
             List<ForeClosureConfig> foreClosureConfigList = foreClosureConfigDao.findByLender(kfsDto.getLender());
             if (!CollectionUtils.isEmpty(foreClosureConfigList)) {
+                data.put("min_charge", foreClosureConfigList.get(0).getMinAmount());
+                data.put("gst_rate", foreClosureConfigList.get(0).getGst());
                 for (int i = 0; i < foreClosureConfigList.size(); i++) {
                     String value = String.valueOf(i + 1);
                     data.put("foreclosure_tenure_" + value, foreClosureConfigList.get(i).getTenure());
@@ -2982,8 +3105,6 @@ public class LendingApplicationServiceV2 {
                     data.put("rate_of_principle_" + value, foreClosureConfigList.get(i).getRate());
                     data.put("closure_min_" + value, foreClosureConfigList.get(i).getDurationFrom());
                 }
-                data.put("min_charge", foreClosureConfigList.get(10).getMinAmount());
-                data.put("gst_rate", foreClosureConfigList.get(10).getGst());
             }
         }
 
@@ -3385,17 +3506,24 @@ public class LendingApplicationServiceV2 {
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
             String html = "";
             String filePath = "";
+
+            String language = "";
+
+            if(vernacularDocLanguageList.contains(lender)) {
+                language =  getDocLanguage(merchant.getId(),lender);
+            }
+
            if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
                     && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
             }  else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
-                filePath = "/templates/AUTHORIZATION_LETTER_NONP2P_ABFL.html";
+                filePath = "/templates/AUTHORIZATION_LETTER_NONP2P_ABFL"+ language +".html";
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_TRILLIONS_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath = "/templates/AUTHORIZATION_LETTER_TRILLIONS_PC.html";
+                filePath = "/templates/AUTHORIZATION_LETTER_TRILLIONS_PC"+ language +".html";
             } else {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
             }
@@ -3443,7 +3571,7 @@ public class LendingApplicationServiceV2 {
             throw new Exception("Unable to generate Authorization Letter doc for applicationID" + lendingApplication.getId());
         }
     }
-    private String constructShopAddress(LendingApplication lendingApplication) {
+    public String constructShopAddress(LendingApplication lendingApplication) {
         return (ObjectUtils.isEmpty(lendingApplication.getShopNumber()) ? "" : lendingApplication.getShopNumber()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getStreetAddress()) ? "" : lendingApplication.getStreetAddress()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getLandmark()) ? "" : lendingApplication.getLandmark()) + "," +
