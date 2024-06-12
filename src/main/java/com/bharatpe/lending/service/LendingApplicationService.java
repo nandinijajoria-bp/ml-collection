@@ -2332,7 +2332,7 @@ public class LendingApplicationService {
                 data.setPendingItems(Collections.singletonList("pending_application"));
             }
 
-            if ("YES".equalsIgnoreCase(lendingApplication.getSendToNbfc())) {
+            if ("YES".equalsIgnoreCase(lendingApplication.getSendToNbfc()) && lendingApplication.getDisburseTimestamp() == null) {
                 data.setDeleteEligible(false);
                 data.setPendingItems(Collections.singletonList("pending_application"));
             }
