@@ -485,19 +485,18 @@ public class KycHandler {
         return null;
     }
 
-    private List<KycDoc> getPan(Long merchantId) {
+    public List<KycDoc> getPan(Long merchantId) {
         log.info("Getting PAN for merchant:{}", merchantId);
         try {
             String docs = "PAN_NO";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("docs", docs);
-                put("imgRequire", true);
-                put("acceptRejected", true);
+                put("acceptRejected", false);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=true";
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&acceptRejected=false";
             log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
