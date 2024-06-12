@@ -8,6 +8,8 @@ import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.*;
@@ -74,6 +76,9 @@ public class MileStoneHelperServicev3 {
     @Autowired
     MileStoneHelperService mileStoneHelperService;
 
+    @Autowired
+    FunnelService funnelService;
+
     public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant, Boolean loanAmountPresent) {
         MileStoneEligibilityResponseDto responseDto = new MileStoneEligibilityResponseDto();
         responseDto.setShowHomeWidgets(milestoneWidgetVisible);
@@ -128,6 +133,14 @@ public class MileStoneHelperServicev3 {
                 }
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
+
+            if(responseDto.getMilStoneEligibility()) {
+                funnelService.submitEvent(merchant.getId(), null, null,
+                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, "rte_v3_eligible");
+            }else{
+                funnelService.submitEvent(merchant.getId(), null, null,
+                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "rte_v3_ineligible");
+            }
         }
         catch (Exception e) {
             log.error("exception in calculate Eligibility flow for merchantId:{} and exception is {} ",merchant.getId(),Arrays.asList(e.getStackTrace()));

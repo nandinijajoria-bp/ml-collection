@@ -294,6 +294,11 @@ public class MileStoneProgramService {
                     lendingCache.delete(milestoneDashboardCacheKey);
                 }
 
+                if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, "rte_v3_enroll_done");
+                }
+
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.RTE_SESSION_CREATED, "RTE Session Creation");
                 return new ApiResponse<>(true, "200", "OK");
@@ -452,6 +457,18 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setTargetActiveDays(mileStoneResponse.getTotal_target().getActive_days());
             mileStoneDashboardDetails.setTargetUniquePayer(mileStoneResponse.getTotal_target().getUnq_payer());
             mileStoneDashboardDetails.setWeeklyFlowUser(isWeeklyFlowUser);
+
+            if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
+                if (mileStoneDashboardDetails.getAchievementActiveDays() == 7) {
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, "rte_v3_active_7days");
+                }
+
+                if (mileStoneDashboardDetails.getAchievementActiveDays() == 12) {
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, "rte_v3_active_12days");
+                }
+            }
 
             log.info("achievement response added in cache");
             AddCacheDto addCacheDto = new AddCacheDto();
@@ -632,6 +649,19 @@ public class MileStoneProgramService {
         rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
         if (Boolean.FALSE.equals(responseDto.getMilStoneEligibility())) {
             return new ApiResponse<>(rteProgramDetailsDto);
+        }
+
+        if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
+            if(responseDto.getGraphData() == 1D) {
+                //graph data is 100%
+                funnelService.submitEvent(merchant.getId(), null, null,
+                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, "rte_v3_active_complete");
+            }
+            if(responseDto.getIsMileStoneExpiry() && responseDto.getGraphData() != 1D) {
+                //milestone expired and graph data is not 100%
+                funnelService.submitEvent(merchant.getId(), null, null,
+                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, "rte_v3_active_not_complete");
+            }
         }
 
         KycStatus doc = kycHandler.getPanStatus(merchant.getId());
