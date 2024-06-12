@@ -98,6 +98,8 @@ public interface LendingConstants {
 
 	String PAYTM = "PAYTM";
 
+	String PAN_VERIFICATION_VERSION="v2";
+
 	Map<String , List<String>> ResubmitReasonMap = new HashMap<String , List<String>>() {{
 		put("SHOP_PHOTO", Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
 		put("SHOP_INFERED_DISTANCE",  Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
