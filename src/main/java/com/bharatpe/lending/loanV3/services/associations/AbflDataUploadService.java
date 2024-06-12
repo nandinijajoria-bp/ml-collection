@@ -28,7 +28,7 @@ public class AbflDataUploadService implements ILenderAssociationService<Optional
             if (args != null) {
                 documents = args.containsKey("documents") ? ((String) args.get("documents")).split(";") : documents;
                 systemMangedState = args.containsKey("systemManagedState") ? Boolean.parseBoolean((String) args.get("systemManagedState")) : systemMangedState;
-                digiSignRetry = args.containsKey("digi_sign_retry") ? (Boolean) args.get("digi_sign_retry") : false;
+                digiSignRetry = args.containsKey("digi_sign_retry") ? Boolean.parseBoolean((String) args.get("digi_sign_retry")) : false;
             }
         } catch (Exception e) {
             log.info("exception occurred while parsing args for {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
