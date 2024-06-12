@@ -646,21 +646,14 @@ public class VerifyOTPService {
         logger.info("Lender: {}, with lending application status {}", lendingApplication.getLender(), lendingApplication.getStatus());
 
         if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
-            if("rejected".equalsIgnoreCase(lendingApplication.getStatus())){
+            LendingApplication updatedLendingApplication = "rejected".equalsIgnoreCase(lendingApplication.getStatus()) ? lendingApplication : lendingApplicationDao.findById(lendingApplication.getId()).orElse(null);
+            if(!ObjectUtils.isEmpty(updatedLendingApplication) && "rejected".equalsIgnoreCase(updatedLendingApplication.getStatus())){
                 logger.info("Application is in rejected state for ABFL");
-                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
-
-            } else {
-                logger.info("Application is not in rejected state for ABFL, Calling DB");
-                Optional<LendingApplication> updatedLendingApplication = lendingApplicationDao.findById(lendingApplication.getId());
-                if(updatedLendingApplication.isPresent() && ("rejected".equalsIgnoreCase(updatedLendingApplication.get().getStatus()))){
-                    logger.info("setting application view state as status page");
-                    loanDetailsV3Service.saveApplicationViewState(null, updatedLendingApplication.get().getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
-                }
+                loanDetailsV3Service.saveApplicationViewState(null, updatedLendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+                finalResponse.put("success", true);
+                finalResponse.put("agreement_verified", false);
+                return finalResponse;
             }
-            finalResponse.put("success", true);
-            finalResponse.put("agreement_verified", false);
-            return finalResponse;
         }
 
         lendingApplication.setStatus("pending_verification");
