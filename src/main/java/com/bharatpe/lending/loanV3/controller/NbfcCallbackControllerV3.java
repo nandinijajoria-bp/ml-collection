@@ -155,8 +155,15 @@ public class NbfcCallbackControllerV3 {
 
     @PostMapping("kyc-callback")
     public ResponseEntity<ApiResponse<?>> KycCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
-        log.info("kyc-callback received via controller {}", nbfcResponseDTO);
-        kycCallbackWrapperService.kycCallback(nbfcResponseDTO);
+        log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
+        Map<String, String> request = new HashMap() {{
+            put("application_id", nbfcResponseDTO.getApplicationId().toString());
+            put("digi_sign_retry", true);
+            put("documents", "skip_docs");
+            put("systemManagedState", false);
+        }};
+
+        dataUploadRequestKafka.invokeDocUpload(convertToJson(request));
         return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
     }
 
@@ -168,19 +175,6 @@ public class NbfcCallbackControllerV3 {
     }
 
 
-    @PostMapping("test-digisign")
-    public ResponseEntity<ApiResponse<?>> testDigiSign(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
-//        log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
-        Map<String, String> request = new HashMap() {{
-            put("application_id", nbfcResponseDTO.getApplicationId().toString());
-            put("digi_sign_retry", true);
-            put("documents", "skip_docs");
-            put("systemManagedState", false);
-        }};
-
-        dataUploadRequestKafka.invokeDocUpload(convertToJson(request));
-        return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
-    }
 
     private static String convertToJson(Object object){
         try {
