@@ -65,7 +65,6 @@ public class NbfcCallbackControllerV3 {
     @Autowired
     DigitalSignCallbackWrapperService digitalSignCallbackWrapperService;
 
-
     @PostMapping("bre")
     public ResponseEntity<ApiResponse<?>> listenBreCallback(@RequestBody BreCallbackResponseDto breCallbackResponseDto) throws JsonProcessingException {
         log.info("bre callback received via controller {}", breCallbackResponseDto);
@@ -166,6 +165,31 @@ public class NbfcCallbackControllerV3 {
         log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
         digitalSignCallbackWrapperService.digitalSignCallback(nbfcResponseDTO);
         return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
+    }
+
+
+    @PostMapping("test-digisign")
+    public ResponseEntity<ApiResponse<?>> testDigiSign(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
+//        log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
+        Map<String, String> request = new HashMap() {{
+            put("application_id", nbfcResponseDTO.getApplicationId().toString());
+            put("digi_sign_retry", true);
+            put("documents", "skip_docs");
+            put("systemManagedState", false);
+        }};
+
+        dataUploadRequestKafka.invokeDocUpload(convertToJson(request));
+        return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
+    }
+
+    private static String convertToJson(Object object){
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(object);
+        } catch (Exception e){
+            log.info("unable to parse");
+            return null;
+        }
     }
 
 }
