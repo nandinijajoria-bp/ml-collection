@@ -652,12 +652,12 @@ public class MileStoneProgramService {
         }
 
         if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-            if(responseDto.getGraphData() == 1D) {
+            if(!ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() == 1D) {
                 //graph data is 100%
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, "rte_v3_active_complete");
             }
-            if(responseDto.getIsMileStoneExpiry() && responseDto.getGraphData() != 1D) {
+            if(responseDto.getIsMileStoneExpiry() && !ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() != 1D) {
                 //milestone expired and graph data is not 100%
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, "rte_v3_active_not_complete");
