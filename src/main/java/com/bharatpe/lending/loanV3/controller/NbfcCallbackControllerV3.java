@@ -193,4 +193,29 @@ public class NbfcCallbackControllerV3 {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc callback consumed successfully !"));
     }
 
+
+    @PostMapping("test-digisign")
+    public ResponseEntity<ApiResponse<?>> testDigiSign(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
+//        log.info("digital-sign-callback received via controller {}", nbfcResponseDTO);
+        Map<String, String> request = new HashMap() {{
+            put("application_id", nbfcResponseDTO.getApplicationId().toString());
+            put("digi_sign_retry", true);
+            put("documents", "skip_docs");
+            put("systemManagedState", false);
+        }};
+
+        dataUploadRequestKafka.invokeDocUpload(convertToJson(request));
+        return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
+    }
+
+    private static String convertToJson(Object object){
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.writeValueAsString(object);
+        } catch (Exception e){
+            log.info("unable to parse");
+            return null;
+        }
+    }
+
 }
