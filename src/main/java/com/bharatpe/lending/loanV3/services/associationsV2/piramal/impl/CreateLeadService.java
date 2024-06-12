@@ -54,9 +54,6 @@ public class CreateLeadService {
     @Autowired
     CreateLeadPayloadValidationLayer createLeadPayloadValidationLayer;
 
-    @Autowired
-    LoanUtil loanUtil;
-
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         try {

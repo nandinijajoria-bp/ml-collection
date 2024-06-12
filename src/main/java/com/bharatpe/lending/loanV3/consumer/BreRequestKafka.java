@@ -73,9 +73,6 @@ public class BreRequestKafka {
     @Autowired
     ConverterUtils converterUtils;
 
-    @Autowired
-    LoanUtil loanUtil;
-
     @KafkaListener(topics="${abfl.bre.topic:invoke_bre}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
