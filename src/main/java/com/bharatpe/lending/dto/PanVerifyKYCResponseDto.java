@@ -206,6 +206,33 @@ public class PanVerifyKYCResponseDto {
         public void setMaxCountReached(Boolean maxCountReached) {
             this.maxCountReached = maxCountReached;
         }
+
+        @Override
+        public String toString() {
+            return "Data{" +
+                    "id='" + id + '\'' +
+                    ", message='" + message + '\'' +
+                    ", maxCountReached=" + maxCountReached +
+                    ", version='" + version + '\'' +
+                    ", identifier='" + identifier + '\'' +
+                    ", active='" + active + '\'' +
+                    ", panHolderFirstName='" + panHolderFirstName + '\'' +
+                    ", panHolderMiddleName='" + panHolderMiddleName + '\'' +
+                    ", panHolderLastName='" + panHolderLastName + '\'' +
+                    ", panNumber='" + panNumber + '\'' +
+                    ", panHolderName='" + panHolderName + '\'' +
+                    ", dob='" + dob + '\'' +
+                    ", panValid=" + panValid +
+                    ", dobMatch=" + dobMatch +
+                    ", nameMatch=" + nameMatch +
+                    ", aadhaarSeedingStatus='" + aadhaarSeedingStatus + '\'' +
+                    ", provider='" + provider + '\'' +
+                    ", createdAt='" + createdAt + '\'' +
+                    ", updatedAt='" + updatedAt + '\'' +
+                    ", consumerId='" + consumerId + '\'' +
+                    ", merchantId='" + merchantId + '\'' +
+                    '}';
+        }
     }
 
     public Boolean getStatus() {
@@ -222,5 +249,13 @@ public class PanVerifyKYCResponseDto {
 
     public void setData(Data data) {
         this.data = data;
+    }
+
+    @Override
+    public String toString() {
+        return "PanVerifyKYCResponseDto{" +
+                "status=" + status +
+                ", data=" + data +
+                '}';
     }
 }
