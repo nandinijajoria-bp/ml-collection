@@ -32,6 +32,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -238,6 +239,15 @@ public class SupportService {
 
     @Value("${account-aggregator.rollout.percent:10}")
     Integer accountAggregatorRolloutPercent;
+
+    @Value("${enable.rte.v3:true}")
+    boolean isRtev3Enabled;
+
+    @Value("${rte.v3.rollout:10}")
+    int rtev3RolloutPercent;
+
+    @Autowired
+    MileStoneHelperServicev3 mileStoneHelperServicev3;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -2735,7 +2745,11 @@ public class SupportService {
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
         logger.info("basic Details of Merchant{} for milestone program for merchantId {}", basicDetailsDto, merchantId);
         if (basicDetailsDto.isPresent()) {
-            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+//            MileStoneEligibilityResponseDto responseDto = mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+            MileStoneEligibilityResponseDto responseDto = isRtev3Enabled && easyLoanUtil.percentScaleUp(merchantId, rtev3RolloutPercent)?
+                    mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get(), !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId))) :
+                    mileStoneHelperService.calculateEligibility(basicDetailsDto.get());
+
             supportDto.setMileStoneEligibility(responseDto);
             supportDto.setMerchantId(merchantId);
             MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
