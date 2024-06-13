@@ -154,7 +154,7 @@ public class CreateLeadService {
                         .maritalStatus("OTHER")
                         .occupationType("SENP")
                         .gender(ObjectUtils.isEmpty(cKycResponseDto.getGender()) ? "OTHERS" : getGender(cKycResponseDto.getGender()))
-                        .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
+                        .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                         .salutation(cKycResponseDto.getGender().equalsIgnoreCase("F") ? "MRS" : "MR")
                         .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                         .panCardDetail(CreateLeadRequestDTO.ApplicantsDetail.Applicant.PanCardDetail.builder()
