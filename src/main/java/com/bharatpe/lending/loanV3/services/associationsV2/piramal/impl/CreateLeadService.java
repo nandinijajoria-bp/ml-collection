@@ -110,7 +110,7 @@ public class CreateLeadService {
             String middleName = nameAndDobDetailsDto.getMiddleName();
             String lastName = nameAndDobDetailsDto.getLastName();
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-            applicant.add(getApplicantDetails(cKycResponseDto, firstName, middleName, lastName));
+            applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
                             .partnerApplicationId(lenderAssociationDetailsDto.getLendingApplication().getExternalLoanId())
                             .entityType("INDIVIDUAL")
@@ -142,13 +142,13 @@ public class CreateLeadService {
         return null;
     }
 
-    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, String firstName, String middleName, String lastName) {
+    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto) {
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .applicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
-                        .firstName(firstName)
+                        .firstName(nameAndDobDetailsDto.getFirstName())
                         .applicantType("PRIMARY")
-                        .middleName(middleName)
-                        .lastName(lastName)
+                        .middleName(nameAndDobDetailsDto.getMiddleName())
+                        .lastName(nameAndDobDetailsDto.getLastName())
                         .countryOfBirth("INDIA")
                         .residentialStatus("RESIDENTIAL_INDIAN")
                         .maritalStatus("OTHER")
@@ -158,9 +158,9 @@ public class CreateLeadService {
                         .salutation(cKycResponseDto.getGender().equalsIgnoreCase("F") ? "MRS" : "MR")
                         .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                         .panCardDetail(CreateLeadRequestDTO.ApplicantsDetail.Applicant.PanCardDetail.builder()
-                                .name(firstName)
+                                .name(nameAndDobDetailsDto.getFirstName())
                                 .panCardNo(cKycResponseDto.getPanNumber())
-                                .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
+                                .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                                 .build())
                         .currentAddress(getAddress(cKycResponseDto, "CURRENT"))
                         .permanentAddress(getAddress(cKycResponseDto, "PERMANENT"))
