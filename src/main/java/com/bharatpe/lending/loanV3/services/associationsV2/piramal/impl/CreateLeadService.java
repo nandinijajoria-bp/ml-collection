@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.enums.StateMapping;
@@ -15,7 +16,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.Invok
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,7 +64,7 @@ public class CreateLeadService {
             if (InvokeCreateLeadAndDocUploadWraperService.kycDataNeeded(LenderAssociationStages.PiramalAssociationStages.LEAD_CREATION.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
-            if (createLeadPayloadValidationLayer.isInValidPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (createLeadPayloadValidationLayer.isInValidPayload(lenderAssociationDetailsDto.getCKycResponseDto(), lenderAssociationDetailsDto.getMerchantId())) {
                 log.info("invalid response from downstream api : {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.LEAD_CREATION_FAILED);
@@ -104,11 +105,12 @@ public class CreateLeadService {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsDto.getCKycResponseDto();
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
-            String firstName = kycUtils.getFirstName(cKycResponseDto);
-            String middleName = kycUtils.getMiddleName(cKycResponseDto);
-            String lastName = kycUtils.getLastName(cKycResponseDto);
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lenderAssociationDetailsDto.getMerchantId());
+            String firstName = nameAndDobDetailsDto.getFirstName();
+            String middleName = nameAndDobDetailsDto.getMiddleName();
+            String lastName = nameAndDobDetailsDto.getLastName();
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-            applicant.add(getApplicantDetails(cKycResponseDto, firstName, middleName, lastName));
+            applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
                             .partnerApplicationId(lenderAssociationDetailsDto.getLendingApplication().getExternalLoanId())
                             .entityType("INDIVIDUAL")
@@ -140,25 +142,25 @@ public class CreateLeadService {
         return null;
     }
 
-    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, String firstName, String middleName, String lastName) {
+    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto) {
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .applicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
-                        .firstName(firstName)
+                        .firstName(nameAndDobDetailsDto.getFirstName())
                         .applicantType("PRIMARY")
-                        .middleName(middleName)
-                        .lastName(lastName)
+                        .middleName(nameAndDobDetailsDto.getMiddleName())
+                        .lastName(nameAndDobDetailsDto.getLastName())
                         .countryOfBirth("INDIA")
                         .residentialStatus("RESIDENTIAL_INDIAN")
                         .maritalStatus("OTHER")
                         .occupationType("SENP")
                         .gender(ObjectUtils.isEmpty(cKycResponseDto.getGender()) ? "OTHERS" : getGender(cKycResponseDto.getGender()))
-                        .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
+                        .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                         .salutation(cKycResponseDto.getGender().equalsIgnoreCase("F") ? "MRS" : "MR")
                         .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                         .panCardDetail(CreateLeadRequestDTO.ApplicantsDetail.Applicant.PanCardDetail.builder()
-                                .name(firstName)
+                                .name(nameAndDobDetailsDto.getFirstName())
                                 .panCardNo(cKycResponseDto.getPanNumber())
-                                .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
+                                .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                                 .build())
                         .currentAddress(getAddress(cKycResponseDto, "CURRENT"))
                         .permanentAddress(getAddress(cKycResponseDto, "PERMANENT"))
