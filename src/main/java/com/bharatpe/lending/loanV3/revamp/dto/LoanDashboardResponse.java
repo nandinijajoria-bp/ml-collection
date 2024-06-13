@@ -45,6 +45,8 @@ public class LoanDashboardResponse {
     private String diwaliBannerType;
     private String diwaliBannerEndDate;
     private Boolean eligibilityExceptionFlag;
+    private Double previousFinalOffer;
+    private String offerIncreased;
 
 }
 
