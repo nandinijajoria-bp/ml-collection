@@ -286,6 +286,10 @@ public class LoanUtil {
 	@Value("${max.loan.amount.autopayupi:50000}")
 	Double maxLoanAmountForAutoPayUPI;
 
+
+	@Value("${excluded.error.codes}")
+	private String excludedErrorCodes;
+
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 	public List<Long> loadDerogEffectedMerchants() {
@@ -2171,9 +2175,22 @@ public class LoanUtil {
 
 	public boolean isEligibilityErrorResponse(GlobalLimitResponse globalLimitResponse) {
 		if(Objects.nonNull(globalLimitResponse) && !globalLimitResponse.isSuccess() && Objects.nonNull(globalLimitResponse.getErrorCode())) {
-			return true;
-		}
+
+            return !getExcludedErrorCode().contains(globalLimitResponse.getErrorCode());
+        }
 		return false;
+	}
+
+	private List<String> getExcludedErrorCode() {
+		List<String> excludedCodes = new ArrayList<>();
+		if (StringUtils.hasLength(excludedErrorCodes)) {
+			try {
+				excludedCodes = Arrays.asList(excludedErrorCodes.split(","));
+			} catch (Exception e) {
+				logger.error("Error in parsing excluded error code list ",e);
+			}
+		}
+		return excludedCodes;
 	}
 
 	public String getLenderRejectedMapping(String lender) {
@@ -2186,6 +2203,8 @@ public class LoanUtil {
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
+
+
 
 }
 

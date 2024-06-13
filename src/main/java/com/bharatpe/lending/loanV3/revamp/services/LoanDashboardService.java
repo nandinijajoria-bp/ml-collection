@@ -828,6 +828,12 @@ public class LoanDashboardService {
                 return;
             }
             log.info("Eligibility not found for merchant:{}", merchant.getId());
+           boolean eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
+            if(!eligibilityErrorFlag) {
+                loanDashboardResponse.setEligibilityExceptionFlag(false);
+                return;
+            }
+
             loanDashboardResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse));
             loanDashboardResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
             if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
@@ -837,7 +843,7 @@ public class LoanDashboardService {
                 setBankName(merchant.getId(), loanDashboardResponse);
             }
 
-            loanDashboardResponse.setEligibilityExceptionFlag(loanUtil.isEligibilityErrorResponse(globalLimitResponse));
+            loanDashboardResponse.setEligibilityExceptionFlag(eligibilityErrorFlag);
         }
 
     private Date parseDate(String stringDate) {
