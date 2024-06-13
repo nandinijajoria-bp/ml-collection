@@ -2665,24 +2665,14 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
 
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-            if(ObjectUtils.isEmpty(lendingRiskVariables)) {
-                log.info("No applicationId found of merchantId: {}", merchantId);
-                return new ApiResponse<>(false, "LRV Details not found for given merchantId");
-            }
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
-                log.info("No applicationId found of merchantId: {}", merchantId);
+                log.info("LRVS details not found of merchantId: {}", merchantId);
                 return new ApiResponse<>(false, "LRVS Details not found for given merchantId");
             }
 
-            log.info("update lrvs table for merchantId: {}", merchantId);
-            lendingRiskVariablesSnapshot.setMinTvrCount(lendingRiskVariables.getMinTvrCount());
-            lendingRiskVariablesSnapshot.setNewContactReferenceLogic(lendingRiskVariables.getNewContactReferenceLogic());
-            lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
-
             MerchantRedirectToNewRefResponseDto merchantRedirectToNewRefResponseDto = new MerchantRedirectToNewRefResponseDto();
-            merchantRedirectToNewRefResponseDto.setVersion(lendingRiskVariables.getNewContactReferenceLogic() ? "v2" : "v1");
+            merchantRedirectToNewRefResponseDto.setVersion(lendingRiskVariablesSnapshot.getNewContactReferenceLogic() ? "v2" : "v1");
             return new ApiResponse<>(merchantRedirectToNewRefResponseDto);
         }catch (Exception e) {
             log.error("Error while fetching if merchant should redirect to new reference logic or not", Arrays.asList(e.getStackTrace()));

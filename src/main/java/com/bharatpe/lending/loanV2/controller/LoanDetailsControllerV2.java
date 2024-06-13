@@ -131,7 +131,7 @@ public class LoanDetailsControllerV2 {
         return ResponseEntity.ok(loanDetailsServiceV2.updateMerchantPermissions(merchant, lendingMerchantPermissionsDto));
     }
 
-    @GetMapping(value = "/getMerchantReferencesVersion")
+    @GetMapping(value = "/contact-reference/version")
     public ResponseEntity<ApiResponse<?>> getMerchantReferencesVersion(@RequestAttribute(required = true) BasicDetailsDto merchant) {
         if (Objects.isNull(merchant)  || Objects.isNull(merchant.getId())) {
             log.info("Incorrect request details");
