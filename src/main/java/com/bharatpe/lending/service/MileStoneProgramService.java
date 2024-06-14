@@ -49,7 +49,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -466,9 +466,11 @@ public class MileStoneProgramService {
 
             if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
                 if(!ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())) {
-                    LocalDateTime createdAt = LocalDateTime.ofInstant(entity.getCreatedAt().toInstant(), ZoneId.systemDefault());
-                    LocalDateTime now = LocalDateTime.now();
-                    long daysAfterEnroll = ChronoUnit.DAYS.between(createdAt, now);
+                    LocalDate enrollDate = entity.getCreatedAt().toInstant()
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate();
+                    LocalDate currentDate = LocalDate.now();
+                    long daysAfterEnroll = ChronoUnit.DAYS.between(enrollDate, currentDate);
 
                     if (daysAfterEnroll == 7) {
                         funnelService.submitEvent(merchant.getId(), null, null,
