@@ -28,6 +28,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.RTEProgramType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -48,6 +49,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -295,8 +299,10 @@ public class MileStoneProgramService {
                 }
 
                 if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-                    funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, "rte_v3_enroll_done");
+                    if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                        funnelService.submitEvent(merchant.getId(), null, null,
+                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, "rte_v3_enroll_done");
+                    }
                 }
 
                 funnelService.submitEvent(merchant.getId(), null, null,
@@ -459,14 +465,20 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setWeeklyFlowUser(isWeeklyFlowUser);
 
             if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-                if (mileStoneDashboardDetails.getAchievementActiveDays() == 7) {
-                    funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, "rte_v3_active_7days");
-                }
+                if(!ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())) {
+                    LocalDateTime createdAt = LocalDateTime.ofInstant(entity.getCreatedAt().toInstant(), ZoneId.systemDefault());
+                    LocalDateTime now = LocalDateTime.now();
+                    long daysAfterEnroll = ChronoUnit.DAYS.between(createdAt, now);
 
-                if (mileStoneDashboardDetails.getAchievementActiveDays() == 12) {
-                    funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, "rte_v3_active_12days");
+                    if (daysAfterEnroll == 7) {
+                        funnelService.submitEvent(merchant.getId(), null, null,
+                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, "rte_v3_active_7days");
+                    }
+
+                    if (daysAfterEnroll == 12) {
+                        funnelService.submitEvent(merchant.getId(), null, null,
+                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, "rte_v3_active_12days");
+                    }
                 }
             }
 
@@ -650,20 +662,6 @@ public class MileStoneProgramService {
         if (Boolean.FALSE.equals(responseDto.getMilStoneEligibility())) {
             return new ApiResponse<>(rteProgramDetailsDto);
         }
-
-        if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-            if(!ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() == 1D) {
-                //graph data is 100%
-                funnelService.submitEvent(merchant.getId(), null, null,
-                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, "rte_v3_active_complete");
-            }
-            if(!ObjectUtils.isEmpty(responseDto.getIsMileStoneExpiry()) && responseDto.getIsMileStoneExpiry() && !ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() != 1D) {
-                //milestone expired and graph data is not 100%
-                funnelService.submitEvent(merchant.getId(), null, null,
-                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, "rte_v3_active_not_complete");
-            }
-        }
-
 
         KycStatus doc = kycHandler.getPanStatus(merchant.getId());
         rteProgramDetailsDto.setKycStatus(doc);
