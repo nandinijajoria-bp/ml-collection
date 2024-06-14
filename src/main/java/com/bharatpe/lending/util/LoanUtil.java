@@ -988,7 +988,7 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
-			logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), e);
+			logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 	}
 
