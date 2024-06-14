@@ -58,6 +58,8 @@ public interface LendingConstants {
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String PAN_NAME = "/api/v1/internal/pan-verify";
+	String PAN_VERIFY = "/api/v3/pan-verify";
+	String PAN_FETCH = "/api/v3/pan-fetch";
 	String APPLICATION_EVENT_TOPIC = "LENDING_EVENT_APPLICATION_UPDATE";
 	String APPLICATION_DS_EVENT_TOPIC = "LENDING_EVENT_DS_DATA";
   String CREDIT_CARD_STATUS_URL = "/credit_card/status?merchant_id=";
@@ -95,6 +97,8 @@ public interface LendingConstants {
 	String NEGATIVE_BUSINESS_CATEGORY_REJECTION = "Negative category as per lender";
 
 	String PAYTM = "PAYTM";
+
+	String PAN_VERIFICATION_VERSION="v2";
 
 	Map<String , List<String>> ResubmitReasonMap = new HashMap<String , List<String>>() {{
 		put("SHOP_PHOTO", Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));

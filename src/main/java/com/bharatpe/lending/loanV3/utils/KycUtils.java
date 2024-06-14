@@ -1,10 +1,13 @@
 package com.bharatpe.lending.loanV3.utils;
 
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
@@ -19,8 +22,6 @@ import java.text.SimpleDateFormat;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.*;
-
-import static com.bharatpe.lending.enums.KycDocType.PAN_CARD;
 
 @Component
 @Slf4j
@@ -37,6 +38,9 @@ public class KycUtils {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
 
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
@@ -71,6 +75,8 @@ public class KycUtils {
                     cKycResponseDto.setFirstName(doc.getFirstName());
                     cKycResponseDto.setMiddleName(doc.getMiddleName());
                     cKycResponseDto.setLastName(doc.getLastName());
+                    cKycResponseDto.setPanDob(doc.getDob());
+                    cKycResponseDto.setPanName(doc.getName());
                 } else if ("SELFIE".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setSelfieBase64(ConverterUtils.convertPreSignedUrlToBase64String(doc.getDocFrontImageUrl()));
                     cKycResponseDto.setSelfieString(doc.getDocFrontImageUrl());
@@ -178,5 +184,59 @@ public class KycUtils {
                 birthDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate(),
                 currentDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
         ).getYears();
+    }
+
+    public NameAndDobDetailsDto getNameAndDobValues(CKycResponseDto cKycResponseDto, Long merchantId){
+        NameAndDobDetailsDto nameAndDobDetailsDto = new NameAndDobDetailsDto();
+        nameAndDobDetailsDto.setFirstName("");
+        nameAndDobDetailsDto.setMiddleName("");
+        nameAndDobDetailsDto.setLastName("");
+        nameAndDobDetailsDto.setDob("");
+
+        String fullName = "";
+        String dob = "";
+
+        if(!ObjectUtils.isEmpty(cKycResponseDto.getPanDob())){
+            fullName = cKycResponseDto.getPanName();
+            dob = cKycResponseDto.getPanDob();
+        }
+        else{
+            LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(lendingPancardDetails)
+                    && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())
+                    && !ObjectUtils.isEmpty(lendingPancardDetails.getName())
+            ){
+                dob = lendingPancardDetails.getDob();
+                fullName = lendingPancardDetails.getName();
+            }
+            else {
+                fullName = !ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ? cKycResponseDto.getPanName() : cKycResponseDto.getName();
+                dob = cKycResponseDto.getDob();
+            }
+        }
+        nameAndDobDetailsDto.setFullName(fullName);
+        nameAndDobDetailsDto.setDob(dob);
+
+        if(ObjectUtils.isEmpty(fullName)){
+            return nameAndDobDetailsDto;
+        }
+        fullName = fullName.trim();
+        if(fullName.contains(" ")){
+            String temp = fullName;
+            String firstName = temp.substring(0, fullName.indexOf(" ")).trim();
+            temp = temp.substring(firstName.length()).trim();
+            String middleName = "";
+            if(temp.contains(" ")){
+                middleName = temp.substring(0, temp.indexOf(" ")).trim();
+            }
+            temp = temp.substring(middleName.length()).trim();
+            String lastName = temp;
+            nameAndDobDetailsDto.setFirstName(firstName);
+            nameAndDobDetailsDto.setMiddleName(middleName);
+            nameAndDobDetailsDto.setLastName(lastName);
+            return nameAndDobDetailsDto;
+        }
+        nameAndDobDetailsDto.setFirstName(fullName);
+        return nameAndDobDetailsDto;
     }
 }

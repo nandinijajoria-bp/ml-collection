@@ -89,14 +89,6 @@ public abstract class LendingApplicationServiceV3Base {
             invokeLenderAssociationRequest.setForceEnable(false);
             initLenderAssociation(invokeLenderAssociationRequest);
         }
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                    .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
-                    .stage(LenderAssociationStages.COMPLETED)
-                    .ediModelModified(false)
-                    .lender(currentDraftApplication.getLender())
-                    .build());
-        }
         else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             return new ApiResponse<>(false,"lead creation triggered ! Please retry for status in few minutes");
         } else {

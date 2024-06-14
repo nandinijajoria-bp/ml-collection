@@ -16,6 +16,7 @@ public class GlobalLimitResponse {
     private boolean success;
     private String message;
     private Data data;
+    private String errorCode;
 
     @Getter
     @Setter
@@ -44,6 +45,9 @@ public class GlobalLimitResponse {
         Boolean bankAffectedOffer;
         Boolean gst3bAffectedOffer;
         private Boolean preApprovedLoan;
+        private Double previousFinalOffer;
+        private String offerIncreased;
+
     }
 
     @lombok.Data

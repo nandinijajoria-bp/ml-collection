@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.query.dao.MileStoneDaoSlave;
 import com.bharatpe.lending.common.query.entity.MileStoneSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.util.MapperUtil;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
@@ -22,7 +23,6 @@ import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
-import com.bharatpe.lending.common.util.MapperUtil;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,8 +32,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -170,7 +168,7 @@ public class MileStoneHelperService {
     public MileStoneEligibilityResponseDto.ProgramEligibleData setETCProgramEligibleData() {
         MileStoneEligibilityResponseDto.ProgramEligibleData programEligibleData = new MileStoneEligibilityResponseDto.ProgramEligibleData();
         programEligibleData.setStripHeading("Join Program");
-        programEligibleData.setHeading("Get Set Loan in 30 days!");
+        programEligibleData.setHeading("Get Set Loan");
         programEligibleData.setSubHeading("Complete  targets to become eligible for loan");
         programEligibleData.setButtonText("START NOW");
         programEligibleData.setBannerImage("https://d30gqtvesfc1d5.cloudfront.net/hubble/r2e/home-joinprogram-lottie-1696315201206.json");
@@ -180,7 +178,7 @@ public class MileStoneHelperService {
     public MileStoneEligibilityResponseDto.ProgramEligibleData setNTCProgramEligibleData() {
         MileStoneEligibilityResponseDto.ProgramEligibleData programEligibleData = new MileStoneEligibilityResponseDto.ProgramEligibleData();
         programEligibleData.setStripHeading("Join Program");
-        programEligibleData.setHeading("Get Set Loan in 60 days!");
+        programEligibleData.setHeading("Get Set Loan");
         programEligibleData.setSubHeading("Complete  targets to become eligible for loan");
         programEligibleData.setButtonText("START NOW");
         programEligibleData.setBannerImage("https://d30gqtvesfc1d5.cloudfront.net/hubble/r2e/home-joinprogram-lottie-1696315201206.json");

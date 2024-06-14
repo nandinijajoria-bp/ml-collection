@@ -255,6 +255,8 @@ public class EligibilityV3Service {
             log.info("Global limit for merchant:{} is {}", eligibilityStateDTO.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
+            eligibilityStateDTO.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
+            eligibilityStateDTO.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
             if(RiskSegment.REPEAT.name().equalsIgnoreCase(globalLimitResponse.getData().getRiskSegment()) &&
                     Objects.nonNull(globalLimitResponse.getData().getPreApprovedLoan()) &&
                             globalLimitResponse.getData().getPreApprovedLoan()
@@ -300,6 +302,7 @@ public class EligibilityV3Service {
         log.info("Eligibility not found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
         eligibilityStateDTO.setIneligible(loanDetailsServiceV2.getIneligibleReason(eligibilityStateDTO.getMerchant().getId(), isDerog, eligibilityStateDTO.getExperian().getPincode(), globalLimitResponse));
         eligibilityStateDTO.setChangeBankAccount(!loanUtil.isEnachBank(eligibilityStateDTO.getMerchant().getId()));
+        eligibilityStateDTO.setEligibilityExceptionFlag(loanUtil.isEligibilityErrorResponse(globalLimitResponse));
     }
 
     public GlobalLimitResponse requestForEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {
@@ -307,7 +310,7 @@ public class EligibilityV3Service {
                 request.getAppVersion(), eligibilityStateDTO.getClubV2Member(), request.getMappedMobile(), request.getStageOneHitId(), request.getStageTwoHitId(),
                 request.getSkipBureau(), request.getSkipMaskedMobileException(),null,null,true,null, eligibilityStateDTO,false, EligibilityRequestSource.EASY_LOANS);
 
-        if(globalLimitResponse.getData().getPreApprovedLoan()){
+        if(Objects.nonNull(globalLimitResponse) && Objects.nonNull(globalLimitResponse.getData()) && Objects.nonNull(globalLimitResponse.getData().getPreApprovedLoan()) && globalLimitResponse.getData().getPreApprovedLoan()){
             HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
                 put("globalLimit", globalLimitResponse.getData().getGlobalLimit().toString());
                 put("riskSegment", globalLimitResponse.getData().getRiskSegment());

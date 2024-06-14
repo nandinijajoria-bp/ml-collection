@@ -20,6 +20,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
+import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    LendingApplicationServiceV3 lendingApplicationServiceV3;
 
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -101,6 +105,8 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     }
                 }
             }
+
+            lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
             return new LendingStateDTO<>(lenderEvaluationStateDTO , nextPage, LendingViewStates.LENDER_EVALUATION_PAGE);
         } catch (Exception e) {
             log.error("error in getting reference stage data for {} : {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));

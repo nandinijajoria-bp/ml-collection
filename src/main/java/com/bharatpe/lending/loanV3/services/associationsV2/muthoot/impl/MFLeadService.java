@@ -6,7 +6,6 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.dto.NachStatusResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
@@ -17,6 +16,7 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -32,6 +32,7 @@ import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -70,6 +71,10 @@ public class MFLeadService {
 
     @Autowired
     DsHandler dsHandler;
+
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -157,11 +162,12 @@ public class MFLeadService {
             log.info("update lead response of Muthoot from nbfc: {} with applicationId: {}", nbfcResponseDTO, lenderAssociationDetailsRequest.getApplicationId());
             if (Objects.nonNull(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && Objects.nonNull(nbfcResponseDTO.getData())) {
                 MFUpdateLeadResponseDTO updateLeadResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), MFUpdateLeadResponseDTO.class);
-                if ("UUD-S-000".equalsIgnoreCase(updateLeadResponseDTO.getStatusCode())) {
+                if ("UUD-S-000".equalsIgnoreCase(updateLeadResponseDTO.getStatusCode()) || "FBX-S-208".equalsIgnoreCase(updateLeadResponseDTO.getStatusCode())) {
                     lenderAssociationDetailsRequest.setLendingApplicationLenderDetails(setLeadStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), LenderAssociationStatus.UPDATE_LEAD_COMPLETED.name()));
                     commonService.manageApplicationState(lenderAssociationDetailsRequest);
                     return true;
                 }
+                log.info("different status code received: {} from muthoot in update lead for application id : {}", updateLeadResponseDTO.getStatusCode(), lenderAssociationDetailsRequest.getApplicationId());
             }
         } catch (Exception e) {
             log.error("error while pushing update lead of Muthoot for  {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -207,6 +213,9 @@ public class MFLeadService {
                                 .build())
                         .mandateDetails(getMandateDetails(lendingApplication))
                         .build();
+                if(leadPayloadValidation.isInValidUpdateLeadPayload(payload)){
+                    throw new RuntimeException("update lead validation failed for applicationId" + lendingApplication.getId());
+                }
             }
             return NBFCRequestDTO.builder().applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
@@ -227,8 +236,7 @@ public class MFLeadService {
 
 
     private MFUpdateLeadRequestDTO.BusinessDetail getBusinessAddress(LendingApplication lendingApplication) {
-        String address = Optional.ofNullable(lendingApplication.getArea()).orElse("") + " " +
-                Optional.ofNullable(lendingApplication.getLandmark()).orElse("");
+        String address = lendingApplicationServiceV2.constructShopAddress(lendingApplication);
         int addressSize = address.length();
         String address1 = "", address2 = "";
         if (addressSize <= 40) {
@@ -237,7 +245,7 @@ public class MFLeadService {
             address1 = address.substring(0, 40);
             address2 = address.substring(40, addressSize);
         }
-        MFUpdateLeadRequestDTO.BusinessDetail businessAddress = MFUpdateLeadRequestDTO.BusinessDetail.builder()
+        return MFUpdateLeadRequestDTO.BusinessDetail.builder()
                 .address(MFUpdateLeadRequestDTO.Address.builder()
                         .businessAddressType("OWNED")
                         .line1(address1)
@@ -249,7 +257,6 @@ public class MFLeadService {
                         .location(getAddressLocation(lendingApplication.getMerchantId(), lendingApplication.getId()))
                         .build())
                 .build();
-        return businessAddress;
     }
 
     private List<MFUpdateLeadRequestDTO.Consent> getConsents(LendingApplication lendingApplication) {
@@ -291,21 +298,18 @@ public class MFLeadService {
         if (lendingApplicationDetails.getIsNachSkip()) {
             MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), LendingEnum.LENDER.MUTHOOT.name());
             if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
-                NachStatusResponseDTO nachStatusResponseDTO = enachHandler.findEnachStatusByOwnerIdAndAccountNumber(lendingApplication.getMerchantId(), merchantNachDetailsResponseDTO.getOwnerId(), merchantNachDetailsResponseDTO.getAccountNumber());
-                if (!ObjectUtils.isEmpty(nachStatusResponseDTO)) {
-                    mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
-                            .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                            .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
-                            .accountType(ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getAccountType()) ? "savings" : merchantNachDetailsResponseDTO.getAccountType().toLowerCase())
-                            .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
-                            .bankName(merchantNachDetailsResponseDTO.getBankName())
-                            .mandateAmount(merchantNachDetailsResponseDTO.getNachAmount())
-                            .mandateType("E_MANDATE")
-                            .vendor(merchantNachDetailsResponseDTO.getProvider())
-                            .vendorDocID(merchantNachDetailsResponseDTO.getProviderUmrn())
-                            .npciTxnID(nachStatusResponseDTO.getNpciTxnId())
-                            .build();
-                }
+                mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
+                        .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
+                        .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
+                        .accountType(ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getAccountType()) ? "savings" : merchantNachDetailsResponseDTO.getAccountType().toLowerCase())
+                        .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
+                        .bankName(merchantNachDetailsResponseDTO.getBankName())
+                        .mandateAmount(merchantNachDetailsResponseDTO.getNachAmount())
+                        .mandateType("E_MANDATE")
+                        .vendor(merchantNachDetailsResponseDTO.getProvider())
+                        .vendorDocID(merchantNachDetailsResponseDTO.getProviderUmrn())
+                        .npciTxnID(merchantNachDetailsResponseDTO.getNpciTxnId())
+                        .build();
             }
         } else {
             BharatPeEnachResponseDTO bharatPeEnachResponseDTO = enachHandler.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());

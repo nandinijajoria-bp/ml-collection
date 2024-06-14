@@ -75,6 +75,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
+import static com.bharatpe.lending.enums.Lender.ABFL;
+import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 
@@ -249,6 +251,8 @@ public class LoanUtil {
 
 	Map<Long, String> forceLendersForMerchants = new HashMap<>();
 
+	Map<String, String> rejectedLenderMapping = new HashMap<>();
+
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
@@ -278,6 +282,18 @@ public class LoanUtil {
 	String trillionloansForeClosureChargesRolloutDate;
 	@Value("${fore.closure.charges.rollout.date.LIQUILOANS_NBFC:2024-04-10 00:00}")
 	String liquiloansnbfcForeClosureChargesRolloutDate;
+
+
+	@Value("${autopay.upi.lenders:}")
+	String autoPayUpiLenders;
+
+
+	@Value("${max.loan.amount.autopayupi:50000}")
+	Double maxLoanAmountForAutoPayUPI;
+
+
+	@Value("${excluded.error.codes}")
+	private String excludedErrorCodes;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -589,6 +605,15 @@ public class LoanUtil {
 //		return pincodeCityStateMapping != null && LendingConstants.CPV_CITIES.contains(pincodeCityStateMapping.getCity());
 //	}
 
+	public boolean isApplicationEligibleForAutoPayUpi(String lender, Long merchantId, Double loanAmount) {
+
+		if (autoPayUpiLenders.contains(lender) && loanAmount < maxLoanAmountForAutoPayUPI)
+		{
+			return true;
+		}
+
+		return false;
+	}
 
 	public String getApplicationTatMessage(LendingApplicationSlave lendingApplication){
 		if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
@@ -967,6 +992,8 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setBankBasedAffectedOffer(lendingRiskVariables.getBankBasedAffectedOffer());
 				lendingRiskVariablesSnapshot.setApprovalRate(lendingRiskVariables.getApprovalRate());
 				lendingRiskVariablesSnapshot.setClientIdentifier(lendingRiskVariables.getClientIdentifier());
+				lendingRiskVariablesSnapshot.setSummaryTpv60d(lendingRiskVariables.getSummaryTpv60d());
+				lendingRiskVariablesSnapshot.setRejectedLenders(lendingRiskVariables.getRejectedLenders());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -1524,7 +1551,7 @@ public class LoanUtil {
 			finalLender = Lender.LDC.name();
 		}
 		if (lender.equals("ABFL")) {
-			finalLender = Lender.ABFL.name();
+			finalLender = ABFL.name();
 		}
 		if (lender.equals("PIRAMAL")) {
 			finalLender = Lender.PIRAMAL.name();
@@ -1891,7 +1918,7 @@ public class LoanUtil {
 	public LendingEnum.LENDER percentLenderTrafficForAA(Long merchantId, Integer[] percentages) {
 		try {
 			logger.info("checking lender assignment for merchant: {} with lender traffic percentages : {}", merchantId, percentages);
-			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.LIQUILOANS_NBFC);
+			List<LendingEnum.LENDER> lenders = Arrays.asList(LendingEnum.LENDER.LDC, LendingEnum.LENDER.LIQUILOANS_P2P, LendingEnum.LENDER.LIQUILOANS_P2P_OF, LendingEnum.LENDER.TRILLIONLOANS);
 			Double maxNumber = 50000000D;
 
 			Integer percentage = (int) Math.ceil((merchantId / maxNumber) * percentages[3]);
@@ -2159,5 +2186,40 @@ public class LoanUtil {
 	private  double calculateDurationInMonths(Date date) {
 		return calculateDurationInDays(date) / NO_OF_DAYS_IN_A_MONTH;
 	}
+
+
+	public boolean isEligibilityErrorResponse(GlobalLimitResponse globalLimitResponse) {
+		if(Objects.nonNull(globalLimitResponse) && !globalLimitResponse.isSuccess() && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+
+            return !getExcludedErrorCode().contains(globalLimitResponse.getErrorCode());
+        }
+		return false;
+	}
+
+	private List<String> getExcludedErrorCode() {
+		List<String> excludedCodes = new ArrayList<>();
+		if (StringUtils.hasLength(excludedErrorCodes)) {
+			try {
+				excludedCodes = Arrays.asList(excludedErrorCodes.split(","));
+			} catch (Exception e) {
+				logger.error("Error in parsing excluded error code list ",e);
+			}
+		}
+		return excludedCodes;
+	}
+
+	public String getLenderRejectedMapping(String lender) {
+		if (!ObjectUtils.isEmpty(rejectedLenderMapping)) {
+			return rejectedLenderMapping.getOrDefault(lender, lender);
+		}
+		rejectedLenderMapping.put(MUTHOOT.name(), "MFL");
+		rejectedLenderMapping.put(ABFL.name(), "ABFL");
+		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
+		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
+		return rejectedLenderMapping.getOrDefault(lender, lender);
+	}
+
+
+
 }
 

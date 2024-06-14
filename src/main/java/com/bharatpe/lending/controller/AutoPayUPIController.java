@@ -28,12 +28,21 @@ public class AutoPayUPIController {
     AutoPayUPIServiceValidator autoPayUPIServiceValidator;
 
     @PostMapping(value = "/mandate/register")
-    public UPIRegisterResponseDto registerAutoPayForMerchant(
+    public UPIRegisterResponseDto registerAutoPayForMerchantForActiveLoan(
             @RequestAttribute BasicDetailsDto merchant,
             @RequestBody(required = true)
             RequestDTO<UPIRegisterRequestDto> requestDTO) {
         return autoPayUPIService.registerUPI(merchant, requestDTO);
 
+    }
+
+
+    @PostMapping(value = "/mandate/register/application")
+    public UPIRegisterResponseDto registerAutoPayForMerchantForNewApplication(
+      @RequestAttribute BasicDetailsDto merchant,
+      @RequestBody(required = true)
+      RequestDTO<AutoUPIMandateRegisterRequestDto> requestDTO) {
+        return autoPayUPIService.registerUPIForNewApplication(merchant, requestDTO);
     }
 
 

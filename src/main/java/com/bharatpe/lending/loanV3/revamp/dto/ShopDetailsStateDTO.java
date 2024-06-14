@@ -18,4 +18,5 @@ public class ShopDetailsStateDTO {
     private String resubmitReason;
     private Boolean resubmitDone;
     private boolean resubmitState = false;
+    private String lender;
 }

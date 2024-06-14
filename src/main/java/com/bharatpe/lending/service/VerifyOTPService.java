@@ -51,7 +51,6 @@ import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
-import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeAdditionalDocUploadWrapperService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanUtil;
@@ -209,9 +208,6 @@ public class VerifyOTPService {
 
     @Autowired
     LendingRefundAuditDao lendingRefundAuditDao;
-
-    @Autowired
-    PiramalAdditionalDocUploadService piramalAdditionalDocUploadService;
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;

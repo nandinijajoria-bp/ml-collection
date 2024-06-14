@@ -10,7 +10,6 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.ApplicationStage;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
@@ -27,15 +26,10 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MileStoneDao;
-import com.bharatpe.lending.dto.DEPinCode;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.KycDoc;
-import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
-import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -59,7 +53,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -314,7 +307,7 @@ public class LoanDashboardService {
 //            log.error("No experian record for merchantId:{},returning empty records", merchantDetails.getId());
 //            return loanDashboardResponse;
 //        }
-        
+
         //if user has inactive loan, return
         LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), "INACTIVE");
         if (!ObjectUtils.isEmpty(lendingPaymentSchedule1) && "INACTIVE".equalsIgnoreCase(lendingPaymentSchedule1.getStatus()) &&
@@ -411,6 +404,7 @@ public class LoanDashboardService {
         }*/
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
+        log.info("loan dashboard response : {} for merchantId : {}",loanDashboardResponse,merchantDetails.getId());
         return loanDashboardResponse;
     }
 
@@ -810,6 +804,8 @@ public class LoanDashboardService {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 isDerog.setValue(globalLimitResponse.getData().isDerog());
+                loanDashboardResponse.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
+                loanDashboardResponse.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
             }
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
@@ -832,6 +828,12 @@ public class LoanDashboardService {
                 return;
             }
             log.info("Eligibility not found for merchant:{}", merchant.getId());
+           boolean eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
+            if(!eligibilityErrorFlag) {
+                loanDashboardResponse.setEligibilityExceptionFlag(false);
+                return;
+            }
+
             loanDashboardResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse));
             loanDashboardResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
             if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
@@ -840,6 +842,8 @@ public class LoanDashboardService {
             ){
                 setBankName(merchant.getId(), loanDashboardResponse);
             }
+
+            loanDashboardResponse.setEligibilityExceptionFlag(eligibilityErrorFlag);
         }
 
     private Date parseDate(String stringDate) {

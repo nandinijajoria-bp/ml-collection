@@ -120,7 +120,8 @@ public class CapriBreService {
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
                                     .locale("en")
                                     .edi(ObjectUtils.isEmpty(lendingApplication.getEdi()) ? "0" : String.valueOf(lendingApplication.getEdi().intValue()))
-                                    .pincode(String.valueOf(lendingApplication.getPincode())) // shop pincode
+                                    .pincode(String.valueOf(lendingApplication.getPincode()))// shop pincode
+                                    .apr(lendingApplicationLenderDetails.getAnnualRoi())
                                     .build())
                             .build())
                     .build();

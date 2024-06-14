@@ -26,4 +26,5 @@ public class EnachStateDTO {
     private String nachSessionStatus;
     private String nachSessionMode;
     private boolean isTopup;
+    private String lender;
 }

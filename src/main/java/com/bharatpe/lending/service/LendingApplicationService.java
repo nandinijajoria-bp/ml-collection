@@ -2284,6 +2284,68 @@ public class LendingApplicationService {
         }
     }
 
+    public ResponseDTO checkDeleteEligible(Long merchantId) {
+        ResponseDTO responseDTO = new ResponseDTO(true, null, null, null);
+        try {
+            DeleteEligibleResponseDTO data = new DeleteEligibleResponseDTO();
+
+            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId, Collections.singletonList(Constants.MerchantUtil.Scope.BANK_DETAIL));
+            BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
+
+
+            data.setDeleteEligible(true);
+            data.setPendingItems(Collections.emptyList());
+
+            if (ObjectUtils.isEmpty(merchant)) {
+                responseDTO.setSuccess(Boolean.FALSE);
+                data.setDeleteEligible(false);
+                data.setPendingItems(Collections.emptyList());
+                responseDTO.setData(data);
+                return responseDTO;
+            }
+
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            if (lendingPaymentSchedule != null) {
+                data.setDeleteEligible(false);
+                data.setPendingItems(Collections.singletonList("active_loan"));
+                responseDTO.setData(data);
+                return responseDTO;
+            }
+
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
+            if (lendingApplication == null) {
+                data.setDeleteEligible(true);
+                data.setPendingItems(Collections.emptyList());
+                responseDTO.setData(data);
+                return responseDTO;
+            }
+            if ("approved".equalsIgnoreCase(lendingApplication.getStatus()) && lendingApplication.getDisburseTimestamp() == null) {
+                data.setDeleteEligible(false);
+                data.setPendingItems(Collections.singletonList("pending_application"));
+            }
+            if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                data.setDeleteEligible(false);
+                data.setPendingItems(Collections.singletonList("pending_application"));
+            }
+            if ("draft".equalsIgnoreCase(lendingApplication.getStatus()) && "APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+                data.setDeleteEligible(false);
+                data.setPendingItems(Collections.singletonList("pending_application"));
+            }
+
+            if ("YES".equalsIgnoreCase(lendingApplication.getSendToNbfc()) && lendingApplication.getDisburseTimestamp() == null) {
+                data.setDeleteEligible(false);
+                data.setPendingItems(Collections.singletonList("pending_application"));
+            }
+            responseDTO.setData(data);
+            return responseDTO;
+        } catch (Exception ex) {
+            logger.error("Error In Bank Account Change API", ex);
+            responseDTO.setSuccess(Boolean.FALSE);
+            responseDTO.setMessage(ex.toString());
+            return responseDTO;
+        }
+    }
+
     public LendingApplicationDTO getLendingApplication(Long applicationId) {
         logger.info("getLendingApplication for applicationId : {} ", applicationId);
 
