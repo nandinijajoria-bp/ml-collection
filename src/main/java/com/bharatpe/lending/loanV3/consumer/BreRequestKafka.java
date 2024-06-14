@@ -10,6 +10,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -20,6 +21,7 @@ import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV3.utils.RiskEngineUtil;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -72,6 +74,11 @@ public class BreRequestKafka {
     ConverterUtils converterUtils;
 
     @KafkaListener(topics="${abfl.bre.topic:invoke_bre}", concurrency = "5")
+    @KafkaListener(
+            topics="${abfl.bre.topic:invoke_bre}",
+            concurrency = "5",
+            autoStartup = "${kafka.confluent.consumer.new:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void breRequestListener(String request) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -137,6 +144,11 @@ public class BreRequestKafka {
 
     // for callback kafka event from nbfc service
     @KafkaListener(topics = "${abfl.bre.callback.topic:bureau-callback}", concurrency = "5")
+    @KafkaListener(
+            topics="${abfl.bre.callback.topic:bureau-callback}",
+            concurrency = "5",
+            autoStartup = "${kafka.confluent.consumer.new:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
     public void breCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;
@@ -195,20 +207,10 @@ public class BreRequestKafka {
             }
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.get().getId());
-            String panName = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
+            String panName = Optional.ofNullable(cKycResponseDto.getPanName()).orElse("").trim();
             String aadharName = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
-            String firstName = !ObjectUtils.isEmpty(cKycResponseDto.getFirstName()) ? cKycResponseDto.getFirstName().trim() :
-                    (!ObjectUtils.isEmpty(panName) ? getFirstName(panName) : getFirstName(aadharName));
-
-            String middleName = !ObjectUtils.isEmpty(cKycResponseDto.getMiddleName()) ? cKycResponseDto.getMiddleName().trim() :
-                    (!ObjectUtils.isEmpty(panName) ? getMiddleName(panName) : getMiddleName(aadharName));
-
-            String lastName = !ObjectUtils.isEmpty(cKycResponseDto.getLastName()) ? cKycResponseDto.getLastName().trim() :
-                    (!ObjectUtils.isEmpty(panName) ? getLastName(panName) : getLastName(aadharName));
-
-            String dob = !ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ?
-                    DateTimeUtil.formatDate(cKycResponseDto.getPanDob(), "dd/MM/yyyy","yyyy-MM-dd") :
-                    DateTimeUtil.formatDate(cKycResponseDto.getDob(),"dd/MM/yyyy","yyyy-MM-dd");
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
+            String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -225,11 +227,11 @@ public class BreRequestKafka {
                                                                     .addressLine3("")
                                                                     .city(cKycResponseDto.getCity())
                                                                     .dob(dob)
-                                                                    .firstName(converterUtils.parseNameData(firstName))
+                                                                    .firstName(converterUtils.parseNameData(nameAndDobDetailsDto.getFirstName()))
                                                                     .gender(cKycResponseDto.getGender())
-                                                                    .lastName(converterUtils.parseNameData(lastName))
+                                                                    .lastName(converterUtils.parseNameData(nameAndDobDetailsDto.getLastName()))
                                                                     .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
-                                                                    .middleName(converterUtils.parseNameData(middleName))
+                                                                    .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(Integer.valueOf(cKycResponseDto.getPincode()))
                                                                     .state(cKycResponseDto.getState())

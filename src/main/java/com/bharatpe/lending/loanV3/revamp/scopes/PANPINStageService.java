@@ -5,7 +5,10 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
+import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
@@ -19,10 +22,12 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Objects;
 
 @Component
 @Slf4j
@@ -48,6 +53,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
 
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
@@ -78,17 +86,34 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 eligibilityStateDTO.setIsPanNsdlVerified(true);
                 eligibilityStateDTO.setDummyMerchant(true);
             }else{
+                PanFetchKYCResponseDto response = null;
                 try {
-                    PanFetchKYCResponseDto response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
-                    if (response != null && response.getStatus()) {
-                        PanFetchKYCResponseDto.Data data = response.getData();
-                        if (data != null) {
-                            if (data.getIsPanNsdlVerified() != null) {
-                                eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                    LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
+                    if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
+                        eligibilityStateDTO.setIsPanNsdlVerified(true);
+                    }
+                    else{
+                        response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                        if (response != null && response.getStatus()) {
+                            PanFetchKYCResponseDto.Data data = response.getData();
+                            if (data != null) {
+                                if (data.getIsPanNsdlVerified() != null) {
+                                    eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                                    if(data.getIsPanNsdlVerified()){
+                                        if (!ObjectUtils.isEmpty(lendingPancardDetails)) {
+                                            lendingPancardDetails.setName(data.getVerifiedName());
+                                            lendingPancardDetails.setPancardNumber(data.getPanNumber());
+                                            lendingPancardDetails.setDob(data.getVerifiedDob());
+                                            lendingPancardDetailsDao.save(lendingPancardDetails);
+                                        } else {
+                                            lendingPancardDetailsDao.save(new LendingPancardDetails(scopeDataArgs.getMerchant().getId(), data.getPanNumber(), data.getVerifiedName(), null, null, null, data.getVerifiedDob()));
+                                        }
+                                    }
+                                }
                             }
+                        } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                            eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                         }
-                    } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
-                        eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                     }
                 }catch (HttpClientErrorException.TooManyRequests e) {
                     log.error("Too Many requests error");

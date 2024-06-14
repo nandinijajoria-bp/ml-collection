@@ -255,6 +255,8 @@ public class EligibilityV3Service {
             log.info("Global limit for merchant:{} is {}", eligibilityStateDTO.getMerchant().getId(), globalLimitResponse.getData().getGlobalLimit());
             eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
             isDerog.setValue(globalLimitResponse.getData().isDerog());
+            eligibilityStateDTO.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
+            eligibilityStateDTO.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
             if(RiskSegment.REPEAT.name().equalsIgnoreCase(globalLimitResponse.getData().getRiskSegment()) &&
                     Objects.nonNull(globalLimitResponse.getData().getPreApprovedLoan()) &&
                             globalLimitResponse.getData().getPreApprovedLoan()

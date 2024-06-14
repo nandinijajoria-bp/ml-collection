@@ -41,7 +41,7 @@
      
     <logger name="com.bharatpe" level="INFO"></logger>
     <logger name="com.zaxxer.hikari.pool.HikariPool" level="DEBUG"/>
-
+    <logger name="org.springframework.transaction" level="DEBUG"></logger>
     <root level="ERROR">
         <appender-ref ref="${LOG.APPENDER}"/>
         <appender-ref ref="Sentry"/>

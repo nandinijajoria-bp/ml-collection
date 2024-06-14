@@ -81,6 +81,8 @@ public class LoanDetailsV3Response {
     private String upiAutoPayMandateStatus;
     private Boolean agreementDone;
 
+    private String offerIncreased;
+    private Double previousFinalOffer;
 
 
     @Data
@@ -296,6 +298,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEligibility(eligibilityStateDTO.getEligibility());
         loanDetailsV3Response.setIsPreapprovedRepeatLoan(eligibilityStateDTO.getIsPreapprovedRepeatLoan());
         loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
+        loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
+        loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }

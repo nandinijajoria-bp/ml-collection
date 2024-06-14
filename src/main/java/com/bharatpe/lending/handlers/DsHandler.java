@@ -32,6 +32,9 @@ public class DsHandler {
     @Value("${de.reference.base.url}")
     String deBaseUrl;
 
+    @Value("${de.reference.milestone.base.url}")
+    String deMileStoneBaseUrl;
+
 
     @Value("${ds.inferred.reference.base.url}")
     String globalDsBaseUrl;
@@ -167,7 +170,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deBaseUrl + "/merchant_milestone/v2" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor;
+            String url = deMileStoneBaseUrl + "/merchant_milestone/v2" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor;
 
             log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
 
@@ -175,6 +178,32 @@ public class DsHandler {
             try {
                 responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
                 log.info("response {} of target for merchantid {} is ", responseEntity.getBody(),merchantId);
+                if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
+                    return responseEntity.getBody();
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Exception in Http Client while fetching DS milestones for merchant:{} error is: {}", merchantId, e.getResponseBodyAsString());
+            }
+        } catch (Exception e) {
+            log.error("Exception while fetching milestone data for merchant: {} and error: {}", merchantId, e.getStackTrace());
+        }
+        return null;
+    }
+
+    public DSMileStoneResponse fetchMileStoneDatav3(Long merchantId, Double bureauScore, Double bbsScore, String pincodeColor, String loanAmount) {
+        try {
+            log.info("Request to fetch DS milestones for merchantId:{}", merchantId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
+            HttpEntity<Object> request = new HttpEntity<>(headers);
+            String url = deMileStoneBaseUrl + "/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
+
+            log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+
+            ResponseEntity<DSMileStoneResponse> responseEntity = null;
+            try {
+                responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
+                log.info("response {} of target for merchantid {}", responseEntity.getBody(),merchantId);
                 if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
                     return responseEntity.getBody();
                 }
@@ -195,7 +224,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
+            String url = deMileStoneBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
 
             log.info("DE Achieve MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
             ResponseEntity<DSMileStoneAchievementResponse> responseEntity = null;
