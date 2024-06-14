@@ -588,7 +588,7 @@ public class MerchantLoansService {
                         responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
-                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(merchantId));
+//                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(merchantId));
                     }
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
