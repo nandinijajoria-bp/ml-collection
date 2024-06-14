@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
@@ -79,6 +80,15 @@ public class MileStoneHelperServicev3 {
     @Autowired
     FunnelService funnelService;
 
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${enable.rte.v3:true}")
+    boolean isRtev3Enabled;
+
+    @Value("${rte.v3.rollout.percent:10}")
+    int rtev3RolloutPercent;
+
     public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant, Boolean loanAmountPresent) {
         MileStoneEligibilityResponseDto responseDto = new MileStoneEligibilityResponseDto();
         responseDto.setShowHomeWidgets(milestoneWidgetVisible);
@@ -134,10 +144,14 @@ public class MileStoneHelperServicev3 {
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
 
-            if(responseDto.getMilStoneEligibility()) {
+            if(!entity.getSessionStatus().equals(RTESessionStatus.IN_PROGRESS.name())
+                    && !ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
+                    && responseDto.getMilStoneEligibility()) {
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, "rte_v3_eligible");
-            }else{
+            }
+            if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
+                    && !responseDto.getMilStoneEligibility()){
                 funnelService.submitEvent(merchant.getId(), null, null,
                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "rte_v3_ineligible");
             }
@@ -398,6 +412,19 @@ public class MileStoneHelperServicev3 {
                     responseDto.setDeepLinkUrl(deepLink);
                     responseDto.setIsEligibleForReapply(true);
                     responseDto.setMilStoneEligibility(responseDto.getIsEligibleForReapply());
+
+                    if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
+                        if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                            if(!ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() == 1D) {
+                                //graph data is 100% when session was is in progress, now marked completed
+                                funnelService.submitEvent(merchant.getId(), null, null,
+                                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, "rte_v3_active_complete");
+                            }else {
+                                funnelService.submitEvent(merchant.getId(), null, null,
+                                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, "rte_v3_active_not_complete");
+                            }
+                        }
+                    }
                     return responseDto;
                 }
             }
