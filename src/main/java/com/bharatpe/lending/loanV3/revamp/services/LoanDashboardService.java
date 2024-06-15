@@ -829,7 +829,7 @@ public class LoanDashboardService {
             }
             log.info("Eligibility not found for merchant:{}", merchant.getId());
            boolean eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
-            if(!eligibilityErrorFlag) {
+            if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode()) && !eligibilityErrorFlag) {
                 loanDashboardResponse.setEligibilityExceptionFlag(false);
                 return;
             }
