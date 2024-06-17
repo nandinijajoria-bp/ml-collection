@@ -828,10 +828,13 @@ public class LoanDashboardService {
                 return;
             }
             log.info("Eligibility not found for merchant:{}", merchant.getId());
-           boolean eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
-            if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode()) && !eligibilityErrorFlag) {
-                loanDashboardResponse.setEligibilityExceptionFlag(false);
-                return;
+            boolean eligibilityErrorFlag = false;
+            if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+                eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
+                if(!eligibilityErrorFlag) {
+                    loanDashboardResponse.setEligibilityExceptionFlag(false);
+                    return;
+                }
             }
 
             loanDashboardResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse));
