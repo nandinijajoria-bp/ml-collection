@@ -10,7 +10,6 @@ RUN mvn clean -s settings.xml -T 1C package -Dmaven.test.skip=true #TODO: remove
 
 FROM 288163305855.dkr.ecr.ap-south-1.amazonaws.com/bharatpe/custom-java8:latest-amd
 COPY --from=java-build /app/target/*.jar /app/app.jar
-RUN wget https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar
 COPY --from=java-build /app/newrelic.yml /
 COPY --from=java-build /app/newrelic.yml /app/newrelic.yml
 COPY --from=java-build /app/newrelic.sh  /
@@ -20,5 +19,5 @@ RUN mkdir -p /data/logs && \
     chmod -R 777 /data && \
     chown -R bharatpe:bharatpe /app
 USER bharatpe
-ENTRYPOINT ["java","-javaagent:opentelemetry-javaagent.jar","-javaagent:newrelic.jar","-Xms2560M", "-Xmx5000M","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
+ENTRYPOINT ["java","-javaagent:newrelic.jar","-Xms2560M", "-Xmx5000M","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
 # ENTRYPOINT ["/bin/bash", "-x", "/newrelic.sh"]
