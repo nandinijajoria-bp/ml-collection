@@ -3,6 +3,7 @@ package com.bharatpe.lending.util;
 import com.bharatpe.lending.common.dto.KafkaAudit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -13,7 +14,8 @@ import org.springframework.util.StringUtils;
 public class BQPublisherUtil {
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    private KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     private static final String TOPIC = "easyloan_audit_data";
 
@@ -21,7 +23,7 @@ public class BQPublisherUtil {
         log.info("BQ publish for enitityName: {}", entityName);
         sanityCheck(entityName, data);
         KafkaAudit<T> kafkaAudit = new KafkaAudit<>("easy_loan", service, entityName, data);
-        kafkaTemplate.send(TOPIC, kafkaAudit);
+        confluentKafkaTemplate.send(TOPIC, kafkaAudit);
         log.info("Published data in topic:{} for entity:{}", TOPIC, entityName);
     }
 
