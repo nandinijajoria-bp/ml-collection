@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV2.dto.DsValidateReferencesResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -27,7 +28,8 @@ public class DsHandler {
     String dsBaseUrl;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    private KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Value("${de.reference.base.url}")
     String deBaseUrl;
@@ -115,7 +117,7 @@ public class DsHandler {
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
         try {
             log.info("pushing kafka event for {}", kafkaAudit);
-            kafkaTemplate.send("easyloan_audit_data",kafkaAudit);
+            confluentKafkaTemplate.send("easyloan_audit_data",kafkaAudit);
         } catch (Exception e) {
             log.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
         }

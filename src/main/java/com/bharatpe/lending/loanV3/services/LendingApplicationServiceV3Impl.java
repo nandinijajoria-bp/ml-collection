@@ -51,9 +51,6 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
     LenderAssociationStageFactory lenderAssociationStageFactory;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
-
-    @Autowired
     @Qualifier("ConfluentKafkaTemplate")
     KafkaTemplate confluentKafkaTemplate;
 
@@ -237,7 +234,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                         }});
                     }};
                 try {
-                    kafkaTemplate.send("drawdown-callback", payload);
+                    confluentKafkaTemplate.send("drawdown-callback", payload);
                 } catch (Exception e) {
                     log.error("something went wrong for {}", lendingApplication.get().getId(), e);
                 }

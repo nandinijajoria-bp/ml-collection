@@ -930,23 +930,6 @@ public class VerifyOTPService {
         }
     }
 
-    public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
-        if (exemptMerchant.contains(merchantId)) {
-            return;
-        }
-        try {
-            Map<String, Long> detailMap = new HashMap<String, Long>() {{
-                put("merchantId", merchantId);
-                put("applicationId", applicationId);
-                put("isCreditLine", isCreditLine ? 1L : 0L);
-            }};
-            kafkaTemplate.send("auto_kyc", merchantId.toString(), detailMap);
-            logger.info("Pushed " + detailMap + " to topic auto_kyc");
-        } catch (Exception e) {
-            logger.error("Error occured while pushing to toipc auto_kyc", e);
-        }
-    }
-
     public void sendDetailsForContactsVerification(Long merchantId, Long applicationId) {
 //		if (exemptMerchant.contains(merchantId)) {
 //			return;
