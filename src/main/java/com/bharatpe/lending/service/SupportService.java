@@ -231,6 +231,9 @@ public class SupportService {
     @Autowired
     PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
+    @Autowired
+    LendingLoanInsuranceDao lendingLoanInsuranceDao;
+
 	@Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
@@ -993,8 +996,16 @@ public class SupportService {
             List<ApplicationDetailsDTO> applicationHistoryList = new ArrayList<>();
 
             for (LendingApplicationSlave application : applicationList) {
+
+                InsuranceDetailsDTO insuranceDetailsDTO = findInsuranceForApplication(application);
+                Boolean isInsured = false;
+                Double insurancePremium = null;
+                if (!ObjectUtils.isEmpty(insuranceDetailsDTO)) {
+                    isInsured = true;
+                    insurancePremium = insuranceDetailsDTO.getInsurancePremiumAmount();
+                }
                 //applicationHistory
-                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc(), application.getLender());
+                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc(), application.getLender(), isInsured, insurancePremium);
                 String reason = null;
                 if("rejected".equalsIgnoreCase(application.getStatus())){
                     if ("REJECTED".equalsIgnoreCase(application.getManualCibil())) {
@@ -1082,7 +1093,7 @@ public class SupportService {
                             null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(),
                             lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null,
                             lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo(),
-                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList);
+                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList, insuranceDetailsDTO);
 
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
@@ -1100,6 +1111,32 @@ public class SupportService {
             supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
         }
         return supportLoanResponseDTO;
+    }
+
+    private InsuranceDetailsDTO findInsuranceForApplication(LendingApplicationSlave application) {
+        LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+                application.getId(),
+                application.getLender(),
+                "SELECTED");
+
+        if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
+            return null;
+        } else {
+            Map<String,String> insuranceContactDetails = new HashMap<String, String>() {{
+                put("email_id","customerfirst@careinsurance.com,claimcentre.partners@careinsurance.com");
+                put("mobile_no","18002004488,8860402452");
+            }};
+            return InsuranceDetailsDTO.builder()
+                    .sumInsured(lendingLoanInsurance.getSumInsured())
+                    .insurancePremiumAmount(lendingLoanInsurance.getInsurancePremium())
+                    .insuranceProviderName(lendingLoanInsurance.getProvider())
+                    .insuranceAvailedDate(lendingLoanInsurance.getCommencementDate())
+                    .insuranceApplicable(true)
+                    .insuranceDocument(lendingLoanInsurance.getPolicyDocUrl())
+                    .benefitsOfTheInsurance("https://drive.google.com/file/d/1-jSdiwUACM4tmzORXjt2VW-IF2hP370K/view?usp=sharing")
+                    .insurancePartnerContactDetails(insuranceContactDetails)
+                    .build();
+        }
     }
 
     private List<Map<String, Object>> populatePenaltyLedger(LendingPaymentSchedule lendingPaymentSchedule1, List<Map<String, Object>> penaltyLedgerList) {
