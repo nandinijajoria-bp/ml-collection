@@ -19,6 +19,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.util.ObjectUtils;
 
@@ -51,7 +52,8 @@ public abstract class LendingApplicationServiceV3Base {
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
@@ -248,7 +250,7 @@ public abstract class LendingApplicationServiceV3Base {
                 put("documents", modifyAppRequest.getDocs());
                 put("systemManagedState", false);
             }};
-            kafkaTemplate.send("invoke_data_upload", request);
+            confluentKafkaTemplate.send("invoke_data_upload", request);
         }
         return new ApiResponse<>(true,"success");
     }

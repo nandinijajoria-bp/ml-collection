@@ -53,6 +53,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -154,7 +155,8 @@ public class LoanUtil {
 	LendingPrepaymentDao lendingPrepaymentDao;
 
 	@Autowired
-	KafkaTemplate<String, Object> kafkaTemplate;
+	@Qualifier("ConfluentKafkaTemplate")
+	KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -1350,7 +1352,7 @@ public class LoanUtil {
 				put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
 			}};
 			executorService.execute(() -> {
-				kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				confluentKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 			logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
 		} catch (Exception e) {
@@ -1392,9 +1394,10 @@ public class LoanUtil {
 			request.put("shop_number", lendingApplication.getShopNumber());
 			request.put("proof_front_side", proof_front_side);
 			request.put("proof_stock_side", proof_stock_side);
-			executorService.execute(() -> {
-				kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
-			});
+			logger.info("DEPRECATED request {} to kafka for topic: LENDING_EVENT_DS_DATA", request);
+//			executorService.execute(() -> {
+//				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+//			});
 		} catch (Exception e) {
 			logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
 		}
@@ -1990,7 +1993,7 @@ public class LoanUtil {
 		loanDisbursalDto.setGenerateReport(generateReportFlag);
 		loanDisbursalDto.setRequestId(requestId);
 		logger.info("loanDisbursalDto for {} : {}", lendingApplication.getId(), loanDisbursalDto);
-		kafkaTemplate.send(
+		confluentKafkaTemplate.send(
 				Objects.requireNonNull(LendingConstants.PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC),
 				lendingApplication.getId().toString(),
 				loanDisbursalDto

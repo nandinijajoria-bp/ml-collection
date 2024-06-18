@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.entity.CreditAccount;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -26,7 +25,7 @@ import com.bharatpe.lending.dto.InstantNotificationDto;
 public class RedisNotificationService {
 	
 	@Autowired
-	DelayedMessagePublisher delayedMessagePublisher;
+	LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
 
 	@Autowired
 	LendingCache lendingCache;
@@ -57,7 +56,7 @@ public class RedisNotificationService {
 			notificationDto.setMessage("Your Loan is Waiting for you!\n" +
 					"Complete your application to get instant money in your " + bankName + " A/c");
 			//String messageString30min=objectMapper.writeValueAsString(notificationDto);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5min_"+lendingApplication.getId(), 5*60);
+			lendingDelayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "applied_application_5min_"+lendingApplication.getId(), 5*60);
 		} catch (Exception e) {
 			logger.error("Error occured while sending notification",e);
 		}
@@ -83,7 +82,7 @@ public class RedisNotificationService {
 					bankDetail = bankDetailsDtoOptional.get();
 				notificationDto.setMessage("Dear " + bankDetail.getBeneficiaryName() + ". Rs. " + eligibleLoan.getAmount() + " quick loan is ready to be disbursed to your " + bankDetail.getBankName() + " A/C.\n" +
 						" Daily repayment of only Rs." + eligibleLoan.getEdi() + " \n");
-				delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_" + merchantId, 5 * 60);
+				lendingDelayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "eligible_30_min_" + merchantId, 5 * 60);
 
 				AddCacheDto addCacheDto = new AddCacheDto();
 				addCacheDto.setKey(key);
@@ -108,7 +107,7 @@ public class RedisNotificationService {
 			notificationDto.setMerchantId(lendingApplication.getMerchantId());
 			notificationDto.setMessageCategory("DISBURSAL_INSTRUCTION");
 			notificationDto.setMessage(sms);
-			delayedMessagePublisher.publish("lending_notify", lendingApplication.getMerchantId().toString(), notificationDto, "disbursal_instruction_" + lendingApplication.getMerchantId(), 15 * 60);
+			lendingDelayedMessagePublisher.publish("lending_notify", lendingApplication.getMerchantId().toString(), notificationDto, "disbursal_instruction_" + lendingApplication.getMerchantId(), 15 * 60);
 
 		}
 		catch(Exception e) {
@@ -166,7 +165,7 @@ public class RedisNotificationService {
 			notificationDto.setMessageCategory("CREDIT_LINE_ENACH");
 			String message= "Instantly Activate Loans Balance by Registering eNACH.\nClick Here: ";
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "enach_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 1));
+			lendingDelayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "enach_"+merchant.getId().toString(), DateTimeUtil.getSecondsTillTime(11, 1));
 			
 		}
 		catch(Exception e) {
@@ -189,7 +188,7 @@ public class RedisNotificationService {
 			String message= "Hi "+bankDetail.getBeneficiaryName()+",\n" +
 					"BharatPe Loan Balance of "+creditAccount.getAvailableBalance()+" is now ACTIVE. Utilize your Loan Balance as per requirement and pay interest only on amount used at low rate of 0.1% / day. Repay with complete flexibility.\n";
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,
+			lendingDelayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto,
 			"promotional_"+merchantId.toString(), DateTimeUtil.getSecondsTillTime(12, 3));
 		}
 		catch(Exception e) {
@@ -211,7 +210,7 @@ public class RedisNotificationService {
 			notificationDto.setMerchantId(merchant.getId());
 			notificationDto.setMessageCategory("LENDING_PENDING_ENACH");
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "pending_enach_"+merchant.getId().toString(), 15*60);
+			lendingDelayedMessagePublisher.publish("lending_notify", merchant.getId().toString(), notificationDto, "pending_enach_"+merchant.getId().toString(), 15*60);
 		}
 		catch(Exception e ) {
 			logger.error("Error occured while sending redis based pending enach notification for merchant {}",merchant,e);
@@ -230,7 +229,7 @@ public class RedisNotificationService {
 			notificationDto.setMerchantId(merchantId);
 			notificationDto.setMessageCategory("LENDING_PF_NUDGE");
 			notificationDto.setMessage(message);
-			delayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "pf_nudge_"+merchantId.toString(), 5*60);
+			lendingDelayedMessagePublisher.publish("lending_notify", merchantId.toString(), notificationDto, "pf_nudge_"+merchantId.toString(), 5*60);
 		}
 		catch(Exception e ) {
 			logger.error("Error occured while sending pf nudge for merchant {}", merchantId, e);
