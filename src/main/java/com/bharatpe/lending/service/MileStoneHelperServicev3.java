@@ -144,7 +144,7 @@ public class MileStoneHelperServicev3 {
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
 
-            if(!entity.getSessionStatus().equals(RTESessionStatus.IN_PROGRESS.name())
+            if(!ObjectUtils.isEmpty(entity) && !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())
                     && !ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
                     && responseDto.getMilStoneEligibility()) {
                 funnelService.submitEvent(merchant.getId(), null, null,
@@ -307,6 +307,8 @@ public class MileStoneHelperServicev3 {
             }
         }catch (Exception e) {
             log.error("Exception while handling bureau response for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
+            responseDto.setMilStoneEligibility(false);
+            responseDto.setEnrollState(false);
         }
     }
 
