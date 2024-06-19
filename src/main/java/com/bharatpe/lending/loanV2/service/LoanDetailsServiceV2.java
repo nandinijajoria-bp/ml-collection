@@ -1484,7 +1484,7 @@ public class LoanDetailsServiceV2 {
 
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
-                log.info("lrvs not found of merchantId: {}", merchantId);
+                log.info("lrvs not found of applicationId: {}", lendingApplication.getId());
                 return new ApiResponse<>(false, "LRVS details not found for given merchantId");
             }
 
@@ -1626,7 +1626,7 @@ public class LoanDetailsServiceV2 {
 
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
             if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
-                log.info("lrvs not found of merchantId: {}", merchantId);
+                log.info("lrvs not found of applicationId: {}", applicationId);
                 return new ApiResponse<>(false, "LRVS details not found for given merchantId");
             }
 
