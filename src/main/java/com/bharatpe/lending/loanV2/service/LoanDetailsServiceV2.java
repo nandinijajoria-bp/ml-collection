@@ -1482,15 +1482,15 @@ public class LoanDetailsServiceV2 {
             }
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
 
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-            if(ObjectUtils.isEmpty(lendingRiskVariables)) {
-                log.info("lrv not found of merchantId: {}", merchantId);
-                return new ApiResponse<>(false, "LRV details not found for given merchantId");
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
+                log.info("lrvs not found of merchantId: {}", merchantId);
+                return new ApiResponse<>(false, "LRVS details not found for given merchantId");
             }
 
-            if(lendingRiskVariables.getNewContactReferenceLogic()) {
+            if(lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
                 //new logic
-                Long referenceCount = lendingRiskVariables.getReferenceCount();
+                Long referenceCount = lendingRiskVariablesSnapshot.getReferenceCount();
                 MerchantReferencesV2ResponseDto responseDto;
                 LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 
@@ -1624,10 +1624,10 @@ public class LoanDetailsServiceV2 {
             Long applicationId = lendingApplication.getId();
             log.info("applicationId: {} found of merchantId: {}", applicationId, merchantId);
 
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
-            if(ObjectUtils.isEmpty(lendingRiskVariables)) {
-                log.info("lrv not found of merchantId: {}", merchantId);
-                return new ApiResponse<>(false, "LRV details not found for given merchantId");
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+            if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
+                log.info("lrvs not found of merchantId: {}", merchantId);
+                return new ApiResponse<>(false, "LRVS details not found for given merchantId");
             }
 
             Boolean isIneligible = requestDto.getIneligible();
@@ -1660,7 +1660,7 @@ public class LoanDetailsServiceV2 {
                         lendingMerchantReferences.setMerchantId(merchantId);
                         lendingMerchantReferences.setApplicationId(applicationId);
 
-                        if(!lendingRiskVariables.getNewContactReferenceLogic()) {
+                        if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
                             //update below parameters in old flow
                             lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
                             lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
