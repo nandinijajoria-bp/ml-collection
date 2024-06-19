@@ -404,6 +404,7 @@ public class LoanDashboardService {
         }*/
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("returning response from database");
+        log.info("loan dashboard response : {} for merchantId : {}",loanDashboardResponse,merchantDetails.getId());
         return loanDashboardResponse;
     }
 
@@ -803,6 +804,8 @@ public class LoanDashboardService {
                 log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
                 eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 isDerog.setValue(globalLimitResponse.getData().isDerog());
+                loanDashboardResponse.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
+                loanDashboardResponse.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
             }
             if (eligibleAmount > 0D) {
                 log.info("Eligibility found for merchant:{}", merchant.getId());
@@ -825,6 +828,15 @@ public class LoanDashboardService {
                 return;
             }
             log.info("Eligibility not found for merchant:{}", merchant.getId());
+            boolean eligibilityErrorFlag = false;
+            if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+                eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
+                if(!eligibilityErrorFlag) {
+                    loanDashboardResponse.setEligibilityExceptionFlag(false);
+                    return;
+                }
+            }
+
             loanDashboardResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse));
             loanDashboardResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
             if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
@@ -834,7 +846,7 @@ public class LoanDashboardService {
                 setBankName(merchant.getId(), loanDashboardResponse);
             }
 
-            loanDashboardResponse.setEligibilityExceptionFlag(loanUtil.isEligibilityErrorResponse(globalLimitResponse));
+            loanDashboardResponse.setEligibilityExceptionFlag(eligibilityErrorFlag);
         }
 
     private Date parseDate(String stringDate) {

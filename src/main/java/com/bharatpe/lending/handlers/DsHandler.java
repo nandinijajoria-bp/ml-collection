@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV2.dto.DsValidateReferencesResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -27,10 +28,14 @@ public class DsHandler {
     String dsBaseUrl;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    private KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     @Value("${de.reference.base.url}")
     String deBaseUrl;
+
+    @Value("${de.reference.milestone.base.url}")
+    String deMileStoneBaseUrl;
 
 
     @Value("${ds.inferred.reference.base.url}")
@@ -112,7 +117,7 @@ public class DsHandler {
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
         try {
             log.info("pushing kafka event for {}", kafkaAudit);
-            kafkaTemplate.send("easyloan_audit_data",kafkaAudit);
+            confluentKafkaTemplate.send("easyloan_audit_data",kafkaAudit);
         } catch (Exception e) {
             log.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
         }
@@ -167,7 +172,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deBaseUrl + "/merchant_milestone/v2" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor;
+            String url = deMileStoneBaseUrl + "/merchant_milestone/v2" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor;
 
             log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
 
@@ -175,6 +180,32 @@ public class DsHandler {
             try {
                 responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
                 log.info("response {} of target for merchantid {} is ", responseEntity.getBody(),merchantId);
+                if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
+                    return responseEntity.getBody();
+                }
+            } catch (HttpClientErrorException e) {
+                log.error("Exception in Http Client while fetching DS milestones for merchant:{} error is: {}", merchantId, e.getResponseBodyAsString());
+            }
+        } catch (Exception e) {
+            log.error("Exception while fetching milestone data for merchant: {} and error: {}", merchantId, e.getStackTrace());
+        }
+        return null;
+    }
+
+    public DSMileStoneResponse fetchMileStoneDatav3(Long merchantId, Double bureauScore, Double bbsScore, String pincodeColor, String loanAmount) {
+        try {
+            log.info("Request to fetch DS milestones for merchantId:{}", merchantId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
+            HttpEntity<Object> request = new HttpEntity<>(headers);
+            String url = deMileStoneBaseUrl + "/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
+
+            log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+
+            ResponseEntity<DSMileStoneResponse> responseEntity = null;
+            try {
+                responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
+                log.info("response {} of target for merchantid {}", responseEntity.getBody(),merchantId);
                 if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
                     return responseEntity.getBody();
                 }
@@ -195,7 +226,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
+            String url = deMileStoneBaseUrl + "/merchant_achievement" + "?merchant_id=" + merchantId + "&sessionId=" + sessionId;
 
             log.info("DE Achieve MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
             ResponseEntity<DSMileStoneAchievementResponse> responseEntity = null;

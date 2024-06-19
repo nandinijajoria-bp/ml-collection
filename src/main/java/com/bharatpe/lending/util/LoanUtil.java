@@ -53,6 +53,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -73,7 +74,6 @@ import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.ABFL;
-import static com.bharatpe.lending.enums.Lender.TRILLIONLOANS;
 import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
@@ -155,7 +155,8 @@ public class LoanUtil {
 	LendingPrepaymentDao lendingPrepaymentDao;
 
 	@Autowired
-	KafkaTemplate<String, Object> kafkaTemplate;
+	@Qualifier("ConfluentKafkaTemplate")
+	KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -285,6 +286,10 @@ public class LoanUtil {
 
 	@Value("${max.loan.amount.autopayupi:50000}")
 	Double maxLoanAmountForAutoPayUPI;
+
+
+	@Value("${excluded.error.codes}")
+	private String excludedErrorCodes;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -1347,7 +1352,7 @@ public class LoanUtil {
 				put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
 			}};
 			executorService.execute(() -> {
-				kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				confluentKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 			logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
 		} catch (Exception e) {
@@ -1389,9 +1394,10 @@ public class LoanUtil {
 			request.put("shop_number", lendingApplication.getShopNumber());
 			request.put("proof_front_side", proof_front_side);
 			request.put("proof_stock_side", proof_stock_side);
-			executorService.execute(() -> {
-				kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
-			});
+			logger.info("DEPRECATED request {} to kafka for topic: LENDING_EVENT_DS_DATA", request);
+//			executorService.execute(() -> {
+//				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+//			});
 		} catch (Exception e) {
 			logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
 		}
@@ -1987,7 +1993,7 @@ public class LoanUtil {
 		loanDisbursalDto.setGenerateReport(generateReportFlag);
 		loanDisbursalDto.setRequestId(requestId);
 		logger.info("loanDisbursalDto for {} : {}", lendingApplication.getId(), loanDisbursalDto);
-		kafkaTemplate.send(
+		confluentKafkaTemplate.send(
 				Objects.requireNonNull(LendingConstants.PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC),
 				lendingApplication.getId().toString(),
 				loanDisbursalDto
@@ -2171,9 +2177,22 @@ public class LoanUtil {
 
 	public boolean isEligibilityErrorResponse(GlobalLimitResponse globalLimitResponse) {
 		if(Objects.nonNull(globalLimitResponse) && !globalLimitResponse.isSuccess() && Objects.nonNull(globalLimitResponse.getErrorCode())) {
-			return true;
-		}
+
+            return !getExcludedErrorCode().contains(globalLimitResponse.getErrorCode());
+        }
 		return false;
+	}
+
+	private List<String> getExcludedErrorCode() {
+		List<String> excludedCodes = new ArrayList<>();
+		if (StringUtils.hasLength(excludedErrorCodes)) {
+			try {
+				excludedCodes = Arrays.asList(excludedErrorCodes.split(","));
+			} catch (Exception e) {
+				logger.error("Error in parsing excluded error code list ",e);
+			}
+		}
+		return excludedCodes;
 	}
 
 	public String getLenderRejectedMapping(String lender) {
@@ -2186,6 +2205,8 @@ public class LoanUtil {
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
+
+
 
 }
 

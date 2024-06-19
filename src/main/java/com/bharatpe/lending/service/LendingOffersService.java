@@ -5,7 +5,6 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.dao.*;
@@ -77,7 +76,7 @@ public class LendingOffersService {
 	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
 
 	@Autowired
-	DelayedMessagePublisher delayedMessagePublisher;
+	LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
 
 	@Autowired
 	LendingCache lendingCache;
@@ -213,7 +212,7 @@ public class LendingOffersService {
 		try {
 			logger.info("Checking NTB SMS after 5 min for merchant:{}", merchant.getId());
 			String hashKey = merchant.getId() + "_" + UUID.randomUUID().toString();
-			delayedMessagePublisher.publish("notify_ntb_sms", merchant.getId().toString(), merchant.getId(), hashKey, 5*60);
+			lendingDelayedMessagePublisher.publish("notify_ntb_sms", merchant.getId().toString(), merchant.getId(), hashKey, 5*60);
 			String redisKey = "SMS_SYNC_" + merchant.getId();
 			AddCacheDto addCacheDto = new AddCacheDto();
 			addCacheDto.setKey(redisKey);

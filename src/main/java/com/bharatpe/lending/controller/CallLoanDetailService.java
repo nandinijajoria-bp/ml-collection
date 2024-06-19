@@ -149,9 +149,9 @@ public class CallLoanDetailService {
 
         Map<String, String> payloadMap = new HashMap<>();
         try {
-            logger.info("Publishing aaplication_id: {} of loan pending for disbursal to kafka", lendingAppId);
+            logger.info("DEPRECATED: Publishing aaplication_id: {} of loan pending for disbursal to kafka", lendingAppId);
             payloadMap.put("lending_application_id", lendingAppId.toString());
-            kafkaTemplate.send(Objects.requireNonNull(env.getProperty("kafka.topic.lending.payout")), lendingAppId.toString(), payloadMap);
+//            kafkaTemplate.send(Objects.requireNonNull(env.getProperty("kafka.topic.lending.payout")), lendingAppId.toString(), payloadMap);
         } catch (Exception e) {
             logger.error("Error publishing lending application: {} to kafka for disbursal", lendingAppId);
         }
@@ -164,7 +164,8 @@ public class CallLoanDetailService {
         data.put("bank_reference_no", ecollectTransaction.getBankReferenceNo());
         data.put("account_number", ecollectTransaction.getVirtualAccountNumber());
         data.put("amount", String.valueOf(Math.ceil(ecollectTransaction.getAmount() / 1000.0) * 1000));
-        kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchantId().toString(), data);
+        logger.info("DEPRECATED Kafka producer fot topic: ecollect.loan.disbursal");
+//        kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchantId().toString(), data);
     }
 
 //    private void sendPush(Experian experian) {
