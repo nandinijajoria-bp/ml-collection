@@ -7,7 +7,6 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.MerchantScoreSnapshotDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
@@ -22,6 +21,7 @@ import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.MongoLogPublisher;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -84,7 +84,7 @@ public class LoanUtil {
 	public static final int NO_OF_DAYS_IN_A_MONTH = 30;
 
 	@Autowired
-	MongoPublisher mongoPublisher;
+	MongoLogPublisher mongoLogPublisher;
 
 	@Autowired
 	BQPublisherUtil bqPublisherUtil;
@@ -716,7 +716,7 @@ public class LoanUtil {
 		try {
 			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
 			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
-			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>() {{
+			mongoLogPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>() {{
 				add(merchantSmsAnalysis);
 			}});
 		} catch (Exception e) {
