@@ -40,7 +40,7 @@ public class ABFLPennyDropRequestDTO {
         @ToString
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @Builder
-        public class ClientData{
+        public static class ClientData{
             public String caseId;
         }
     }

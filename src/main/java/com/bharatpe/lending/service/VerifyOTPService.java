@@ -615,6 +615,20 @@ public class VerifyOTPService {
             return finalResponse;
         }
 
+        //If the abfl application is rejected, We will update view state to application status page and skip subsequent code
+        logger.info("Lender: {}, with lending application status {}", lendingApplication.getLender(), lendingApplication.getStatus());
+
+        if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
+            LendingApplication updatedLendingApplication = "rejected".equalsIgnoreCase(lendingApplication.getStatus()) ? lendingApplication : lendingApplicationDao.findById(lendingApplication.getId()).orElse(null);
+            if(!ObjectUtils.isEmpty(updatedLendingApplication) && "rejected".equalsIgnoreCase(updatedLendingApplication.getStatus())){
+                logger.info("Application is in rejected state for ABFL");
+                loanDetailsV3Service.saveApplicationViewState(null, updatedLendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+                finalResponse.put("success", true);
+                finalResponse.put("agreement_verified", false);
+                return finalResponse;
+            }
+        }
+
         lendingApplication.setStatus("pending_verification");
         lendingApplicationDao.save(lendingApplication);
 

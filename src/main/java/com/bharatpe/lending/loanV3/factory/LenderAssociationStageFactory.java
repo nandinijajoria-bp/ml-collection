@@ -78,13 +78,13 @@ public class LenderAssociationStageFactory {
                     case KYC:
                         return LenderAssociationStages.ASSC_COMPLETED;
                     case ASSC_COMPLETED:
-                        return LenderAssociationStages.PENNY_DROP;
+                        return LenderAssociationStages.SANCTION_WRAPPER;
                     case SANCTION_WRAPPER:
-                        return LenderAssociationStages.DRAWDOWN;
+                        return LenderAssociationStages.PENNY_DROP;
                     case DRAWDOWN:
                         return LenderAssociationStages.COMPLETED;
                     case PENNY_DROP:
-                        return LenderAssociationStages.SANCTION_WRAPPER;
+                        return LenderAssociationStages.DRAWDOWN;
                     default:
                         return LenderAssociationStages.BRE;
                 }
@@ -123,13 +123,13 @@ public class LenderAssociationStageFactory {
                     case ASSC_COMPLETED:
                         return Boolean.TRUE;
                     case SANCTION_WRAPPER:
-                        return Boolean.FALSE;
+                        return Boolean.TRUE;
                     case DRAWDOWN:
                         return Boolean.FALSE;
                     case DATA_UPLOAD:
                         return Boolean.FALSE;
                     case PENNY_DROP:
-                        return Boolean.TRUE;
+                        return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
                 }

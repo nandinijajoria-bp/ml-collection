@@ -57,24 +57,25 @@ public class AbflPennyDropServiceV2 {
 
         try {
             MDC.put("requestId", UUID.randomUUID().toString());
-            log.info("Received penny drop request:{}", request);
+            log.info("Received pennydrop request:{}", request);
 
             lendingApplication = lendingApplicationDao.findById(Long.valueOf(request.get("application_id")));
             if (!lendingApplication.isPresent()) {
                 log.info("no application found for id {}", request.get("application_id"));
+                return;
             }
             lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), Lender.ABFL.name());
 
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("lending application lender details not found for {}", request.get("application_id"));
-                throw new RuntimeException("unable to generate abfl pennydrop payload" + request.get("application_id"));
+                return;
             }
 
             ABFLPennyDropRequestDTO abflPennyDropRequestDTO = createPayload(Long.valueOf(request.get("application_id")), lendingApplication.get());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                     (!abflPennyDropRequestDTO.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) ||
                     !LenderAssociationStages.PENNY_DROP.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                log.info("lender or stage mismatch while initiating penny drop for application {}", abflPennyDropRequestDTO.getApplicationId());
+                log.info("lender or stage mismatch while initiating pennydrop for application {}", abflPennyDropRequestDTO.getApplicationId());
                 return;
             }
 
@@ -82,32 +83,34 @@ public class AbflPennyDropServiceV2 {
 
             ABFLPennyDropResponseDTO abflPennyDropResponseDTO = abflApiGateway.invokePennyDrop(abflPennyDropRequestDTO);
 
-            log.info("penny drop api response {}", abflPennyDropResponseDTO);
-            if (ObjectUtils.isEmpty(abflPennyDropResponseDTO) || !(abflPennyDropResponseDTO.getSuccess())
-                    || (ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData()))
-                    ||(ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData().getStatus()))) {
-                lendingApplicationLenderDetails.setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
-                log.info("modifying lender as pennydrop callback resulted in failure for  {}", lendingApplication.get().getId());
-                nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED);
+            log.info("pennydrop api response {}", abflPennyDropResponseDTO);
+
+            if (!ObjectUtils.isEmpty(abflPennyDropResponseDTO)
+                    && !(ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData()))
+                    && ("SUCCESS".equalsIgnoreCase(abflPennyDropResponseDTO.getData().getResponseStatus()))) {
+
+                log.info("successfully placed the penny drop request at lender for {}", request);
+                lendingApplicationLenderDetails.setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
+                LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.ABFL,LenderAssociationStages.PENNY_DROP);
+                lendingApplicationLenderDetails.setStage(nextStage.name());
+                lendingApplicationDao.save(lendingApplication.get());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
+                nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
+                        lendingApplication.get().getLender(), LenderAssociationStages.PENNY_DROP.name(),
+                        LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.PENNY_DROP));
                 return;
             }
-            lendingApplicationLenderDetails.setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
-            log.info("successfully placed the penny drop request at lender for {}", request);
-            lendingApplicationLenderDetails.setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
-            LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.ABFL,LenderAssociationStages.PENNY_DROP);
-            lendingApplicationLenderDetails.setStage(nextStage.name());
-            lendingApplicationDao.save(lendingApplication.get());
-            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+            log.info("lending_application db {}", lendingApplication.get());
+            log.info("lending_application_lender_details db {}", lendingApplicationLenderDetails);
+            log.info("rejecting application as pennydrop is failed {}", abflPennyDropResponseDTO);
 
-            nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
-                    lendingApplication.get().getLender(), LenderAssociationStages.PENNY_DROP.name(),
-                    LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.PENNY_DROP));
+            rejectApplication(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
         } catch (Exception ex) {
-            log.error("exception occurred while processing penny drop request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-            lendingApplicationLenderDetails.setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_INITIATE_FAILED.name());
-            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-            nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED);
-            log.info("successfully placed the penny drop request at lender for {}", request);
+            log.info("exception lending_application db {}", lendingApplication.get());
+            log.info("exception lending_application_lender_details db {}", lendingApplicationLenderDetails);
+            log.error("exception occurred while processing pennydrop request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            rejectApplication(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
         }
 
     }
@@ -115,7 +118,7 @@ public class AbflPennyDropServiceV2 {
     public ABFLPennyDropRequestDTO createPayload(Long applicationId, LendingApplication lendingApplication) {
         try {
 
-            if (!ObjectUtils.isEmpty(lendingApplication)) {
+            if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.error("application not found !! {}", applicationId);
             }
 
@@ -144,5 +147,24 @@ public class AbflPennyDropServiceV2 {
         }
         return null;
     }
+    private void rejectApplication(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {
+        log.info("rejecting application as pennydrop stage failed of ABFL for {}", lendingApplication.getId());
+        if(!ObjectUtils.isEmpty(lendingApplication)) {
+            log.info("lending_application not empty setting status to REJECTED");
+            lendingApplication.setStatus("rejected");
+            lendingApplicationDao.save(lendingApplication);
+        } else {
+            log.info("lending application is empty");
+        }
+        if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.info("lending_application_lender_details not empty setting status to INACTIVE");
+            lendingApplicationLenderDetails.setPennyDropStatus(status);
+            lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        } else {
+            log.info("lending_application_lender_details is empty");
+        }
+    }
+
 
 }

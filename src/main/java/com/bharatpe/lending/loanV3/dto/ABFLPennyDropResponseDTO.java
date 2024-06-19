@@ -15,39 +15,48 @@ public class ABFLPennyDropResponseDTO {
     String lender;
     String productName;
     Boolean success;
-    ABFLPennyDropResponseDTO.Data data;
+    Data data;
 
     @lombok.Data
     @ToString
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @Builder
     public static class Data {
-        public ABFLPennyDropResponseDTO.Data.ResponseData data;
+        public String responseStatus;
+        public ResponseData data;
+        public Error error;
         public Integer status;
         public String message;
-
 
         @lombok.Data
         @ToString
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @Builder
-        public class ResponseData{
+        public static class Error{
+            public String code;
+            public String description;
+            public String errorType;
+        }
+
+        @lombok.Data
+        @ToString
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @Builder
+        public static class ResponseData{
             @JsonProperty("IBLRefNo")
             public String iBLRefNo;
             @JsonProperty("CustomerRefNo")
             public String customerRefNo;
-            @JsonProperty("StatusCode")
-            public String statusCode;
             @JsonProperty("StatusDesc")
             public String statusDesc;
             @JsonProperty("Amount")
             public String amount;
             @JsonProperty("TranType")
             public String tranType;
-            @JsonProperty("PaymentDate")
-            public String paymentDate;
-            @JsonProperty("ImpsBeneName")
-            public String impsBeneName;
+            @JsonProperty("StatusCode")
+            public String statusCode;
+            @JsonProperty("RRNRefNo")
+            public String rRNRefNo;
         }
     }
 }
