@@ -94,9 +94,6 @@ public class CallLoanDetailService {
     EcollectTransactionDaoSlave ecollectTransactionDaoSlave;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
     Environment env;
 
     @Autowired

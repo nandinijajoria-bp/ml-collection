@@ -22,9 +22,6 @@ public class BankStatementSessionCallbackConsumer {
 
     public static final String BANK_STATEMENT_SESSION_CALLBACK_TOPIC = "el.bank.statement.session.callback";
 
-    @KafkaListener(concurrency = "${kafka.consumerGroup.bank.statement.session.callback.concurrency:1}"
-            , topics = BANK_STATEMENT_SESSION_CALLBACK_TOPIC
-            , groupId = "BANKSTATEMENT", autoStartup = "${kafka.consumerGroup.bank.statement.session.callback.enabled:false}")
     @KafkaListener(
             topics = BANK_STATEMENT_SESSION_CALLBACK_TOPIC,
             concurrency = "${kafka.consumerGroup.bank.statement.session.callback.concurrency:1}",
