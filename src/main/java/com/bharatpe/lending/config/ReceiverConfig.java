@@ -39,25 +39,6 @@ public class ReceiverConfig {
   private String clusterApiSecret;
 
   @Bean
-  public Map<String, Object> consumerConfigs() {
-    Map<String, Object> props = new HashMap<>();
-    // list of host:port pairs used for establishing the initial connections to the Kafka cluster
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
-            kafkaServers);
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-            StringDeserializer.class);
-    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-            StringDeserializer.class);
-    // allows a pool of processes to divide the work of consuming and processing records
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, "groupId");
-    // automatically reset the offset to the earliest offset
-    props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-    props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5000);
-    props.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, 2);
-    return props;
-  }
-
-  @Bean
   public Map<String, Object> confluentConsumerConfigs() {
     Map<String, Object> props = new HashMap<>();
     // list of host:port pairs used for establishing the initial connections to the Kafka cluster
@@ -89,11 +70,6 @@ public class ReceiverConfig {
   }
 
   @Bean
-  public ConsumerFactory<String, String> consumerFactory() {
-    return new DefaultKafkaConsumerFactory<>(consumerConfigs());
-  }
-
-  @Bean
   public ConsumerFactory<String, String> confluentConsumerFactory() {
     return new DefaultKafkaConsumerFactory<>(confluentConsumerConfigs());
   }
@@ -103,7 +79,7 @@ public class ReceiverConfig {
   public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerContainerFactory() {
     ConcurrentKafkaListenerContainerFactory<String, String> factory =
             new ConcurrentKafkaListenerContainerFactory<>();
-    factory.setConsumerFactory(consumerFactory());
+    factory.setConsumerFactory(confluentConsumerFactory());
 
     return factory;
   }

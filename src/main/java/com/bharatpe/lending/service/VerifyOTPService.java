@@ -129,9 +129,6 @@ public class VerifyOTPService {
     RedisNotificationService redisNotificationService;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
     @Qualifier("ConfluentKafkaTemplate")
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 

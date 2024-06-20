@@ -26,9 +26,6 @@ public class PennyDropPayoutConsumer {
     @Autowired
     private ObjectMapper mapper;
 
-    @KafkaListener(concurrency = "${kafka.consumerGroup.pennydrop.payout.status.callback.concurrency:1}"
-            , topics = PENNYDROP_CALLBACK_TOPIC
-            , groupId = "PENNYDROP", autoStartup = "${kafka.consumerGroup.pennydrop.payout.status.callback.enabled:false}")
     @KafkaListener(
             concurrency = "${kafka.consumerGroup.pennydrop.payout.status.callback.concurrency:1}",
             topics = PENNYDROP_CALLBACK_TOPIC,
