@@ -62,7 +62,6 @@ public class DataUploadRequestKafka {
 
     ExecutorService executorService = Executors.newFixedThreadPool(2);
 
-    @KafkaListener(topics = "${abfl.dataupload.topic:invoke_data_upload}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.dataupload.topic:invoke_data_upload}",
             concurrency = "5",

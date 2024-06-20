@@ -29,9 +29,6 @@ public class NBFCPayoutConsumer {
     @Autowired
     private ObjectMapper mapper;
 
-    @KafkaListener(concurrency = "${kafka.consumerGroup.nbfc.payout.status.callback.concurrency:1}"
-            , topics = NBFC_PAYOUT_STATUS_CALLBACK_TOPIC
-            , groupId = "NBFCPAYOUT", autoStartup = "${kafka.consumerGroup.nbfc.payout.status.callback.enabled:false}")
     @KafkaListener(
             concurrency = "${kafka.consumerGroup.nbfc.payout.status.callback.concurrency:1}",
             topics = NBFC_PAYOUT_STATUS_CALLBACK_TOPIC,

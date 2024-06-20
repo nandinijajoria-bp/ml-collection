@@ -59,7 +59,6 @@ public class SancWrapperRequestKafka {
     @Autowired
     MerchantService merchantService;
 
-    @KafkaListener(topics = "${abfl.sanction.topic:invoke_sanction}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.sanction.topic:invoke_sanction}",
             concurrency = "5",
@@ -131,7 +130,6 @@ public class SancWrapperRequestKafka {
         }
     }
 
-    @KafkaListener(topics = "${abfl.sanction.callback.topic:sanction-callback}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.sanction.callback.topic:sanction-callback}",
             concurrency = "5",

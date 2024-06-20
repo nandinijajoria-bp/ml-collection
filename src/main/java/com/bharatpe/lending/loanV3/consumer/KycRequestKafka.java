@@ -74,7 +74,6 @@ public class KycRequestKafka {
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
-    @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
@@ -138,7 +137,6 @@ public class KycRequestKafka {
         }
     }
 
-    @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
     @KafkaListener(
             topics="${abfl.kyc.callback.topic:kyc-callback}",
             autoStartup = "${kafka.confluent.consumer.new:false}",
