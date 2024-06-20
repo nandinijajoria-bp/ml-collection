@@ -20,15 +20,16 @@ import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
-import com.bharatpe.lending.dto.CreateApplicationRequestForTopupDTO;
-import com.bharatpe.lending.dto.MetaDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.SignAgreementDTO;
+import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
@@ -134,7 +135,16 @@ public class SignAgreementService {
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	@Autowired
+	DateTimeUtil dateTimeUtil;
+
+	@Autowired
 	private LoanDetailsV3Service loanDetailsV3Service;
+
+	@Autowired
+	private MerchantLoansService merchantLoansService;
+
+	@Autowired
+	private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -690,6 +700,18 @@ public class SignAgreementService {
 			return response;
 		}
 		EligibleLoan eligibleLoan = optionalEligibleLoan.get();
+		if(!topupLoans.contains(eligibleLoan.getLoanType()) || (dateTimeUtil.getDateDiffInHours(eligibleLoan.getCreatedAt(), new Date()) >= 1)){
+			logger.error("No available loan found for last 1 hr with merchant id {}", merchant.getId());
+			response.put("message", "Loan offer expired");
+			return response;
+		}
+
+		if(!isToupEligibilityValid(merchant.getId(), optionalEligibleLoan.get())) {
+			logger.error("current eligibility not matching with offer shown for {}", merchant.getId());
+			response.put("message", "Loan offer changed");
+			return response;
+		}
+
 
 		// pin code check for loan eligibility(removing this check for topup loan)
 		try {
@@ -872,4 +894,41 @@ public class SignAgreementService {
 //		}
 //		return finalResponse;
 //	}
+
+	private boolean isToupEligibilityValid(Long merchantId, EligibleLoan eligibleLoan){
+		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
+		logger.info("latest eligibility for {} : {}", merchantId, loans);
+		if(loans.isEmpty()){
+			logger.info("no eligible loan offer available at topup application creation for {}", merchantId);
+			return false;
+		}
+		LoanEligibilityDTO loanEligibilityDTO = loans.get(0);
+		if(ObjectUtils.isEmpty(loanEligibilityDTO) || ObjectUtils.isEmpty(loanEligibilityDTO.getId())){
+			logger.info("no eligible loan entry found at topup application creation for {}", merchantId);
+			return false;
+		}
+		Optional<EligibleLoan> optionalUpdatedEligibleLoan = eligibleLoanDao.findById(loanEligibilityDTO.getId());
+		if(!optionalUpdatedEligibleLoan.isPresent()) {
+			logger.info("Updated eligible loan entry not available for merchant {}", merchantId);
+			return false;
+		}
+		if(isOfferMatching(eligibleLoan, optionalUpdatedEligibleLoan.get(), merchantId)){
+			logger.info("current offer matching with offer shown for {}", merchantId);
+			return true;
+		}
+		return false;
+	}
+
+	private boolean isOfferMatching(EligibleLoan eligibleLoan, EligibleLoan updatedEligibleLoan, Long merchantId){
+		if(!Objects.equals(updatedEligibleLoan.getAmount(), eligibleLoan.getAmount())){
+			logger.info("amount not matching for {}", merchantId);
+			return false;
+		}
+		if(!updatedEligibleLoan.getTenureInMonths().equals(eligibleLoan.getTenureInMonths())){
+			logger.info("tenure not matching for {}", merchantId);
+			return false;
+		}
+		return true;
+	}
 }

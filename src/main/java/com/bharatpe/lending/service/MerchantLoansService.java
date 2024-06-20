@@ -582,7 +582,7 @@ public class MerchantLoansService {
 //                responseDTO.setContactSync(isContactSyncRequired(lendingPaymentSchedule));
 
                 try {
-                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule);
+                    List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, false);
                     if (!loans.isEmpty()) {
                         responseDTO.setEligibility(loans);
                         responseDTO.setTopup(Boolean.TRUE);
@@ -863,7 +863,7 @@ public class MerchantLoansService {
         return !LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
     }
 
-    public List<LoanEligibilityDTO> topupLoan(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+    public List<LoanEligibilityDTO> topupLoan(LendingPaymentScheduleSlave lendingPaymentSchedule, boolean createTopupAppCheck) {
         List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
         List<Long> customEnabledMerchants = loanUtil.customEnabledTopupMerchants();
 
@@ -875,12 +875,12 @@ public class MerchantLoansService {
         }
 
         if (customEnabledMerchants.contains(lendingPaymentSchedule.getMerchantId())) {
-            return computeEligibility(lendingPaymentSchedule);
+            return computeEligibility(lendingPaymentSchedule, createTopupAppCheck);
 
         }
 
         if (pilotTestEnabled && derogMerchants.contains(lendingPaymentSchedule.getMerchantId()) && derogTopUpEnable(lendingPaymentSchedule.getMerchantId())) {
-            return computeEligibility(lendingPaymentSchedule);
+            return computeEligibility(lendingPaymentSchedule, createTopupAppCheck);
         }
 
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
@@ -1003,11 +1003,11 @@ public class MerchantLoansService {
 
                 if (paidRatio >= 0.6D && paidRatio <= 0.95D) {
                     logger.info("paid ratio is between 60 to 95 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
-                    return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
+                    return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
                 if (paidRatio >= 0.5D && paidRatio < 0.60D) {
                     logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
-                    return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication);
+                    return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
             }
         } catch (Exception e) {
@@ -1016,7 +1016,7 @@ public class MerchantLoansService {
         return eligiblity;
     }
 
-    private List<LoanEligibilityDTO> AdditionalTopupRuleEngine(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication) {
+    private List<LoanEligibilityDTO> AdditionalTopupRuleEngine(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck) {
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
@@ -1049,8 +1049,10 @@ public class MerchantLoansService {
 
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
 
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.
-                    findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            List<EligibleLoan> eligibleLoanList = null;
+            if(!createTopupAppCheck){
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            }
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 300000D, "12 Months", "ACTIVE", null, 0, 0, null, 1149, 0, 357339, null, "TOPUP", null);
@@ -1100,6 +1102,7 @@ public class MerchantLoansService {
             }
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
             if (!eligibleLoanList.isEmpty()) {
+                eligibleLoanList.sort((o1, o2) -> (o2.getCreatedAt().compareTo(o1.getCreatedAt())));
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 EligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
@@ -1159,7 +1162,7 @@ public class MerchantLoansService {
         return false;
     }
 
-    private List<LoanEligibilityDTO> ExistingTopupRuleEngine(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication) {
+    private List<LoanEligibilityDTO> ExistingTopupRuleEngine(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck) {
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
@@ -1212,7 +1215,10 @@ public class MerchantLoansService {
 
             Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            List<EligibleLoan> eligibleLoanList = null;
+            if(!createTopupAppCheck){
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            }
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 300000D, "12 Months", "ACTIVE", null, 0, 0, null, 1149, 0, 357339, null, "TOPUP", null);
@@ -1256,6 +1262,7 @@ public class MerchantLoansService {
             }
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
             if (!eligibleLoanList.isEmpty()) {
+                eligibleLoanList.sort((o1, o2) -> (o2.getCreatedAt().compareTo(o1.getCreatedAt())));
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 EligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
@@ -1485,7 +1492,7 @@ public class MerchantLoansService {
         return new CommonResponse(false, "merchant not found");
     }
 
-    private List<LoanEligibilityDTO> computeEligibility(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+    private List<LoanEligibilityDTO> computeEligibility(LendingPaymentScheduleSlave lendingPaymentSchedule, boolean createTopupApplicationCheck) {
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
 
         try {
@@ -1497,7 +1504,10 @@ public class MerchantLoansService {
 
             Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingPaymentSchedule.getLoanApplication().getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
-            List<EligibleLoan> eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            List<EligibleLoan> eligibleLoanList = null;
+            if(!createTopupApplicationCheck){
+                eligibleLoanList = eligibleLoanDao.findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
+            }
 
             if (ObjectUtils.isEmpty(eligibleLoanList)) {
                 Double eligibleAmount = 0D;
@@ -1527,6 +1537,7 @@ public class MerchantLoansService {
             }
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
             if (!eligibleLoanList.isEmpty()) {
+                eligibleLoanList.sort((o1, o2) -> (o2.getCreatedAt().compareTo(o1.getCreatedAt())));
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 EligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
