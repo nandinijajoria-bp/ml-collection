@@ -141,9 +141,6 @@ public class LiquiloansService {
 //    SettlementScheduleDao settlementScheduleDao;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
     @Qualifier("ConfluentKafkaTemplate")
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 

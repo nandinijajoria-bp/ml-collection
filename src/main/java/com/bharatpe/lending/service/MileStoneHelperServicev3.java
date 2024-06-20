@@ -235,24 +235,34 @@ public class MileStoneHelperServicev3 {
     }
 
     private MileStoneEligibilityResponseDto mileStoneLRVHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, String kycPancard) {
-        log.info("Checks for lrv for merchantId: {}", merchant.getId());
+        log.info("LRV checks handler for merchantId: {}", merchant.getId());
         try {
-            List inclusionReasonMilestoneList = Arrays.asList
-                    ("LIMIT BLOCKED: Offer set 0",
-                            "LIMIT BLOCKED: Less than 10K offer",
-                            "NTC",
-                            "Risk Segment Exclusion: NTB vintage less than 30",
-                            "Thin File ETC");
+            boolean eligibilityCheck;
+            if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                log.info("skipping lrv checks for slider program of merchantId: {}", merchant.getId());
+                eligibilityCheck = (ObjectUtils.isEmpty(entity)
+                        || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()));
+            }else{
+                log.info("lrv checks for merchantId: {}", merchant.getId());
+                List inclusionReasonMilestoneList = Arrays.asList
+                        ("LIMIT BLOCKED: Offer set 0",
+                                "LIMIT BLOCKED: Less than 10K offer",
+                                "NTC",
+                                "Risk Segment Exclusion: NTB vintage less than 30",
+                                "Thin File ETC");
 
 
-            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
-            log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
+                LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+                log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
 
-            if ((ObjectUtils.isEmpty(entity)
-                    || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
-                    && !ObjectUtils.isEmpty(lendingRiskVariables)
-                    && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
-                    || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()))) {
+                eligibilityCheck = (ObjectUtils.isEmpty(entity)
+                        || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
+                        && !ObjectUtils.isEmpty(lendingRiskVariables)
+                        && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
+                        || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()));
+            }
+
+            if (eligibilityCheck) {
                 responseDto.setMilStoneEligibility(true);
 
                 if ((ObjectUtils.isEmpty(entity)) || !ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
@@ -288,7 +298,7 @@ public class MileStoneHelperServicev3 {
                 }
             }
 
-            log.info("lrv checks not satisfied for merchantId: {}",merchant.getId());
+            log.info("eligibility checks not satisfied for merchantId: {}",merchant.getId());
             responseDto.setMilStoneEligibility(false);
             responseDto.setEnrollState(false);
         }catch (Exception e) {
