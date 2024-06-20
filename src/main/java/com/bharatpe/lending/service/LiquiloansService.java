@@ -1798,12 +1798,12 @@ public class LiquiloansService {
                 parsedDate = parseDate(loanSchedule.getDueDate(), "dd-MM-yyyy");
                 currentSchedule.setDate(parsedDate);
                 currentSchedule.setEdiType("Regular");
-                currentSchedule.setInstallmentNumber(arr_i);
+                currentSchedule.setInstallmentNumber(Integer.valueOf(loanSchedule.getInstallmentNumber()));
                 currentSchedule.setOpeningBalance(Double.valueOf(loanSchedule.getPrincipalOutstanding()));
                 currentSchedule.setInterest(Double.valueOf(loanSchedule.getInterestComponent()));
                 currentSchedule.setPrinciple(Double.valueOf(loanSchedule.getPrincipalComponent()));
                 currentSchedule.setProcessingFee(0D);
-                currentSchedule.setTotalEdi(Integer.valueOf(loanSchedule.getInstallmentNumber()));
+                currentSchedule.setTotalEdi(Double.valueOf(loanSchedule.getDueAmount()).intValue());
                 currentSchedule.setOtherCharges(0D);
                 currentSchedule.setMerchantId(paymentSchedule.getMerchantId());
                 currentSchedule.setLoanApplication(paymentSchedule.getLoanApplication());
