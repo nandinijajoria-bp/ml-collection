@@ -947,27 +947,10 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            kafkaTemplate.send("check_pennydrop", merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send("check_pennydrop", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic check_pennydrop");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_pennydrop", e);
-        }
-    }
-
-    public void sendDetailsForKycVerification(Long merchantId, Long applicationId, boolean isCreditLine) {
-        if (exemptMerchant.contains(merchantId)) {
-            return;
-        }
-        try {
-            Map<String, Long> detailMap = new HashMap<String, Long>() {{
-                put("merchantId", merchantId);
-                put("applicationId", applicationId);
-                put("isCreditLine", isCreditLine ? 1L : 0L);
-            }};
-            kafkaTemplate.send("auto_kyc", merchantId.toString(), detailMap);
-            logger.info("Pushed " + detailMap + " to topic auto_kyc");
-        } catch (Exception e) {
-            logger.error("Error occured while pushing to toipc auto_kyc", e);
         }
     }
 
@@ -979,7 +962,7 @@ public class VerifyOTPService {
             Map<String, Long> detailMap = new HashMap<>();
             detailMap.put("merchantId", merchantId);
             detailMap.put("applicationId", applicationId);
-            kafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send(kafkaTopicPostChecks, merchantId.toString(), detailMap);
             logger.info("Pushed {} to topic verify_contacts_for_application", detailMap);
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic verify_contacts_for_application", e);
@@ -1159,7 +1142,7 @@ public class VerifyOTPService {
                 put("merchantId", merchantId);
                 put("applicationId", applicationId);
             }};
-            kafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
+            confluentKafkaTemplate.send("check_duplicate_pancard", merchantId.toString(), detailMap);
             logger.info("Pushed " + detailMap + " to topic check_duplicate_pancard");
         } catch (Exception e) {
             logger.error("Error occured while pushing to topic check_duplicate_pancard", e);

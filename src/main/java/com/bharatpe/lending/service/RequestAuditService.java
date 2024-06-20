@@ -4,6 +4,7 @@ import com.bharatpe.lending.common.dto.KafkaAudit;
 import com.bharatpe.lending.dto.RequestResponseAuditDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -19,7 +20,8 @@ public class RequestAuditService {
     RequestAuditFactory requestAuditFactory;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    private KafkaTemplate confluentKafkaTemplate;
 
     @Async
     public void auditApiRequestResponseData(RequestResponseAuditDto payload) {
@@ -45,7 +47,7 @@ public class RequestAuditService {
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
         try {
             log.info("pushing kafka event for {}", kafkaAudit);
-            kafkaTemplate.send("easyloan_audit_data", kafkaAudit);
+            confluentKafkaTemplate.send("easyloan_audit_data", kafkaAudit);
         } catch (Exception e) {
             log.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
         }

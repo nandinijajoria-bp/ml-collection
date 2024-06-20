@@ -1,7 +1,6 @@
 package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -25,6 +24,7 @@ import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.service.LendingDelayedMessagePublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -55,7 +55,7 @@ public class KycRequestKafka {
     ILenderAssignment iLenderAssignment;
 
     @Autowired
-    DelayedMessagePublisher delayedMessagePublisher;
+    LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
 
     @Autowired
     LenderGatewayFactory lenderGatewayFactory;

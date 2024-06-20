@@ -11,6 +11,7 @@ import com.bharatpe.lending.dto.PostPayoutAuditDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -32,7 +33,8 @@ public class NbfcCallbackService {
     LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    private KafkaTemplate<String, Object> confluentKafkaTemplate;
 
     public ApiResponse<?> processDecision(NbfcDecisionCallbackRequestDTO nbfcDecisionCallbackRequestDTO) {
         final LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(nbfcDecisionCallbackRequestDTO.getPartnerLoanId());
@@ -110,7 +112,7 @@ public class NbfcCallbackService {
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
         try {
             log.info("pushing kafka event for {}", kafkaAudit);
-            kafkaTemplate.send("easyloan_audit_data",kafkaAudit);
+            confluentKafkaTemplate.send("easyloan_audit_data",kafkaAudit);
         } catch (Exception e) {
             log.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
         }

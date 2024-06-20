@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,8 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
     LenderAssociationStageFactory lenderAssociationStageFactory;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     NbfcUtils nbfcUtils;
@@ -103,7 +105,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                     put("requestId",lendingApplication.get().getId());
                 }};
                 try {
-                    kafkaTemplate.send("lending_disbursal", payload);
+                    confluentKafkaTemplate.send("lending_disbursal", payload);
                 } catch (Exception e) {
                     log.error("something went wrong for {}", lendingApplication.get().getId(), e);
                 }
@@ -136,7 +138,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
             }
             if ("REPAY_EVENT".equalsIgnoreCase(stage)) {
                 try {
-                    kafkaTemplate.send("loan-receipt", new ObjectMapper().readValue(invokeLenderAssociationRequest.getPayload(), new TypeReference<Map<String,Object>>(){}));
+                    confluentKafkaTemplate.send("loan-receipt", new ObjectMapper().readValue(invokeLenderAssociationRequest.getPayload(), new TypeReference<Map<String,Object>>(){}));
                 } catch (Exception e) {
                     log.error("exception occurred while posting data {}", e.getMessage());
                 }
@@ -232,7 +234,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                         }});
                     }};
                 try {
-                    kafkaTemplate.send("drawdown-callback", payload);
+                    confluentKafkaTemplate.send("drawdown-callback", payload);
                 } catch (Exception e) {
                     log.error("something went wrong for {}", lendingApplication.get().getId(), e);
                 }

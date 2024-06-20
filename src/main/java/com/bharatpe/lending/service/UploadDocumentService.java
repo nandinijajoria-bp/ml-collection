@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -89,9 +88,6 @@ public class UploadDocumentService {
 
 	@Autowired
 	LendingGstDao lendingGstDao;
-
-	@Autowired
-	MongoPublisher mongoPublisher;
 
 	@Autowired
 	BQPublisherUtil bqPublisherUtil;
