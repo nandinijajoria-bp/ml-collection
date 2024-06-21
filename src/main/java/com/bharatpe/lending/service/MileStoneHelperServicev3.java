@@ -238,29 +238,33 @@ public class MileStoneHelperServicev3 {
         log.info("LRV checks handler for merchantId: {}", merchant.getId());
         try {
             boolean eligibilityCheck = false;
-            if(!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
+
+            if (!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
                 DSMileStoneResponse response = mileStoneHelperService.fetchTarget(entity);
-                if(!ObjectUtils.isEmpty(response) && RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
-                    log.info("session is in_progress with SLIDER program for merchantId: {}", merchant.getId());
+                if (RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
+                    log.info("session in_progress with SLIDER program of merchantId: {}", merchant.getId());
                     eligibilityCheck = true;
                 }
             }
-            else if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
-                log.info("skipping lrv checks for slider program of merchantId: {}", merchant.getId());
+
+            if (!eligibilityCheck && !ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                log.info("Skipping LRV checks for slider program of merchantId: {}", merchant.getId());
                 eligibilityCheck = (ObjectUtils.isEmpty(entity)
                         || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()));
-            }else{
-                log.info("lrv checks for merchantId: {}", merchant.getId());
-                List inclusionReasonMilestoneList = Arrays.asList
-                        ("LIMIT BLOCKED: Offer set 0",
-                                "LIMIT BLOCKED: Less than 10K offer",
-                                "NTC",
-                                "Risk Segment Exclusion: NTB vintage less than 30",
-                                "Thin File ETC");
+            }
 
+            if (!eligibilityCheck) {
+                log.info("Performing LRV checks for merchantId: {}", merchant.getId());
+                List<String> inclusionReasonMilestoneList = Arrays.asList(
+                        "LIMIT BLOCKED: Offer set 0",
+                        "LIMIT BLOCKED: Less than 10K offer",
+                        "NTC",
+                        "Risk Segment Exclusion: NTB vintage less than 30",
+                        "Thin File ETC"
+                );
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
-                log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
+                log.info("Lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
 
                 eligibilityCheck = (ObjectUtils.isEmpty(entity)
                         || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
