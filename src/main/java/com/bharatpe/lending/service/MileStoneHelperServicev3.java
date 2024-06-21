@@ -240,20 +240,23 @@ public class MileStoneHelperServicev3 {
             boolean eligibilityCheck = false;
 
             if (!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
+                //merchants exists in rte
                 DSMileStoneResponse response = mileStoneHelperService.fetchTarget(entity);
-                if (RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
+                if (!ObjectUtils.isEmpty(response) && RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
                     log.info("session in_progress with SLIDER program of merchantId: {}", merchant.getId());
                     eligibilityCheck = true;
                 }
             }
 
             if (!eligibilityCheck && !ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                //fresh merchant or re-enroll case
                 log.info("Skipping LRV checks for slider program of merchantId: {}", merchant.getId());
                 eligibilityCheck = (ObjectUtils.isEmpty(entity)
                         || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()));
             }
 
             if (!eligibilityCheck) {
+                //new merchant
                 log.info("Performing LRV checks for merchantId: {}", merchant.getId());
                 List<String> inclusionReasonMilestoneList = Arrays.asList(
                         "LIMIT BLOCKED: Offer set 0",
