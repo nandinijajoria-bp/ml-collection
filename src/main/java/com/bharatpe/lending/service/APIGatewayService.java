@@ -15,18 +15,18 @@ import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
+import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingGlobalAPICacheService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
-import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
@@ -54,7 +54,6 @@ import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -2138,16 +2137,16 @@ public class APIGatewayService {
             try {
                 lendingPancard = loanEligibleService.fetchPanName(pancard, merchantId);
             } catch (Exception e) {
-                logger.error("Error getting pan name details from kyc for merchant : {}, pancard : {}, {}, {}", merchantId, pancard, e.getMessage(), e);
+                logger.error("Error getting pan name details from kyc for merchant : {}, pancard : {}, {}", merchantId, pancard, e.getMessage(), e);
             }
         }
         if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
-            firstName = LoanUtil.getFirstName(lendingPancard.getName());
-            lastName = LoanUtil.getLastName(lendingPancard.getName());
+            firstName = LoanUtil.getFirstName(lendingPancard.getName().trim());
+            lastName = LoanUtil.getLastName(lendingPancard.getName().trim());
         } else {
             if (!ObjectUtils.isEmpty(merchantBankDetail)) {
-                firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName());
-                lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName());
+                firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName().trim());
+                lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName().trim());
             }
         }
         String finalFirstName = firstName;
