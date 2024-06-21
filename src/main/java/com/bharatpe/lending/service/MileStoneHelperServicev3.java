@@ -237,8 +237,15 @@ public class MileStoneHelperServicev3 {
     private MileStoneEligibilityResponseDto mileStoneLRVHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, String kycPancard) {
         log.info("LRV checks handler for merchantId: {}", merchant.getId());
         try {
-            boolean eligibilityCheck;
-            if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+            boolean eligibilityCheck = false;
+            if(!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
+                DSMileStoneResponse response = mileStoneHelperService.fetchTarget(entity);
+                if(RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
+                    log.info("session is in_progress with SLIDER program for merchantId: {}", merchant.getId());
+                    eligibilityCheck = true;
+                }
+            }
+            else if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
                 log.info("skipping lrv checks for slider program of merchantId: {}", merchant.getId());
                 eligibilityCheck = (ObjectUtils.isEmpty(entity)
                         || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()));
