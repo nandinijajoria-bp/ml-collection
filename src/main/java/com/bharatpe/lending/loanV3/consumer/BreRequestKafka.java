@@ -74,7 +74,6 @@ public class BreRequestKafka {
     @Autowired
     ConverterUtils converterUtils;
 
-    @KafkaListener(topics="${abfl.bre.topic:invoke_bre}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
             concurrency = "5",
@@ -153,7 +152,6 @@ public class BreRequestKafka {
 
 
     // for callback kafka event from nbfc service
-    @KafkaListener(topics = "${abfl.bre.callback.topic:bureau-callback}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.bre.callback.topic:bureau-callback}",
             concurrency = "5",
