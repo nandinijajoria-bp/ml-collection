@@ -240,7 +240,7 @@ public class MileStoneHelperServicev3 {
             boolean eligibilityCheck = false;
             if(!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
                 DSMileStoneResponse response = mileStoneHelperService.fetchTarget(entity);
-                if(RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
+                if(!ObjectUtils.isEmpty(response) && RTEProgramType.SLIDER.name().equals(response.getProgram_type())) {
                     log.info("session is in_progress with SLIDER program for merchantId: {}", merchant.getId());
                     eligibilityCheck = true;
                 }
