@@ -1,6 +1,5 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
@@ -49,9 +48,6 @@ public class MerchantUpdateService {
 
 	@Value("${merchant.partialUpdate.api}")
     String merchantPartialUpdateApiUrl;
-
-	@Autowired
-	MongoPublisher mongoPublisher;
 
 	@Autowired
 	BQPublisherUtil bqPublisherUtil;

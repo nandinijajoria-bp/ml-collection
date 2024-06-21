@@ -116,9 +116,6 @@ public class LendingApplicationService {
     @Autowired
     ExperianDaoSlave experianDaoSlave;
 
-    @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
-
 //    @Autowired
 //    SignAgreementService signAgreementService;
 //
