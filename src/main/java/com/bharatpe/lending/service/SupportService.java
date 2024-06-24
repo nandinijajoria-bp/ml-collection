@@ -828,7 +828,7 @@ public class SupportService {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
                 supportApiResponseDto.setActiveLoan(Boolean.TRUE);
                 supportApiResponseDto.setDpd(LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()));
-                List<LoanEligibilityDTO> topUpLoans = merchantLoansService.topupLoan(lendingPaymentSchedule);
+                List<LoanEligibilityDTO> topUpLoans = merchantLoansService.topupLoan(lendingPaymentSchedule, false);
                 if (!topUpLoans.isEmpty()) {
                     supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
                 }
