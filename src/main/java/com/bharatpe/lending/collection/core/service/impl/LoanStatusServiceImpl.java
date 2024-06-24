@@ -9,11 +9,11 @@ import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.enums.PaymentType;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 
 
@@ -30,6 +30,8 @@ public class LoanStatusServiceImpl implements LoanStatusService {
     @Autowired
     LendingCollectionExcessDao lendingCollectionExcessDao;
 
+    @Autowired
+    LoanPaymentLedgerAdjustmentService loanPaymentLedgerAdjustmentService;
 
     @Override
     public void processLoanClosure(LoanClosureDTO loanClosureDTO) {
@@ -40,37 +42,27 @@ public class LoanStatusServiceImpl implements LoanStatusService {
 
 
     @Override
-    public void waiverSettleLoan(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String terminalOrderId) {
-        log.info("inside settle loan for loanId {}",activeLoan.getId());
+    public void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
+                                 String transferType, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList) {
 
-        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
-        Double excessCollectionBalance = 0D;
-        for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
-            if(lendingCollectionExcess.getAmount() > 0){
-                excessCollectionBalance += lendingCollectionExcess.getAmount();
-            }
-        }
-        Double dueAmount = amount - activeLoan.getDueInterest() + activeLoan.getOtherCharges() + activeLoan.getInterest() - activeLoan.getPaidInterest();
-        ledgerAdjustmentService.createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
-                0d, "PREPAYMENT", source, "SETTLED", terminalOrderId, 0d, 0d);
-        activeLoan.setStatus("SETTLED");
-        activeLoan.setDueAmount(dueAmount);
-
-//        activeLoan.setClosingDate(new Date());
+        loanPaymentLedgerAdjustmentService.createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),
+                0d, "PREPAYMENT", source, transferType, terminalOrderId, 0d,0d);
+        activeLoan.setStatus("CLOSED");
+        activeLoan.setClosingDate(new Date());
         //settle excess collection balance only
         if(excessCollectionBalance > 0D) {
             activeLoan.setPaidAmount(activeLoan.getPaidAmount() + excessCollectionBalance);
             activeLoan.setPaidPrinciple((activeLoan.getPaidPrinciple() != null ? activeLoan.getPaidPrinciple() : 0) + excessCollectionBalance);
 
             log.info("Adjusting excess collection for loan in ledger : {}, amount : {}", activeLoan.getId(), excessCollectionBalance);
-            ledgerAdjustmentService.createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
-            ledgerAdjustmentService.settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
+            loanPaymentLedgerAdjustmentService.createLendingLedgerForExcessCollectionOnForeclosure(activeLoan, lendingCollectionExcessList);
+            loanPaymentLedgerAdjustmentService.settleExcessCollectionBalance(activeLoan.getId(), lendingCollectionExcessList);
 
         }
-        LendingLedger lendingLedger = ledgerAdjustmentService.createLendingLedger(
+        LendingLedger lendingLedger = loanPaymentLedgerAdjustmentService.createLendingLedger(
                 activeLoan,  amount + excessCollectionBalance,
-                amount + excessCollectionBalance, 0d,  getDescription(bankRefNo, true,false), source,
-                "SETTLED", terminalOrderId, 0d, 0d);
+                amount + excessCollectionBalance, 0d,  getDescription(bankRefNo, true, false), source,
+                transferType, terminalOrderId, 0d,0D);
 
         lendingPaymentScheduleDao.save(activeLoan);
     }

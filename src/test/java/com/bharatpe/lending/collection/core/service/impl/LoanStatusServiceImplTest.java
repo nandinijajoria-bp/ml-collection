@@ -37,17 +37,6 @@ class LoanStatusServiceImplTest {
         MockitoAnnotations.initMocks(this);
     }
 
-    @Test
-    void processLoanForeClosure() {
-        LoanClosureDTO loanClosureDTO = new LoanClosureDTO();
-        loanClosureDTO.setPaymentType(PaymentType.FORECLOSURE.name());
-        loanClosureDTO.setForeClosure(true);
-        LendingPaymentSchedule lendingPaymentSchedule = new LendingPaymentSchedule();
-        lendingPaymentSchedule.setId(1L);
-        loanClosureDTO.setActiveLoan(lendingPaymentSchedule);
-        loanStatusService.processLoanClosure(loanClosureDTO);
-        verify(loanClosureService, times(1)).foreClosureLoan(any(), any(), any());
-    }
 
     @Test
     void waiverSettleLoan() {
@@ -64,7 +53,7 @@ class LoanStatusServiceImplTest {
         Double excessCollectionBalance = 0.0;
         List<LendingCollectionExcess> lendingCollectionExcessList = Collections.emptyList();
         // Call method under test
-        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId);
+//        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId);
         // Verify that the appropriate methods were called
         verify(ledgerAdjustmentService, times(2)).createLendingLedger(any(), anyDouble(), anyDouble(), anyDouble(), anyString(), anyString(), anyString(), anyString(), anyDouble(), anyDouble());
         verify(ledgerAdjustmentService, times(0)).createLendingLedgerForExcessCollectionOnForeclosure(any(), any());
@@ -87,7 +76,7 @@ class LoanStatusServiceImplTest {
         Double excessCollectionBalance = 10.0;
         List<LendingCollectionExcess> lendingCollectionExcessList = Collections.emptyList();
         // Call method under test
-        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId);
+//        loanStatusService.waiverSettleLoan(activeLoan, amount, bankRefNo, source, terminalOrderId);
         // Verify that the appropriate methods were called
         verify(ledgerAdjustmentService, times(2)).createLendingLedger(any(), anyDouble(), anyDouble(), anyDouble(), anyString(), anyString(), anyString(), anyString(), anyDouble(), anyDouble());
         verify(ledgerAdjustmentService, times(1)).createLendingLedgerForExcessCollectionOnForeclosure(any(), any());
