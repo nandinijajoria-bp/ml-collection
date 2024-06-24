@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
-import java.util.List;
 
 @Slf4j
 @Data
@@ -15,8 +14,11 @@ import java.util.List;
 public class DSMileStoneResponse {
 
     public int cashback;
+    public String program_type;
 
     public int target_duration_days;
+    public String loan_amount;
+    public Integer max_limit;
 
     @JsonProperty("target")
     public ArrayList<Target> target;

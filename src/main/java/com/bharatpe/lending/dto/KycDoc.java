@@ -38,4 +38,5 @@ public class KycDoc {
     private String lastName;
     private String middleName;
     private String firstName;
+    private String aadhaarSeedingStatus;
 }

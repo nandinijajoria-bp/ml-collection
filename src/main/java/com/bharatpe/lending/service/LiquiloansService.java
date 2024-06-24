@@ -141,9 +141,6 @@ public class LiquiloansService {
 //    SettlementScheduleDao settlementScheduleDao;
 
     @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
-
-    @Autowired
     @Qualifier("ConfluentKafkaTemplate")
     KafkaTemplate<String, Object> confluentKafkaTemplate;
 
@@ -271,9 +268,9 @@ public class LiquiloansService {
 
         Map<String, String> payloadMap = new HashMap<>();
         try {
-            logger.info("Publishing aaplication_id: {} of loan pending for disbursal to kafka", lendingAppId);
+            logger.info("DEPRECATED: Publishing aaplication_id: {} of loan pending for disbursal to kafka", lendingAppId);
             payloadMap.put("lending_application_id", lendingAppId.toString());
-            kafkaTemplate.send(Objects.requireNonNull(env.getProperty("kafka.topic.lending.payout")), lendingAppId.toString(), payloadMap);
+//            kafkaTemplate.send(Objects.requireNonNull(env.getProperty("kafka.topic.lending.payout")), lendingAppId.toString(), payloadMap);
         } catch (Exception e) {
             logger.error("Error publishing lending application: {} to kafka for disbursal", lendingAppId);
         }
@@ -966,7 +963,7 @@ public class LiquiloansService {
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
         try {
             logger.info("pushing kafka event for {}", kafkaAudit);
-            kafkaTemplate.send("easyloan_audit_data",kafkaAudit);
+            confluentKafkaTemplate.send("easyloan_audit_data",kafkaAudit);
         } catch (Exception e) {
             logger.error("error while sending audit data {} {}", kafkaAudit, Arrays.asList(e.getStackTrace()));
         }
@@ -1014,8 +1011,8 @@ public class LiquiloansService {
                 body.put("amount", processingFee);
                 body.put("narration", "Loan Arranger Fee");
                 body.put("source_module", "LOAN");
-
-                kafkaTemplate.send(TOPIC, body);
+                logger.info("DEPRECATED: kafka producer for topic: bharatpe.club.reward");
+//                kafkaTemplate.send(TOPIC, body);
             }
         }
         if (apiGatewayService.checkClubV2(lendingApplication.getMerchantId())) {
@@ -1026,8 +1023,8 @@ public class LiquiloansService {
             body.put("amount", refundedAmount);
             body.put("narration", "Loan timely repayment cashback");
             body.put("source_module", "LOAN");
-
-            kafkaTemplate.send(TOPIC, body);
+            logger.info("DEPRECATED: kafka producer for topic: bharatpe.club.reward");
+//            kafkaTemplate.send(TOPIC, body);
         }
     }
 

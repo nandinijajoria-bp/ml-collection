@@ -2,6 +2,7 @@ package com.bharatpe.lending.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -15,7 +16,7 @@ public class KafkaService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public KafkaService(KafkaTemplate<String, Object> kafkaTemplate) {
+    public KafkaService(@Qualifier("ConfluentKafkaTemplate") KafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 

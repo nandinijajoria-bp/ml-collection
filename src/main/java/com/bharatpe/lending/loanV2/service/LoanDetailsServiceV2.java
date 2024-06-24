@@ -392,8 +392,8 @@ public class LoanDetailsServiceV2 {
                 loanDetailsResponse.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
                 loanDetailsResponse.setHasExperian(true);
             }
-
-            loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
+         // Deprecated due to ML-745
+         //   loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
             LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());

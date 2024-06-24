@@ -54,5 +54,7 @@ public class EligibilityStateDTO {
     private Boolean dummyMerchant;
 
     private Boolean eligibilityExceptionFlag;
+    private String offerIncreased;
+    private Double previousFinalOffer;
 
 }

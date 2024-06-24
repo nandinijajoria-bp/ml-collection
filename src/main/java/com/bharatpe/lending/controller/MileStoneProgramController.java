@@ -18,9 +18,10 @@ public class MileStoneProgramController {
 
     @GetMapping(value = "/eligibility")
     public ApiResponse<MileStoneEligibilityResponseDto> computeEligibility(
-            @RequestAttribute BasicDetailsDto merchant
+            @RequestAttribute BasicDetailsDto merchant,
+            @RequestParam(name = "loanAmount", required = false) String loanAmount
     ) {
-        return mileStoneProgramService.checkEligibility(merchant);
+        return mileStoneProgramService.checkEligibility(merchant, loanAmount);
     }
 
 

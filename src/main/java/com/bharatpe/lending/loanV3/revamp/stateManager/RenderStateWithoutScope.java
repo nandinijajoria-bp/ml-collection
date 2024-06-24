@@ -22,6 +22,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.KYCStageDataService;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,6 +63,9 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
 
     @Autowired
     LendingApplicationServiceV3 lendingApplicationServiceV3;
+
+    @Autowired
+    private LoanUtilV3 loanUtilV3;
 
 
     // creditLineDeepLink - redirect to creditLineDeepLink?
@@ -171,6 +175,10 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             lendingStateDTO = new LendingStateDTO<>();
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         }
+//        if(!loanUtilV3.isPanNsdlVerified(scopeDataArgs.getMerchant().getId())){
+//            lendingStateDTO = new LendingStateDTO<>();
+//            lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
+//        }
         return lendingStateDTO;
     }
 

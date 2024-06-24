@@ -1,7 +1,6 @@
 package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -9,6 +8,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.service.LendingDelayedMessagePublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -51,7 +52,7 @@ public class KycRequestKafka {
     ILenderAssignment iLenderAssignment;
 
     @Autowired
-    DelayedMessagePublisher delayedMessagePublisher;
+    LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
 
     @Autowired
     LenderGatewayFactory lenderGatewayFactory;
@@ -73,7 +74,6 @@ public class KycRequestKafka {
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
-    @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
@@ -137,7 +137,6 @@ public class KycRequestKafka {
         }
     }
 
-    @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
     @KafkaListener(
             topics="${abfl.kyc.callback.topic:kyc-callback}",
             autoStartup = "${kafka.confluent.consumer.new:false}",
@@ -201,10 +200,8 @@ public class KycRequestKafka {
             }
             String currDate = String.valueOf(new Date().getTime());
             String txnId = lendingApplication.get().getId() + currDate.substring(currDate.length() - 5);
-            String name = ObjectUtils.isEmpty(cKycResponseDto.getName()) ?
-                    (ObjectUtils.isEmpty(cKycResponseDto.getFirstName()) ? "" : cKycResponseDto.getFirstName()) + " " +
-                            (ObjectUtils.isEmpty(cKycResponseDto.getMiddleName()) ? "" : cKycResponseDto.getMiddleName()) + " " +
-                            (ObjectUtils.isEmpty(cKycResponseDto.getLastName()) ? "" : cKycResponseDto.getLastName()) : cKycResponseDto.getName();
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
+            String name = nameAndDobDetailsDto.getFullName();
             KycRequestApiDto kycRequestApiDto = KycRequestApiDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -226,7 +223,7 @@ public class KycRequestKafka {
                             .okycXml(cKycResponseDto.getPoAXml())
                             .okycDocType("digixmlaadhaar")
                             .declaredName(converterUtils.parseNameData(name).trim())
-                            .declaredDob(cKycResponseDto.getDob())
+                            .declaredDob(nameAndDobDetailsDto.getDob())
                             .declaredPan(cKycResponseDto.getPanNumber())
                             .declaredState(ObjectUtils.isEmpty(cKycResponseDto.getState()) ? "" : cKycResponseDto.getState().toUpperCase())
                             .declaredPincode(Integer.valueOf(cKycResponseDto.getPincode()))
