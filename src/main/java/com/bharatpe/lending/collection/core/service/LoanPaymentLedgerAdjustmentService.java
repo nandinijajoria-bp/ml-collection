@@ -13,7 +13,7 @@ public interface LoanPaymentLedgerAdjustmentService {
 
     void adjustAdvanceEdiLedger(LendingPaymentSchedule loan, PaymentCalculation advanceAdjustment);
 
-    void adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo);
+    LendingLedger adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo);
 
     void updateCollectionAuditAndOrder(LendingLedger lendingLedger, LoanPaymentOrder order);
 
