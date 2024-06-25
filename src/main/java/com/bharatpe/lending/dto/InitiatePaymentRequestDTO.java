@@ -24,6 +24,8 @@ public class InitiatePaymentRequestDTO {
 	private CreditConstants.PaymentSource source;
 	private Integer advanceEdiCount;
 	private ForeClosureDetailDTO foreClosureDetail;
+	private double foreClosureAmountAtLender;
+	private double foreClosureAmountAtBP;
 
 
 	public Integer getAmount() {

@@ -6,10 +6,12 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
+import com.bharatpe.lending.common.dao.ForeClosureAmountInfoDao;
 import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.service.NBFCService;
+import com.bharatpe.lending.common.entity.ForeClosureAmountInfo;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -42,15 +44,31 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     LoanPaymentUtil loanPaymentUtil;
     ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
+    @Autowired
+    ForeClosureAmountInfoDao foreClosureAmountInfoDao;
 
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId) {
         log.info("inside close loan and update lender for loanId {} ",loan.getId());
         loan = closeLoanAndUpdateStatus(loan);
+        updateForeclosureAmountInfoLedgerId(lendingLedger, orderId,loan.getId());
         log.info("posting closure status to lender for loanId {} and loan-details {}",loan.getId(),loan);
         postClosureStatusToLender( loan,  lendingLedger,  orderId);
     }
 
+    private void updateForeclosureAmountInfoLedgerId(LendingLedger lendingLedger, Long orderId, Long loanId) {
+        ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+        if(foreClosureAmountInfo != null && lendingLedger != null)
+        {
+            try {
+                log.info("going to update foreclosureamountinfo ledgerId for foreclosureamountinfo {} and ledger {}", foreClosureAmountInfo.getId(), lendingLedger.getId());
+                foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
+                foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+            }catch (Exception e){
+                log.error("error occured while saving ledgerId for loanID {} in foreclosure amount info",loanId);
+            }
+        }
+    }
 
 
     private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId) {
