@@ -237,32 +237,9 @@ public class MileStoneHelperServicev3 {
     private MileStoneEligibilityResponseDto mileStoneLRVHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto, BureauResponseDTO bureauResponseDTO, Experian experian, String kycPancard) {
         log.info("LRV checks handler for merchantId: {}", merchant.getId());
         try {
-            boolean eligibilityCheck;
-            if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
-                log.info("skipping lrv checks for slider program of merchantId: {}", merchant.getId());
-                eligibilityCheck = (ObjectUtils.isEmpty(entity)
-                        || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()));
-            }else{
-                log.info("lrv checks for merchantId: {}", merchant.getId());
-                List inclusionReasonMilestoneList = Arrays.asList
-                        ("LIMIT BLOCKED: Offer set 0",
-                                "LIMIT BLOCKED: Less than 10K offer",
-                                "NTC",
-                                "Risk Segment Exclusion: NTB vintage less than 30",
-                                "Thin File ETC");
+            boolean isEligibleForMilestone = isMerchantEligibleForMilestone(merchant, entity, responseDto);
 
-
-                LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
-                log.info("lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
-
-                eligibilityCheck = (ObjectUtils.isEmpty(entity)
-                        || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
-                        && !ObjectUtils.isEmpty(lendingRiskVariables)
-                        && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
-                        || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()));
-            }
-
-            if (eligibilityCheck) {
+            if (isEligibleForMilestone) {
                 responseDto.setMilStoneEligibility(true);
 
                 if ((ObjectUtils.isEmpty(entity)) || !ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
@@ -305,6 +282,54 @@ public class MileStoneHelperServicev3 {
             log.error("Exception while handling lrv mileStone for merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return responseDto;
+    }
+
+    private boolean isMerchantEligibleForMilestone(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
+        log.info("Checks for merchant eligibility for milestone with merchantId: {}",merchant.getId());
+        if (isActiveSliderSession(entity)) {
+            log.info("Session in progress with SLIDER program of merchantId: {}", merchant.getId());
+            return true;
+        }
+
+        if (isFreshOrReenrollingSliderMerchant(entity, responseDto)) {
+            log.info("Skipping LRV checks for slider program of merchantId: {}", merchant.getId());
+            return true;
+        }
+        return isNewMerchantEligibleForMilestone(merchant, entity);
+    }
+
+    private boolean isActiveSliderSession(MileStoneEntity entity) {
+        if (!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
+            DSMileStoneResponse dsMileStoneResponse = mileStoneHelperService.fetchTarget(entity);
+            return (!ObjectUtils.isEmpty(dsMileStoneResponse) && RTEProgramType.SLIDER.name().equals(dsMileStoneResponse.getProgram_type()));
+        }
+        return false;
+    }
+
+    private boolean isFreshOrReenrollingSliderMerchant(MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
+        if (!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+            return (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equals(entity.getSessionStatus()));
+        }
+        return false;
+    }
+
+    private boolean isNewMerchantEligibleForMilestone(BasicDetailsDto merchant, MileStoneEntity entity) {
+        log.info("Performing LRV checks for merchantId: {}", merchant.getId());
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+        log.info("Lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
+
+        List<String> inclusionReasonMilestoneList = Arrays.asList(
+                "LIMIT BLOCKED: Offer set 0",
+                "LIMIT BLOCKED: Less than 10K offer",
+                "NTC",
+                "Risk Segment Exclusion: NTB vintage less than 30",
+                "Thin File ETC"
+        );
+
+        return (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
+                && !ObjectUtils.isEmpty(lendingRiskVariables)
+                && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
+                || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()));
     }
 
     private void bureauResponsechecks(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
