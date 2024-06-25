@@ -289,6 +289,8 @@ public class PaymentService {
 
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
+    @Autowired
+    ForeClosureAmountInfoDao foreClosureAmountInfoDao;
 
     @Autowired
     LoanClosureService loanClosureService;
@@ -334,6 +336,7 @@ public class PaymentService {
             }
         }
         Double netForeclosureAtLender = 0d;
+        double netForeclosureAtBp=principalDueAmount+advanceEdiAmount+excessCollectionBalance;
         ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
@@ -351,6 +354,8 @@ public class PaymentService {
         Double dueInterest = activeLoan.getDueInterest() != null ? activeLoan.getDueInterest()
                 : 0d;
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
+        data.setForeClosureAmountAtLender(netForeclosureAtLender + excessCollectionBalance);
+        data.setForeClosureAmountAtBp(netForeclosureAtBp);
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
         data.setPaidPrinciple(paidPrinciple);
@@ -513,6 +518,9 @@ public class PaymentService {
             if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) && request.getPayload().getForeClosureDetail() != null) {
                 saveLoanForeClosureCharges(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureDetail());
             }
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) && (request.getPayload().getForeClosureAmountAtLender() != 0 ||  request.getPayload().getForeClosureAmountAtBP() != 0)) {
+                saveForeClosureAmountInfo(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureAmountAtBP(),request.getPayload().getForeClosureAmountAtLender());
+            }
 
             InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
             data.setPaymentLink(response.getData().getPaymentURIDeeplink());
@@ -543,6 +551,24 @@ public class PaymentService {
             logger.error("ForeClosure charges config missing for mid : {} loanId : {} , loanPaymentOrderId : {} configId : {}",merchantBasicDetails.getId(), loanId, orderId, foreClosureDetail.getId());
         }
         loanForeClosureChargesDao.save(loanForeClosureCharges);
+    }
+
+
+    private void saveForeClosureAmountInfo(BasicDetailsDto merchantBasicDetails, long orderId, long loanId, Double foreClosureAmountAtBP, Double foreClosureAmountAtLender) {
+        try {
+            ForeClosureAmountInfo foreClosureAmountInfo = ForeClosureAmountInfo.builder()
+                    .orderId(orderId)
+                    .loanId(loanId)
+                    .ledgerId(0L)
+                    .merchantId(merchantBasicDetails.getId())
+                    .foreclosureAmountAtBP(foreClosureAmountAtBP)
+                    .foreclosureAmountAtLender(foreClosureAmountAtLender)
+                    .foreclosureAmountDiff(foreClosureAmountAtLender - foreClosureAmountAtBP)
+                    .build();
+            foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+        }catch (Exception e){
+            log.error("going to save details in loanforeclosureamount info for loanId {} orderId {} foreClosureAmountAtBP {} and foreClosureAmountAtLender {}",loanId,orderId,foreClosureAmountAtBP,foreClosureAmountAtLender);
+        }
     }
 
     public InitiatePaymentResponseDTO initiatePayment(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
@@ -634,7 +660,9 @@ public class PaymentService {
             if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(request.getPayload().getPaymentType()) && request.getPayload().getForeClosureDetail() != null) {
                 saveLoanForeClosureCharges(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureDetail());
             }
-
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(request.getPayload().getPaymentType()) && (request.getPayload().getForeClosureAmountAtLender() != 0 || request.getPayload().getForeClosureAmountAtBP()!= 0)) {
+                saveForeClosureAmountInfo(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureAmountAtBP(),request.getPayload().getForeClosureAmountAtLender());
+            }
             InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
             data.setPsps(psps);
             return new InitiatePaymentResponseDTO(data);
@@ -1334,7 +1362,15 @@ public class PaymentService {
             loanForeClosureCharges.setLedgerId(lendingLedger.getId());
             loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
-
+        ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+        if(foreClosureAmountInfo!= null && lendingLedger != null) {
+            try {
+                foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
+                foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+            }catch (Exception e){
+                log.error("error occured while saving ledgerId for loanID {} in foreclosure amount info",activeLoan.getId());
+            }
+        }
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
@@ -1404,7 +1440,7 @@ public class PaymentService {
     private void sendForeclosureChargesEventLiquiLoans(long applicationId,long loanId, long lendingLedgerId, String lender, long orderId) {
         String postingStatus = "FAILURE";
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
-        if (loanForeClosureCharges == null) {
+        if (loanForeClosureCharges == null ) {
             logger.info("No fore closure charges exist for the orderId {}",orderId);
             return;
         }
@@ -2177,7 +2213,15 @@ public class PaymentService {
                 activeLoan.setSettleAllPrinciple(false);
             }
         }
-
+        ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+        if(foreClosureAmountInfo!= null && lendingLedger != null) {
+            try {
+                foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
+                foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+            }catch (Exception e){
+                log.error("error occured while saving ledgerId for loanID {} in foreclosure amount info",activeLoan.getId());
+            }
+        }
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
