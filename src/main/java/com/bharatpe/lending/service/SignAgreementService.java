@@ -149,6 +149,8 @@ public class SignAgreementService {
 
 	@Autowired
 	private LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+	@Autowired
 	FunnelService funnelService;
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
