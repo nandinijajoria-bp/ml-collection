@@ -7,6 +7,6 @@ public interface LoanClosureService {
 
     void closeLoanAndUpdateLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId);
 
-    void foreClosureLoan(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId);
+    void updateForeclosureChargesStatus(String status, Long orderId);
 
 }

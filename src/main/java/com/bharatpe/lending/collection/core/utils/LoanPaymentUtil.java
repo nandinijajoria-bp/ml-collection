@@ -1,15 +1,26 @@
 package com.bharatpe.lending.collection.core.utils;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
+import com.bharatpe.lending.common.service.LendingNotificationService;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
@@ -25,6 +36,15 @@ public class LoanPaymentUtil {
 
     @Value("${settlement.new.rollout.date:}")
     String newSettlementRolloutDate;
+    @Autowired
+    MerchantService merchantService;
+    @Autowired
+    NotificationUtil notificationUtil;
+    @Autowired
+    LendingNotificationService lendingNotificationService;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
 
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
@@ -91,5 +111,39 @@ public class LoanPaymentUtil {
             log.info("An exception occurred while checking new loan settlement eligibility");
         }
         return false;
+    }
+
+    public  void sendSMS(LendingPaymentSchedule loan, Double amount, boolean isLoanClosed) {
+        try {
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(loan.getMerchantId());
+            if (ObjectUtils.isEmpty(basicDetailsDto)) {
+                return;
+            }
+
+//			Merchant merchant = loan.getMerchant();
+            String identifier = "LENDING_PAYMENT_PUSH";
+            Map<String,Object> templateParams = new HashMap<>();
+            templateParams.put("amount",amount.intValue());
+            String deeplink = notificationUtil.getDeeplink(basicDetailsDto.get().getSettlementType(), "LOAN_DASHBOARD");
+            NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
+            notificationPayloadDto.setPushTitle("Payment received!");
+            notificationPayloadDto.setTemplateIdentifier(identifier);
+            notificationPayloadDto.setMobile(basicDetailsDto.get().getMobile());
+            notificationPayloadDto.setPushDeepLink(deeplink);
+            notificationPayloadDto.setClientName("LENDING");
+            notificationPayloadDto.setTemplateParams(templateParams);
+            lendingNotificationService.notify(notificationPayloadDto);
+            if(isLoanClosed) {
+                if(apiGatewayService.sendCommunicationForNewOffer(loan)) {
+                    return;
+                }
+                identifier = "LENDING_PAYMENT_2_PUSH";
+                notificationPayloadDto.setTemplateIdentifier(identifier);
+                notificationPayloadDto.setPushTitle("The loan is closed successfully");
+                lendingNotificationService.notify(notificationPayloadDto);
+            }
+        } catch(Exception ex) {
+            log.error("Exception while sending payment SMS to merchant {}, Exception is {}");
+        }
     }
 }
