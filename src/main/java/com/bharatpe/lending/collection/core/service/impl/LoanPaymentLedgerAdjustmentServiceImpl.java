@@ -81,9 +81,10 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         }
     }
     @Override
-    public void adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo) {
+    public LendingLedger adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo) {
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
+        return lendingLedger;
     }
     @Override
     public void updateCollectionAuditAndOrder(LendingLedger lendingLedger, LoanPaymentOrder order) {
