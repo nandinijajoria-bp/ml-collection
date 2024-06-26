@@ -9,16 +9,32 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
+import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.bharatpe.lending.util.FileUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.DocumentException;
+import com.itextpdf.text.pdf.PdfCopy;
+import com.itextpdf.text.pdf.PdfReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Objects;
 
@@ -45,6 +61,14 @@ public class AbflDigiSignService {
 
     @Autowired
     DocUploadUtils docUploadUtils;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Value("${aws.s3.bucket}")
+    private String bucket;
+
+    private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public AbflDigiSignResponseDTO invokeDigiSign(Long applicationId, LendingApplication lendingApplication) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
@@ -74,6 +98,7 @@ public class AbflDigiSignService {
     }
 
     private AbflDigiSignRequestDTO createPayload(LendingApplication lendingApplication) {
+        try {
         LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
         if(ObjectUtils.isEmpty(lendingKfs)) {
             log.error("DIGI sign: No documents found for applicationId {} for digiSign API", lendingApplication.getId());
@@ -84,19 +109,28 @@ public class AbflDigiSignService {
             log.error("DIGI sign: Error in fetching merchant details for merchantId: {}", lendingApplication.getMerchantId());
             throw new RuntimeException("DIGI sign: error in fetching merchant details for ABFL DigiSign API");
         }
+        String mergedURL = mergedKFSAndSanctionLetterUrl(lendingApplication.getId(), lendingKfs.getKfsDocUrl(), lendingKfs.getSanctionLoanAgreementDocUrl());
         return AbflDigiSignRequestDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender("ABFL")
                 .productName("LENDING")
                 .payload(AbflDigiSignRequestDTO.Payload.builder()
                         .accountId(lendingApplication.getExternalLoanId())
-                        .key_fact_statement(lendingKfs.getKfsDocUrl())
-                        .loan_agreement(lendingKfs.getSanctionLoanAgreementDocUrl())
-                        .sanction_letter(lendingKfs.getSanctionLoanAgreementDocUrl())
-                        .merged_pdf_flag(Boolean.FALSE)
+                        .unsigned_merged_pdf(mergedURL)
+                        .merged_pdf_flag(Boolean.TRUE)
                         .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile().substring(2))
                         .build())
                 .build();
+        } catch (IOException ex) {
+            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {}", lendingApplication.getId());
+            throw new RuntimeException("DIGI sign: eIOException while merging kfs and sanction files");
+        }catch (DocumentException exception) {
+            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {}", lendingApplication.getId());
+            throw new RuntimeException("DIGI sign: DocumentException while merging kfs and sanction files");
+        } catch (Exception exception) {
+            log.error("DIGI sign: Error in while merging kfs and sanction files applicationId: {}", lendingApplication.getId());
+            throw new RuntimeException("DIGI sign: error in merging docs for ABFL DigiSign API");
+        }
     }
 
     public Boolean processDigitalSignCallback(NBFCResponseDTO nbfcResponseDTO) {
@@ -128,6 +162,46 @@ public class AbflDigiSignService {
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
         return false;
+    }
+
+    private String mergedKFSAndSanctionLetterUrl(Long applicationId,
+                                            String docKfsName, String docSanctionName) throws IOException, DocumentException {
+
+        String mergedFileName = "KFS_SANCTION_AGREEMENT_MERGED_FOR_DIGISIGN_"+ applicationId + ".pdf";
+
+        URL url1 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName,bucket));
+        URLConnection connection1 = url1.openConnection();
+        InputStream inputStream1 = connection1.getInputStream();
+        PdfReader reader1 = new PdfReader(inputStream1);
+
+        URL url2 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docSanctionName,bucket));
+        URLConnection connection2 = url2.openConnection();
+        InputStream inputStream2 = connection2.getInputStream();
+        PdfReader reader2 = new PdfReader(inputStream2);
+
+        Document document = new Document();
+        PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
+        copy.setCompressionLevel(9);
+        document.open();
+
+        copy.addDocument(reader1);
+        copy.addDocument(reader2);
+
+        document.close();
+
+        File mergedFile = new File("/data/" + mergedFileName);
+        s3BucketHandler.uploadFileToS3(mergedFile,"loan-document", mergedFileName);
+
+        String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
+
+        log.info("pre-signed url for merged doc for digi sign: {}, {}", applicationId,  mergeDocumentPresignedUrl);
+
+        Path uploadedFilePath = Paths.get(CURRENT_DIR + "/" + mergedFileName);
+
+        FileUtil.deleteFile(uploadedFilePath);
+
+        return mergeDocumentPresignedUrl;
+
     }
 
 }
