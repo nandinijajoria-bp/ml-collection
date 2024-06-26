@@ -2455,7 +2455,7 @@ public class LendingApplicationServiceV2 {
                     throw new Exception("Unable to fetch parent application");
                 }
                 kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
-                kfsDto.setNbfcId(parentLendingApplicationOptional.get().getNbfcId());
+                kfsDto.setParentLoanNbfcId(parentLendingApplicationOptional.get().getNbfcId());
             }
 
             return new ApiResponse<>(kfsDto);
