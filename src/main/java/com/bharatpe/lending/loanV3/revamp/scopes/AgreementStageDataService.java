@@ -5,9 +5,11 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -18,9 +20,13 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.Objects;
 import java.util.Optional;
 
 @Component
@@ -38,6 +44,10 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    @Lazy
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Override
     public LendingStateDTO<AgreementStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -64,7 +74,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 .lender(lendingApplication.getLender())
                 .loanAmount(lendingApplication.getLoanAmount())
                 .interestRate(lendingApplication.getInterestRate())
-                .annualRoi(lendingApplicationLenderDetails.getAnnualRoi())
+                .annualRoi(getAnnualRoi(lendingApplicationLenderDetails, lendingApplication))
                 .arrangerFee(lendingApplication.getProcessingFee().intValue())
                 .disbursalAmount(lendingApplication.getDisbursalAmount())
                 .tenure(lendingApplication.getTenure())
@@ -81,5 +91,26 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))agreementResponseV3.setTopup(true);
 
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
+    }
+
+    public Double getAnnualRoi(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication){
+
+        if(Objects.isNull(lendingApplicationLenderDetails) || lendingApplicationLenderDetails.getAnnualRoi() == null){
+
+            DecimalFormat df = new DecimalFormat("#.##");
+            df.setRoundingMode(RoundingMode.DOWN);
+
+            Double annualRoi = Double.valueOf(df.format(
+                    lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(),
+                            LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.getLender())));
+
+            lendingApplicationLenderDetails.setAnnualRoi(annualRoi);
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
+            return annualRoi;
+
+        }
+
+        return lendingApplicationLenderDetails.getAnnualRoi();
     }
 }
