@@ -2445,7 +2445,7 @@ public class LendingApplicationServiceV2 {
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .build();
 
-            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLoanType()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
                     throw new Exception("Unable to fetch parent loan details");
