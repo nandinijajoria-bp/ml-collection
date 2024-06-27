@@ -1494,7 +1494,7 @@ public class LoanDetailsServiceV2 {
                 MerchantReferencesV2ResponseDto responseDto;
                 LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 
-                if (!ObjectUtils.isEmpty(referenceCount) && referenceCount >= 0) {
+                if (!ObjectUtils.isEmpty(referenceCount) && referenceCount > 0) {
                     log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
 
                     if (Objects.isNull(lendingApplicationDetails)) {
