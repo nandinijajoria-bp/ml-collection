@@ -3547,7 +3547,11 @@ public class LendingApplicationServiceV2 {
 
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
