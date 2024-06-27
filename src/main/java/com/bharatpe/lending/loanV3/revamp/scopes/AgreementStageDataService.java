@@ -5,6 +5,8 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
@@ -95,7 +97,19 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
     public Double getAnnualRoi(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication){
 
-        if(Objects.isNull(lendingApplicationLenderDetails) || lendingApplicationLenderDetails.getAnnualRoi() == null){
+        // for old lenders
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
+            lendingApplicationLenderDetails.setApplicationId(lendingApplication.getId());
+            lendingApplicationLenderDetails.setLender(lendingApplication.getLender());
+            lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
+            lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.OLD_MODEL.name());
+            lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.OLD_MODEL.name());
+            lendingApplicationLenderDetails.setStage(LenderAssociationStages.COMPLETED.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        }
+
+        if(lendingApplicationLenderDetails.getAnnualRoi() == null){
 
             DecimalFormat df = new DecimalFormat("#.##");
             df.setRoundingMode(RoundingMode.DOWN);
@@ -106,6 +120,8 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
             lendingApplicationLenderDetails.setAnnualRoi(annualRoi);
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
+            log.info("Calculated AnnualRoi {}", annualRoi);
 
             return annualRoi;
 
