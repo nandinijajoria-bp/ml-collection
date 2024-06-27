@@ -2455,7 +2455,7 @@ public class LendingApplicationServiceV2 {
                     throw new Exception("Unable to fetch parent application");
                 }
                 kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
-                kfsDto.setParentLoanNbfcId(parentLendingApplicationOptional.get().getNbfcId());
+                kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
             }
 
             return new ApiResponse<>(kfsDto);
@@ -3139,7 +3139,7 @@ public class LendingApplicationServiceV2 {
                 data.put("foreclosure_amount", kfsDto.getLenderForeclosureAmount());
                 data.put("foreclosure_amount_in_words", getAmountInWords(kfsDto.getLenderForeclosureAmount().toString()));
                 data.put("topup_loan_clause_display_prop", "block");
-                data.put("parent_loan_nbfc_id", kfsDto.getParentLoanNbfcId());
+                data.put("parent_loan_bpl_id", kfsDto.getParentLoanBplId());
             } else{
                 data.put("foreclosure_amount_display_prop", "none");
                 data.put("topup_loan_clause_display_prop", "none");
