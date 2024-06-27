@@ -89,7 +89,7 @@ public class AbflPennyDropServiceV2 {
                     && !(ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData()))
                     && !(ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData().getData()))
                     && ("SUCCESS".equalsIgnoreCase(abflPennyDropResponseDTO.getData().getResponseStatus()))
-                    && ("SUCCESS".equalsIgnoreCase(abflPennyDropResponseDTO.getData().getData().getStatusCode()))
+                    && ("SUCCESS".equalsIgnoreCase(abflPennyDropResponseDTO.getData().getData().getStatusDesc()))
             ) {
 
                 log.info("successfully placed the penny drop request at lender for {}", request);
