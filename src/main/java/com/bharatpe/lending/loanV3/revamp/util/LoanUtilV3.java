@@ -241,6 +241,9 @@ public class LoanUtilV3 {
 
     public boolean isReferenceNotRequired(Long applicationId) {
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
-        return !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot) && lendingRiskVariablesSnapshot.getReferenceCount() == 0;
+        return !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)
+                && lendingRiskVariablesSnapshot.getNewContactReferenceLogic()
+                && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getReferenceCount())
+                && lendingRiskVariablesSnapshot.getReferenceCount() == 0;
     }
 }
