@@ -1297,15 +1297,15 @@ public class APIGatewayService {
         return null;
     }
 
-    public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
+    public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO, String loanType) {
 
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(requestDTO.getMerchantId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-            funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+            funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),loanType,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         else{
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(), loanType,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
         }
 
@@ -1315,12 +1315,13 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
 
+        Optional<LendingApplication> lendingApplication=lendingApplicationDao.findById(requestDTO.getApplicationId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         else{
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),lendingApplication.isPresent()?lendingApplication.get().getLoanType():null,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
         }
 
@@ -1351,7 +1352,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider, String clientName) {
+    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider, String clientName, String loanType) {
         logger.info("Enach submit request:{} for merchant:{}", requestDTO, merchantId);
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
@@ -1384,11 +1385,11 @@ public class APIGatewayService {
                 LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
                 if(!newJsonNode.getMessage().equalsIgnoreCase("success")){
                     if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                        funnelService.submitEventV3(merchantId, null, requestDTO.getApplicationId(),
+                        funnelService.submitEventV3(merchantId, null, requestDTO.getApplicationId(),loanType,
                                 FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
                     else{
-                        funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                        funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(), loanType,
                                 FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
                     }
 
@@ -1398,7 +1399,7 @@ public class APIGatewayService {
                             FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                 }
                 else{
-                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),loanType,
                             FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
                 }
 

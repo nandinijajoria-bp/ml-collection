@@ -160,7 +160,7 @@ public class ENachService {
         String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
         String providerName = deep_link.equals("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
         return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
+                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
@@ -300,7 +300,7 @@ public class ENachService {
         }
         
         requestDTO.setLender(lendingApplication.getLender());
-        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING", lendingApplication.getLoanType());
 
         if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
             if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
@@ -386,7 +386,7 @@ public class ENachService {
         }
 
         requestDTO.setLender(lendingApplication.getLender());
-        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING", lendingApplication.getLoanType());
 
         if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
             if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
