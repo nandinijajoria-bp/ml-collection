@@ -619,6 +619,9 @@ public class LoanUtil {
 		return false;
 	}
 
+	/*
+	feature-ML-820 : New logic implemented for displaying message based on TAT days
+
 	public String getApplicationTatMessage(LendingApplicationSlave lendingApplication){
 		if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
 				&& !NACH_STATUS_APPROVED.equalsIgnoreCase(lendingApplication.getNachStatus())
@@ -674,6 +677,103 @@ public class LoanUtil {
 		}
 		return tat;
 	}
+	 */
+
+	public String getApplicationTatMessage(LendingApplication lendingApplication) {
+		if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
+				&& !"approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+			return PENDING_APPLICATION_TAT_TEXT;
+		}
+
+		int tat = getApplicationTAT(lendingApplication);
+		logger.info("tat for applicationId {} : {}", lendingApplication.getId(), tat);
+
+		if (tat < 0) {
+			return INVALID_CASE;
+		}
+
+		// Phase 1: Initial 7 Days
+		if (tat <= 7) {
+			if (tat == 0) {
+				return INITIAL_PHASE_LAST_DAY;
+			} else {
+				return String.format(INITIAL_PHASE, (7 - tat));
+			}
+		}
+
+		// Phase 2: 8th to 12th Day
+		if (tat <= 12) {
+			if (tat == 12) {
+				return FIRST_TAT_BREACH_PHASE_LAST_DAY;
+			} else {
+				return String.format(FIRST_TAT_BREACH_PHASE, (12 - tat));
+			}
+		}
+
+		// Phase 3: Beyond 12th Day
+		return SECOND_TAT_BREACH_PHASE;
+	}
+
+	public int getApplicationTAT(LendingApplication lendingApplication) {
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if ("approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+			if (!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
+				return (int) getDateDiffInDays(lendingApplicationDetails.getLeadAcceptanceTime(), new Date());
+			} else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
+				return (int) getDateDiffInDays(lendingApplication.getAgreementAt(), new Date());
+			}
+		}
+		return -1; // NACH approval date or Agreement at date not found
+	}
+
+	public String getApplicationTatMessage(LendingApplicationSlave lendingApplication) {
+		if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
+				&& !"approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+			return PENDING_APPLICATION_TAT_TEXT;
+		}
+
+		int tat = getApplicationTAT(lendingApplication);
+		logger.info("tat for applicationId {} : {}", lendingApplication.getId(), tat);
+
+		if (tat < 0) {
+			return INVALID_CASE;
+		}
+
+		// Phase 1: Initial 7 Days
+		if (tat <= 7) {
+			if (tat == 0) {
+				return INITIAL_PHASE_LAST_DAY;
+			} else {
+				return String.format(INITIAL_PHASE, (7 - tat));
+			}
+		}
+
+		// Phase 2: 8th to 12th Day
+		if (tat <= 12) {
+			if (tat == 12) {
+				return FIRST_TAT_BREACH_PHASE_LAST_DAY;
+			} else {
+				return String.format(FIRST_TAT_BREACH_PHASE, (12 - tat));
+			}
+		}
+
+		// Phase 3: Beyond 12th Day
+		return SECOND_TAT_BREACH_PHASE;
+	}
+
+	public int getApplicationTAT(LendingApplicationSlave lendingApplication) {
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if ("approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+			if (!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
+				return (int) getDateDiffInDays(lendingApplicationDetails.getLeadAcceptanceTime(), new Date());
+			} else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
+				return (int) getDateDiffInDays(lendingApplication.getAgreementAt(), new Date());
+			}
+		}
+		return -1; // NACH approval date or Agreement at date not found
+	}
+
+
 
 	public static String getFirstName(String name) {
 		if (name == null) {

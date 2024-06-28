@@ -58,6 +58,13 @@ public class LoanDetailsConstant {
     public static String TRANSFER_DAYS_TEXT_SUFFIX = " days.";
 
     public static String DUMMY_MERCHANT_TRANSFER_DAYS_TEXT = "Once approved, money transfer in 4-5 days.";
+    public static String INITIAL_PHASE_LAST_DAY = "Money will get transferred today.";
+    public static String INITIAL_PHASE = "Money transfer within %d days.";
+    public static String FIRST_TAT_BREACH_PHASE = "It's taking time. Money transfer will be in the next %d days";
+    public static String FIRST_TAT_BREACH_PHASE_LAST_DAY = "It's taking time. Money transfer will happen today.";
+    public static String SECOND_TAT_BREACH_PHASE = "Money will get transferred in the next few days.";
+    public static String INVALID_CASE = "Money will get transferred in the next few days.";
+
 
 }
 
