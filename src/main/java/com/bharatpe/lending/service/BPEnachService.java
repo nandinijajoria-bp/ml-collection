@@ -96,7 +96,7 @@ public class BPEnachService {
                                                      String ownerId, String clientName, String nachMode) {
 
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
-
+        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 
         if(clientName.equalsIgnoreCase("LENDING")) {
 
@@ -109,13 +109,13 @@ public class BPEnachService {
                 }
             }
 
-            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
             if(lendingApplication == null) {
                 responseDTO.setResponse(false);
                 responseDTO.setMessage("Loan Application not found");
                 logger.error("Unable to find loan application for Merchant - {}", merchant.getId());
                 return responseDTO;
             }
+
 
             if(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender())){
                 responseDTO.setResponse(false);
@@ -130,13 +130,13 @@ public class BPEnachService {
             String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
             return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                    String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
+                    String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
 
         } else {
             final double LOAN_AMOUNT = Double.parseDouble(amt); ;
             final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
             enachInitiateRequestDTO.setClientName(clientName);
-            return apiGatewayService.initiateEnach(enachInitiateRequestDTO);
+            return apiGatewayService.initiateEnach(enachInitiateRequestDTO, lendingApplication.getLoanType());
         }
     }
 
@@ -167,7 +167,7 @@ public class BPEnachService {
         String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
         return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-          String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
+          String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
     }
 
 
@@ -209,7 +209,9 @@ public class BPEnachService {
                 return responseDTO;
         }
 
-        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, bharatPeEnach.getClientName());
+        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(requestDTO.getApplicationId(), merchant.getId());
+
+        return apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), enachProvider, bharatPeEnach.getClientName(),ObjectUtils.isEmpty(lendingApplication)?null:lendingApplication.getLoanType());
     }
 
 
