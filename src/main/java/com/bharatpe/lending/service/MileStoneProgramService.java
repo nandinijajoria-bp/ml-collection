@@ -26,6 +26,7 @@ import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
+import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.RTEProgramType;
@@ -53,6 +54,8 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -139,6 +142,11 @@ public class MileStoneProgramService {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    CleverTapEventService cleverTapEventService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
 
     public ApiResponse<MileStoneEligibilityResponseDto> checkEligibility(BasicDetailsDto merchant, String loanAmount) {
@@ -300,6 +308,7 @@ public class MileStoneProgramService {
 
                 if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
                     if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ENROLL_DONE.name(), null, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, "rte_v3_enroll_done");
                     }
@@ -473,11 +482,13 @@ public class MileStoneProgramService {
                     long daysAfterEnroll = ChronoUnit.DAYS.between(enrollDate, currentDate);
 
                     if (daysAfterEnroll == 7) {
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_7DAYS.name(), null, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, "rte_v3_active_7days");
                     }
 
                     if (daysAfterEnroll == 12) {
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_12DAYS.name(), null, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, "rte_v3_active_12days");
                     }
