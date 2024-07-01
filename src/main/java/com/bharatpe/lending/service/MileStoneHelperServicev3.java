@@ -152,7 +152,7 @@ public class MileStoneHelperServicev3 {
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
 
-            if(!ObjectUtils.isEmpty(entity) && !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())
+            if((ObjectUtils.isEmpty(entity) || !ObjectUtils.isEmpty(entity)&& !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus()))
                     && !ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
                     && responseDto.getMilStoneEligibility()) {
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ELIGIBLE.name(), null, merchant.getMid()));
