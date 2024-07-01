@@ -65,6 +65,7 @@ import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -306,6 +307,9 @@ public class LendingApplicationServiceV2 {
 
     @Value("${vernacular.doc.lender.list}")
     String  vernacularDocLanguageList;
+
+    @Autowired
+    CommonUtil commonUtil;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -2443,6 +2447,7 @@ public class LendingApplicationServiceV2 {
                     .monthlyIncome(lendingRiskVariables.getMonthlyIncome())
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .build();
             return new ApiResponse<>(kfsDto);
         }
@@ -3028,6 +3033,7 @@ public class LendingApplicationServiceV2 {
         data.put("repayment_mode", Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender()) ? "ACH" : "");
         data.put("pan_of_borrower", kycHandler.getPanNumber(merchant.getId()));
         data.put("upfront_charges", "NA");
+        data.put("loan_purpose",kfsDto.getLoanPurpose());
         ApiResponse aadharAddressResponse = getAadhaarAddress(merchant, applicationId);
         if(aadharAddressResponse.isSuccess()){
             AadhaarAddressResponseDTO aadhaarAddressResponseDTO = (AadhaarAddressResponseDTO)aadharAddressResponse.getData();
@@ -3580,6 +3586,26 @@ public class LendingApplicationServiceV2 {
                 (ObjectUtils.isEmpty(lendingApplication.getState()) ? "" : lendingApplication.getState()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getPincode()) ? "" : lendingApplication.getPincode());
 
+    }
+
+    public ApiResponse<?> loanPurpose(Long applicationId, String loanPurpose) {
+        try {
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+            if (Objects.isNull(lendingApplicationDetails)) {
+                return new ApiResponse<>(false, "There is no application details for given  applicationId");
+            }
+
+            loanPurpose = commonUtil.loanPurposeMapping(loanPurpose);
+            if (StringUtils.isBlank(loanPurpose)) {
+                return new ApiResponse<>(false, "loan purpose is not a valid string");
+            }
+            lendingApplicationDetails.setLoanPurpose(loanPurpose);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            return new ApiResponse<>(true, "loan purpose updated successfully!");
+        } catch (Exception e) {
+            log.error("Exception occurred while populating loan purpose for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong!");
     }
 
 }
