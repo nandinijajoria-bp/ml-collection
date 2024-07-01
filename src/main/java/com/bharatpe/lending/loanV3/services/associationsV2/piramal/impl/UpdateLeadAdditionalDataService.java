@@ -8,6 +8,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.CreateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
+import com.bharatpe.lending.util.CommonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,9 @@ public class UpdateLeadAdditionalDataService {
 
     @Autowired
     ILenderGateway iLenderGateway;
+
+    @Autowired
+    private CommonUtil commonUtil;
 
     public Boolean updateLeadAditionalData(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
         try {
@@ -52,6 +56,9 @@ public class UpdateLeadAdditionalDataService {
                 .leadId(lendingApplicationLenderDetails.getLeadId())
                 .partnerApplicationId(lendingApplication.getExternalLoanId())
                 .auditTrailInformation(createAuditTrailList(lendingApplication, lendingApplicationLenderDetails))
+                .loanInformation(CreateLeadRequestDTO.LoanInformation.builder()
+                        .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(lendingApplication.getId()))
+                        .build())
                 .build();
         return NbfcRequestDto.builder()
                 .applicationId(lendingApplication.getId())
