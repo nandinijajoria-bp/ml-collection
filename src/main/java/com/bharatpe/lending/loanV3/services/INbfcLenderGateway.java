@@ -41,4 +41,6 @@ public abstract class INbfcLenderGateway {
 
     public abstract ForeClosureAmountResponse fetchDueForeclosureAmount(ForeclosureAmountRequest foreclosureAmountRequest);
 
+    public abstract ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO foreclosureAmountRequest);
+
 }

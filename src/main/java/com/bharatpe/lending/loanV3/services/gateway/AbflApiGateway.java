@@ -50,6 +50,12 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.foreclosureamt.api:api/v3/lender/foreclosure-details}")
     String nbfcForeClosureAmtUrl;
 
+
+    @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
+    String nbfcPennyDropUrl;
+
+
+
     @Autowired
     ObjectMapper objectMapper;
 
@@ -114,6 +120,15 @@ public class AbflApiGateway extends INbfcLenderGateway {
     public ForeClosureAmountResponse fetchDueForeclosureAmount(ForeclosureAmountRequest foreclosureAmountRequest) {
         try {
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class,nbfcBaseUrl+nbfcForeClosureAmtUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
+        }
+        return null;
+    }
+
+    public ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO foreclosureAmountRequest) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ABFLPennyDropResponseDTO.class,nbfcBaseUrl+nbfcPennyDropUrl);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
         }
