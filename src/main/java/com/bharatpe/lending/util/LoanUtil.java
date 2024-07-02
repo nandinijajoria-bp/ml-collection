@@ -749,11 +749,11 @@ public class LoanUtil {
 		}
 
 		// Phase 2: 8th to 12th Day
-		if (tat <= 12) {
-			if (tat == 12) {
+		if (tat <= 13) {
+			if (tat == 13) {
 				return FIRST_TAT_BREACH_PHASE_LAST_DAY;
 			} else {
-				return String.format(FIRST_TAT_BREACH_PHASE, (12 - tat));
+				return String.format(FIRST_TAT_BREACH_PHASE, (13 - tat));
 			}
 		}
 
