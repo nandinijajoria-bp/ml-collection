@@ -694,7 +694,7 @@ public class LoanUtil {
 
 		// Phase 1: Initial 7 Days
 		if (tat <= 7) {
-			if (tat == 0) {
+			if (tat == 7) {
 				return INITIAL_PHASE_LAST_DAY;
 			} else {
 				return String.format(INITIAL_PHASE, (7 - tat));
@@ -741,7 +741,7 @@ public class LoanUtil {
 
 		// Phase 1: Initial 7 Days
 		if (tat <= 7) {
-			if (tat == 0) {
+			if (tat == 7) {
 				return INITIAL_PHASE_LAST_DAY;
 			} else {
 				return String.format(INITIAL_PHASE, (7 - tat));
