@@ -710,7 +710,7 @@ public class LoanUtil {
 			}
 		}
 
-		// Phase 3: Beyond 12th Day
+		// Phase 3: Beyond 13th Day
 		return SECOND_TAT_BREACH_PHASE;
 	}
 
@@ -748,7 +748,7 @@ public class LoanUtil {
 			}
 		}
 
-		// Phase 2: 8th to 12th Day
+		// Phase 2: 8th to 13th Day
 		if (tat <= 13) {
 			if (tat == 13) {
 				return FIRST_TAT_BREACH_PHASE_LAST_DAY;
@@ -757,7 +757,7 @@ public class LoanUtil {
 			}
 		}
 
-		// Phase 3: Beyond 12th Day
+		// Phase 3: Beyond 13th Day
 		return SECOND_TAT_BREACH_PHASE;
 	}
 
