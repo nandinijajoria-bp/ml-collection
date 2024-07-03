@@ -152,18 +152,25 @@ public class MileStoneHelperServicev3 {
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
 
-            if((ObjectUtils.isEmpty(entity) || !ObjectUtils.isEmpty(entity)&& !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus()))
-                    && !ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
-                    && responseDto.getMilStoneEligibility()) {
-                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ELIGIBLE.name(), null, merchant.getMid()));
-                funnelService.submitEvent(merchant.getId(), null, null,
-                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, "rte_v3_eligible");
-            }
-            if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
-                    && !responseDto.getMilStoneEligibility()){
-                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), null, merchant.getMid()));
-                funnelService.submitEvent(merchant.getId(), null, null,
-                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "rte_v3_ineligible");
+            if(!ObjectUtils.isEmpty(responseDto.getProgramType())) {
+                String program_type = RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2";
+                HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                    put("program_type", program_type);
+                }};
+
+                if(responseDto.getMilStoneEligibility()
+                        && (ObjectUtils.isEmpty(entity)
+                        || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus()))) {
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, "rte_v3_eligible");
+                }
+
+                if(!responseDto.getMilStoneEligibility()) {
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "rte_v3_ineligible");
+                }
             }
         }
         catch (Exception e) {
@@ -461,14 +468,17 @@ public class MileStoneHelperServicev3 {
                     responseDto.setMilStoneEligibility(responseDto.getIsEligibleForReapply());
 
                     if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-                        if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+                        if(!ObjectUtils.isEmpty(responseDto.getProgramType())) {
+                            HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                                put("program_type", RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2");
+                            }};
                             if(!ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() == 1D) {
                                 //graph data is 100% when session was is in progress, now marked completed
-                                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_COMPLETE.name(), null, merchant.getMid()));
+                                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_COMPLETE.name(), cleverTapEvtData, merchant.getMid()));
                                 funnelService.submitEvent(merchant.getId(), null, null,
                                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, "rte_v3_active_complete");
                             }else {
-                                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_NOT_COMPLETE.name(), null, merchant.getMid()));
+                                executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_NOT_COMPLETE.name(), cleverTapEvtData, merchant.getMid()));
                                 funnelService.submitEvent(merchant.getId(), null, null,
                                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, "rte_v3_active_not_complete");
                             }

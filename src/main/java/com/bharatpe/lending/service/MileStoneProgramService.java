@@ -307,8 +307,11 @@ public class MileStoneProgramService {
                 }
 
                 if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-                    if(!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
-                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ENROLL_DONE.name(), null, merchant.getMid()));
+                    if(!ObjectUtils.isEmpty(responseDto.getProgramType())) {
+                        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                            put("program_type", RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2");
+                        }};
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ENROLL_DONE.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, "rte_v3_enroll_done");
                     }
@@ -474,7 +477,11 @@ public class MileStoneProgramService {
             mileStoneDashboardDetails.setWeeklyFlowUser(isWeeklyFlowUser);
 
             if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
-                if(!ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())) {
+                if(!ObjectUtils.isEmpty(mileStoneResponse.getProgram_type())) {
+                    HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                        put("program_type", RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type()) ? "v3" : "v2");
+                    }};
+
                     LocalDate enrollDate = entity.getCreatedAt().toInstant()
                             .atZone(ZoneId.systemDefault())
                             .toLocalDate();
@@ -482,13 +489,13 @@ public class MileStoneProgramService {
                     long daysAfterEnroll = ChronoUnit.DAYS.between(enrollDate, currentDate);
 
                     if (daysAfterEnroll == 7) {
-                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_7DAYS.name(), null, merchant.getMid()));
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_7DAYS.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, "rte_v3_active_7days");
                     }
 
                     if (daysAfterEnroll == 12) {
-                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_12DAYS.name(), null, merchant.getMid()));
+                        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_12DAYS.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, "rte_v3_active_12days");
                     }
