@@ -113,8 +113,10 @@ public class BreRequestKafka {
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
             }
-            log.info("setting annual roi for application : {}", lendingApplication.get().getId());
-            breRequest.getPayload().getCustomerReport().getLoanApplicationRequest().setRoi(String.valueOf(lendingApplicationLenderDetails.getAnnualRoi()));
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                log.info("setting annual roi for topup application : {}", lendingApplication.get().getId());
+                breRequest.getPayload().getCustomerReport().getLoanApplicationRequest().setRoi(String.valueOf(lendingApplicationLenderDetails.getAnnualRoi()));
+            }
             lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_PENDING.name());
             lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
             if (lendingApplicationLenderDetails.getAnnualRoi() > 50) {
