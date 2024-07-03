@@ -227,7 +227,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                Date validAfter = isResubmittedApplication ? lendingResubmitReasonCount.getResubmitTimestamp() : kycRetry ? lendingApplicationLenderDetails.getUpdatedAt() : lendingApplication.getCreatedAt();;
                boolean kycVerified=updateApplicationKycDetails(
                        lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
-                       validAfter, initiateKycResponse, isResubmittedApplication
+                       validAfter, initiateKycResponse, isResubmittedApplication, lendingApplication.getLoanType()
                );
                 if(kycVerified){
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
@@ -265,12 +265,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
 
                 boolean kycVerified=updateApplicationKycDetails(
                         lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
-                        lendingApplication.getCreatedAt(), initiateKycResponse, isResubmittedApplication
+                        lendingApplication.getCreatedAt(), initiateKycResponse, isResubmittedApplication,lendingApplication.getLoanType()
                 );
 
                 initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, lendingApplication.getCreatedAt());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, scopeDataArgs.getMerchant().getMid()));
-                funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, lendingApplication.getId(),
+                funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                 loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
                 if(initiateKycResponse.isTopup() && !kycRetry){
@@ -328,7 +328,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         throw new LoanDetailsException(LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorCode(),LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorMessage());
     }
 
-    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long applicationId, Long merchantId,String mid, Date vaildAfterDate, KYCStateDTO kycStateDTO, Boolean isResubmittedApplication) {
+    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long applicationId, Long merchantId,String mid, Date vaildAfterDate, KYCStateDTO kycStateDTO, Boolean isResubmittedApplication, String loanType) {
         boolean kycVerified=false;
         log.info("Updating kyc details for merchant:{}", merchantId);
         boolean selfieValid = false;
@@ -401,7 +401,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             kycVerified=true;
             log.info("Kyc details verified for merchant : {}", merchantId);
             executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, mid));
-            funnelService.submitEventV3(merchantId, null, applicationId,
+            funnelService.submitEventV3(merchantId, null, applicationId,loanType,
                     FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);

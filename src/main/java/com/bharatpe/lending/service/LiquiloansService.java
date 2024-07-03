@@ -654,11 +654,11 @@ public class LiquiloansService {
 
                 LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(lendingApplication.getMerchantId(), lendingApplication);
                 if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                    funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                             FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                 }
                 else{
-                    funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                             FunnelEnums.StageId.DISBURSAL, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
                 }
 

@@ -43,4 +43,6 @@ public abstract class INbfcLenderGateway {
     public abstract AbflTopupRpsResponseDTO fetchRepaymentSchedule(AbflTopupRpsRequestDTO abflTopupRpsRequestDTO);
     public abstract AbflDigiSignResponseDTO invokeDigiSign(AbflDigiSignRequestDTO abflDigiSignRequestDTO);
 
+    public abstract ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO foreclosureAmountRequest);
+
 }

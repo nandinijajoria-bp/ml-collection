@@ -568,7 +568,7 @@ public class LendingMerchantLoansResponseDTO {
         Double processingFee = application != null && application.getProcessingFee() != null ? application.getProcessingFee() : 0d;
         Double disbursedAmount = loanAmount - processingFee;
         String tenure = application != null && application.getTenure() != null ? application.getTenure() : "";
-        Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
+        Double pendingAmount = Math.max(0,loanAmount - paidPrinciple + dueInterest);
         String lender = lendingPaymentSchedule.getNbfc();
         String settlementStatus = lendingPaymentSchedule.getSettlementStatus();
         Long applicationId = lendingPaymentSchedule.getApplicationId();
