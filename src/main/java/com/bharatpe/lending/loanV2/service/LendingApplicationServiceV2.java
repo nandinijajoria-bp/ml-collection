@@ -65,6 +65,7 @@ import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.service.LenderMappingService;
 import com.bharatpe.lending.service.LendingEdiScheduleService;
 import com.bharatpe.lending.service.impl.LenderAssignService;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -116,6 +117,8 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
+    @Autowired
+    private LendingPaymentScheduleDao lendingPaymentScheduleDao;
     @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
     @Autowired
@@ -306,6 +309,9 @@ public class LendingApplicationServiceV2 {
 
     @Value("${vernacular.doc.lender.list}")
     String  vernacularDocLanguageList;
+
+    @Autowired
+    CommonUtil commonUtil;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -2404,7 +2410,6 @@ public class LendingApplicationServiceV2 {
 
             String shopAddress = constructShopAddress(lendingApplication);
 
-
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2443,7 +2448,22 @@ public class LendingApplicationServiceV2 {
                     .monthlyIncome(lendingRiskVariables.getMonthlyIncome())
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .build();
+
+            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+                    throw new Exception("Unable to fetch parent loan details");
+                }
+                Optional<LendingApplication> parentLendingApplicationOptional = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId());
+                if(!parentLendingApplicationOptional.isPresent()){
+                    throw new Exception("Unable to fetch parent application");
+                }
+                kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
+                kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
+            }
+
             return new ApiResponse<>(kfsDto);
         }
         catch(Exception e){
@@ -2655,7 +2675,12 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -2764,7 +2789,12 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
               language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -3028,6 +3058,7 @@ public class LendingApplicationServiceV2 {
         data.put("repayment_mode", Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender()) ? "ACH" : "");
         data.put("pan_of_borrower", kycHandler.getPanNumber(merchant.getId()));
         data.put("upfront_charges", "NA");
+        data.put("loan_purpose",kfsDto.getLoanPurpose());
         ApiResponse aadharAddressResponse = getAadhaarAddress(merchant, applicationId);
         if(aadharAddressResponse.isSuccess()){
             AadhaarAddressResponseDTO aadhaarAddressResponseDTO = (AadhaarAddressResponseDTO)aadharAddressResponse.getData();
@@ -3106,6 +3137,19 @@ public class LendingApplicationServiceV2 {
                     data.put("rate_of_principle_" + value, foreClosureConfigList.get(i).getRate());
                     data.put("closure_min_" + value, foreClosureConfigList.get(i).getDurationFrom());
                 }
+            }
+        }
+
+        if(Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender())){
+            if(kfsDto.isTopUpLoan()){
+                data.put("foreclosure_amount_display_prop", "table-row");
+                data.put("foreclosure_amount", kfsDto.getLenderForeclosureAmount());
+                data.put("foreclosure_amount_in_words", getAmountInWords(kfsDto.getLenderForeclosureAmount().toString()));
+                data.put("topup_loan_clause_display_prop", "block");
+                data.put("parent_loan_bpl_id", kfsDto.getParentLoanBplId());
+            } else{
+                data.put("foreclosure_amount_display_prop", "none");
+                data.put("topup_loan_clause_display_prop", "none");
             }
         }
 
@@ -3510,7 +3554,11 @@ public class LendingApplicationServiceV2 {
 
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -3580,6 +3628,35 @@ public class LendingApplicationServiceV2 {
                 (ObjectUtils.isEmpty(lendingApplication.getState()) ? "" : lendingApplication.getState()) + "," +
                 (ObjectUtils.isEmpty(lendingApplication.getPincode()) ? "" : lendingApplication.getPincode());
 
+    }
+
+    public ApiResponse<?> loanPurpose(Long applicationId, String loanPurpose) {
+        try {
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+            if (Objects.isNull(lendingApplicationDetails)) {
+                return new ApiResponse<>(false, "There is no application details for given  applicationId");
+            }
+
+            loanPurpose = commonUtil.loanPurposeMapping(loanPurpose);
+            if (StringUtils.isBlank(loanPurpose)) {
+                return new ApiResponse<>(false, "loan purpose is not a valid string");
+            }
+            lendingApplicationDetails.setLoanPurpose(loanPurpose);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            return new ApiResponse<>(true, "loan purpose updated successfully!");
+        } catch (Exception e) {
+            log.error("Exception occurred while populating loan purpose for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong!");
+    }
+
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
+        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForABFL(lendingPaymentSchedule);
+        if(foreClosureAmountForABFL <= 0){
+            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+        }
+        return foreClosureAmountForABFL;
     }
 
 }

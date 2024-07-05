@@ -18,6 +18,7 @@ public class DigitalDataUploadRequest {
     String lender;
     String productName;
     Long applicationId;
+    boolean topup;
     Payload payload;
 
 

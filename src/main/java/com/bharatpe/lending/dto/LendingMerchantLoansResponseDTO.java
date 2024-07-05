@@ -50,6 +50,7 @@ public class LendingMerchantLoansResponseDTO {
 
     private Boolean contactSync = false;
     private List<PenaltyConfig> penaltyConfig;
+    private Boolean topupRejected;
 
 
     @JsonIgnoreProperties(ignoreUnknown = true)
