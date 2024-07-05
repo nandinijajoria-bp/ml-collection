@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.factory;
 
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.loanV3.services.associations.AbflRepaymentScheduleService;
 import com.bharatpe.lending.loanV3.services.stages.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -40,7 +41,11 @@ public class LenderAssociationStageFactory {
     DigitalSignStageAssociationFactory digitalSignStageAssociationFactory;
 
     @Autowired
+    RpsStageAssociationSvcFactory rpsStageAssociationSvcFactory;
+
+    @Autowired
     LenderPennyDropStageAssociationSvcFactory lenderPennyDropStageAssociationSvcFactory;
+
 
     public LenderAssociationServiceFactory getStageAssociatedLenderService(String stage) {
         if (LenderAssociationStages.KYC.name().equalsIgnoreCase(stage)) {
@@ -61,6 +66,8 @@ public class LenderAssociationStageFactory {
             return docUploadStageAssociationSvcFactory;
         } else if (LenderAssociationStages.DIGI_SIGN.name().equalsIgnoreCase(stage)) {
             return digitalSignStageAssociationFactory;
+        } else if (LenderAssociationStages.RPS.name().equalsIgnoreCase(stage)){
+            return rpsStageAssociationSvcFactory;
         } else if (LenderAssociationStages.PENNY_DROP.name().equalsIgnoreCase(stage)) {
             return lenderPennyDropStageAssociationSvcFactory;
         }

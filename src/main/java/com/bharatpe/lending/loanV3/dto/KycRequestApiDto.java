@@ -22,6 +22,7 @@ public class KycRequestApiDto {
     String lender;
     Long applicationId;
     String productName;
+    boolean topup;
     Payload payload;
     Identifier identifier;
 
@@ -33,6 +34,7 @@ public class KycRequestApiDto {
     public static class Identifier {
         String accountId;
         String cccId;
+        String productCode;
     }
 
     @Data
