@@ -417,7 +417,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
             PaymentCalculation paymentAdjustedPositiveEntry = PaymentCalculation.builder()
                     .used(amount)
-                    .principleSettled(paidPrincipalAmount-excessCollectionBalance)
+                    .principleSettled(paidPrincipalAmount)
                     .interestSettled(paidInterestAmount)
                     .penaltySettled(paidPenalty)
                     .chargesSettled(foreclosureChargesAmount)
