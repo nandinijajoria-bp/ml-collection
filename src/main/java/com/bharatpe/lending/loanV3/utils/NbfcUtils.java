@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -57,6 +58,7 @@ public class NbfcUtils {
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
@@ -136,7 +138,24 @@ public class NbfcUtils {
             iLenderAssociationService.invoke(applicationId,args);
             log.info("application {} successfully pushed to the next stage {}", applicationId, nextStage.name());
             }
+    }
+
+    public void retryApplicationStage(Long applicationId, String lender, String lenderAssociationStage) {
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+        if(!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            lendingApplicationDetails.setStage(lenderAssociationStage);
+            lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            log.info("stage updated in app details for application {}", applicationId);
+            ILenderAssociationService iLenderAssociationService =
+                    lenderAssociationStageFactory.getStageAssociatedLenderService(lenderAssociationStage).getLenderAssociationService(lender);
+            Map<String, Object> args = new HashMap<String, Object>() {{
+                put("requestId", MDC.get("requestId"));
+            }};
+            iLenderAssociationService.invoke(applicationId, args);
+            log.info("application {} successfully pushed to retry for stage {}", applicationId, lenderAssociationStage);
         }
+    }
 
     private LenderAssociationStages nextStage(Lender lender, LenderAssociationStages stage) {
         switch (lender) {
@@ -151,5 +170,4 @@ public class NbfcUtils {
                 return LenderAssociationStageFactory.getNextStage(lender, stage);
         }
     }
-
 }

@@ -30,7 +30,6 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
-
 import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.enums.Lender.LDC;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
@@ -921,6 +920,8 @@ public class LenderAssignService implements ILenderAssignService {
         if(LIQUILOANS_NBFC.toString().equals(prevLender)) return LIQUILOANS_NBFC.toString();
 
         if(LIQUILOANS_P2P.toString().equals(prevLender) || LIQUILOANS_P2P_OF.toString().equals(prevLender)) return LIQUILOANS_P2P.toString();
+
+        if(ABFL.name().equalsIgnoreCase(prevLender)) return ABFL.name();
         
         return null;
     }

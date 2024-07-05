@@ -1,34 +1,31 @@
 package com.bharatpe.lending.loanV3.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import lombok.*;
-
-import java.util.Date;
-import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-@ToString
-@JsonInclude(JsonInclude.Include.NON_NULL)
 @Builder
-public class DocUploadApiRequestDto {
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@NoArgsConstructor
+@AllArgsConstructor
+public class AbflTopupRpsRequestDTO {
     String lender;
     Long applicationId;
-    boolean topup;
     Payload payload;
     String productName;
+    boolean topup;
 
     @Data
+    @Builder
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder
     public static class Payload {
-        String cccId;
-        String fileUpload;
-        String fileName;
         String accountId;
-        String docType;
-        String customerId;
-        String requestId;
+        String txnId;
+        String lanNumber;
     }
 }

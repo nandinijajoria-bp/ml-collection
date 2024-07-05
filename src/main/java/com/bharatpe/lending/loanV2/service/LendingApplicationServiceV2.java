@@ -118,6 +118,8 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Slf4j
 public class LendingApplicationServiceV2 {
     @Autowired
+    private LendingPaymentScheduleDao lendingPaymentScheduleDao;
+    @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
     @Autowired
     private LmsStageHistoryDao lmsStageHistoryDao;
@@ -2408,7 +2410,6 @@ public class LendingApplicationServiceV2 {
 
             String shopAddress = constructShopAddress(lendingApplication);
 
-
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2449,6 +2450,20 @@ public class LendingApplicationServiceV2 {
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .build();
+
+            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+                    throw new Exception("Unable to fetch parent loan details");
+                }
+                Optional<LendingApplication> parentLendingApplicationOptional = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId());
+                if(!parentLendingApplicationOptional.isPresent()){
+                    throw new Exception("Unable to fetch parent application");
+                }
+                kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
+                kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
+            }
+
             return new ApiResponse<>(kfsDto);
         }
         catch(Exception e){
@@ -2660,7 +2675,12 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -2769,7 +2789,12 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
               language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -3112,6 +3137,19 @@ public class LendingApplicationServiceV2 {
                     data.put("rate_of_principle_" + value, foreClosureConfigList.get(i).getRate());
                     data.put("closure_min_" + value, foreClosureConfigList.get(i).getDurationFrom());
                 }
+            }
+        }
+
+        if(Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender())){
+            if(kfsDto.isTopUpLoan()){
+                data.put("foreclosure_amount_display_prop", "table-row");
+                data.put("foreclosure_amount", kfsDto.getLenderForeclosureAmount());
+                data.put("foreclosure_amount_in_words", getAmountInWords(kfsDto.getLenderForeclosureAmount().toString()));
+                data.put("topup_loan_clause_display_prop", "block");
+                data.put("parent_loan_bpl_id", kfsDto.getParentLoanBplId());
+            } else{
+                data.put("foreclosure_amount_display_prop", "none");
+                data.put("topup_loan_clause_display_prop", "none");
             }
         }
 
@@ -3516,7 +3554,11 @@ public class LendingApplicationServiceV2 {
 
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -3606,6 +3648,15 @@ public class LendingApplicationServiceV2 {
             log.error("Exception occurred while populating loan purpose for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong!");
+    }
+
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
+        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForABFL(lendingPaymentSchedule);
+        if(foreClosureAmountForABFL <= 0){
+            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+        }
+        return foreClosureAmountForABFL;
     }
 
 }

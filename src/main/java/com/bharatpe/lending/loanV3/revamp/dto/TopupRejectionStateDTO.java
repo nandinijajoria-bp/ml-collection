@@ -7,9 +7,6 @@ import lombok.*;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class LenderEvaluationStateDTO {
+public class TopupRejectionStateDTO {
     private Long applicationId;
-    private Boolean isRetryable;
-    private boolean isTopup;
-    private String lender;
 }

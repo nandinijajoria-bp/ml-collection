@@ -261,6 +261,19 @@
                 Other details related to loan
             </td>
         </tr>
+        <tr style="display: {{foreclosure_amount_display_prop}};" class="width-100">
+            <td style="padding: 0px 5px" class="width-33">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    Parent loan outstanding amount (in Rupees)
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66 word-wrap">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    Rs. {{foreclosure_amount}}/- (Rupees
+                    {{foreclosure_amount_in_words}} Only)
+                </p>
+            </td>
+        </tr>
         <tr class="width-100">
             <td style="padding: 0px 5px" class="width-33">
                 <p style="margin: 6px 16px" class="fw400 text-left bold">
@@ -966,6 +979,16 @@ _-For-RTPL-1.docx-1.pdf"
                 Borrower in case of default in repayment of the Loan (f) such other
                 Loan Facilitation Services as may be agreed between the Lender and
                 LSP from time to time and notified to the Borrower.
+            </p>
+            <p style="margin: 6px 16px; display: {{topup_loan_clause_display_prop}};" class="fw400 ml10">
+                <span>2.11</span> The Customer agrees, confirms and understands that the Lender has granted the present top-up loan
+                facility to the Customer on the understanding that the loan previously granted to it vide
+                LAN ACCOUNT NO {{parent_loan_bpl_id}} (parent LAN) will be suspended permanently,
+                and will be superseded and replaced by the new LAN Account number which we understand will be
+                communicated by ABFL welcome letter. The Customer agrees, acknowledges and understands that If
+                it chooses to exercise its rights of cancellation of Loan (if so granted under the Agreement)
+                and cancels the Loan within 1 day of disbursement, the Customer will have to initiate repayment
+                on the new LAN as per old POS outstanding of the parent LAN.
             </p>
         </li>
         <li class="fw400">
