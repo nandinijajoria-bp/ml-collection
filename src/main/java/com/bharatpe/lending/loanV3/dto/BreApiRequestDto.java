@@ -19,6 +19,7 @@ public class BreApiRequestDto {
     String lender;
     String productName;
     Long applicationId;
+    boolean topup;
     Payload payload;
 
     @Data
