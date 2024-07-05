@@ -1240,6 +1240,13 @@ public class PaymentService {
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
+        lendingCollectionExcessList.sort((l1, l2) -> {
+            if (UPI_AUTO_PAY.equalsIgnoreCase(l1.getTransferType())) {
+                return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? Long.compare(l1.getId(), l2.getId()) : 1;
+            } else {
+                return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? -1 : Long.compare(l1.getId(), l2.getId());
+            }
+        });
         Double excessCollectionBalance = 0D;
         for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
             if(lendingCollectionExcess.getAmount() > 0){
@@ -2651,12 +2658,20 @@ public class PaymentService {
         if(ObjectUtils.isEmpty(lendingCollectionExcessList))return;
         List<LendingLedger> lendingLedgersListExcessCollection = new ArrayList<>();
         for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+
             String desc = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + (lendingCollectionExcess.getDeductionCount() + 1);
+            if(UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getTransferType())){
+                LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
+                    lendingCollectionExcess.getAmount(), 0d,  desc,
+                        "AUTO_PAY_UPI_EXCESS_ADJUSTED","EXTERNAL", desc, 0D);
+                lendingLedgersListExcessCollection.add(excessCollectionLedger);
+            } else {
             LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
                     lendingCollectionExcess.getAmount(), 0d,  desc,
-                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc, 0D
-            );
-            lendingLedgersListExcessCollection.add(excessCollectionLedger);
+                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc, 0D);
+                lendingLedgersListExcessCollection.add(excessCollectionLedger);
+            }
+
         }
     }
 

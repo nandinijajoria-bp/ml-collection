@@ -46,6 +46,7 @@ import java.util.concurrent.Executors;
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
+import static com.bharatpe.lending.service.PaymentService.UPI_AUTO_PAY;
 
 
 @Service
@@ -340,6 +341,13 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
             double excessCollectionBalance = 0;
             List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
+            lendingCollectionExcessList.sort((l1, l2) -> {
+                if (UPI_AUTO_PAY.equalsIgnoreCase(l1.getTransferType())) {
+                    return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? Long.compare(l1.getId(), l2.getId()) : 1;
+                } else {
+                    return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? -1 : Long.compare(l1.getId(), l2.getId());
+                }
+            });
             for (LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList) {
                 if (lendingCollectionExcess.getAmount() > 0) {
                     excessCollectionBalance += lendingCollectionExcess.getAmount();
