@@ -301,6 +301,8 @@ public class PaymentService {
 
     @Autowired
     LendingCache lendingCache;
+    @Value("${autopay.upi.lock.timeout}")
+    int autoPayUpiLockTimeout;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -733,7 +735,7 @@ public class PaymentService {
                     if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
                         Long loanId = lendingPullPayment.getLoanId();
                         String lockKey = "lock:loanId:" + loanId;
-                        if (lendingCache.acquireLock(lockKey, 10)) {
+                        if (lendingCache.acquireLock(lockKey, autoPayUpiLockTimeout)) {
                             handleUpiAutoPaySucessOrder(request, lendingPullPayment);
                             lendingPullPayment.setStatus(request.getPaymentStatus());
                             lendingPullPaymentDao.save(lendingPullPayment);
