@@ -46,8 +46,7 @@ public class ValidateTokenInterceptor implements HandlerInterceptor {
 	            sendFailureResponse(response, ResponseCode.UNAUTHORIZED);
     			return false;
         	} else {
-                String normalized = Normalizer.normalize(token, Form.NFD);
-                token = normalized.replaceAll("[^A-Za-z0-9-]", "");
+
 //
 //        		List<TokenVerification> tokenDetails = tokenVerificationDao.fetchTokenDetails(token);
 //
