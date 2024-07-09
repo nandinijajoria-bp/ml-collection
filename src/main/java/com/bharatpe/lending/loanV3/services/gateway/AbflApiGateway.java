@@ -59,6 +59,10 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
     String nbfcPennyDropUrl;
 
+    @Value("${nbfc.pennydrop.read.timeout:30000}")
+    Integer nbfcPennyDropReadTimeout;
+
+
     @Autowired
     ObjectMapper objectMapper;
 
@@ -147,11 +151,11 @@ public class AbflApiGateway extends INbfcLenderGateway {
         return null;
     }
 
-    public ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO foreclosureAmountRequest) {
+    public ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO pennyDropRequestDTO) {
         try {
-            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ABFLPennyDropResponseDTO.class,nbfcBaseUrl+nbfcPennyDropUrl);
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(pennyDropRequestDTO), ABFLPennyDropResponseDTO.class,nbfcBaseUrl+nbfcPennyDropUrl, nbfcPennyDropReadTimeout);
         } catch (JsonProcessingException e) {
-            log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
+            log.error("exception occurred while fetching pennyDropRequestDTO to nbfc svc for {}", pennyDropRequestDTO, e);
         }
         return null;
     }
