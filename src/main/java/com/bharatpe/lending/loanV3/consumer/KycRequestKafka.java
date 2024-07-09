@@ -1,13 +1,13 @@
 package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.service.delayedqueue.DelayedMessagePublisher;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
@@ -18,10 +18,13 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.service.LendingDelayedMessagePublisher;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -52,7 +55,7 @@ public class KycRequestKafka {
     ILenderAssignment iLenderAssignment;
 
     @Autowired
-    DelayedMessagePublisher delayedMessagePublisher;
+    LendingDelayedMessagePublisher lendingDelayedMessagePublisher;
 
     @Autowired
     LenderGatewayFactory lenderGatewayFactory;
@@ -73,8 +76,12 @@ public class KycRequestKafka {
     @Autowired
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+    
+    @Autowired
+    LoanDetailsV3Service loanDetailsV3Service;
 
     @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
+
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
@@ -122,8 +129,14 @@ public class KycRequestKafka {
             if (ObjectUtils.isEmpty(kycApiResponseDto) || !(kycApiResponseDto.getSuccess())
                     || (ObjectUtils.isEmpty(kycApiResponseDto.getData()))
                         || lendingApplicationLenderDetails.getAnnualRoi() > 50) {
-                log.info("request resulted in kyc failure, modifying lender for {}", request);
-                nbfcUtils.modifyLender(lendingApplication.get(),lendingApplicationLenderDetails,LenderAssociationStatus.KYC_FAILED);
+                if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                    log.info("marking kycStatus KYC_FAILED for topup application as kyc resulted in failure for  {}", lendingApplication.get().getId());
+                    lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                } else {
+                    log.info("request resulted in kyc failure, modifying lender for {}", request);
+                    nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.KYC_FAILED);
+                }
             }
             else {
                 lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_IN_PROGRESS.name());
@@ -138,7 +151,6 @@ public class KycRequestKafka {
         }
     }
 
-    @KafkaListener(topics = "${abfl.kyc.callback.topic:kyc-callback}")
     @KafkaListener(
             topics="${abfl.kyc.callback.topic:kyc-callback}",
             autoStartup = "${kafka.confluent.consumer.new:false}",
@@ -166,8 +178,22 @@ public class KycRequestKafka {
                 return;
             }
             if (Boolean.FALSE.equals(kycCallbackResponseDto.getSuccess())) {
+                if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                    if(existingLendingApplicationLenderDetails.getKycRetryCount() < 3) {
+                        log.info("marking kycStatus KYC_retry for topup application as kyc callback resulted in failure for  {}", lendingApplication.get().getId());
+                        existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
+                        existingLendingApplicationLenderDetails.setKycRetryCount(existingLendingApplicationLenderDetails.getKycRetryCount() + 1);
+                        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.KYC_PAGE);
+                    }
+                    else{
+                        log.info("marking kycStatus KYC_FAILED for topup application as kyc callback resulted in failure after 3 retry for  {}", lendingApplication.get().getId());
+                        existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
+                    }
+                    lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                    return;
+                }
                 log.info("modifying lender as kyc callback resulted in failure for  {}", lendingApplication.get().getId());
-                nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.KYC_FAILED);
+                nbfcUtils.modifyLender(lendingApplication.get(), existingLendingApplicationLenderDetails, LenderAssociationStatus.KYC_FAILED);
                 return;
             }
             KycCallbackResponseDto.Data data= kycCallbackResponseDto.getData();
@@ -178,6 +204,11 @@ public class KycRequestKafka {
             existingLendingApplicationLenderDetails.setNbfcKycAsyncId(data.getAsyncId());
             existingLendingApplicationLenderDetails.setCkycType(data.getKycType());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())){
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
+            }
+
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
                     LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC));
             log.info("kyc completed for the application {} ", lendingApplication.get().getId());
@@ -202,15 +233,18 @@ public class KycRequestKafka {
             }
             String currDate = String.valueOf(new Date().getTime());
             String txnId = lendingApplication.get().getId() + currDate.substring(currDate.length() - 5);
+            String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String name = nameAndDobDetailsDto.getFullName();
             KycRequestApiDto kycRequestApiDto = KycRequestApiDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .identifier(KycRequestApiDto.Identifier.builder()
                             .accountId(lendingApplication.get().getExternalLoanId())
-                            .cccId(lendingApplicationLenderDetails.getCccId()).build())
+                            .cccId(lendingApplicationLenderDetails.getCccId())
+                            .productCode(productCode).build())
                     .payload(KycRequestApiDto.Payload.builder()
                             .accountId(lendingApplication.get().getExternalLoanId())
                             .declaredAddress((ObjectUtils.isEmpty(cKycResponseDto.getAddress()) ? "" : cKycResponseDto.getAddress()) + ", " +

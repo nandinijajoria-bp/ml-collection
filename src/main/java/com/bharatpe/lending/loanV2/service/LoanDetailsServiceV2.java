@@ -427,9 +427,12 @@ public class LoanDetailsServiceV2 {
                 log.info("open application for merchant:{}", merchant.getId());
                 //with validAfter timestamp
                 LendingApplicationKycDetails lendingApplicationKycDetails = null;
-
+                Integer dateDiff = 731;
+                if(LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(openApplication.getLender())){
+                    dateDiff = 365;
+                }
                 if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
-                    lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
+                    lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender(), dateDiff);
                 }
 
                 if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||
@@ -513,6 +516,8 @@ public class LoanDetailsServiceV2 {
         boolean panCardApproved = false;
         boolean panNoApproved = false;
         try {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingApplicationKycDetails.getApplicationId());
+
             for (KycDoc kycDoc : kycDocs) {
                 // Updating Kyc Details if Doc Type is approved and approved_at is null
                 if (kycDoc.getDocType() != null && KycDocType.SELFIE.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
@@ -552,7 +557,7 @@ public class LoanDetailsServiceV2 {
                 lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
                 log.info("Kyc details verified for merchant : {}", merchant.getId());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, merchant.getMid()));
-                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),
+                funnelService.submitEvent(merchant.getId(), null,lendingApplicationKycDetails.getApplicationId(),lendingApplication.isPresent()?lendingApplication.get().getLoanType():null,
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
             }
         } catch (Exception e) {
@@ -2414,7 +2419,8 @@ public class LoanDetailsServiceV2 {
         LendingApplicationKycDetails lendingApplicationKycDetails = null;
 
         if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
-            lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
+            Integer dateDiff = LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(openApplication.getLender()) ? 365 : 731;
+            lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender(), dateDiff);
         }
 
         if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||

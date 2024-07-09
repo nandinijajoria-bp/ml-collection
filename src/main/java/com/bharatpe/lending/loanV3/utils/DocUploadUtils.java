@@ -200,5 +200,4 @@ public class DocUploadUtils {
         log.info("key to fetch from aws: {}", key);
         return ObjectUtils.isEmpty(key) ? "" : s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(key, bucket);
     }
-
 }

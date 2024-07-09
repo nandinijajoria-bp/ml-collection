@@ -8,6 +8,7 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
+import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.service.LoanPaymentService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
@@ -90,6 +91,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -198,7 +200,8 @@ public class PaymentService {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
-    KafkaTemplate kafkaTemplate;
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -286,6 +289,11 @@ public class PaymentService {
 
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
+    @Autowired
+    ForeClosureAmountInfoDao foreClosureAmountInfoDao;
+
+    @Autowired
+    LoanClosureService loanClosureService;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -328,10 +336,13 @@ public class PaymentService {
             }
         }
         Double netForeclosureAtLender = 0d;
+        double finalForeclosureAtLender = 0d;
+        double netForeclosureAtBp=principalDueAmount+advanceEdiAmount+excessCollectionBalance;
         ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
             netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+            finalForeclosureAtLender = netForeclosureAtLender;
             netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
         }
         principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
@@ -345,6 +356,8 @@ public class PaymentService {
         Double dueInterest = activeLoan.getDueInterest() != null ? activeLoan.getDueInterest()
                 : 0d;
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
+        data.setForeClosureAmountAtLender(finalForeclosureAtLender);
+        data.setForeClosureAmountAtBp(netForeclosureAtBp);
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
         data.setPaidPrinciple(paidPrinciple);
@@ -507,6 +520,9 @@ public class PaymentService {
             if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) && request.getPayload().getForeClosureDetail() != null) {
                 saveLoanForeClosureCharges(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureDetail());
             }
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) && (request.getPayload().getForeClosureAmountAtLender() != 0 ||  request.getPayload().getForeClosureAmountAtBP() != 0)) {
+                saveForeClosureAmountInfo(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureAmountAtBP(),request.getPayload().getForeClosureAmountAtLender());
+            }
 
             InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
             data.setPaymentLink(response.getData().getPaymentURIDeeplink());
@@ -537,6 +553,24 @@ public class PaymentService {
             logger.error("ForeClosure charges config missing for mid : {} loanId : {} , loanPaymentOrderId : {} configId : {}",merchantBasicDetails.getId(), loanId, orderId, foreClosureDetail.getId());
         }
         loanForeClosureChargesDao.save(loanForeClosureCharges);
+    }
+
+
+    private void saveForeClosureAmountInfo(BasicDetailsDto merchantBasicDetails, long orderId, long loanId, Double foreClosureAmountAtBP, Double foreClosureAmountAtLender) {
+        try {
+            ForeClosureAmountInfo foreClosureAmountInfo = ForeClosureAmountInfo.builder()
+                    .orderId(orderId)
+                    .loanId(loanId)
+                    .ledgerId(0L)
+                    .merchantId(merchantBasicDetails.getId())
+                    .foreclosureAmountAtBP(foreClosureAmountAtBP)
+                    .foreclosureAmountAtLender(foreClosureAmountAtLender)
+                    .foreclosureAmountDiff(foreClosureAmountAtLender - foreClosureAmountAtBP)
+                    .build();
+            foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+        }catch (Exception e){
+            log.error("going to save details in loanforeclosureamount info for loanId {} orderId {} foreClosureAmountAtBP {} and foreClosureAmountAtLender {}",loanId,orderId,foreClosureAmountAtBP,foreClosureAmountAtLender);
+        }
     }
 
     public InitiatePaymentResponseDTO initiatePayment(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
@@ -628,7 +662,9 @@ public class PaymentService {
             if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(request.getPayload().getPaymentType()) && request.getPayload().getForeClosureDetail() != null) {
                 saveLoanForeClosureCharges(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureDetail());
             }
-
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(request.getPayload().getPaymentType()) && (request.getPayload().getForeClosureAmountAtLender() != 0 || request.getPayload().getForeClosureAmountAtBP()!= 0)) {
+                saveForeClosureAmountInfo(merchantBasicDetails, order.getId(), activeLoan.getId(), request.getPayload().getForeClosureAmountAtBP(),request.getPayload().getForeClosureAmountAtLender());
+            }
             InitiatePaymentResponseDTO.Data data = new InitiatePaymentResponseDTO.Data(order.getVpa(), order.getUpiIntent(), order.getShortLink(), order.getOrderId(), otpFlow, authMode, accountNumber, ifsc, null);
             data.setPsps(psps);
             return new InitiatePaymentResponseDTO(data);
@@ -664,7 +700,7 @@ public class PaymentService {
                 order.setStatus("FAILED");
                 order.setDescription("Amount mismatch");
                 loanPaymentOrderDao.save(order);
-                updateForeclosureChargesStatus(order.getStatus(), order.getId());
+                loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
                 return "OK";
             }
             adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
@@ -672,7 +708,7 @@ public class PaymentService {
             order.setBankRefNo(request.getBankReferenceNumber());
             order.setStatus("SUCCESS");
             loanPaymentOrderDao.save(order);
-            updateForeclosureChargesStatus(order.getStatus(), order.getId());
+            loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
         } catch(Exception ex) {
             logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
         }
@@ -779,22 +815,10 @@ public class PaymentService {
             }
             logger.info("final order id : {}  callback payments status is pg callback for request: {}", order.getOrderId(), order.getStatus());
             if (order != null && !CreditConstants.PaymentStatus.PENDING.name().equalsIgnoreCase(order.getStatus())) {
-                updateForeclosureChargesStatus(order.getStatus(), order.getId());
+                loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
             }
         }
         return "OK";
-    }
-
-    private void updateForeclosureChargesStatus(String status, Long orderId) {
-        log.info("Going to update foreclosure charges status  orderid : {} and status {} ", orderId, status);
-        LoanForeClosureCharges charge = loanForeClosureChargesDao.findByOrderId(orderId);
-        if (charge != null) {
-            charge.setStatus(status);
-            loanForeClosureChargesDao.save(charge);
-            logger.info("updated the status of foreclosurecharges order : {} and status : {}", orderId , status);
-        } else {
-            logger.info("no foreclosure charges for order : {} and status : {}", orderId , status);
-        }
     }
 
     private void sendSMS(LendingPaymentSchedule loan, Double amount, boolean isLoanClosed) {
@@ -876,7 +900,7 @@ public class PaymentService {
 
         if (!ObjectUtils.isEmpty(source) && source.toUpperCase().contains("UPI")) {
             transferType = "EXTERNAL";
-        } 
+        }
 
         lendingLedger.setDescription(description);
         lendingLedger.setTerminalOrderId(terminalOrderId);
@@ -1045,7 +1069,7 @@ public class PaymentService {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
-        if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt()) && amount < principalDueAmount && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
+        if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt())  && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
                     transferType = "EXTERNAL";
@@ -1086,7 +1110,7 @@ public class PaymentService {
 
         if (EDI_BY_EDI.name().equalsIgnoreCase(activeLoan.getSettlementMechanism())) {
             logger.info("Adjusting Mechanism for loanId: {} is {}", activeLoan.getId(), activeLoan.getSettlementMechanism());
-            adjustLoanBalanceEdiByEdi(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, orderId, foreclosureChargesAmount);
+            adjustLoanBalanceEdiByEdi(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, orderId, foreclosureChargesAmount, loanForeClosureCharges);
             return;
         }
 
@@ -1340,7 +1364,15 @@ public class PaymentService {
             loanForeClosureCharges.setLedgerId(lendingLedger.getId());
             loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
-
+        ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+        if(foreClosureAmountInfo!= null && lendingLedger != null) {
+            try {
+                foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
+                foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+            }catch (Exception e){
+                log.error("error occured while saving ledgerId for loanID {} in foreclosure amount info",activeLoan.getId());
+            }
+        }
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
@@ -1410,7 +1442,7 @@ public class PaymentService {
     private void sendForeclosureChargesEventLiquiLoans(long applicationId,long loanId, long lendingLedgerId, String lender, long orderId) {
         String postingStatus = "FAILURE";
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
-        if (loanForeClosureCharges == null) {
+        if (loanForeClosureCharges == null ) {
             logger.info("No fore closure charges exist for the orderId {}",orderId);
             return;
         }
@@ -1426,7 +1458,7 @@ public class PaymentService {
                     .chargeType(8)  // defined by lender
                     .build();
             logger.info(" {}  foreclosure charges event Sending {}",lender, liquiLoansForeclosureChargesRequestDto);
-            Object metadata = kafkaTemplate.send(nbfcLiquiLoansForeclosureTopic, objectMapper.writeValueAsString(liquiLoansForeclosureChargesRequestDto)).get();
+            Object metadata = confluentKafkaTemplate.send(nbfcLiquiLoansForeclosureTopic, objectMapper.writeValueAsString(liquiLoansForeclosureChargesRequestDto)).get();
             logger.info(" {}  foreclosure charges event sent {}",lender, objectMapper.writeValueAsString(liquiLoansForeclosureChargesRequestDto));
             postingStatus = "POSTED";
         } catch (Exception e) {
@@ -1505,7 +1537,7 @@ public class PaymentService {
             LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
             lendingCollectionAudit.setStatus("SUCCESS");
             lendingCollectionAuditDao.save(lendingCollectionAudit);
-            kafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
+            confluentKafkaTemplate.send(getLenderForeclsoureReceiptTopic(activeLoan.getNbfc()), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequest), new TypeReference<Map<String, Object>>() {}));
             log.info("foreclosure event sent for application {} {}", activeLoan.getApplicationId(), nbfcRequest);
         } catch (Exception e){
             logger.error("Exception {} while posting the foreclosure receipt for application id {} {}",e.getMessage(),activeLoan.getApplicationId(), e);
@@ -1984,7 +2016,7 @@ public class PaymentService {
                             .build())
                     .build();
             logger.info("foreclosure event sent {}", foreclosureRequestDto);
-            kafkaTemplate.send("foreclose-loan", objectMapper.readValue(objectMapper.writeValueAsString(foreclosureRequestDto), new TypeReference<Map<String, Object>>() {
+            confluentKafkaTemplate.send("foreclose-loan", objectMapper.readValue(objectMapper.writeValueAsString(foreclosureRequestDto), new TypeReference<Map<String, Object>>() {
             }));
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
@@ -2051,7 +2083,7 @@ public class PaymentService {
                             .build())
                     .build();
             logger.info("TrillionLoans: foreclosure event sent {}", trillionForeclosureRequestDto);
-            kafkaTemplate.send(nbfcTrillionForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(trillionForeclosureRequestDto), new TypeReference<Map<String, Object>>() {}));
+            confluentKafkaTemplate.send(nbfcTrillionForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(trillionForeclosureRequestDto), new TypeReference<Map<String, Object>>() {}));
             logger.info("TrillionLoans: updating LCA for foreclosed event for application id : {} ", lendingApplicationLenderDetails.getApplicationId());
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
@@ -2071,7 +2103,7 @@ public class PaymentService {
         }
     }
 
-    private void adjustLoanBalanceEdiByEdi(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String transferType, String terminalOrderId, Long orderId, double foreclosureChargesAmount) {
+    private void adjustLoanBalanceEdiByEdi(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String transferType, String terminalOrderId, Long orderId, double foreclosureChargesAmount, LoanForeClosureCharges loanForeClosureCharges) {
         logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
         Integer foreclosureAmount = loanUtil.getForeclosureAmount(activeLoan);
         Double paidInterestAmount = 0D;
@@ -2184,6 +2216,21 @@ public class PaymentService {
             }
         }
 
+        if(loanForeClosureCharges != null && lendingLedger != null) {
+            loanForeClosureCharges.setLedgerId(lendingLedger.getId());
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+            log.info("Setting ledger id in foreclosure");
+        }
+
+        ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+        if(foreClosureAmountInfo!= null && lendingLedger != null) {
+            try {
+                foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
+                foreClosureAmountInfoDao.save(foreClosureAmountInfo);
+            }catch (Exception e){
+                log.error("error occured while saving ledgerId for loanID {} in foreclosure amount info",activeLoan.getId());
+            }
+        }
         lendingPaymentScheduleDao.save(activeLoan);
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
@@ -2237,7 +2284,7 @@ public class PaymentService {
         }
     }
 
-    public void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
+    private void waiverSettlement(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
                                   String transferType, String terminalOrderId, Double excessCollectionBalance, List<LendingCollectionExcess> lendingCollectionExcessList) {
 
         createLendingLedger(activeLoan, -1 * (amount + excessCollectionBalance), -1 * (amount + excessCollectionBalance),

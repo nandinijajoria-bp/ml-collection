@@ -15,18 +15,18 @@ import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPgMidConfigSlaveDao;
+import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.query.entity.LendingPgMidConfigSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.LendingGlobalAPICacheService;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
-import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
@@ -54,7 +54,6 @@ import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1298,15 +1297,15 @@ public class APIGatewayService {
         return null;
     }
 
-    public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO) {
+    public ENachIntitiationResponseDTO initiateEnach(EnachInitiateRequestDTO requestDTO, String loanType) {
 
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(requestDTO.getMerchantId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-            funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+            funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),loanType,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         else{
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(), loanType,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
         }
 
@@ -1316,12 +1315,13 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         String finalLender = loanUtil.enachServiceLenderMapper(requestDTO.getLender());
 
+        Optional<LendingApplication> lendingApplication=lendingApplicationDao.findById(requestDTO.getApplicationId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         else{
-            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),
+            funnelService.submitEvent(requestDTO.getMerchantId(), null, requestDTO.getApplicationId(),lendingApplication.isPresent()?lendingApplication.get().getLoanType():null,
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.LENDER_ASSIGNED, finalLender);
         }
 
@@ -1352,7 +1352,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider, String clientName) {
+    public ENachIntitiationResponseDTO submitEnach(ENachSubmitRequestDTO requestDTO, String token, Long merchantId, String provider, String clientName, String loanType) {
         logger.info("Enach submit request:{} for merchant:{}", requestDTO, merchantId);
         HttpHeaders headers = new HttpHeaders();
         headers.set("token", token);
@@ -1385,11 +1385,11 @@ public class APIGatewayService {
                 LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
                 if(!newJsonNode.getMessage().equalsIgnoreCase("success")){
                     if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                        funnelService.submitEventV3(merchantId, null, requestDTO.getApplicationId(),
+                        funnelService.submitEventV3(merchantId, null, requestDTO.getApplicationId(),loanType,
                                 FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
                     else{
-                        funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                        funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(), loanType,
                                 FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ERROR, newJsonNode.getMessage());
                     }
 
@@ -1399,7 +1399,7 @@ public class APIGatewayService {
                             FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                 }
                 else{
-                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),
+                    funnelService.submitEvent(merchantId, null, requestDTO.getApplicationId(),loanType,
                             FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString());
                 }
 
@@ -2138,16 +2138,16 @@ public class APIGatewayService {
             try {
                 lendingPancard = loanEligibleService.fetchPanName(pancard, merchantId);
             } catch (Exception e) {
-                logger.error("Error getting pan name details from kyc for merchant : {}, pancard : {}, {}, {}", merchantId, pancard, e.getMessage(), e);
+                logger.error("Error getting pan name details from kyc for merchant : {}, pancard : {}, {}", merchantId, pancard, e.getMessage(), e);
             }
         }
         if (lendingPancard != null && lendingPancard.getName() != null && !lendingPancard.getName().trim().equalsIgnoreCase("") && lendingPancard.getPancardNumber() != null && lendingPancard.getPancardNumber().equalsIgnoreCase(pancard)) {
-            firstName = LoanUtil.getFirstName(lendingPancard.getName());
-            lastName = LoanUtil.getLastName(lendingPancard.getName());
+            firstName = LoanUtil.getFirstName(lendingPancard.getName().trim());
+            lastName = LoanUtil.getLastName(lendingPancard.getName().trim());
         } else {
             if (!ObjectUtils.isEmpty(merchantBankDetail)) {
-                firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName());
-                lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName());
+                firstName = LoanUtil.getFirstName(merchantBankDetail.getBeneficiaryName().trim());
+                lastName = LoanUtil.getLastName(merchantBankDetail.getBeneficiaryName().trim());
             }
         }
         String finalFirstName = firstName;

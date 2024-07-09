@@ -79,7 +79,7 @@ public class BureauHandler {
             Map<String, String> merchantName = apiGatewayService.getFirstLastName(merchantId, pancard);
             requestBody.put("first_name",merchantName.get("firstName"));
             requestBody.put("last_name",merchantName.get("lastName"));
-            log.info("name fetched");
+            log.info("name fetched for merchantId:{} {} {}",merchantId, merchantName.get("firstName"), merchantName.get("lastName"));
             if (!StringUtils.isEmpty(pancard)) {
                 requestBody.put("pancard", pancard);
             }

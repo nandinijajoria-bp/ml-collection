@@ -116,9 +116,6 @@ public class LendingApplicationService {
     @Autowired
     ExperianDaoSlave experianDaoSlave;
 
-    @Autowired
-    KafkaTemplate<String, Object> kafkaTemplate;
-
 //    @Autowired
 //    SignAgreementService signAgreementService;
 //
@@ -1631,7 +1628,8 @@ public class LendingApplicationService {
             payloadMap.put("merchant_id", merchantId);
             payloadMap.put("amount", requestDTO.getAmount());
             payloadMap.put("order_id", requestDTO.getOrderId());
-            kafkaTemplate.send("lending_pull_payment", merchantId.toString(), payloadMap);
+            logger.info("Deprecated topic:lending_pull_payment payload: {}", payloadMap);
+//            kafkaTemplate.send("lending_pull_payment", merchantId.toString(), payloadMap);
         } catch (Exception e) {
             logger.error("Error publishing to kafka ", e);
         }

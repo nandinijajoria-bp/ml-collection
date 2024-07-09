@@ -106,8 +106,6 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     LendingCollectionAuditDao lendingCollectionAuditDao;
-    @Autowired
-    PaymentService paymentService;
 
     ExecutorService notificationExecutor = Executors.newFixedThreadPool(10);
 
@@ -131,7 +129,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     excessCollectionBalance += lendingCollectionExcess.getAmount();
                 }
             }
-            paymentService.waiverSettlement(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), "SETTLED", payment.getTerminalOrderId(), excessCollectionBalance, lendingCollectionExcessList);
+            loanStatusService.waiverSettlement(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), "SETTLED", payment.getTerminalOrderId(), excessCollectionBalance, lendingCollectionExcessList);
             return loan;
         }
         String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
@@ -362,11 +360,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             double paidInterestAmount = (loan.getDueInterest() != null ? loan.getDueInterest() : 0);
             double paidPenalty = Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0;
             double paidPrincipalAmount = amount - paidInterestAmount + excessCollectionBalance - paidPenalty - foreclosureChargesAmount;
-            double remainingBalance = (loan.getPaidPrinciple() + paidPrincipalAmount) - loan.getLoanAmount();
-            if (remainingBalance > 0) {
-                log.info("Extra principle received for loanId:{} and extra amount:{}", loan.getId(), remainingBalance);
-                paidPrincipalAmount -= remainingBalance;
-                paidInterestAmount += remainingBalance;
+            double surplusAmount = (loan.getPaidPrinciple() + paidPrincipalAmount) - loan.getLoanAmount();
+//            amount -= surplusAmount;
+            if (surplusAmount > 0 && !EDI_BY_EDI.name().equalsIgnoreCase(settlementMechanism) ) {
+                log.info("Extra principle received for loanId:{} and extra amount:{}", loan.getId(), surplusAmount);
+                paidPrincipalAmount-=surplusAmount;
+                paidInterestAmount+=surplusAmount;
             }
 
             log.info("Adjusting breakup amount for loan:{} is principle:{} and interest:{} and foreclosureCharges : {}", loan.getId(), paidPrincipalAmount, paidInterestAmount, foreclosureChargesAmount);
@@ -382,11 +381,11 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             String description = (preclosureWithCharges) ? "PREPAYMENT_WITH_CHARGES" : "PREPAYMENT";
 
             if (Objects.isNull(loan.getDueAmount())) loan.setDueAmount(0d);
+            //as we are creating negative penalty in lending ledger when we apply penalty so we have removed paid penalty component while creating negative foreclosure amount.
             PaymentCalculation paymentAdjusted = PaymentCalculation.builder()
-                    .used(-1 * Math.abs(amount - loan.getDueAmount() + advanceEdiAmount + excessCollectionBalance))
+                    .used(-1 * Math.abs(amount - loan.getDueAmount() - paidPenalty + advanceEdiAmount + excessCollectionBalance))
                     .principleSettled(-1 * Math.abs(amount - loan.getDueAmount() - ediHolidayInterestAmount + advanceEdiAmount + excessCollectionBalance - paidPenalty - foreclosureChargesAmount))
-                    .interestSettled(Double.valueOf(ediHolidayInterestAmount))
-                    .penaltySettled(-1 * paidPenalty)
+                    .interestSettled(-1 * Double.valueOf(ediHolidayInterestAmount))
                     .chargesSettled(-1 * foreclosureChargesAmount)
                     .build();
             ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, description, payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
@@ -408,14 +407,36 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             loan.setDuePenalty(0D);
             loan.setPaidPenalty((loan.getPaidPenalty() != null ? loan.getPaidPenalty() : 0) + paidPenalty);
 
-            loan.setDueOtherCharges(0D);
             loan.setOtherCharges((loan.getOtherCharges() != null ? loan.getOtherCharges() : 0) + foreclosureChargesAmount);
+
+            loan.setDueOtherCharges(0D);
             loan.setPaidOtherCharges((loan.getPaidOtherCharges() != null ? loan.getPaidOtherCharges() : 0) + foreclosureChargesAmount);
             loan.setStatus("CLOSED");
             loan.setClosingDate(new Date());
             String preclosureDescription = ((preclosureWithCharges) ? "PRECLOSER_WITH_CHARGES_UPI : " : "PRECLOSER_UPI : ") + payment.getBankRefNo();
-            LendingLedger positiveEntry = ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, preclosureDescription  , payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
 
+            PaymentCalculation paymentAdjustedPositiveEntry = PaymentCalculation.builder()
+                    .used(amount)
+                    .principleSettled(paidPrincipalAmount-excessCollectionBalance)
+                    .interestSettled(paidInterestAmount)
+                    .penaltySettled(paidPenalty)
+                    .chargesSettled(foreclosureChargesAmount)
+                    .build();
+
+            LendingLedger positiveEntry = ledgerAdjustmentService.adjustLendingLedger(loan, paymentAdjustedPositiveEntry,null, preclosureDescription  , payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
+            ledgerAdjustmentService.adjustPenaltyLedger(loan, paidPenalty, payment.getSource(), false);
+
+            if (surplusAmount > 0 && EDI_BY_EDI.name().equalsIgnoreCase(settlementMechanism) ) {
+                log.info("Extra principle received for loanId:{} and extra amount:{}", loan.getId(), surplusAmount);
+                adjustExtraAmountIfAny(loan,surplusAmount,payment,true);
+            }
+            if(loanForeClosureCharges != null && positiveEntry != null) {
+                log.info("updating ledger id {} in loan foreclosure charges  {} ",positiveEntry.getId(),loanForeClosureCharges);
+                loanForeClosureCharges.setLedgerId(positiveEntry.getId());
+                loanForeClosureChargesDao.save(loanForeClosureCharges);
+            }
+
+//            if(surplusAmount > 0) adjustExtraAmountIfAny(loan, surplusAmount, payment, true);
             loanStatusService.processLoanClosure(LoanClosureDTO.builder()
                     .activeLoan(loan)
                     .lendingLedger(positiveEntry)

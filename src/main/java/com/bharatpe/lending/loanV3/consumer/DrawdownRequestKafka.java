@@ -40,7 +40,6 @@ public class DrawdownRequestKafka {
     LiquiloansService liquiloansService;
 
 
-    @KafkaListener(topics = "${abfl.drawdown.callback.topic:drawdown-callback}", concurrency = "5")
     @KafkaListener(
             topics="${abfl.drawdown.callback.topic:drawdown-callback}",
             concurrency = "5",

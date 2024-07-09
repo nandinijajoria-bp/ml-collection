@@ -7,13 +7,13 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.MerchantScoreSnapshotDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
-import com.bharatpe.common.service.MongoPublisher;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PincodeColor;
@@ -22,6 +22,7 @@ import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.MongoLogPublisher;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -44,6 +45,8 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -53,6 +56,7 @@ import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -83,7 +87,7 @@ public class LoanUtil {
 	public static final int NO_OF_DAYS_IN_A_MONTH = 30;
 
 	@Autowired
-	MongoPublisher mongoPublisher;
+	MongoLogPublisher mongoLogPublisher;
 
 	@Autowired
 	BQPublisherUtil bqPublisherUtil;
@@ -154,7 +158,8 @@ public class LoanUtil {
 	LendingPrepaymentDao lendingPrepaymentDao;
 
 	@Autowired
-	KafkaTemplate<String, Object> kafkaTemplate;
+	@Qualifier("ConfluentKafkaTemplate")
+	KafkaTemplate<String, Object> confluentKafkaTemplate;
 
 	@Autowired
 	LendingRiskVariablesDao lendingRiskVariablesDao;
@@ -252,6 +257,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
+
+	@Autowired
+	LenderAssociationStageFactory lenderAssociationStageFactory;
 
 	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
@@ -714,7 +722,7 @@ public class LoanUtil {
 		try {
 			logger.info("Publish merchant_sms_analysis data in mongo for merchant:{}", merchant.getId());
 			MerchantSmsAnalysis merchantSmsAnalysis = new MerchantSmsAnalysis(merchant.getMid());
-			mongoPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>() {{
+			mongoLogPublisher.publish("Lending", "merchant_sms_analysis", merchant.getId().toString(), new ArrayList<MerchantSmsAnalysis>() {{
 				add(merchantSmsAnalysis);
 			}});
 		} catch (Exception e) {
@@ -1339,6 +1347,16 @@ public class LoanUtil {
 		return prevLoanUnpaidAmount;
 	}
 
+	public double getForeClosureAmountForABFL(LendingPaymentSchedule lendingPaymentSchedule) {
+		Double netForeclosureAtLender = 0d;
+		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
+				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
+		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
+			netForeclosureAtLender = (Double) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+		}
+		return netForeclosureAtLender;
+	}
+
 	public void publishApplicationEvent(LendingApplication lendingApplication) {
 		try {
 			Map<String, Object> request = new HashMap<String, Object>() {{
@@ -1350,7 +1368,7 @@ public class LoanUtil {
 				put("updatedAt", simpleDateFormat.format(lendingApplication.getUpdatedAt()));
 			}};
 			executorService.execute(() -> {
-				kafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				confluentKafkaTemplate.send(LendingConstants.APPLICATION_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 			logger.info("Lending application event update for applicationId:{}", lendingApplication.getId());
 		} catch (Exception e) {
@@ -1393,7 +1411,7 @@ public class LoanUtil {
 			request.put("proof_front_side", proof_front_side);
 			request.put("proof_stock_side", proof_stock_side);
 			executorService.execute(() -> {
-				kafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
+				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
 		} catch (Exception e) {
 			logger.error("Exception while publishing DS Data for application:{}", lendingApplication.getId(), e);
@@ -1990,7 +2008,7 @@ public class LoanUtil {
 		loanDisbursalDto.setGenerateReport(generateReportFlag);
 		loanDisbursalDto.setRequestId(requestId);
 		logger.info("loanDisbursalDto for {} : {}", lendingApplication.getId(), loanDisbursalDto);
-		kafkaTemplate.send(
+		confluentKafkaTemplate.send(
 				Objects.requireNonNull(LendingConstants.PUBLISH_LOAN_DISBURSAL_KAFKA_TOPIC),
 				lendingApplication.getId().toString(),
 				loanDisbursalDto

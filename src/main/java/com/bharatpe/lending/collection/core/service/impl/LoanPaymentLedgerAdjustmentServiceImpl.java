@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
+import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -81,9 +82,10 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         }
     }
     @Override
-    public void adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo) {
+    public LendingLedger adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo) {
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
+        return lendingLedger;
     }
     @Override
     public void updateCollectionAuditAndOrder(LendingLedger lendingLedger, LoanPaymentOrder order) {
@@ -155,7 +157,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                     .used(lendingCollectionExcess.getAmount())
                     .principleSettled(lendingCollectionExcess.getAmount())
                     .build();
-            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,"EXCESS_NACH_ADJUSTED", "EXTERNAL", desc);
+            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,"EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), desc);
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }
     }
