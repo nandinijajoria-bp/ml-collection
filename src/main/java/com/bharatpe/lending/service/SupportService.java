@@ -22,6 +22,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LoanInsuranceConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -251,6 +252,9 @@ public class SupportService {
 
     @Autowired
     MileStoneHelperServicev3 mileStoneHelperServicev3;
+
+    @Autowired
+    LoanInsuranceConstants loanInsuranceConstants;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -1122,10 +1126,9 @@ public class SupportService {
         if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
             return null;
         } else {
-            Map<String,String> insuranceContactDetails = new HashMap<String, String>() {{
-                put("email_id","customerfirst@careinsurance.com,claimcentre.partners@careinsurance.com");
-                put("mobile_no","18002004488,8860402452");
-            }};
+            //TODO: Add this after loan insurance deployment
+            // String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
+
             return InsuranceDetailsDTO.builder()
                     .sumInsured(lendingLoanInsurance.getSumInsured())
                     .insurancePremiumAmount(lendingLoanInsurance.getInsurancePremium())
@@ -1133,8 +1136,8 @@ public class SupportService {
                     .insuranceAvailedDate(lendingLoanInsurance.getCommencementDate())
                     .insuranceApplicable(true)
                     .insuranceDocument(lendingLoanInsurance.getPolicyDocUrl())
-                    .benefitsOfTheInsurance("https://drive.google.com/file/d/1-jSdiwUACM4tmzORXjt2VW-IF2hP370K/view?usp=sharing")
-                    .insurancePartnerContactDetails(insuranceContactDetails)
+                    .benefitsOfTheInsurance(loanInsuranceConstants.careBenefits)
+                    .insurancePartnerContactDetails(loanInsuranceConstants.insuranceContactDetails)
                     .build();
         }
     }
