@@ -60,7 +60,7 @@ public class AbflApiGateway extends INbfcLenderGateway {
     String nbfcPennyDropUrl;
 
     @Value("${nbfc.pennydrop.read.timeout:30000}")
-    Integer nbfcPennyDropReadTimeout;
+    int nbfcPennyDropReadTimeout;
 
 
     @Autowired

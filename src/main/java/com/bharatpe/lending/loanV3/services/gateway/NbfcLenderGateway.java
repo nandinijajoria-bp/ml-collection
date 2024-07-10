@@ -64,7 +64,7 @@ public class NbfcLenderGateway extends APIGatewayService {
         return null;
     }
 
-    public <V> V invoke(String requestObject, Class<V> responseType, String requestUrl, Integer customReadTimeOut) {
+    public <V> V invoke(String requestObject, Class<V> responseType, String requestUrl, int customReadTimeOut) {
         try {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
             });
@@ -80,8 +80,8 @@ public class NbfcLenderGateway extends APIGatewayService {
             log.info("custom invoke request body for nbfc {} request hash {} :  {}", requestUrl,hash, request);
             HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
             clientHttpRequestFactory.setReadTimeout(customReadTimeOut);
-            restTemplate = new RestTemplate(clientHttpRequestFactory);
-            ResponseEntity<String> responseEntity = restTemplate.postForEntity( requestUrl, request, String.class);
+            RestTemplate restTemplateWithTimeOut = new RestTemplate(clientHttpRequestFactory);
+            ResponseEntity<String> responseEntity = restTemplateWithTimeOut.postForEntity( requestUrl, request, String.class);
             log.info("custom invoke response for {} invokation {}", requestUrl, responseEntity);
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.hasBody()) {
                 V response = objectMapper.readValue(responseEntity.getBody(),responseType);
