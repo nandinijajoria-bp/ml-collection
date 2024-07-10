@@ -19,6 +19,7 @@ public class SanctionWrapperApiRequestDto {
     Long applicationId;
     Payload payload;
     String productName;
+    boolean topup;
 
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)

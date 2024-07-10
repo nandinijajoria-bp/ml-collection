@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.gateway.AbflApiGateway;
@@ -135,6 +136,7 @@ public class AbflPennyDropServiceV2 {
                     .applicationId(applicationId)
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
                     .payload(ABFLPennyDropRequestDTO.Payload.builder()
                             .accountId(lendingApplication.getExternalLoanId())
                             .accountNumber(bankDetailsDto.getAccountNumber())
