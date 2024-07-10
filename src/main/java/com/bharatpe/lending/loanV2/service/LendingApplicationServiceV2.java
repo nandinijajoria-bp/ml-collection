@@ -48,6 +48,7 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeRequestDto;
 import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -56,6 +57,7 @@ import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
+import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -313,6 +315,14 @@ public class LendingApplicationServiceV2 {
     @Autowired
     CommonUtil commonUtil;
 
+    @Autowired
+    AssociationServiceUtil associationServiceUtil;
+
+    @Value("${lender.doc.generate.enabled.lenders:}")
+    String lenderDocGenerateEnabledLenders;
+
+    @Value("${lender.doc.generate.topup.enabled.lenders:}")
+    String lenderDocGenerateTopUpEnabledLenders;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -2314,10 +2324,20 @@ public class LendingApplicationServiceV2 {
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
             if(ObjectUtils.isEmpty(lendingKfs)){
                 log.info("KFS details not present for Id: {} for merchant : {}", applicationId, merchant.getId());
-                lendingKfs = saveKfsDetails(merchant, lendingApplication);
+                lendingKfs = saveKfsDetails(merchant.getId(), lendingApplication);
             }
             if(ObjectUtils.isEmpty(lendingKfs)){
                 return new ApiResponse<>(false, "Unable to create KFS details");
+            }
+            String lenderKfsUrl = null;
+            boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                    lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+            if (generateLenderDoc) {
+                ApiResponse lenderDocResponse = generateLenderKfs(lendingApplication, true);
+                if (!lenderDocResponse.isSuccess()) {
+                    return new ApiResponse<>(false, "Unable to create KFS details");
+                }
+                lenderKfsUrl = (String) lenderDocResponse.getData();
             }
             Double apr = null;
             Double annualRoi = null;
@@ -2449,6 +2469,7 @@ public class LendingApplicationServiceV2 {
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
+                    .lenderKfsUrl(lenderKfsUrl)
                     .build();
 
             if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -2472,12 +2493,12 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public LendingKfs saveKfsDetails(BasicDetailsDto merchant, LendingApplication lendingApplication){
+    public LendingKfs saveKfsDetails(Long merchantId, LendingApplication lendingApplication){
         LendingKfs lendingKfs = new LendingKfs();
         lendingKfs.setApplicationId(lendingApplication.getId());
-        lendingKfs.setMerchantId(merchant.getId());
+        lendingKfs.setMerchantId(merchantId);
         lendingKfs.setLender(lendingApplication.getLender());
-        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
+        Double apr = getApr(merchantId, lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
@@ -2517,6 +2538,12 @@ public class LendingApplicationServiceV2 {
     }
 
     public void generateSanctionCumLoanAgreementDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception{
+        boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+        if (generateLenderDoc) {
+            generateLenderSanctionCumLoanAgreement(lendingApplication, true);
+            return;
+        }
         String fileName = "";
         ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if(apiResponse.success){
@@ -2608,6 +2635,12 @@ public class LendingApplicationServiceV2 {
     }
 
     public void generateKfsDocument(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
+        boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+        if (generateLenderDoc) {
+            generateLenderKfs(lendingApplication, true);
+            return;
+        }
         String fileName = "";
         ApiResponse<?> apiResponse;
         apiResponse = generateKfs(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
@@ -2654,6 +2687,11 @@ public class LendingApplicationServiceV2 {
     }
 
     public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+        boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+        if (generateLenderDoc) {
+            return generateLenderKfs(lendingApplication, true);
+        }
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating KFS doc for applicationId: {}", applicationId);
@@ -2769,6 +2807,11 @@ public class LendingApplicationServiceV2 {
         return language;
     }
     public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+        boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+        if (generateLenderDoc) {
+            return generateLenderSanctionCumLoanAgreement(lendingApplication, true);
+        }
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating Sanction Cum Loan Agreement doc for applicationId: {}", applicationId);
@@ -3657,6 +3700,54 @@ public class LendingApplicationServiceV2 {
             throw new Exception("Unable to fetch foreclosure amount for parent loan");
         }
         return foreClosureAmountForABFL;
+    }
+
+    public ApiResponse<?> generateLenderKfs(LendingApplication lendingApplication, Boolean preSigned) {
+        try {
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+            if(ObjectUtils.isEmpty(lendingKfs) || ObjectUtils.isEmpty(lendingKfs.getKfsDocFile())) {
+                DocType docType = DocType.KEY_FACT_STATEMENT;
+                Boolean success = associationServiceUtil.invokeDocsGenerateService(lendingApplication.getLender(), lendingApplication, docType, preSigned);
+                if(success) {
+                    lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+                }
+            }
+            if (!ObjectUtils.isEmpty(lendingKfs)) {
+                String fileName = preSigned ? lendingKfs.getKfsDocFile() : lendingKfs.getSignedKfsDocFile();
+                if (!ObjectUtils.isEmpty(fileName)) {
+                    String lenderKfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+                    return new ApiResponse<>(lenderKfsUrl);
+                }
+            }
+            log.info("Unable to generate lender kfs document of {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+        } catch (Exception e) {
+            log.info("Exception in generating lender kfs document of {} for applicationId {} {}", lendingApplication.getLender(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Unable to generate KFS");
+    }
+
+    public ApiResponse<?> generateLenderSanctionCumLoanAgreement(LendingApplication lendingApplication, Boolean preSigned) {
+        try {
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+            if (ObjectUtils.isEmpty(lendingKfs) || ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile())) {
+                DocType docType = DocType.LOAN_AGREEMENT;
+                Boolean success = associationServiceUtil.invokeDocsGenerateService(lendingApplication.getLender(), lendingApplication, docType, preSigned);
+                if (success) {
+                    lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+                }
+            }
+            if (!ObjectUtils.isEmpty(lendingKfs)) {
+                String fileName = preSigned ? lendingKfs.getSanctionLoanAgreementDocFile() : lendingKfs.getSignedSanctionDocFile();
+                if (!ObjectUtils.isEmpty(fileName)) {
+                    String lenderSanctionUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+                    return new ApiResponse<>(lenderSanctionUrl);
+                }
+            }
+            log.info("Unable to generate lender SanctionCumLoanAgreement document of {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+        } catch (Exception e) {
+            log.info("Exception in generating lender SanctionCumLoanAgreement document of {} for applicationId {} {}", lendingApplication.getLender(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
 }
