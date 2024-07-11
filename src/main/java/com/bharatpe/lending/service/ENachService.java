@@ -263,23 +263,12 @@ public class ENachService {
             if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                 if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
-                } else {
+                } else if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                     LendingApplicationLenderDetails lendingApplicationLenderDetails =
                             lendingApplicationLenderDetailsDao.
                                     findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                             (lendingApplication.getId(), Status.ACTIVE.name());
-                    if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
-                        if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                            LenderAssociationStages nextStage =
-                                    LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
-                            lendingApplicationLenderDetails.setStage(nextStage.name());
-                            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                        }
-                        nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
-                                LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
-                        logger.info("skipped sanction workflow for topup application {} for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
-                    }
-                    else if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
+                    if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                             LenderAssociationStages.ASSC_COMPLETED.name()
                                     .equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                         Boolean autoInvokeNextStage;
