@@ -2099,7 +2099,7 @@ public class LiquiloansService {
             if(!ObjectUtils.isEmpty(lendingKfs.getSignedKfsDocUrl()) && !ObjectUtils.isEmpty(lendingKfs.getSignedSanctionDocUrl())) {
                 logger.info("Signed docs already exists for applicationId : {}", lendingApplication.getId());
             }
-            Boolean success = associationServiceUtil.invokeDocsGenerateService(lendingApplication.getLender(), lendingApplication, null, false);
+            Boolean success = associationServiceUtil.invokeFetchSignedDocsService(lendingApplication.getLender(), lendingApplication);
             if(success) {
                 logger.info("Successfully fetched and saved signed docs of {} for application {}", lendingApplication.getLender(), lendingApplication.getId());
             }

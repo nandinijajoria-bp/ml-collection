@@ -128,9 +128,6 @@ public class AbflDataUploadServiceUtil {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
-    @Value("${abfl.lender.doc.rollout.datetime:}")
-    String lenderDocRolloutDateTime;
-
     private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public void uploadRegulatoryData(Long applicationId) {
@@ -362,14 +359,6 @@ public class AbflDataUploadServiceUtil {
                             Optional<BasicDetailsDto> merchant = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
                             lendingApplicationServiceV2.generateKfsDocument(lendingApplication, merchant.get(), lendingKfs, lendingKfs.getKfsSignedAt());
                             lendingKfs = lendingKfsDao.save(lendingKfs);
-                        }
-
-                        Date lenderDocRolloutDate = DateTimeUtil.parseDate(lenderDocRolloutDateTime, "yyyy-MM-dd hh:mm:ss");
-                        if (lendingApplication.getAgreementAt().after(lenderDocRolloutDate)) {
-                            payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName, bucket)));
-                            docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
-                            log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
-                            continue;
                         }
 
                         String docSanctionName = Optional.ofNullable(lendingKfs.getSanctionLoanAgreementDocFile()).orElse(KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId());
