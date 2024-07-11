@@ -277,7 +277,7 @@ public class ENachService {
                         }
                         nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
                                 LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
-                        logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+                        logger.info("skipped sanction workflow for topup application {} for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
                     }
                     else if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                             LenderAssociationStages.ASSC_COMPLETED.name()
