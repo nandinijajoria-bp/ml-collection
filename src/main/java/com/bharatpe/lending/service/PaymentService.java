@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -36,6 +37,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.PaymentConstants;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -294,6 +296,9 @@ public class PaymentService {
 
     @Autowired
     LoanClosureService loanClosureService;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -1997,11 +2002,17 @@ public class PaymentService {
                 logger.info("no lending app details record found for the app {}", applicationId);
                 return;
             }
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+            if (!lendingApplication.isPresent()) {
+                logger.error("no lending application record found for the app {}", applicationId);
+                return;
+            }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .payload(ForeclosureRequestDto.Payload.builder()
                             .accountId(lendingApplicationLenderDetails.getAccountId())
                             .dealNo(lendingApplicationLenderDetails.getDealNo())
