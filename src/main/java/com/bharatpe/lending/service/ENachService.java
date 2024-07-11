@@ -268,7 +268,7 @@ public class ENachService {
                             lendingApplicationLenderDetailsDao.
                                     findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                             (lendingApplication.getId(), Status.ACTIVE.name());
-                    if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                    if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
                         if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                             LenderAssociationStages nextStage =
                                     LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
