@@ -10,14 +10,11 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
-import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
-import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -65,9 +62,6 @@ public class NbfcUtils {
     @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
-
-    @Autowired
-    AssociationServiceUtil associationServiceUtil;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
@@ -182,14 +176,4 @@ public class NbfcUtils {
                 return LenderAssociationStageFactory.getNextStage(lender, stage);
         }
     }
-
-    public Boolean invokeSpecificStage(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String stage) {
-        switch (stage) {
-            case "GENERATE_DOCUMENT":
-                return associationServiceUtil.invokeDocsGenerateService(lender, lenderAssociationDetailsDto.getLendingApplication(), DocType.LOAN_AGREEMENT, true);
-            default:
-                return false;
-        }
-    }
-
 }

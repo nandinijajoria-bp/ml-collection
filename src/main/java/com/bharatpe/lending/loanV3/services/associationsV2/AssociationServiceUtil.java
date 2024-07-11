@@ -7,7 +7,6 @@ import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
-import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
@@ -121,9 +120,6 @@ public class AssociationServiceUtil {
 
     @Autowired
     AbflDigiSignService abflDigiSignService;
-
-    @Autowired
-    AbflDocGenerateService abflDocGenerateService;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -344,12 +340,10 @@ public class AssociationServiceUtil {
         }
     }
 
-    public boolean invokeDocsGenerateService(String lender, LendingApplication lendingApplication, DocType docType, Boolean preSigned) {
+    public boolean invokeFetchSignedDocsService(String lender, LendingApplication lendingApplication) {
         switch (lender) {
             case "CAPRI":
                 return capriFetchSignedDocService.invokeFetchSignedDocs(lendingApplication);
-            case "ABFL":
-                return abflDocGenerateService.invokeDocGenerate(lendingApplication, docType, preSigned, true);
             default:
                 return false;
         }
