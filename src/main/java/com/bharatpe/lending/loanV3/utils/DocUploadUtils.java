@@ -1,10 +1,8 @@
 package com.bharatpe.lending.loanV3.utils;
 
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -13,7 +11,6 @@ import com.itextpdf.text.pdf.PdfReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -30,7 +27,8 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Date;
 
-import static com.bharatpe.lending.constant.KfsConstants.*;
+import static com.bharatpe.lending.constant.KfsConstants.ESIGNED_KFS_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
 
 
 @Slf4j
@@ -48,10 +46,6 @@ public class DocUploadUtils {
 
     @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
-
-    @Lazy
-    @Autowired
-    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     public void saveESignedDocs(Long applicationId, byte[] signedKFSBytes, byte[] signedSanctionBytes) {
         try {
@@ -206,61 +200,4 @@ public class DocUploadUtils {
         log.info("key to fetch from aws: {}", key);
         return ObjectUtils.isEmpty(key) ? "" : s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(key, bucket);
     }
-
-
-    public void saveAgreementDocs(LendingApplication application, String lender, InputStream lenderKFSStream, InputStream lenderSanctionStream, Boolean preSigned) {
-        try {
-            log.info("saving lender agreement docs for applicationId : {}", application.getId());
-
-            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(application.getId(), lender);
-            if(ObjectUtils.isEmpty(lendingKfs)){
-                log.info("Lending KFS details not present, Saving KFS details for Id: {} for merchant : {}", application.getId(), application.getMerchantId());
-                lendingKfs = lendingApplicationServiceV2.saveKfsDetails(application.getMerchantId(), application);
-            }
-
-            if (!ObjectUtils.isEmpty(lenderSanctionStream)) {
-                String sanctionLoanAgreementFileName = (preSigned ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX  : ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX) + application.getId() + ".pdf";
-                s3BucketHandler.uploadToS3PdfBucket(lenderSanctionStream, sanctionLoanAgreementFileName, bucket);
-                String sanctionUrl = s3BucketHandler.getPreSignedPublicURL(sanctionLoanAgreementFileName, bucket);
-                String sanctionShortUrl = apiGatewayService.getShortUrl(sanctionUrl);
-                if (sanctionShortUrl == null || sanctionShortUrl.isEmpty() || sanctionShortUrl.trim().isEmpty()) {
-                    throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + application.getId());
-                }
-                if(preSigned) {
-                    lendingKfs.setSanctionLoanAgreementDocUrl(sanctionShortUrl);
-                    lendingKfs.setSanctionLoanAgreementDocFile(sanctionLoanAgreementFileName);
-                } else {
-                    lendingKfs.setSignedSanctionDocFile(sanctionLoanAgreementFileName);
-                    lendingKfs.setSignedSanctionDocUrl(sanctionShortUrl);
-                    lendingKfs.setNbfcSignedAt(new Date());
-                }
-                lendingKfsDao.save(lendingKfs);
-            }
-
-            if (!ObjectUtils.isEmpty(lenderKFSStream)) {
-                String kfsLetterFileName = (preSigned ? KFS_S3_KEY_PREFIX : ESIGNED_KFS_S3_KEY_PREFIX) + application.getId() + ".pdf";
-                s3BucketHandler.uploadToS3PdfBucket(lenderKFSStream, kfsLetterFileName, bucket);
-                String kfsUrl = s3BucketHandler.getPreSignedPublicURL(kfsLetterFileName, bucket);
-                String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
-                if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty()) {
-                    throw new Exception("Unable to create short URL for KFS doc link for : " + application.getId());
-                }
-                if(preSigned) {
-                    lendingKfs.setKfsDocUrl(kfsShortUrl);
-                    lendingKfs.setKfsDocFile(kfsLetterFileName);
-                } else {
-                    lendingKfs.setSignedKfsDocUrl(kfsShortUrl);
-                    lendingKfs.setSignedKfsDocFile(kfsLetterFileName);
-                    lendingKfs.setNbfcSignedAt(new Date());
-                }
-                lendingKfsDao.save(lendingKfs);
-            }
-            log.info("Lender agreement docs saved for {}", application.getId());
-
-        } catch (Exception e) {
-            log.error("Exception in saving lender agreement docs for {}, {}, {}", application.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
-        }
-
-    }
-
 }
