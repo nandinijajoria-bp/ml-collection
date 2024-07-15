@@ -165,13 +165,20 @@ public class MileStoneHelperServicev3 {
                         || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus()))) {
                     executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
                     funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, "rte_v3_eligible");
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, responseDto.getProgramType());
                 }
 
                 if(!responseDto.getMilStoneEligibility()) {
+                    String experianRejectionReason;
+                    LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+                    if(ObjectUtils.isEmpty(lendingRiskVariables)) {
+                        experianRejectionReason = "LRV not found";
+                    }else{
+                        experianRejectionReason = ObjectUtils.isEmpty(responseDto.getExperianRejectionReason()) ? "Experian Rejection reason not found" : responseDto.getExperianRejectionReason();
+                    }
                     executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
                     funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "rte_v3_ineligible");
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, responseDto.getProgramType() + "_" + experianRejectionReason);
                 }
             }
         }
@@ -314,7 +321,7 @@ public class MileStoneHelperServicev3 {
             log.info("Skipping LRV checks for slider program of merchantId: {}", merchant.getId());
             return true;
         }
-        return isNewMerchantEligibleForMilestone(merchant, entity);
+        return isNewMerchantEligibleForMilestone(merchant, entity, responseDto);
     }
 
     private boolean isActiveSliderSession(MileStoneEntity entity) {
@@ -332,10 +339,14 @@ public class MileStoneHelperServicev3 {
         return false;
     }
 
-    private boolean isNewMerchantEligibleForMilestone(BasicDetailsDto merchant, MileStoneEntity entity) {
+    private boolean isNewMerchantEligibleForMilestone(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
         log.info("Performing LRV checks for merchantId: {}", merchant.getId());
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
         log.info("Lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
+        if(ObjectUtils.isEmpty(lendingRiskVariables)) {
+            log.info("LRV not found for merchantId: {}", merchant.getId());
+            return false;
+        }
 
         List<String> inclusionReasonMilestoneList = Stream.of(
                 "LIMIT BLOCKED: Offer set 0",
@@ -349,10 +360,18 @@ public class MileStoneHelperServicev3 {
                 "RG R3"
         ).map(String::toLowerCase).collect(Collectors.toList());
 
-        return (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
-                && !ObjectUtils.isEmpty(lendingRiskVariables)
-                && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
-                || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection().toLowerCase()));
+        String experianRejection = lendingRiskVariables.getExperianRejection().toLowerCase();
+        boolean isEligible = (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
+                && (ObjectUtils.isEmpty(experianRejection)
+                || inclusionReasonMilestoneList.contains(experianRejection));
+
+        if(!ObjectUtils.isEmpty(experianRejection)) {
+            responseDto.setExperianRejectionReason(experianRejection);
+            if (!inclusionReasonMilestoneList.contains(experianRejection)) {
+                log.info("Experian rejection reason not lies in inclusionReasonMilestone List for merchantId: {} {}", merchant.getId(), experianRejection);
+            }
+        }
+        return isEligible;
     }
 
     private void bureauResponsechecks(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
@@ -482,11 +501,11 @@ public class MileStoneHelperServicev3 {
                                 //graph data is 100% when session was is in progress, now marked completed
                                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_COMPLETE.name(), cleverTapEvtData, merchant.getMid()));
                                 funnelService.submitEvent(merchant.getId(), null, null,
-                                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, "rte_v3_active_complete");
+                                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, responseDto.getProgramType());
                             }else {
                                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_NOT_COMPLETE.name(), cleverTapEvtData, merchant.getMid()));
                                 funnelService.submitEvent(merchant.getId(), null, null,
-                                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, "rte_v3_active_not_complete");
+                                        FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_INCOMPLETE, responseDto.getProgramType());
                             }
                         }
                     }
