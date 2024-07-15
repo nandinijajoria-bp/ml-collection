@@ -340,7 +340,11 @@ public class MileStoneHelperServicev3 {
                 "LIMIT BLOCKED: Less than 10K offer",
                 "NTC",
                 "Risk Segment Exclusion: NTB vintage less than 30",
-                "Thin File ETC"
+                "Thin File ETC",
+                "Risk group R4 not allowed",
+                "tpv_mw1m_LT500",
+                "No risk group found",
+                "RG R3"
         );
 
         return (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
