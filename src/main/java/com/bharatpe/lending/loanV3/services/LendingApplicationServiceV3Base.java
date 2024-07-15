@@ -10,6 +10,8 @@ import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -73,6 +75,9 @@ public abstract class LendingApplicationServiceV3Base {
                         .build());
             }
             return new ApiResponse<>(false,"open draft lending application not found");
+        }
+        if(Lender.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
+            return fetchTopupApplicationStatus(currentDraftApplication);
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -254,4 +259,52 @@ public abstract class LendingApplicationServiceV3Base {
         }
         return new ApiResponse<>(true,"success");
     }
+
+    public ApiResponse<?> fetchTopupApplicationStatus(LendingApplication currentDraftApplication) {
+        log.info("Fetching topup loan application status for : {}", currentDraftApplication.getId());
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
+        if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            return new ApiResponse<>(false, "lending application details not found");
+        }
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            InvokeLenderAssociationRequest invokeLenderAssociationRequest = new InvokeLenderAssociationRequest();
+            invokeLenderAssociationRequest.setApplicationId(currentDraftApplication.getId());
+            invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
+            invokeLenderAssociationRequest.setForceEnable(false);
+            initLenderAssociation(invokeLenderAssociationRequest);
+        }
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.info("lead creation triggered ! Please retry for status in few minutes");
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.BRE_PENDING)
+                    .stage(LenderAssociationStages.BRE)
+                    .ediModelModified(false)
+                    .lender(currentDraftApplication.getLender())
+                    .build());
+        } else if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                    .stage(LenderAssociationStages.COMPLETED)
+                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                    .lender(currentDraftApplication.getLender())
+                    .build());
+        } else if (LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getBreStatus()).orElse(LenderAssociationStatus.BRE_PENDING.name())))
+                    .stage(LenderAssociationStages.BRE)
+                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                    .lender(currentDraftApplication.getLender())
+                    .build());
+        } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
+                    .stage(LenderAssociationStages.KYC)
+                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                    .lender(currentDraftApplication.getLender())
+                    .build());
+        }
+        return new ApiResponse<>(false, "something went wrong");
+    }
+
     }

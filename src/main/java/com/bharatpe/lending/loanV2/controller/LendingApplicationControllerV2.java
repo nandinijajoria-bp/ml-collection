@@ -1,10 +1,7 @@
 package com.bharatpe.lending.loanV2.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.dto.RequestCallbackDto;
-import com.bharatpe.lending.dto.Response;
-import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.dto.TncDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -140,4 +137,12 @@ public class LendingApplicationControllerV2 {
         log.info("Fetching getArcCommLetter for loanId {} and merchantId {}", loanId, merchant.getId());
         return arcSoldLoanService.getArcCommunicationLetterUrl(loanId, merchant);
     }
+
+    @PostMapping(value = "/loan-purpose", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> loanPurpose(@RequestBody LoanPurposeRequestDto loanPurposeRequestDto) {
+        log.info("populating loan purpose for applicationId {} with loan purpose {}", loanPurposeRequestDto.getApplicationId(), loanPurposeRequestDto.getLoanPurpose());
+        ApiResponse<?> response = lendingApplicationServiceV2.loanPurpose(loanPurposeRequestDto.getApplicationId(), loanPurposeRequestDto.getLoanPurpose());
+        return ResponseEntity.ok(response);
+    }
+
 }

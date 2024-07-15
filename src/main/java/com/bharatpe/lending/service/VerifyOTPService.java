@@ -231,6 +231,9 @@ public class VerifyOTPService {
     @Value("${skip.update.lead.verify.otp.downgrade}")
     boolean skipUpdateLeadVerifyOtpDowngrade;
 
+    @Autowired
+    PaymentService paymentService;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -550,9 +553,22 @@ public class VerifyOTPService {
             // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
-                nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
-                        LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
-                logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+                if(topupLoans.contains(lendingApplication.getLoanType())) {
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                        LenderAssociationStages nextStage =
+                                LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
+                        lendingApplicationLenderDetails.setStage(nextStage.name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                    }
+                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
+                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
+                    logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+                } else {
+                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
+                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED));
+                    logger.info("invoked sanction workflow for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+                }
             }
         } else {
 
@@ -610,6 +626,20 @@ public class VerifyOTPService {
         catch(Exception e){
             logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return finalResponse;
+        }
+
+        //If the abfl application is rejected, We will update view state to application status page and skip subsequent code
+        logger.info("Lender: applicationId: {}, {}, with lending application status {}", lendingApplication.getId(), lendingApplication.getLender(), lendingApplication.getStatus());
+
+        if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
+            LendingApplication updatedLendingApplication = "rejected".equalsIgnoreCase(lendingApplication.getStatus()) ? lendingApplication : lendingApplicationDao.findById(lendingApplication.getId()).orElse(null);
+            if(!ObjectUtils.isEmpty(updatedLendingApplication) && "rejected".equalsIgnoreCase(updatedLendingApplication.getStatus())){
+                logger.info("Application is in rejected state for ABFL: {}", updatedLendingApplication.getId());
+                loanDetailsV3Service.saveApplicationViewState(null, updatedLendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+                finalResponse.put("success", true);
+                finalResponse.put("agreement_verified", false);
+                return finalResponse;
+            }
         }
 
         lendingApplication.setStatus("pending_verification");
@@ -746,22 +776,30 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
+            } else if("ABFL".equalsIgnoreCase(activeLoan.getNbfc())) {
+                previousAmount = loanUtil.getForeClosureAmountForABFL(activeLoan);
+                if(previousAmount <= 0){
+                    throw new RuntimeException("Error getting ABFL foreclosure details");
+                }
             } else previousAmount = loanUtil.getForeclosureAmount(activeLoan);
 
 
             lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
             lendingApplicationDao.save(lendingApplication);
 
-            logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
-            activeLoan.setStatus("INACTIVE_TOPUP");
-            lendingPaymentScheduleDao.save(activeLoan);
-            logger.info("active loan marked as INACTIVE_TOP_UP for loanid {}",activeLoan.getId());
+            if(!Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
+                logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
+                activeLoan.setStatus("INACTIVE_TOPUP");
+                lendingPaymentScheduleDao.save(activeLoan);
+                logger.info("active loan marked as INACTIVE_TOP_UP for loanid {}",activeLoan.getId());
+            }
 
-
-           /* if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())) {
+            /*if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())
+                && !Lender.ABFL.name().equalsIgnoreCase(activeLoan.getNbfc())) {
                 ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
             }
-            else {
+            else{
+                // TODO Need to skip this for abfl topup in case repayment of old active loan
                 // flow for LDC topup loans on liquiloan_nbfc
 
                 // we mark the loan inactive here so that we stop the further collection of amount on this loan

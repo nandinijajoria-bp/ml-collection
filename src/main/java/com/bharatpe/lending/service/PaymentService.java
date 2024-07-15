@@ -1,6 +1,7 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -36,6 +37,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.PaymentConstants;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -295,6 +297,9 @@ public class PaymentService {
     @Autowired
     LoanClosureService loanClosureService;
 
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
@@ -336,11 +341,13 @@ public class PaymentService {
             }
         }
         Double netForeclosureAtLender = 0d;
+        double finalForeclosureAtLender = 0d;
         double netForeclosureAtBp=principalDueAmount+advanceEdiAmount+excessCollectionBalance;
         ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
             netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+            finalForeclosureAtLender = netForeclosureAtLender;
             netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
         }
         principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
@@ -354,7 +361,7 @@ public class PaymentService {
         Double dueInterest = activeLoan.getDueInterest() != null ? activeLoan.getDueInterest()
                 : 0d;
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
-        data.setForeClosureAmountAtLender(netForeclosureAtLender + excessCollectionBalance);
+        data.setForeClosureAmountAtLender(finalForeclosureAtLender);
         data.setForeClosureAmountAtBp(netForeclosureAtBp);
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
@@ -1108,7 +1115,7 @@ public class PaymentService {
 
         if (EDI_BY_EDI.name().equalsIgnoreCase(activeLoan.getSettlementMechanism())) {
             logger.info("Adjusting Mechanism for loanId: {} is {}", activeLoan.getId(), activeLoan.getSettlementMechanism());
-            adjustLoanBalanceEdiByEdi(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, orderId, foreclosureChargesAmount);
+            adjustLoanBalanceEdiByEdi(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, orderId, foreclosureChargesAmount, loanForeClosureCharges);
             return;
         }
 
@@ -1995,11 +2002,17 @@ public class PaymentService {
                 logger.info("no lending app details record found for the app {}", applicationId);
                 return;
             }
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+            if (!lendingApplication.isPresent()) {
+                logger.error("no lending application record found for the app {}", applicationId);
+                return;
+            }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .payload(ForeclosureRequestDto.Payload.builder()
                             .accountId(lendingApplicationLenderDetails.getAccountId())
                             .dealNo(lendingApplicationLenderDetails.getDealNo())
@@ -2101,7 +2114,7 @@ public class PaymentService {
         }
     }
 
-    private void adjustLoanBalanceEdiByEdi(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String transferType, String terminalOrderId, Long orderId, double foreclosureChargesAmount) {
+    private void adjustLoanBalanceEdiByEdi(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source, String transferType, String terminalOrderId, Long orderId, double foreclosureChargesAmount, LoanForeClosureCharges loanForeClosureCharges) {
         logger.info("Adjusting Balance for loanId:{} and amount:{}", activeLoan.getId(), amount);
         Integer foreclosureAmount = loanUtil.getForeclosureAmount(activeLoan);
         Double paidInterestAmount = 0D;
@@ -2213,6 +2226,13 @@ public class PaymentService {
                 activeLoan.setSettleAllPrinciple(false);
             }
         }
+
+        if(loanForeClosureCharges != null && lendingLedger != null) {
+            loanForeClosureCharges.setLedgerId(lendingLedger.getId());
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+            log.info("Setting ledger id in foreclosure");
+        }
+
         ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
         if(foreClosureAmountInfo!= null && lendingLedger != null) {
             try {

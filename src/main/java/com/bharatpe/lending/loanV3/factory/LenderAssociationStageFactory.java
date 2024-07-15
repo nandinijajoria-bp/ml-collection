@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.factory;
 
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.loanV3.services.associations.AbflRepaymentScheduleService;
 import com.bharatpe.lending.loanV3.services.stages.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,13 @@ public class LenderAssociationStageFactory {
     @Autowired
     DigitalSignStageAssociationFactory digitalSignStageAssociationFactory;
 
+    @Autowired
+    RpsStageAssociationSvcFactory rpsStageAssociationSvcFactory;
+
+    @Autowired
+    LenderPennyDropStageAssociationSvcFactory lenderPennyDropStageAssociationSvcFactory;
+
+
     public LenderAssociationServiceFactory getStageAssociatedLenderService(String stage) {
         if (LenderAssociationStages.KYC.name().equalsIgnoreCase(stage)) {
             return  kycStageAssociationSvcFactory;
@@ -58,6 +66,10 @@ public class LenderAssociationStageFactory {
             return docUploadStageAssociationSvcFactory;
         } else if (LenderAssociationStages.DIGI_SIGN.name().equalsIgnoreCase(stage)) {
             return digitalSignStageAssociationFactory;
+        } else if (LenderAssociationStages.RPS.name().equalsIgnoreCase(stage)){
+            return rpsStageAssociationSvcFactory;
+        } else if (LenderAssociationStages.PENNY_DROP.name().equalsIgnoreCase(stage)) {
+            return lenderPennyDropStageAssociationSvcFactory;
         }
         return oldModelAssociationSvcFactory;
     }
@@ -75,9 +87,11 @@ public class LenderAssociationStageFactory {
                     case ASSC_COMPLETED:
                         return LenderAssociationStages.SANCTION_WRAPPER;
                     case SANCTION_WRAPPER:
-                        return LenderAssociationStages.DRAWDOWN;
+                        return LenderAssociationStages.PENNY_DROP;
                     case DRAWDOWN:
                         return LenderAssociationStages.COMPLETED;
+                    case PENNY_DROP:
+                        return LenderAssociationStages.DRAWDOWN;
                     default:
                         return LenderAssociationStages.BRE;
                 }
@@ -116,10 +130,12 @@ public class LenderAssociationStageFactory {
                     case ASSC_COMPLETED:
                         return Boolean.TRUE;
                     case SANCTION_WRAPPER:
-                        return Boolean.FALSE;
+                        return Boolean.TRUE;
                     case DRAWDOWN:
                         return Boolean.FALSE;
                     case DATA_UPLOAD:
+                        return Boolean.FALSE;
+                    case PENNY_DROP:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;

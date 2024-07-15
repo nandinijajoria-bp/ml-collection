@@ -10,12 +10,14 @@ import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.query.dao.AutoPayUPISlaveDao;
@@ -61,6 +63,7 @@ import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import static com.bharatpe.lending.constant.LendingConstants.*;
+import static com.bharatpe.lending.enums.Lender.ABFL;
 import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
@@ -179,6 +182,9 @@ public class MerchantLoansService {
     @Autowired
     LendingGstDao lendingGstDao;
 
+    @Autowired
+    FunnelService funnelService;
+
     @Value("${topup.rollout.percent:10}")
     Integer rolloutTopupPercent;
 
@@ -214,11 +220,19 @@ public class MerchantLoansService {
     PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
     @Autowired
+    LenderTopupEligibilityDao lenderTopupEligibilityDao;
+
+    @Value("${abfl.topup.rollout.percent}")
+    Integer abflTopupRolloutPercent;
+
+    @Value("${abfl.topup.rejection.banner.tat:5}")
+    Long abflTopupRejectionBannerTat;
+
+    @Autowired
     PenalChargesDao penalChargesDao;
 
     @Autowired
     LoanUtilV3 loanUtilV3;
-
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -557,6 +571,9 @@ public class MerchantLoansService {
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                             responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
                         }
+                        if("ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                            responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId()));
+                        }
                     } catch (Exception e) {
                         logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                     }
@@ -589,6 +606,10 @@ public class MerchantLoansService {
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
 //                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(merchantId));
+                        funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                    }
+                    if("ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                        responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId()));
                     }
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
@@ -616,6 +637,26 @@ public class MerchantLoansService {
             responseDTO.setSuccess(true);
         }
         return responseDTO;
+    }
+
+    private Boolean checkForTopupRejection(Long merchantId) {
+        try {
+            LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(prevApplication)) {
+                if(LoanType.TOPUP.name().equalsIgnoreCase(prevApplication.getLoanType()) && "rejected".equalsIgnoreCase(prevApplication.getStatus())) {
+                    log.info("latest application with topup loanType for merchantId : {}", prevApplication);
+                    Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - prevApplication.getUpdatedAt().getTime()) / 60000;
+                    if(minutes < abflTopupRejectionBannerTat) {
+                        log.info("topup application rejected for merchantId : {} less than {} minutes ago", merchantId, abflTopupRejectionBannerTat);
+                        return Boolean.TRUE;
+                    }
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            log.info("Exception in checking topup rejection for merchantId : {}, {}, {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return false;
     }
 
     public boolean showChangeBankAccountBanner(BankAccountDetails bankAccountDetails, Long merchantId) {
@@ -906,6 +947,19 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
+            if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), abflTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                log.info("ABFL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+
+            if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+                LenderTopupEligibility lenderTopupEligibility = lenderTopupEligibilityDao.findTopupEligibilityFromLender(
+                        lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+                if(ObjectUtils.isEmpty(lenderTopupEligibility)){
+                    log.info("Merchant not eligible from lender ABFL for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+            }
 
 
             if (loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
@@ -1005,7 +1059,7 @@ public class MerchantLoansService {
                     logger.info("paid ratio is between 60 to 95 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
-                if (paidRatio >= 0.5D && paidRatio < 0.60D) {
+                if (paidRatio >= 0.5D && paidRatio < 0.60D && (!ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()))) {
                     logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }

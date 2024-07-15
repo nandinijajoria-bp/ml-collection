@@ -160,7 +160,7 @@ public class ENachService {
         String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
         String providerName = deep_link.equals("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
         return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode));
+                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
@@ -263,12 +263,11 @@ public class ENachService {
             if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                 if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
-                } else {
+                } else if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                     LendingApplicationLenderDetails lendingApplicationLenderDetails =
                             lendingApplicationLenderDetailsDao.
                                     findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                             (lendingApplication.getId(), Status.ACTIVE.name());
-
                     if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                             LenderAssociationStages.ASSC_COMPLETED.name()
                                     .equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
@@ -300,7 +299,7 @@ public class ENachService {
         }
         
         requestDTO.setLender(lendingApplication.getLender());
-        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING", lendingApplication.getLoanType());
 
         if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
             if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
@@ -386,7 +385,7 @@ public class ENachService {
         }
 
         requestDTO.setLender(lendingApplication.getLender());
-        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING", lendingApplication.getLoanType());
 
         if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
             if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
