@@ -365,7 +365,8 @@ public class AbflDataUploadServiceUtil {
                         }
 
                         Date lenderDocRolloutDate = DateTimeUtil.parseDate(lenderDocRolloutDateTime, "yyyy-MM-dd hh:mm:ss");
-                        if (lendingApplication.getAgreementAt().after(lenderDocRolloutDate)) {
+                        if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getAgreementAt().after(lenderDocRolloutDate)) {
+                            log.info("skipping merging of docs for application {}, lenderDocRolloutDateTime: {}", lendingApplication, lenderDocRolloutDate);
                             payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName, bucket)));
                             docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
                             log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
