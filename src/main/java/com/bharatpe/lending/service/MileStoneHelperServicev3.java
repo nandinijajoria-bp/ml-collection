@@ -97,6 +97,9 @@ public class MileStoneHelperServicev3 {
     @Value("${rte.v3.rollout.percent:10}")
     int rtev3RolloutPercent;
 
+    @Value("${milestone.inclusion.reasons}")
+    private String inclusionReasons;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public MileStoneEligibilityResponseDto calculateEligibility(BasicDetailsDto merchant, Boolean loanAmountPresent) {
@@ -348,17 +351,7 @@ public class MileStoneHelperServicev3 {
             return false;
         }
 
-        List<String> inclusionReasonMilestoneList = Stream.of(
-                "LIMIT BLOCKED: Offer set 0",
-                "LIMIT BLOCKED: Less than 10K offer",
-                "NTC",
-                "Risk Segment Exclusion: NTB vintage less than 30",
-                "Thin File ETC",
-                "Risk group R4 not allowed",
-                "tpv_mw1m_LT500",
-                "No risk group found",
-                "RG R3"
-        ).map(String::toLowerCase).collect(Collectors.toList());
+        List<String> inclusionReasonMilestoneList = getInclusionReasonMilestoneList();
 
         String experianRejection = lendingRiskVariables.getExperianRejection();
         boolean isEligible = (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
@@ -372,6 +365,12 @@ public class MileStoneHelperServicev3 {
             }
         }
         return isEligible;
+    }
+
+    private List<String> getInclusionReasonMilestoneList() {
+        return Arrays.stream(inclusionReasons.split(","))
+                .map(String::toLowerCase)
+                .collect(Collectors.toList());
     }
 
     private void bureauResponsechecks(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
