@@ -360,10 +360,10 @@ public class MileStoneHelperServicev3 {
                 "RG R3"
         ).map(String::toLowerCase).collect(Collectors.toList());
 
-        String experianRejection = lendingRiskVariables.getExperianRejection().toLowerCase();
+        String experianRejection = lendingRiskVariables.getExperianRejection();
         boolean isEligible = (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
                 && (ObjectUtils.isEmpty(experianRejection)
-                || inclusionReasonMilestoneList.contains(experianRejection));
+                || inclusionReasonMilestoneList.contains(experianRejection.toLowerCase()));
 
         if(!ObjectUtils.isEmpty(experianRejection)) {
             responseDto.setExperianRejectionReason(experianRejection);
