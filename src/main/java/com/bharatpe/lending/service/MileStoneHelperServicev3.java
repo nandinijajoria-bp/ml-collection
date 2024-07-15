@@ -34,6 +34,8 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -335,7 +337,7 @@ public class MileStoneHelperServicev3 {
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
         log.info("Lending risk variable {} for merchantId {}", lendingRiskVariables, merchant.getId());
 
-        List<String> inclusionReasonMilestoneList = Arrays.asList(
+        List<String> inclusionReasonMilestoneList = Stream.of(
                 "LIMIT BLOCKED: Offer set 0",
                 "LIMIT BLOCKED: Less than 10K offer",
                 "NTC",
@@ -345,12 +347,12 @@ public class MileStoneHelperServicev3 {
                 "tpv_mw1m_LT500",
                 "No risk group found",
                 "RG R3"
-        );
+        ).map(String::toLowerCase).collect(Collectors.toList());
 
         return (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus()))
                 && !ObjectUtils.isEmpty(lendingRiskVariables)
                 && (ObjectUtils.isEmpty(lendingRiskVariables.getExperianRejection())
-                || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection()));
+                || inclusionReasonMilestoneList.contains(lendingRiskVariables.getExperianRejection().toLowerCase()));
     }
 
     private void bureauResponsechecks(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO, MileStoneEligibilityResponseDto responseDto, Experian experian, String pinCodeColor, String kycPancard) {
