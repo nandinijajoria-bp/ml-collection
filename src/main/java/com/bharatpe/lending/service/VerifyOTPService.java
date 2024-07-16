@@ -587,6 +587,7 @@ public class VerifyOTPService {
             logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
             updateDocuments(lendingApplication, meta,merchantBasicDetailsDto);
             if (!topUpLoans(lendingApplication)) {
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
                 finalResponse.put("message", "Failed to create TopUp application");
                 return finalResponse;
             }
@@ -656,7 +657,12 @@ public class VerifyOTPService {
 
         lendingAuditTrialDao.save(lendingAuditTrial);
 
-        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+        }
+        else{
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+        }
 
         if (easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) || merchantBasicDetailsDto.getId() == 10407700L) {
             // skipping enach for dummy merchant
