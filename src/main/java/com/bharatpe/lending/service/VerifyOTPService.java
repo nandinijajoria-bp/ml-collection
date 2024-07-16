@@ -548,7 +548,7 @@ public class VerifyOTPService {
             }
             lendingApplication.setNachReferenceNumber(ObjectUtils.isEmpty(enachSuccess)?null:enachSuccess.getReferenceNumber());
             lendingApplication.setNachStatus("APPROVED");
-            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+//            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
 
             // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
@@ -625,6 +625,7 @@ public class VerifyOTPService {
             }
         }
         catch(Exception e){
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
             logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return finalResponse;
         }
@@ -659,9 +660,11 @@ public class VerifyOTPService {
 
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            logger.info("saving next page as : {}", LendingViewStates.APPLICATION_STATUS_PAGE);
         }
         else{
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+            logger.info("saving next page as : {}", LendingViewStates.ENACH_PAGE);
         }
 
         if (easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) || merchantBasicDetailsDto.getId() == 10407700L) {
