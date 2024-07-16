@@ -360,7 +360,7 @@ public class MileStoneHelperServicev3 {
 
         if(!ObjectUtils.isEmpty(experianRejection)) {
             responseDto.setExperianRejectionReason(experianRejection);
-            if (!inclusionReasonMilestoneList.contains(experianRejection)) {
+            if (!inclusionReasonMilestoneList.contains(experianRejection.toLowerCase())) {
                 log.info("Experian rejection reason not lies in inclusionReasonMilestone List for merchantId: {} {}", merchant.getId(), experianRejection);
             }
         }
