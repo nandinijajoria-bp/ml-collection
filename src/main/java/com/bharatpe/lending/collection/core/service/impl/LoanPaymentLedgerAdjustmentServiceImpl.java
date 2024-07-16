@@ -158,13 +158,9 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                     .used(lendingCollectionExcess.getAmount())
                     .principleSettled(lendingCollectionExcess.getAmount())
                     .build();
-            if(UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getTransferType())){
-                LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted, desc, "AUTO_PAY_UPI_EXCESS_ADJUSTED", "EXTERNAL", desc);
+            String source = UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getMode()) ? "AUTO_PAY_UPI_EXCESS_ADJUSTED" : "EXCESS_NACH_ADJUSTED";
+                LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted, desc, source, "EXTERNAL", desc);
                 lendingLedgersListExcessCollection.add(excessCollectionLedger);
-            }else {
-                LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted, desc, "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc);
-                lendingLedgersListExcessCollection.add(excessCollectionLedger);
-            }
         }
     }
     @Override

@@ -342,10 +342,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             double excessCollectionBalance = 0;
             List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
             lendingCollectionExcessList.sort((l1, l2) -> {
-                if (UPI_AUTO_PAY.equalsIgnoreCase(l1.getTransferType())) {
-                    return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? Long.compare(l1.getId(), l2.getId()) : 1;
+                if (UPI_AUTO_PAY.equalsIgnoreCase(l1.getMode())) {
+                    return UPI_AUTO_PAY.equalsIgnoreCase(l2.getMode()) ? Long.compare(l1.getId(), l2.getId()) : 1;
                 } else {
-                    return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? -1 : Long.compare(l1.getId(), l2.getId());
+                    return UPI_AUTO_PAY.equalsIgnoreCase(l2.getMode()) ? -1 : Long.compare(l1.getId(), l2.getId());
                 }
             });
             for (LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList) {

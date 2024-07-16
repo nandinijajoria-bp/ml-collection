@@ -926,7 +926,7 @@ public class PaymentService {
                 lendingCollectionExcess.setDeductionCount(0);
                 lendingCollectionExcess.setTerminalOrderId(list.get(0).getTerminalOrderId());
                 lendingCollectionExcess.setStatus("ACTIVE");
-                lendingCollectionExcess.setTransferType(UPI_AUTO_PAY);
+                lendingCollectionExcess.setMode(UPI_AUTO_PAY);
                 lendingCollectionExcessDao.save(lendingCollectionExcess);
 
             }
@@ -1243,10 +1243,10 @@ public class PaymentService {
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
         lendingCollectionExcessList.sort((l1, l2) -> {
-            if (UPI_AUTO_PAY.equalsIgnoreCase(l1.getTransferType())) {
-                return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? Long.compare(l1.getId(), l2.getId()) : 1;
+            if (UPI_AUTO_PAY.equalsIgnoreCase(l1.getMode())) {
+                return UPI_AUTO_PAY.equalsIgnoreCase(l2.getMode()) ? Long.compare(l1.getId(), l2.getId()) : 1;
             } else {
-                return UPI_AUTO_PAY.equalsIgnoreCase(l2.getTransferType()) ? -1 : Long.compare(l1.getId(), l2.getId());
+                return UPI_AUTO_PAY.equalsIgnoreCase(l2.getMode()) ? -1 : Long.compare(l1.getId(), l2.getId());
             }
         });
         Double excessCollectionBalance = 0D;
@@ -2662,17 +2662,11 @@ public class PaymentService {
         for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
 
             String desc = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + (lendingCollectionExcess.getDeductionCount() + 1);
-            if(UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getTransferType())){
+            String source = UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getMode()) ? "AUTO_PAY_UPI_EXCESS_ADJUSTED" : "EXCESS_NACH_ADJUSTED";
                 LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
                     lendingCollectionExcess.getAmount(), 0d,  desc,
-                        "AUTO_PAY_UPI_EXCESS_ADJUSTED","EXTERNAL", desc, 0D);
+                        source,"EXTERNAL", desc, 0D);
                 lendingLedgersListExcessCollection.add(excessCollectionLedger);
-            } else {
-            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
-                    lendingCollectionExcess.getAmount(), 0d,  desc,
-                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc, 0D);
-                lendingLedgersListExcessCollection.add(excessCollectionLedger);
-            }
 
         }
     }
