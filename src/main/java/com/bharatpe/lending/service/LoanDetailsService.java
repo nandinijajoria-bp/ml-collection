@@ -60,8 +60,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
-import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
+import static com.bharatpe.lending.constant.KfsConstants.*;
 
 @Service
 public class LoanDetailsService {
@@ -1436,6 +1435,19 @@ public class LoanDetailsService {
 		SettlementV2ResponseDTO settlementV2ResponseDTO = new SettlementV2ResponseDTO();
 		settlementV2ResponseDTO.setSettlement(settlementList);
 		settlementV2ResponseDTO.setLender(lendingPaymentSchedule.getNbfc());
+
+		LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+				lendingPaymentSchedule.getApplicationId(),
+				lendingPaymentSchedule.getNbfc(),
+				"SELECTED");
+
+		if (Objects.nonNull(lendingLoanInsurance)) {
+			settlementV2ResponseDTO.setInsured(true);
+			settlementV2ResponseDTO.setInsuranceProvider(lendingLoanInsurance.getProvider());
+		} else {
+			settlementV2ResponseDTO.setInsured(false);
+		}
+
 		return settlementV2ResponseDTO;
 	}
 
@@ -1493,6 +1505,7 @@ public class LoanDetailsService {
 		String sanctionUrl = null;
 		String nocUrl = null;
 		String agreementUrl = null;
+		String insuranceDocUrl = null;
 		LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(applicationId, "agreement");
 		if (!ObjectUtils.isEmpty(loanAgreement)) {
 			String fileName = loanAgreement.getAgreementName();
@@ -1514,10 +1527,20 @@ public class LoanDetailsService {
 			sanctionUrl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(applicationId, sanctionAndLoanAgreementFileName);
 		}
 		nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
+
+		LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+				lendingPaymentSchedule.getApplicationId(),
+				lendingPaymentSchedule.getNbfc(),
+				"SELECTED");
+		if (Objects.nonNull(lendingLoanInsurance)) {
+			insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(applicationId, INSURANCE_POLICY_DOC_PREFIX + applicationId);
+		}
+
 		data.setAgreementUrl(agreementUrl);
 		data.setKfsUrl(kfsUrl);
 		data.setSanctionUrl(sanctionUrl);
 		data.setNocUrl(nocUrl);
+		data.setInsuranceDocUrl(insuranceDocUrl);
 		documentDetailsDto.setData(data);
 		return documentDetailsDto;
 	}

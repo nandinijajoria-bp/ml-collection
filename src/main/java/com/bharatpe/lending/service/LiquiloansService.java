@@ -272,6 +272,9 @@ public class LiquiloansService {
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
+    @Autowired
+    LendingConsentDao lendingConsentDao;
+
     public void publishForDisbursal(Long lendingAppId) {
 
         Map<String, String> payloadMap = new HashMap<>();
@@ -723,6 +726,11 @@ public class LiquiloansService {
                 }
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+
+                if (lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name())) {
+                    publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
+                }
+
                 if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)
                         && prevLendingPaymentSchedule.getStatus().equalsIgnoreCase("INACTIVE_TOPUP")) {
                     try {
@@ -882,6 +890,38 @@ public class LiquiloansService {
                 sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, lendingPaymentSchedule.getStatus());
         }
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+    }
+
+    private void publishLoanInsuranceEvent(LendingApplication lendingApplication, LoanDashboardApiVersion loanDashboardApiVersion) {
+
+        LendingConsent lendingConsent = lendingConsentDao.findLendingConsentByApplicationIdAndMerchantIdAndConsentType(
+                lendingApplication.getId(),
+                lendingApplication.getMerchantId(),
+                "INSURANCE");
+
+        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+                lendingApplication.getId(),
+                lendingApplication.getLender(),
+                "SELECTED");
+
+        if (ObjectUtils.isEmpty(lendingConsent) && ObjectUtils.isEmpty(lendingLoanInsurance)) {
+            return;
+        }
+
+        FunnelEnums.StageEvent event;
+        if (lendingConsent.getIsAccepted()) {
+            event = FunnelEnums.StageEvent.ACCEPT;
+        } else {
+            event = FunnelEnums.StageEvent.REJECT;
+        }
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString());
+        }
     }
 
     public LendingPaymentSchedule backDateLoan(LendingPaymentSchedule lendingPaymentSchedule, int offset, Date disbursementDate, LendingApplication lendingApplication, int daysToMove) {

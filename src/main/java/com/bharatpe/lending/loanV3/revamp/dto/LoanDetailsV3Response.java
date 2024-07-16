@@ -209,6 +209,10 @@ public class LoanDetailsV3Response {
         applicationDetails.setApplicationId(agreementStateDTO.getApplicationId());
         applicationDetails.setLoanAmount(agreementStateDTO.getLoanAmount());
         applicationDetails.setEnachBank(agreementStateDTO.getEnachBank());
+        applicationDetails.setIsInsured(agreementStateDTO.getIsInsured());
+        applicationDetails.setLoanInsurances(agreementStateDTO.getLoanInsurances());
+        applicationDetails.setApr(agreementStateDTO.getApr());
+        applicationDetails.setExternalLoanId(agreementStateDTO.getExternalLoanId());
         if(agreementStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
 

@@ -5,6 +5,7 @@ import com.bharatpe.lending.loanV3.consumer.*;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.InsurancePolicyDocService;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.ESignDocService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalLoanCallbackService;
@@ -64,6 +65,9 @@ public class NbfcCallbackControllerV3 {
 
     @Autowired
     DigitalSignCallbackWrapperService digitalSignCallbackWrapperService;
+
+    @Autowired
+    InsurancePolicyDocService insurancePolicyDocService;
 
 
     @PostMapping("bre")
@@ -168,4 +172,10 @@ public class NbfcCallbackControllerV3 {
         return ResponseEntity.ok(new ApiResponse<>(true,"kyc async callback handled"));
     }
 
+    @PostMapping("insurance-doc")
+    public ResponseEntity<ApiResponse<?>> getInsuranceDoc(@RequestBody NbfcResponseDto nbfcResponseDto) throws JsonProcessingException {
+        log.info("Loan insurance doc callback received via controller {}", nbfcResponseDto);
+        ApiResponse<?> response = insurancePolicyDocService.uploadInsurancePolicyDoc(nbfcResponseDto);
+        return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
+    }
 }
