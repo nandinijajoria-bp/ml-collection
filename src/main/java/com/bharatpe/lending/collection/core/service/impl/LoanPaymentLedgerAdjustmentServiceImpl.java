@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
+import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
@@ -159,7 +160,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                     .principleSettled(lendingCollectionExcess.getAmount())
                     .build();
             String source = UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getMode()) ? "AUTO_PAY_UPI_EXCESS_ADJUSTED" : "EXCESS_NACH_ADJUSTED";
-                LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted, desc, source, "EXTERNAL", desc);
+            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,source, CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), desc);
                 lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }
     }
