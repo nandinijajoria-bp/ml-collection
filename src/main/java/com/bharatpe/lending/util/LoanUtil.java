@@ -766,7 +766,7 @@ public class LoanUtil {
 		if ("approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
 			if (!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
 				return (int) getDateDiffInDays(lendingApplicationDetails.getLeadAcceptanceTime(), new Date());
-			} else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && ObjectUtils.isEmpty(lendingApplicationDetails.getLeadAcceptanceTime())) {
+			} else if (!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
 				return (int) getDateDiffInDays(lendingApplication.getAgreementAt(), new Date());
 			}
 		}
