@@ -2409,6 +2409,10 @@ public class LendingApplicationServiceV2 {
             }
 
             String shopAddress = constructShopAddress(lendingApplication);
+            Double insurancePremium = getInsurancePremium(lendingApplication);
+            if (insurancePremium.equals(0D)) {
+                insurancePremium = null;
+            }
 
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -2449,6 +2453,7 @@ public class LendingApplicationServiceV2 {
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
+                    .insurancePremium(insurancePremium)
                     .build();
 
             if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -2477,11 +2482,23 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setApplicationId(lendingApplication.getId());
         lendingKfs.setMerchantId(merchant.getId());
         lendingKfs.setLender(lendingApplication.getLender());
-        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
+        Double insurancePremium = getInsurancePremium(lendingApplication);
+        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee() - insurancePremium, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
         return lendingKfs;
+    }
+
+    private Double getInsurancePremium(LendingApplication lendingApplication) {
+        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+                lendingApplication.getId(),
+                lendingApplication.getLender(),
+                "SELECTED");
+        if (Objects.nonNull(lendingLoanInsurance))
+            return lendingLoanInsurance.getInsurancePremium();
+        else
+            return 0D;
     }
 
     public void storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) throws Exception {
@@ -2976,6 +2993,21 @@ public class LendingApplicationServiceV2 {
         return shortUrl;
     }
 
+    public String fetchLoanInsuranceDoc(Long applicationId, String fileName) {
+        String insuranceDocUrl = null;
+        try {
+            insuranceDocUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        } catch (FileNotFoundException e) {
+            log.error("Unable to find file  insuranceDoc for applicationId :  {} {}", applicationId, e.getMessage());
+            return null;
+        }
+        String shortUrl = apiGatewayService.getShortUrl(insuranceDocUrl);
+        if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty()){
+            log.error("Unable to create insuranceDocUrl for applicationId :  {}", applicationId);
+        }
+        return shortUrl;
+    }
+
     public String fetchAuthorizationLetterFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
         String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
         String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
@@ -3153,6 +3185,25 @@ public class LendingApplicationServiceV2 {
             }
         }
 
+        data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
+        data.put("personal_loan_amount_in_words", getAmountInWords(String.valueOf(kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee())));
+        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+                applicationId,
+                kfsDto.getLender(),
+                "SELECTED"
+                );
+        if(ObjectUtils.isEmpty(lendingLoanInsurance)) {
+            data.put("insurance_na_display", "block");
+            data.put("insurance_display", "none");
+            data.put("insurance_premium", "NA");
+            data.put("insurance_premium_in_words", "NA");
+
+        } else {
+            data.put("insurance_na_display", "none");
+            data.put("insurance_display", "block");
+            data.put("insurance_premium", lendingLoanInsurance.getInsurancePremium());
+            data.put("insurance_premium_in_words", getAmountInWords(lendingLoanInsurance.getInsurancePremium().toString()));
+        }
         log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }

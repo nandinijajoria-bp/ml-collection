@@ -1,7 +1,10 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import lombok.Data;
 import lombok.ToString;
+
+import java.util.List;
 
 @Data
 @ToString
@@ -22,6 +25,8 @@ public class LoanDetailsV3Request {
     private boolean isIOS;
     private Boolean rteFlag;
 
+    private Boolean isInsured;
+    private List<LoanInsuranceDTO> loanInsurances;
 
 //    private boolean isIOS = false;
 }

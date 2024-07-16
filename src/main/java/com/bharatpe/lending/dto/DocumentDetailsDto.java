@@ -23,5 +23,6 @@ public class DocumentDetailsDto {
         String kfsUrl;
         String sanctionUrl;
         String nocUrl;
+        String insuranceDocUrl;
     }
 }
