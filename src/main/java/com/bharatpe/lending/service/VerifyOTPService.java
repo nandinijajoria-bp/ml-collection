@@ -555,15 +555,15 @@ public class VerifyOTPService {
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 if(topupLoans.contains(lendingApplication.getLoanType())) {
                     LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
-                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                         LenderAssociationStages nextStage =
                                 LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
                         lendingApplicationLenderDetails.setStage(nextStage.name());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
+                                LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
+                        logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
                     }
-                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
-                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
-                    logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
                 } else {
                     nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                             LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED));
