@@ -257,7 +257,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .loanAccounts(lendingApplicationLenderDetails.getLan())
                             .note("Foreclosure")
                             .preClosureReasonId(192)
-                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount()+charge+chargeTax)))
+                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
                             .transactionDate(lendingLedger.getDate())
                             .paymentTypeId(1)
                             .interestWaiverAmount(0.0)

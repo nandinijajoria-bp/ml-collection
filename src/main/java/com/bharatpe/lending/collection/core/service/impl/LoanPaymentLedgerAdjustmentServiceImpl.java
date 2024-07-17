@@ -158,6 +158,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                     .principleSettled(lendingCollectionExcess.getAmount())
                     .build();
             LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,"EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), desc);
+            if (Objects.nonNull(excessCollectionLedger)) lendingCollectionAuditService.sendCollectionAudit(excessCollectionLedger);
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }
     }
