@@ -5,9 +5,12 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitReasonCountDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitReasonCount;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.KycConstants;
@@ -30,6 +33,7 @@ import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.CleverTapEventService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -90,6 +94,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
     LendingResubmitReasonCountDao lendingResubmitReasonCountDao;
 
     @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    NbfcUtils nbfcUtils;
+
+    @Autowired
     EasyLoanUtil easyLoanUtil;
 
 
@@ -132,7 +142,8 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 initiateKycResponse.setTopup(true);
                 log.info("setting topup {} for {} {}", initiateKycResponse.isTopup(), scopeDataArgs.getMerchant().getId(), lendingApplication.getId());
-                if(!Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(lendingApplication.getLender())){
+                if(!Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(lendingApplication.getLender())
+                   && !Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
                     log.info("Sending kyc approved for merchant Id:{} for lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
                     if (!KycStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getCkycStatus())) {
                         log.info("Updating ckyc status for merchant Id:{} and lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
@@ -156,16 +167,27 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 initiateKycResponse.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
             }
 
+            Boolean kycRetry = false;
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                    kycRetry = true;
+                }
+            }
 //            String wroute = getWroute(nextState,lendingApplication.getId());
-            LendingApplicationKycDetails lendingApplicationKycDetails = null;
 
             // START remove skipping kyc for merchant if already done on that lender
 
-//            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lendingApplication.getLender());
+//            Integer dateDiff = 731;
+//            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
+//                dateDiff = 365;
+//            }
+//            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lendingApplication.getLender(), dateDiff);
 //           /*
 //           check if kyc is already completed for a lender
 //            */
-//            if (Objects.nonNull(lendingApplicationKycDetails)) {
+//            if (Objects.nonNull(lendingApplicationKycDetails) && !kycRetry) {
 //                log.info("Kyc already done for merchant Id:{} for lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
 //                if (!KycStatus.APPROVED.name().equalsIgnoreCase(lendingApplication.getCkycStatus())) {
 //                    log.info("Updating ckyc status for merchant Id:{} and lender:{}", scopeDataArgs.getMerchant().getId(), lendingApplication.getLender());
@@ -186,11 +208,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
 
             // END remove skipping kyc for merchant if already done on that lender
 
+            LendingApplicationKycDetails lendingApplicationKycDetails;
             lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
 
             if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                 // treating consent_date as kys success, because it is set only after aadhaar,selfie,and pan gets verified.
-                if (Objects.nonNull(lendingApplicationKycDetails.getConsentDate())) {
+                if (Objects.nonNull(lendingApplicationKycDetails.getConsentDate()) && !kycRetry) {
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
                     initiateKycResponse.setShowKycPage(false);
                     if(initiateKycResponse.isTopup()){
@@ -201,7 +224,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 // check the status for already created entry in table
-               Date validAfter = isResubmittedApplication ? lendingResubmitReasonCount.getResubmitTimestamp() : lendingApplication.getCreatedAt();
+               Date validAfter = isResubmittedApplication ? lendingResubmitReasonCount.getResubmitTimestamp() : kycRetry ? lendingApplicationLenderDetails.getUpdatedAt() : lendingApplication.getCreatedAt();;
                boolean kycVerified=updateApplicationKycDetails(
                        lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
                        validAfter, initiateKycResponse, isResubmittedApplication, lendingApplication.getLoanType()
@@ -211,14 +234,22 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     initiateKycResponse.setDeeplink(kycDeepLink);
                     initiateKycResponse.setShowKycPage(true);
                     loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
-                    if(initiateKycResponse.isTopup()){
+                    if(initiateKycResponse.isTopup() && !kycRetry){
                         return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
+                    }
+                    if(kycRetry) {
+                        if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                            lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
+                            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        }
+                        initiateKycResponse.setShowKycPage(false);
+                        new Thread(()-> nbfcUtils.retryApplicationStage(lendingApplication.getId(), lendingApplication.getLender(), lendingApplicationDetails.getStage())).start();
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, validAfter);
                 loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
-                if(initiateKycResponse.isTopup()){
+                if(initiateKycResponse.isTopup() && !kycRetry){
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
@@ -242,7 +273,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
                 loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
-                if(initiateKycResponse.isTopup()){
+                if(initiateKycResponse.isTopup() && !kycRetry){
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
                 }
                 return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);

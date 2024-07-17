@@ -118,6 +118,8 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Slf4j
 public class LendingApplicationServiceV2 {
     @Autowired
+    private LendingPaymentScheduleDao lendingPaymentScheduleDao;
+    @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
     @Autowired
     private LmsStageHistoryDao lmsStageHistoryDao;
@@ -2407,7 +2409,10 @@ public class LendingApplicationServiceV2 {
             }
 
             String shopAddress = constructShopAddress(lendingApplication);
-
+            Double insurancePremium = getInsurancePremium(lendingApplication);
+            if (insurancePremium.equals(0D)) {
+                insurancePremium = null;
+            }
 
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -2448,7 +2453,22 @@ public class LendingApplicationServiceV2 {
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
+                    .insurancePremium(insurancePremium)
                     .build();
+
+            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+                    throw new Exception("Unable to fetch parent loan details");
+                }
+                Optional<LendingApplication> parentLendingApplicationOptional = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId());
+                if(!parentLendingApplicationOptional.isPresent()){
+                    throw new Exception("Unable to fetch parent application");
+                }
+                kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
+                kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
+            }
+
             return new ApiResponse<>(kfsDto);
         }
         catch(Exception e){
@@ -2462,11 +2482,23 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setApplicationId(lendingApplication.getId());
         lendingKfs.setMerchantId(merchant.getId());
         lendingKfs.setLender(lendingApplication.getLender());
-        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
+        Double insurancePremium = getInsurancePremium(lendingApplication);
+        Double apr = getApr(merchant.getId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee() - insurancePremium, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
         return lendingKfs;
+    }
+
+    private Double getInsurancePremium(LendingApplication lendingApplication) {
+        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+                lendingApplication.getId(),
+                lendingApplication.getLender(),
+                "SELECTED");
+        if (Objects.nonNull(lendingLoanInsurance))
+            return lendingLoanInsurance.getInsurancePremium();
+        else
+            return 0D;
     }
 
     public void storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) throws Exception {
@@ -2660,7 +2692,12 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -2769,7 +2806,12 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
               language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -2951,6 +2993,21 @@ public class LendingApplicationServiceV2 {
         return shortUrl;
     }
 
+    public String fetchLoanInsuranceDoc(Long applicationId, String fileName) {
+        String insuranceDocUrl = null;
+        try {
+            insuranceDocUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        } catch (FileNotFoundException e) {
+            log.error("Unable to find file  insuranceDoc for applicationId :  {} {}", applicationId, e.getMessage());
+            return null;
+        }
+        String shortUrl = apiGatewayService.getShortUrl(insuranceDocUrl);
+        if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty()){
+            log.error("Unable to create insuranceDocUrl for applicationId :  {}", applicationId);
+        }
+        return shortUrl;
+    }
+
     public String fetchAuthorizationLetterFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
         String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
         String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
@@ -3115,6 +3172,38 @@ public class LendingApplicationServiceV2 {
             }
         }
 
+        if(Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender())){
+            if(kfsDto.isTopUpLoan()){
+                data.put("foreclosure_amount_display_prop", "table-row");
+                data.put("foreclosure_amount", kfsDto.getLenderForeclosureAmount());
+                data.put("foreclosure_amount_in_words", getAmountInWords(kfsDto.getLenderForeclosureAmount().toString()));
+                data.put("topup_loan_clause_display_prop", "block");
+                data.put("parent_loan_bpl_id", kfsDto.getParentLoanBplId());
+            } else{
+                data.put("foreclosure_amount_display_prop", "none");
+                data.put("topup_loan_clause_display_prop", "none");
+            }
+        }
+
+        data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
+        data.put("personal_loan_amount_in_words", getAmountInWords(String.valueOf(kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee())));
+        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+                applicationId,
+                kfsDto.getLender(),
+                "SELECTED"
+                );
+        if(ObjectUtils.isEmpty(lendingLoanInsurance)) {
+            data.put("insurance_na_display", "block");
+            data.put("insurance_display", "none");
+            data.put("insurance_premium", "NA");
+            data.put("insurance_premium_in_words", "NA");
+
+        } else {
+            data.put("insurance_na_display", "none");
+            data.put("insurance_display", "block");
+            data.put("insurance_premium", lendingLoanInsurance.getInsurancePremium());
+            data.put("insurance_premium_in_words", getAmountInWords(lendingLoanInsurance.getInsurancePremium().toString()));
+        }
         log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
@@ -3516,7 +3605,11 @@ public class LendingApplicationServiceV2 {
 
             String language = "";
 
-            if(vernacularDocLanguageList.contains(lender)) {
+            boolean vernacularDocLanguageDisabled = false;
+            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                vernacularDocLanguageDisabled = true;
+            }
+            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
                 language =  getDocLanguage(merchant.getId(),lender);
             }
 
@@ -3606,6 +3699,15 @@ public class LendingApplicationServiceV2 {
             log.error("Exception occurred while populating loan purpose for applicationId: {}, {}", applicationId, Arrays.toString(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong!");
+    }
+
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
+        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForABFL(lendingPaymentSchedule);
+        if(foreClosureAmountForABFL <= 0){
+            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+        }
+        return foreClosureAmountForABFL;
     }
 
 }

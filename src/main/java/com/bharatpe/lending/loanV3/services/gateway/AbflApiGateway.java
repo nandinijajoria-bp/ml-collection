@@ -50,6 +50,19 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.foreclosureamt.api:api/v3/lender/foreclosure-details}")
     String nbfcForeClosureAmtUrl;
 
+    @Value("${nbfc.digitalSign.api:api/v3/lender/digital-sign}")
+    String nbfcDigitalSignUrl;
+
+    @Value("${nbfc.rps.api:api/v3/lender/repayment-schedule}")
+    String nbfcRpsUrl;
+
+    @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
+    String nbfcPennyDropUrl;
+
+    @Value("${nbfc.pennydrop.read.timeout:30000}")
+    int nbfcPennyDropReadTimeout;
+
+
     @Autowired
     ObjectMapper objectMapper;
 
@@ -116,6 +129,33 @@ public class AbflApiGateway extends INbfcLenderGateway {
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class,nbfcBaseUrl+nbfcForeClosureAmtUrl);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
+        }
+        return null;
+    }
+
+    public AbflTopupRpsResponseDTO fetchRepaymentSchedule(AbflTopupRpsRequestDTO abflTopupRpsRequest) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(abflTopupRpsRequest), AbflTopupRpsResponseDTO.class,nbfcBaseUrl+nbfcRpsUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while processing repayment schedule api call to nbfc svc for {}",abflTopupRpsRequest, e);
+        }
+        return null;
+    }
+
+    public AbflDigiSignResponseDTO invokeDigiSign(AbflDigiSignRequestDTO abflDigiSignRequest) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(abflDigiSignRequest), AbflDigiSignResponseDTO.class,nbfcBaseUrl+nbfcDigitalSignUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while invoking digiSign api call to nbfc svc for {}",abflDigiSignRequest, e);
+        }
+        return null;
+    }
+
+    public ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO pennyDropRequestDTO) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(pennyDropRequestDTO), ABFLPennyDropResponseDTO.class,nbfcBaseUrl+nbfcPennyDropUrl, nbfcPennyDropReadTimeout);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while fetching pennyDropRequestDTO to nbfc svc for {}", pennyDropRequestDTO, e);
         }
         return null;
     }

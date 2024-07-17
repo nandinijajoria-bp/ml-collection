@@ -13,6 +13,7 @@ import java.util.List;
 public class DocUploadApiRequestDto {
     String lender;
     Long applicationId;
+    boolean topup;
     Payload payload;
     String productName;
 

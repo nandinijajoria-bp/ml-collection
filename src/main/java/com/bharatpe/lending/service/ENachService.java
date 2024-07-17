@@ -263,12 +263,11 @@ public class ENachService {
             if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                 if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
-                } else {
+                } else if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                     LendingApplicationLenderDetails lendingApplicationLenderDetails =
                             lendingApplicationLenderDetailsDao.
                                     findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc
                                             (lendingApplication.getId(), Status.ACTIVE.name());
-
                     if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
                             LenderAssociationStages.ASSC_COMPLETED.name()
                                     .equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {

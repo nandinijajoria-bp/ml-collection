@@ -9,6 +9,10 @@ public class SettlementV2ResponseDTO {
     private String lender;
     private List<Settlement> settlement;
 
+    private Boolean isInsured;
+    private String insuranceProvider;
+
+
     public SettlementV2ResponseDTO(Boolean success, String message) {
         this.success = success;
         this.message = message;
@@ -47,6 +51,22 @@ public class SettlementV2ResponseDTO {
 
     public void setLender(String lender) {
         this.lender = lender;
+    }
+
+    public Boolean getInsured() {
+        return isInsured;
+    }
+
+    public void setInsured(Boolean insured) {
+        isInsured = insured;
+    }
+
+    public String getInsuranceProvider() {
+        return insuranceProvider;
+    }
+
+    public void setInsuranceProvider(String insuranceProvider) {
+        this.insuranceProvider = insuranceProvider;
     }
 
     @Override

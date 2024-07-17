@@ -48,7 +48,8 @@ public class PiramalApiGateway extends ILenderGateway {
     @Value("${nbfc.getLoan.api:api/v3/lender/get-lead}")
     String getLoanUrl;
 
-
+    @Value("${nbfc.insurance.api:api/v3/lender/insurance-premiums}")
+    String insurancePremiumUrl;
 
     @Override
     public NbfcResponseDto invokeStage(NbfcRequestDto nbfcRequestDto, LenderAssociationStages.PiramalAssociationStages piramalAssociationStages) {
@@ -85,6 +86,8 @@ public class PiramalApiGateway extends ILenderGateway {
                 return nbfcBaseUrl+riskDecisionUrl;
             case "GET_LOAN_DETAILS":
                 return nbfcBaseUrl+getLoanUrl;
+            case "INSURANCE_PREMIUM":
+                return nbfcBaseUrl + insurancePremiumUrl;
             default:
                 return null;
         }
