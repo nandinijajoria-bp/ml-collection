@@ -1126,8 +1126,9 @@ public class SupportService {
         if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
             return null;
         } else {
-            //TODO: Add this after loan insurance deployment
-            // String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
+            String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
+            lendingLoanInsurance.setPolicyDocUrl(insuranceDocUrl);
+            lendingLoanInsuranceDao.save(lendingLoanInsurance);
 
             return InsuranceDetailsDTO.builder()
                     .sumInsured(lendingLoanInsurance.getSumInsured())
