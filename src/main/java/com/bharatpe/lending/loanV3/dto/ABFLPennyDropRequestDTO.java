@@ -15,6 +15,7 @@ public class ABFLPennyDropRequestDTO {
     String lender;
     String productName;
     Long applicationId;
+    boolean topup;
     ABFLPennyDropRequestDTO.Payload payload;
 
     @Data

@@ -8,12 +8,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -64,6 +63,40 @@ public class NbfcLenderGateway extends APIGatewayService {
         }
         return null;
     }
+
+    public <V> V invoke(String requestObject, Class<V> responseType, String requestUrl, int customReadTimeOut) {
+        try {
+            Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {
+            });
+            String hash = lendingHmacCalculator
+                    .calculateHmac(lendingHmacCalculator.getObjectPayload(requestBody), super.getInternalSecret());
+            HttpHeaders headers = new HttpHeaders();
+            headers.set(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
+            headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+            headers.set("Hash", hash);
+            headers.set("Client-Name", super.CLIENT);
+            log.info("custom invoke request body {}", requestObject);
+            HttpEntity<Object> request = new HttpEntity<>(requestBody, headers);
+            log.info("custom invoke request body for nbfc {} request hash {} :  {}", requestUrl,hash, request);
+            HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
+            clientHttpRequestFactory.setReadTimeout(customReadTimeOut);
+            RestTemplate restTemplateWithTimeOut = new RestTemplate(clientHttpRequestFactory);
+            ResponseEntity<String> responseEntity = restTemplateWithTimeOut.postForEntity( requestUrl, request, String.class);
+            log.info("custom invoke response for {} invokation {}", requestUrl, responseEntity);
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.hasBody()) {
+                V response = objectMapper.readValue(responseEntity.getBody(),responseType);
+                return response;
+            }
+        } catch (HttpStatusCodeException httpStatusCodeException) {
+            log.error("custom invoke  status code {} | headers {} | body {}", httpStatusCodeException.getRawStatusCode(), httpStatusCodeException.getResponseHeaders(),
+                    httpStatusCodeException.getResponseBodyAsString());
+        }
+        catch (Exception e) {
+            log.error("custom invoke exception occurred while processing {} api call to nbfc svc {}, {}",e.getMessage(), requestUrl, Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
     public <V> V invokeWithParams(String requestObject, Class<V> responseType, String requestUrl, HttpMethod httpMethod) {
         try {
             Map<String, Object> requestBody = configResolver.getConfig(requestObject, new TypeReference<Map<String, Object>>() {

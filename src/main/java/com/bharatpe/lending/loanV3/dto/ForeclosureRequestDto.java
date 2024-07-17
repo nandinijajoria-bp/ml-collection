@@ -20,6 +20,7 @@ public class ForeclosureRequestDto {
     String productName;
     Long applicationId;
     Payload payload;
+    boolean topup;
 
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)
