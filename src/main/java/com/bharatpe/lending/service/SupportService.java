@@ -1117,7 +1117,7 @@ public class SupportService {
         return supportLoanResponseDTO;
     }
 
-    private InsuranceDetailsDTO findInsuranceForApplication(LendingApplicationSlave application) {
+    public InsuranceDetailsDTO findInsuranceForApplication(LendingApplicationSlave application) {
         LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
                 application.getId(),
                 application.getLender(),
