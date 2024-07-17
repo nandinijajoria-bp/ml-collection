@@ -230,6 +230,9 @@ public class LoanUtil {
     @Autowired
 	ForeClosureConfigDao foreClosureDao;
 
+	@Autowired
+	LendingLoanInsuranceDao lendingLoanInsuranceDao;
+
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
 
@@ -2221,7 +2224,15 @@ public class LoanUtil {
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
+	public LendingLoanInsurance getInsuranceDetails(Long applicationId, String lender, String status) {
+		if (ObjectUtils.isEmpty(applicationId) || ObjectUtils.isEmpty(lender) || ObjectUtils.isEmpty(status)) {
+			return null;
+		}
 
-
+		return lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+				applicationId,
+				lender,
+				status);
+	}
 }
 
