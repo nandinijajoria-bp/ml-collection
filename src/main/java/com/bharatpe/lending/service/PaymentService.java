@@ -347,6 +347,7 @@ public class PaymentService {
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
             netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+            if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
             finalForeclosureAtLender = netForeclosureAtLender;
             netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
         }
@@ -1078,6 +1079,11 @@ public class PaymentService {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
                     transferType = "EXTERNAL";
+            }
+
+            if (source == null) {
+                source = "UPI";
+                transferType = "EXTERNAL";
             }
 
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
@@ -2084,7 +2090,7 @@ public class PaymentService {
                             .loanAccounts(lendingApplicationLenderDetails.getLan())
                             .note("Foreclosure")
                             .preClosureReasonId(192)
-                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount()+charge+chargeTax)))
+                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
                             .transactionDate(lendingLedger.getDate())
                             .paymentTypeId(1)
                             .interestWaiverAmount(0.0)
