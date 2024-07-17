@@ -15,7 +15,6 @@ import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.Status;
@@ -26,7 +25,6 @@ import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.PInsuranceRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PInsuranceResponseDTO;
-import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -85,10 +83,6 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
     @Autowired
     PiramalApiGateway piramalApiGateway;
-
-    @Autowired
-    @Lazy
-    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
     LendingKfsDao lendingKfsDao;
