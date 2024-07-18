@@ -112,6 +112,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), piramalInsuranceRolloutPercent)) {
             List<LoanInsuranceDTO> oldInsurances = isInsuredBefore(lendingApplication);
             if (!ObjectUtils.isEmpty(oldInsurances) && ObjectUtils.isEmpty(insurances) && ObjectUtils.isEmpty(isInsured)) {
+                log.info("Merchant: {} is insured before for the application id: {} and insurance: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), oldInsurances);
                 insurances = oldInsurances;
                 isInsured = true;
             } else {
@@ -272,7 +273,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     }
 
     public void saveInsurancePremiums(LendingApplication lendingApplication, List<LoanInsuranceDTO> insurances, Boolean isInsured) {
-
+        log.info("Saving Insurance Premiums where isInsured: {} and insurances: {}", isInsured, insurances);
         List<LendingLoanInsurance> loanInsurances = lendingLoanInsuranceDao.findAllByApplicationIdAndLender(
                 lendingApplication.getId(), lendingApplication.getLender());
 

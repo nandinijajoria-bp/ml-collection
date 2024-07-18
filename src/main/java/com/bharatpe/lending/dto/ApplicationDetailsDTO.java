@@ -36,4 +36,8 @@ public class ApplicationDetailsDTO {
     private String sendToNbfc;
     @JsonProperty("lender")
     private String lender;
+    @JsonProperty("isInsured")
+    private Boolean isInsured;
+    @JsonProperty("insurancePremium")
+    private Double insurancePremium;
 }
