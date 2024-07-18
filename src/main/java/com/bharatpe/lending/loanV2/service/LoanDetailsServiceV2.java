@@ -2681,7 +2681,7 @@ public class LoanDetailsServiceV2 {
             merchantRedirectToNewRefResponseDto.setVersion(lendingRiskVariablesSnapshot.getNewContactReferenceLogic() ? "v2" : "v1");
             return new ApiResponse<>(merchantRedirectToNewRefResponseDto);
         }catch (Exception e) {
-            log.error("Error while fetching if merchant should redirect to new reference logic or not", Arrays.asList(e.getStackTrace()));
+            log.error("Error while fetching if merchant should redirect to new reference logic or not {}", Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something went wrong");
     }
