@@ -1002,6 +1002,7 @@ public class SupportService {
             for (LendingApplicationSlave application : applicationList) {
 
                 InsuranceDetailsDTO insuranceDetailsDTO = findInsuranceForApplication(application);
+                logger.info("Insurance Details for merchant: {} is :{}", application.getId(), insuranceDetailsDTO);
                 Boolean isInsured = false;
                 Double insurancePremium = null;
                 if (!ObjectUtils.isEmpty(insuranceDetailsDTO)) {
