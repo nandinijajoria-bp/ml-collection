@@ -24,7 +24,6 @@ import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.MongoLogPublisher;
 import com.bharatpe.lending.common.service.PennyDropService;
-import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
@@ -999,10 +998,13 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setClientIdentifier(lendingRiskVariables.getClientIdentifier());
 				lendingRiskVariablesSnapshot.setSummaryTpv60d(lendingRiskVariables.getSummaryTpv60d());
 				lendingRiskVariablesSnapshot.setRejectedLenders(lendingRiskVariables.getRejectedLenders());
+				logger.info("setting data for minTvrCount & newContactRefLogic for applicationId: {}",lendingApplication.getId());
+				lendingRiskVariablesSnapshot.setMinTvrCount(lendingRiskVariables.getMinTvrCount());
+				lendingRiskVariablesSnapshot.setNewContactReferenceLogic(lendingRiskVariables.getNewContactReferenceLogic());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
-			logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), e);
+			logger.error("Exception in createRiskVariablesSnapshot for application:{}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 	}
 
