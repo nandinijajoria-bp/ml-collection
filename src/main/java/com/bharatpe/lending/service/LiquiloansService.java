@@ -904,16 +904,17 @@ public class LiquiloansService {
                 lendingApplication.getLender(),
                 "SELECTED");
 
-        if (ObjectUtils.isEmpty(lendingConsent) && ObjectUtils.isEmpty(lendingLoanInsurance)) {
+        if (ObjectUtils.isEmpty(lendingConsent)) {
             return;
         }
 
         FunnelEnums.StageEvent event;
-        if (lendingConsent.getIsAccepted()) {
+        if (lendingConsent.getIsAccepted() && !ObjectUtils.isEmpty(lendingLoanInsurance)) {
             event = FunnelEnums.StageEvent.ACCEPT;
         } else {
             event = FunnelEnums.StageEvent.REJECT;
         }
+        logger.info("Insurance is: {} for merchant: {}", event.name(), lendingLoanInsurance.getApplicationId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
