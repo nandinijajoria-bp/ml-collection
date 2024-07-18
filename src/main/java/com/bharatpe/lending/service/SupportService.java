@@ -1127,10 +1127,11 @@ public class SupportService {
         if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
             return null;
         } else {
-            String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
-            lendingLoanInsurance.setPolicyDocUrl(insuranceDocUrl);
-            lendingLoanInsuranceDao.save(lendingLoanInsurance);
-
+            if (!ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocUrl())) {
+                String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
+                lendingLoanInsurance.setPolicyDocUrl(insuranceDocUrl);
+                lendingLoanInsuranceDao.save(lendingLoanInsurance);
+            }
             return InsuranceDetailsDTO.builder()
                     .sumInsured(lendingLoanInsurance.getSumInsured())
                     .insurancePremiumAmount(lendingLoanInsurance.getInsurancePremium())
