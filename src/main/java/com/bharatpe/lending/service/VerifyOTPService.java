@@ -548,22 +548,22 @@ public class VerifyOTPService {
             }
             lendingApplication.setNachReferenceNumber(ObjectUtils.isEmpty(enachSuccess)?null:enachSuccess.getReferenceNumber());
             lendingApplication.setNachStatus("APPROVED");
-            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+//            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
 
             // if nach is already done on ABFL or the nach is to be skipped it gets marked approved in lending_application hence we need to invoke sanction here only
             // since invoke sanction workflow gets called in submit nach which will be skipped for the above scenairo
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 if(topupLoans.contains(lendingApplication.getLoanType())) {
                     LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
-                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                         LenderAssociationStages nextStage =
                                 LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
                         lendingApplicationLenderDetails.setStage(nextStage.name());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
+                                LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
+                        logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
                     }
-                    nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
-                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER));
-                    logger.info("skipped sanction workflow for topup application {} since Nach is skipped for merchantId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
                 } else {
                     nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                             LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.ASSC_COMPLETED));
@@ -587,6 +587,7 @@ public class VerifyOTPService {
             logger.info("TOPUP loan submitted for merchant {}", merchantBasicDetailsDto.getId());
             updateDocuments(lendingApplication, meta,merchantBasicDetailsDto);
             if (!topUpLoans(lendingApplication)) {
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
                 finalResponse.put("message", "Failed to create TopUp application");
                 return finalResponse;
             }
@@ -624,6 +625,7 @@ public class VerifyOTPService {
             }
         }
         catch(Exception e){
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
             logger.error("Exception in storing KFS docs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             return finalResponse;
         }
@@ -656,7 +658,14 @@ public class VerifyOTPService {
 
         lendingAuditTrialDao.save(lendingAuditTrial);
 
-        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            logger.info("saving next page as : {}", LendingViewStates.APPLICATION_STATUS_PAGE);
+        }
+        else{
+            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+            logger.info("saving next page as : {}", LendingViewStates.ENACH_PAGE);
+        }
 
         if (easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) || merchantBasicDetailsDto.getId() == 10407700L) {
             // skipping enach for dummy merchant

@@ -56,6 +56,7 @@ public class LoanDetailsV3Response {
 
     private String lender;
     private Double interestRate;
+    private Double annualRoi;
     private Integer arrangerFee;
     private Double disbursalAmount;
     private String tenure;
@@ -218,6 +219,7 @@ public class LoanDetailsV3Response {
 
         loanDetailsV3Response.setLender(agreementStateDTO.getLender());
         loanDetailsV3Response.setInterestRate(agreementStateDTO.getInterestRate());
+        loanDetailsV3Response.setAnnualRoi(agreementStateDTO.getAnnualRoi());
         loanDetailsV3Response.setArrangerFee(agreementStateDTO.getArrangerFee());
         loanDetailsV3Response.setDisbursalAmount(agreementStateDTO.getDisbursalAmount());
         loanDetailsV3Response.setTenure(agreementStateDTO.getTenure());
