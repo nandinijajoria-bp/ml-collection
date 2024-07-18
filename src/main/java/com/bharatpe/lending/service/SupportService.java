@@ -22,6 +22,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LoanInsuranceConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -231,6 +232,9 @@ public class SupportService {
     @Autowired
     PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
+    @Autowired
+    LendingLoanInsuranceDao lendingLoanInsuranceDao;
+
 	@Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
@@ -248,6 +252,9 @@ public class SupportService {
 
     @Autowired
     MileStoneHelperServicev3 mileStoneHelperServicev3;
+
+    @Autowired
+    LoanInsuranceConstants loanInsuranceConstants;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -993,8 +1000,17 @@ public class SupportService {
             List<ApplicationDetailsDTO> applicationHistoryList = new ArrayList<>();
 
             for (LendingApplicationSlave application : applicationList) {
+
+                InsuranceDetailsDTO insuranceDetailsDTO = findInsuranceForApplication(application);
+                logger.info("Insurance Details for merchant: {} is :{}", application.getId(), insuranceDetailsDTO);
+                Boolean isInsured = false;
+                Double insurancePremium = null;
+                if (!ObjectUtils.isEmpty(insuranceDetailsDTO)) {
+                    isInsured = true;
+                    insurancePremium = insuranceDetailsDTO.getInsurancePremiumAmount();
+                }
                 //applicationHistory
-                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc(), application.getLender());
+                ApplicationDetailsDTO application1 = new ApplicationDetailsDTO(application.getExternalLoanId(), application.getAgreementAt(), application.getLoanAmount(), application.getStatus(), application.getUpdatedAt(), null, application.getInterestRate(), application.getTenure(), null, application.getSendToNbfc(), application.getLender(), isInsured, insurancePremium);
                 String reason = null;
                 if("rejected".equalsIgnoreCase(application.getStatus())){
                     if ("REJECTED".equalsIgnoreCase(application.getManualCibil())) {
@@ -1082,7 +1098,7 @@ public class SupportService {
                             null, lendingPaymentSchedule1.getStatus(), null, application.getProcessingFee(),
                             lendingLedgerDetailList, loanArrangerFee.getInEligibleReason(), null, null,
                             lendingPaymentSchedule1.getNbfc(), ObjectUtils.isEmpty(lendingApplicationLenderDetails) ? null : lendingApplicationLenderDetails.getUtrNo(),
-                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList);
+                            LoanUtil.getEdiModal(application).name(), refundDetails, penaltyLedgerList, insuranceDetailsDTO);
 
                     loanArrangerFee.setFeeAmount(application.getProcessingFee());
                     loanDetailsDTO.setLoanArrangerFee(loanArrangerFee);
@@ -1100,6 +1116,32 @@ public class SupportService {
             supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
         }
         return supportLoanResponseDTO;
+    }
+
+    public InsuranceDetailsDTO findInsuranceForApplication(LendingApplicationSlave application) {
+        LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+                application.getId(),
+                application.getLender(),
+                "SELECTED");
+
+        if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
+            return null;
+        } else {
+            String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
+            lendingLoanInsurance.setPolicyDocUrl(insuranceDocUrl);
+            lendingLoanInsuranceDao.save(lendingLoanInsurance);
+
+            return InsuranceDetailsDTO.builder()
+                    .sumInsured(lendingLoanInsurance.getSumInsured())
+                    .insurancePremiumAmount(lendingLoanInsurance.getInsurancePremium())
+                    .insuranceProviderName(lendingLoanInsurance.getProvider())
+                    .insuranceAvailedDate(lendingLoanInsurance.getCommencementDate())
+                    .insuranceApplicable(true)
+                    .insuranceDocument(lendingLoanInsurance.getPolicyDocUrl())
+                    .benefitsOfTheInsurance(loanInsuranceConstants.careBenefits)
+                    .insurancePartnerContactDetails(loanInsuranceConstants.insuranceContactDetails)
+                    .build();
+        }
     }
 
     private List<Map<String, Object>> populatePenaltyLedger(LendingPaymentSchedule lendingPaymentSchedule1, List<Map<String, Object>> penaltyLedgerList) {

@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -63,5 +64,6 @@ public class LoanDetailsDTO {
     private List<Map<String, Object>> refundDetails;
     @JsonProperty("penaltyLedger")
     private List<Map<String, Object>> penaltyLedger;
-
+    @JsonProperty("insuranceDetails")
+    private InsuranceDetailsDTO insuranceDetails;
 }
