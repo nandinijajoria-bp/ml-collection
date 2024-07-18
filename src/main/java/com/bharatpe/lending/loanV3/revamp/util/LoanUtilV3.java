@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV3.revamp.util;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.common.entities.LendingPancard;
 import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
 import com.bharatpe.lending.common.dao.LendingResubmitReasonCountDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
@@ -18,16 +17,12 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
-import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
-import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
-import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ResubmitDoneDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -242,5 +237,13 @@ public class LoanUtilV3 {
         } else {
             lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, kycPan.getDocIdentifier(), kycPan.getName(), null, LendingConstants.PAN_VERIFICATION_VERSION, kycPan.getAadhaarSeedingStatus(), kycPan.getDob()));
         }
+    }
+
+    public boolean isReferenceNotRequired(Long applicationId) {
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+        return !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)
+                && lendingRiskVariablesSnapshot.getNewContactReferenceLogic()
+                && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getReferenceCount())
+                && lendingRiskVariablesSnapshot.getReferenceCount() == 0;
     }
 }

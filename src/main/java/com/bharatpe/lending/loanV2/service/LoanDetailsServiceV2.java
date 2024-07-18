@@ -1,9 +1,11 @@
 package com.bharatpe.lending.loanV2.service;
 
-import com.amazonaws.services.dynamodbv2.xspec.S;
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingDisbursalStageDao;
+import com.bharatpe.common.dao.LendingPancardDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.Handler.EnachHandler;
@@ -14,12 +16,10 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.RejectionReason;
-import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.service.FunnelService;
@@ -27,7 +27,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
@@ -37,9 +36,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -49,12 +46,12 @@ import com.bharatpe.lending.loanV2.dto.CreditScoreReportDetailDTO;
 import com.bharatpe.lending.loanV2.dto.LoanAndCreditCardDetailDTO;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
@@ -78,6 +75,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 import static java.util.Objects.nonNull;
 
 @Data
@@ -1488,6 +1486,51 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false,"Application type is Topup");
             }
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
+
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
+                log.info("lrvs not found of applicationId: {}", lendingApplication.getId());
+                return new ApiResponse<>(false, "LRVS details not found for given merchantId");
+            }
+
+            if(lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
+                //new logic
+                Long referenceCount = lendingRiskVariablesSnapshot.getReferenceCount();
+                MerchantReferencesV2ResponseDto responseDto;
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
+                if (!ObjectUtils.isEmpty(referenceCount) && referenceCount > 0) {
+                    log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
+
+                    if (Objects.isNull(lendingApplicationDetails)) {
+                        lendingApplicationDetails = new LendingApplicationDetails();
+                        lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+                        lendingApplicationDetailsDao.save(lendingApplicationDetails);
+                    }
+
+                    responseDto = MerchantReferencesV2ResponseDto.builder()
+                            .limit(referenceCount)
+                            .ineligible(false)
+                            .build();
+                } else {
+                    responseDto = MerchantReferencesV2ResponseDto.builder()
+                            .limit(null)
+                            .ineligible(true)
+                            .build();
+                }
+
+                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                    funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),
+                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                }
+                else{
+                    funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),
+                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+                }
+                return new ApiResponse<>(responseDto);
+            }
+
             Long referencesLimit = getReferenceLimit(lendingApplication);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
             MerchantReferencesResponseDto responseDto;
@@ -1585,6 +1628,13 @@ public class LoanDetailsServiceV2 {
             }
             Long applicationId = lendingApplication.getId();
             log.info("applicationId: {} found of merchantId: {}", applicationId, merchantId);
+
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+            if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
+                log.info("lrvs not found of applicationId: {}", applicationId);
+                return new ApiResponse<>(false, "LRVS details not found for given merchantId");
+            }
+
             Boolean isIneligible = requestDto.getIneligible();
             if (Objects.isNull(isIneligible)) {
                 return new ApiResponse<>(false, "ineligible field can not be null!");
@@ -1614,15 +1664,19 @@ public class LoanDetailsServiceV2 {
                         lendingMerchantReferences.setReferenceNumber(requestedReferences.getPhoneNumber());
                         lendingMerchantReferences.setMerchantId(merchantId);
                         lendingMerchantReferences.setApplicationId(applicationId);
-                        lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
-                        lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
-                        lendingMerchantReferences.setInferredName(requestedReferences.getInferredName());
-                        lendingMerchantReferences.setInferredLocation(requestedReferences.getInferredLocation());
-                        lendingMerchantReferences.setInferredNameConfidence(requestedReferences.getInferredNameConfidence());
-                        lendingMerchantReferences.setInferredOccupation(requestedReferences.getInferredOccupation());
-                        lendingMerchantReferences.setInferredRelation(requestedReferences.getInferredRelation());
-                        lendingMerchantReferences.setNumHits(requestedReferences.getNumHits());
-                        lendingMerchantReferences.setScore(requestedReferences.getScore());
+
+                        if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
+                            //update below parameters in old flow
+                            lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
+                            lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
+                            lendingMerchantReferences.setInferredName(requestedReferences.getInferredName());
+                            lendingMerchantReferences.setInferredLocation(requestedReferences.getInferredLocation());
+                            lendingMerchantReferences.setInferredNameConfidence(requestedReferences.getInferredNameConfidence());
+                            lendingMerchantReferences.setInferredOccupation(requestedReferences.getInferredOccupation());
+                            lendingMerchantReferences.setInferredRelation(requestedReferences.getInferredRelation());
+                            lendingMerchantReferences.setNumHits(requestedReferences.getNumHits());
+                            lendingMerchantReferences.setScore(requestedReferences.getScore());
+                        }
                         lendingMerchantReferencesDao.save(lendingMerchantReferences);
                         log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReferences, merchantId);
                     }
@@ -2609,4 +2663,26 @@ public class LoanDetailsServiceV2 {
     }
 
 
+    public ApiResponse<?> getMerchantRefVersion(Long merchantId) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
+            if (Objects.isNull(lendingApplication) || Objects.isNull(lendingApplication.getId())) {
+                log.info("No applicationId found of merchantId: {}", merchantId);
+                return new ApiResponse<>(false, "No applicationId found for given merchantId");
+            }
+
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+            if(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
+                log.info("LRVS details not found of merchantId: {}", merchantId);
+                return new ApiResponse<>(false, "LRVS Details not found for given merchantId");
+            }
+
+            MerchantRedirectToNewRefResponseDto merchantRedirectToNewRefResponseDto = new MerchantRedirectToNewRefResponseDto();
+            merchantRedirectToNewRefResponseDto.setVersion(lendingRiskVariablesSnapshot.getNewContactReferenceLogic() ? "v2" : "v1");
+            return new ApiResponse<>(merchantRedirectToNewRefResponseDto);
+        }catch (Exception e) {
+            log.error("Error while fetching if merchant should redirect to new reference logic or not for merchantId: {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something went wrong");
+    }
 }

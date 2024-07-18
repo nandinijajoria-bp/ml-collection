@@ -15,7 +15,6 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.LenderEvaluationStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
-import com.bharatpe.lending.loanV3.revamp.dto.ReferenceStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -28,8 +27,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.Objects;
-import java.util.Optional;
 
 @Component
 @Slf4j
@@ -55,6 +52,9 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
             return lendingStateDTO;
         }
         if(loanUtilV3.isPreapprovedRepeatLoan(scopeDataArgs.getApplicationId())){
+            lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+        }
+        if(loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         }
         else{
