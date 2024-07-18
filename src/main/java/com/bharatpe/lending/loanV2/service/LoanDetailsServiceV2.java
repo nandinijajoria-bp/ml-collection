@@ -425,9 +425,12 @@ public class LoanDetailsServiceV2 {
                 log.info("open application for merchant:{}", merchant.getId());
                 //with validAfter timestamp
                 LendingApplicationKycDetails lendingApplicationKycDetails = null;
-
+                Integer dateDiff = 731;
+                if(LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(openApplication.getLender())){
+                    dateDiff = 365;
+                }
                 if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
-                    lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
+                    lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender(), dateDiff);
                 }
 
                 if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||
@@ -2470,7 +2473,8 @@ public class LoanDetailsServiceV2 {
         LendingApplicationKycDetails lendingApplicationKycDetails = null;
 
         if(easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), lenderAssignmentNewFlowRollOutPercent)){
-            lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender());
+            Integer dateDiff = LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(openApplication.getLender()) ? 365 : 731;
+            lendingApplicationKycDetails=lendingApplicationKycDetailsDao.findSuccessKycDetails(openApplication.getMerchantId(), openApplication.getLender(), dateDiff);
         }
 
         if(!loanUtil.isRepeatLoan(openApplication.getMerchantId()) ||

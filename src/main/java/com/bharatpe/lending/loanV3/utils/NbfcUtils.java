@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
@@ -20,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -57,11 +59,17 @@ public class NbfcUtils {
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
+        if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            log.info("restricting lender change for ABFL Topup application : {}", lendingApplication.getId());
+            return;
+        }
+
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             lendingApplicationDetails = new LendingApplicationDetails();
@@ -136,7 +144,24 @@ public class NbfcUtils {
             iLenderAssociationService.invoke(applicationId,args);
             log.info("application {} successfully pushed to the next stage {}", applicationId, nextStage.name());
             }
+    }
+
+    public void retryApplicationStage(Long applicationId, String lender, String lenderAssociationStage) {
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+        if(!ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            lendingApplicationDetails.setStage(lenderAssociationStage);
+            lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            log.info("stage updated in app details for application {}", applicationId);
+            ILenderAssociationService iLenderAssociationService =
+                    lenderAssociationStageFactory.getStageAssociatedLenderService(lenderAssociationStage).getLenderAssociationService(lender);
+            Map<String, Object> args = new HashMap<String, Object>() {{
+                put("requestId", MDC.get("requestId"));
+            }};
+            iLenderAssociationService.invoke(applicationId, args);
+            log.info("application {} successfully pushed to retry for stage {}", applicationId, lenderAssociationStage);
         }
+    }
 
     private LenderAssociationStages nextStage(Lender lender, LenderAssociationStages stage) {
         switch (lender) {
@@ -151,5 +176,4 @@ public class NbfcUtils {
                 return LenderAssociationStageFactory.getNextStage(lender, stage);
         }
     }
-
 }

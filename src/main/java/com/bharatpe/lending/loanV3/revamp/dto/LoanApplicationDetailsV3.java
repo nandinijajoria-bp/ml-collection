@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
+import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.loanV2.dto.AdditionalDetails;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.LoanApplicationStage;
@@ -53,5 +54,9 @@ public class LoanApplicationDetailsV3 {
     private Long nachStartedAt;
 
     private List<LoanApplicationStage> loanApplicationStageList=new ArrayList<>();
+
+    private Boolean isInsured;
+    private List<LoanInsuranceDTO> loanInsurances;
+    private Double apr;
 }
 

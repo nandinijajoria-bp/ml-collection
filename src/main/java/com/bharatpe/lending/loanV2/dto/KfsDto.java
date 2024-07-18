@@ -45,5 +45,8 @@ public class KfsDto {
     private Double annualRoi;
     private boolean foreclosureChargesRequired;
     private String loanPurpose;
+    private Double lenderForeclosureAmount;
+    private String parentLoanBplId;
 
+    private Double insurancePremium;
 }

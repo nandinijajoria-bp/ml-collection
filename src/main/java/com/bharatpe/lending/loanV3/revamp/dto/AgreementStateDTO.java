@@ -1,9 +1,12 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import lombok.Builder;
 import lombok.Data;
 import lombok.ToString;
+
+import java.util.List;
 
 @Data
 @ToString
@@ -13,6 +16,7 @@ public class AgreementStateDTO {
     private String lender;
     private Double loanAmount;
     private Double interestRate;
+    private Double annualRoi;
     private Integer arrangerFee;
     private Double disbursalAmount;
     private String tenure;
@@ -25,6 +29,10 @@ public class AgreementStateDTO {
     private boolean ediModelModified;
     private Boolean enachBank;
     private boolean isTopup;
+    private Double apr;
+    private List<LoanInsuranceDTO> loanInsurances;
+    private Boolean isInsured;
+    private String externalLoanId;
 
     @Data
     @ToString

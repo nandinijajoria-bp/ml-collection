@@ -56,6 +56,7 @@ public class LoanDetailsV3Response {
 
     private String lender;
     private Double interestRate;
+    private Double annualRoi;
     private Integer arrangerFee;
     private Double disbursalAmount;
     private String tenure;
@@ -209,11 +210,16 @@ public class LoanDetailsV3Response {
         applicationDetails.setApplicationId(agreementStateDTO.getApplicationId());
         applicationDetails.setLoanAmount(agreementStateDTO.getLoanAmount());
         applicationDetails.setEnachBank(agreementStateDTO.getEnachBank());
+        applicationDetails.setIsInsured(agreementStateDTO.getIsInsured());
+        applicationDetails.setLoanInsurances(agreementStateDTO.getLoanInsurances());
+        applicationDetails.setApr(agreementStateDTO.getApr());
+        applicationDetails.setExternalLoanId(agreementStateDTO.getExternalLoanId());
         if(agreementStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
 
         loanDetailsV3Response.setLender(agreementStateDTO.getLender());
         loanDetailsV3Response.setInterestRate(agreementStateDTO.getInterestRate());
+        loanDetailsV3Response.setAnnualRoi(agreementStateDTO.getAnnualRoi());
         loanDetailsV3Response.setArrangerFee(agreementStateDTO.getArrangerFee());
         loanDetailsV3Response.setDisbursalAmount(agreementStateDTO.getDisbursalAmount());
         loanDetailsV3Response.setTenure(agreementStateDTO.getTenure());

@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.SanctionCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.SanctionWrapperApiRequestDto;
 import com.bharatpe.lending.loanV3.dto.SanctionWrapperApiResponse;
@@ -194,6 +195,7 @@ public class SancWrapperRequestKafka {
                     .applicationId(lendingApplication.get().getId())
                     .lender(lendingApplication.get().getLender())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .payload(SanctionWrapperApiRequestDto.Payload.builder()
                             .accountId(lendingApplication.get().getExternalLoanId())
                             .loanAmount(lendingApplication.get().getLoanAmount().intValue())

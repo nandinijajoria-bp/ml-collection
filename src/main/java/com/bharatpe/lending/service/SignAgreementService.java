@@ -33,6 +33,7 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -49,6 +50,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -750,6 +753,13 @@ public class SignAgreementService {
 
 		if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
 			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
+		} else if("ABFL".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
+			previousAmount = loanUtil.getForeClosureAmountForABFL(prevLendingSchedule);
+			if(previousAmount <= 0){
+				logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
+				response.put("message","Invalid loan application");
+				return response;
+			}
 		} else previousAmount = loanUtil.getForeclosureAmount(prevLendingSchedule);
 
 		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())
@@ -844,6 +854,13 @@ public class SignAgreementService {
 //			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 
 			response.put("application_id", newApplication.getId());
+			if(Lender.ABFL.name().equalsIgnoreCase(newApplication.getLender())) {
+				DateFormat df = new SimpleDateFormat("ddMMyy");
+				Date dateobj = new Date();
+				String loanId = "BPL" + df.format(dateobj) + newApplication.getId();
+				newApplication.setExternalLoanId(loanId);
+				lendingApplicationDao.save(newApplication);
+			}
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
 		LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
@@ -858,7 +875,8 @@ public class SignAgreementService {
 		}
 		lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
 		lendingApplicationDetailsDao.save(lendingApplicationDetails);
-		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), LendingViewStates.ENACH_PAGE);
+		LendingViewStates currentViewState = Lender.ABFL.name().equalsIgnoreCase(newApplication.getLender()) ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.ENACH_PAGE;
+		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), currentViewState);
 
 		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
 		response.put("success", true);

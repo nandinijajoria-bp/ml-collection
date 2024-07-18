@@ -7,7 +7,7 @@ public interface KfsConstants {
     String SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX = "Sanction_Cum_Loan_Agreement_";
     String DISBURSEMENT_REQUEST_LETTER_S3_KEY_PREFIX = "DISBURSEMENT_REQUEST_LETTER_";
     String PLATFORM_PREFIX = "BHARATPE APP ";
-
+    String INSURANCE_POLICY_DOC_PREFIX = "Loan_Insurance_Policy_Doc_";
 
     String LENDER_CORPORATE_NAME_LIQUILOANS = "NDX P2P Private Limited";
     String LENDER_BUSINESS_ADDRESS_LIQUILOANS = "B 104, The Qube, Hasan Pada Rd, Mittal Industrial Estate, Marol, Andheri East, Mumbai, Maharashtra 400059";
@@ -62,9 +62,9 @@ public interface KfsConstants {
     String LENDER_CONTACT_NUMBER_ABFL = "080-45860196";
     String LENDER_CORPORATE_NAME_PIRAMAL = "Piramal Capital Housing Finance Limited";
     String LENDER_BUSINESS_ADDRESS_PIRAMAL = "6th floor, Amiti Building, Agastya Corporate Park, Kamani Junction Opp Fire Station, LBS Marg, Kurla (W), Mumbai, MH – 400070";
-    String LENDER_CONTACT_NAME_PIRAMAL = "Mr. Kishore Dalwani";
+    String LENDER_CONTACT_NAME_PIRAMAL = "Ms. Hetal Parihar";
     String LENDER_CONTACT_EMAIL_PIRAMAL = "nodal.officer@piramal.com";
-    String LENDER_CONTACT_NUMBER_PIRAMAL = "022-69181439";
+    String LENDER_CONTACT_NUMBER_PIRAMAL = "022-69181273";
     String LENDER_GRIEVANCE_TIME_ABFL = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
     String ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX = "ESigned_Sanction_Cum_Loan_Agreement_";
     String ESIGNED_KFS_S3_KEY_PREFIX = "ESigned_Key_Facts_Statement_";

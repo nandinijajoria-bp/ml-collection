@@ -258,8 +258,14 @@
                 </p>
             </td>
             <td style="padding: 0px 5px" class="width-60 word-wrap">
-                <p style="margin: 6px 16px" class="fw400 text-left">
+                <p style="margin: 6px 16px; display: {{insurance_na_display}}" class="fw400 text-left">
                     NA
+                </p>
+                <p style="margin: 6px 16px; display: {{insurance_display}}" class="fw400 text-left">
+                    Rs. {{insurance_premium}}/- (Rupees {{insurance_premium_in_words}} Only)
+                </p>
+                <p style="margin: 6px 16px; display: {{insurance_display}}" class="fw400 text-left">
+                    Insurance premium amount to be disbursed to the insurance company
                 </p>
             </td>
         </tr>
@@ -323,7 +329,7 @@
             </td>
             <td style="padding: 0px 5px" class="width-30 word-wrap">
                 <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{rate_of_interest}}% per month
+                    {{annual_roi}}% per annum
                 </p>
             </td>
         </tr>
@@ -445,7 +451,7 @@
             </td>
             <td style="padding: 0px 5px" class="width-60 word-wrap">
                 <p style="margin: 6px 16px" class="fwbold text-left">
-                    Late Payment Charges
+                    Penal Charges
                 </p>
             </td>
             <td style="padding: 0px 5px" class="width-30 word-wrap">
@@ -785,8 +791,14 @@
                     </p>
                 </td>
                 <td style="padding: 0px 5px" class="width-60 word-wrap">
-                    <p style="margin: 6px 16px" class="fw400 text-left">
+                    <p style="margin: 6px 16px; display: {{insurance_na_display}}" class="fw400 text-left">
                         NA
+                    </p>
+                    <p style="margin: 6px 16px; display: {{insurance_display}}" class="fw400 text-left">
+                        ரூ. {{insurance_premium}}/- (ரூபாய் {{insurance_premium_in_words}} மட்டும்)
+                    </p>
+                    <p style="margin: 6px 16px; display: {{insurance_display}}" class="fw400 text-left">
+                        காப்பீட்டு பிரீமியம் தொகை காப்பீட்டு நிறுவனத்திற்கு வழங்கப்பட வேண்டும்
                     </p>
                 </td>
             </tr>
@@ -850,7 +862,7 @@
                 </td>
                 <td style="padding: 0px 5px" class="width-30 word-wrap">
                     <p style="margin: 6px 16px" class="fw400 text-left">
-                        {{rate_of_interest}}% மாதம் ஒன்றுக்கு
+                        {{annual_roi}}% ஓராண்டுக்கு
                     </p>
                 </td>
             </tr>

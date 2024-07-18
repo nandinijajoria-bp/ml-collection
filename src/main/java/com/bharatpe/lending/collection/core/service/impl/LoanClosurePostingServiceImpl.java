@@ -1,5 +1,6 @@
 package com.bharatpe.lending.collection.core.service.impl;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
@@ -11,7 +12,9 @@ import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -66,6 +69,10 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     AssociationServiceUtil associationServiceUtil;
     @Autowired
     LoanForeClosureChargesDao loanForeClosureChargesDao;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
     @Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
     String nbfcBaseUrl;
     @Value("${nbfc.baseurl.v3.foreclosure:api/v3/lender/foreclosure}")
@@ -91,11 +98,17 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 logger.info("no lending app details record found for the app {}", applicationId);
                 return;
             }
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+            if (!lendingApplication.isPresent()) {
+                logger.error("no lending application record found for the app {}", applicationId);
+                return;
+            }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                     .payload(ForeclosureRequestDto.Payload.builder()
                             .accountId(lendingApplicationLenderDetails.getAccountId())
                             .dealNo(lendingApplicationLenderDetails.getDealNo())
@@ -244,7 +257,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .loanAccounts(lendingApplicationLenderDetails.getLan())
                             .note("Foreclosure")
                             .preClosureReasonId(192)
-                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount()+charge+chargeTax)))
+                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
                             .transactionDate(lendingLedger.getDate())
                             .paymentTypeId(1)
                             .interestWaiverAmount(0.0)

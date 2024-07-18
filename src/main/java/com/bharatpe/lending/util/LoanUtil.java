@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PincodeColor;
@@ -43,6 +44,8 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -226,6 +229,9 @@ public class LoanUtil {
     @Autowired
 	ForeClosureConfigDao foreClosureDao;
 
+	@Autowired
+	LendingLoanInsuranceDao lendingLoanInsuranceDao;
+
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
 
@@ -253,6 +259,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
+
+	@Autowired
+	LenderAssociationStageFactory lenderAssociationStageFactory;
 
 	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
@@ -1343,6 +1352,16 @@ public class LoanUtil {
 		return prevLoanUnpaidAmount;
 	}
 
+	public double getForeClosureAmountForABFL(LendingPaymentSchedule lendingPaymentSchedule) {
+		Double netForeclosureAtLender = 0d;
+		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
+				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
+		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
+			netForeclosureAtLender = (Double) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+		}
+		return netForeclosureAtLender;
+	}
+
 	public void publishApplicationEvent(LendingApplication lendingApplication) {
 		try {
 			Map<String, Object> request = new HashMap<String, Object>() {{
@@ -2207,7 +2226,15 @@ public class LoanUtil {
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
+	public LendingLoanInsurance getInsuranceDetails(Long applicationId, String lender, String status) {
+		if (ObjectUtils.isEmpty(applicationId) || ObjectUtils.isEmpty(lender) || ObjectUtils.isEmpty(status)) {
+			return null;
+		}
 
-
+		return lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
+				applicationId,
+				lender,
+				status);
+	}
 }
 
