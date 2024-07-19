@@ -737,7 +737,7 @@ public class PaymentService {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request);
-            } else if ("transaction".equalsIgnoreCase(request.getEvent())) {
+            } else if ("transaction".equalsIgnoreCase(request.getEvent()) && request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
                 log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
                 LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
                 if (lendingPullPayment != null) {
