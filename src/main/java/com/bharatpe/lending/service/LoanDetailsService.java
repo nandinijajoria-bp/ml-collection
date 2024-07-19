@@ -1532,7 +1532,7 @@ public class LoanDetailsService {
 				lendingPaymentSchedule.getApplicationId(),
 				lendingPaymentSchedule.getNbfc(),
 				"SELECTED");
-		if (Objects.nonNull(lendingLoanInsurance)) {
+		if (!ObjectUtils.isEmpty(lendingLoanInsurance) && !ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocUrl())) {
 			insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(applicationId, INSURANCE_POLICY_DOC_PREFIX + applicationId);
 		}
 
