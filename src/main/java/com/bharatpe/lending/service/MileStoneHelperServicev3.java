@@ -350,7 +350,7 @@ public class MileStoneHelperServicev3 {
             log.info("LRV not found for merchantId: {}", merchant.getId());
             return false;
         }
-        if(RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus())) {
+        if(!ObjectUtils.isEmpty(entity) && RTESessionStatus.CLOSED.name().equalsIgnoreCase(entity.getSessionStatus())) {
             log.info("Session already closed for merchantId: {}", merchant.getId());
             return false;
         }
