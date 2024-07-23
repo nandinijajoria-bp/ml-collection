@@ -313,7 +313,7 @@ public class MileStoneProgramService {
                         }};
                         executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ENROLL_DONE.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
-                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, "rte_v3_enroll_done");
+                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL, responseDto.getProgramType());
                     }
                 }
 
@@ -491,13 +491,13 @@ public class MileStoneProgramService {
                     if (daysAfterEnroll == 7) {
                         executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_7DAYS.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
-                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, "rte_v3_active_7days");
+                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_7_DAYS, mileStoneResponse.getProgram_type());
                     }
 
                     if (daysAfterEnroll == 12) {
                         executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_12DAYS.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
-                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, "rte_v3_active_12days");
+                                FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, mileStoneResponse.getProgram_type());
                     }
                 }
             }
