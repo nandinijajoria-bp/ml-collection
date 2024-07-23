@@ -16,9 +16,12 @@ import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.InvokeLenderAssociationRequest;
+import com.bharatpe.lending.loanV3.dto.InvokeStageRequestDTO;
 import com.bharatpe.lending.loanV3.dto.LenderAssociationStatusResponse;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,10 +30,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 public abstract class LendingApplicationServiceV3Base {
@@ -59,6 +59,9 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Autowired
     SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
+
+    @Autowired
+    NbfcUtils nbfcUtils;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -307,4 +310,33 @@ public abstract class LendingApplicationServiceV3Base {
         return new ApiResponse<>(false, "something went wrong");
     }
 
+
+    public ApiResponse<?> invokeStageForLender(InvokeStageRequestDTO invokeStageRequest) {
+        try {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
+            log.info("lending application {}", lendingApplication.get());
+            if (ObjectUtils.isEmpty(lendingApplication.get())) {
+                log.info("no application found for {}", invokeStageRequest.getApplicationId());
+                return new ApiResponse<>(false, "No application found for given Id");
+            }
+            LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
+            lenderAssociationDetailsDto.setApplicationId(lendingApplication.get().getId());
+            lenderAssociationDetailsDto.setLendingApplication(lendingApplication.get());
+            lenderAssociationDetailsDto.setMerchantId(lendingApplication.get().getMerchantId());
+            lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                log.info("Lending application lender details not found for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                return new ApiResponse<>(false, "Lending application lender details not found for applicationId");
+            }
+            lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+            Boolean success = nbfcUtils.invokeSpecificStage(lendingApplication.get().getLender(), lenderAssociationDetailsDto, invokeStageRequest.getStage());
+            return new ApiResponse<>(success, invokeStageRequest.getStage() + " stage invoked for " + invokeStageRequest.getApplicationId());
+        } catch (Exception e) {
+            log.info("Exception in invoke stage {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something went wrong in invoking stage");
     }
+
+}
