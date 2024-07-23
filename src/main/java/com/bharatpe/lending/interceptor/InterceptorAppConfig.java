@@ -53,7 +53,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/v3/modify/application", "/lending/v3/callback/bre", "/lending/v3/callback/kyc", "/lending/v3/callback/drawdown", "/lending/v3/callback/sanction",
 						"/lending/v3/modifyLender", "/lending/v3/nextStage", "/lending/v3/callback/invoke/dataUpload", "/support/sendArcCommunication", "/lending/v3/test/**", "/lms/payment/details", "/lending/v3/callback/**",
 						"/lending/payment_link/**", "/lending/bank-statement/session/callback","/lending/liquiloan/backdated/loan", "/lending/gst3b/session/callback","/topup/close","/support/rte-program",
-						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible");
+						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible", "/lending/v3/invokeStage");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication",
