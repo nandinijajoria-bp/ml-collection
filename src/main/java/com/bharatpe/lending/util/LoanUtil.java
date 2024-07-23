@@ -681,7 +681,8 @@ public class LoanUtil {
 
 	public String getApplicationTatMessage(LendingApplication lendingApplication) {
 		if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
-				&& !"approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+				&& (ObjectUtils.isEmpty(lendingApplication.getNachStatus())
+				|| !"approved".equalsIgnoreCase(lendingApplication.getNachStatus()))) {
 			return PENDING_APPLICATION_TAT_TEXT;
 		}
 
@@ -728,7 +729,8 @@ public class LoanUtil {
 
 	public String getApplicationTatMessage(LendingApplicationSlave lendingApplication) {
 		if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())
-				&& !"approved".equalsIgnoreCase(lendingApplication.getNachStatus())) {
+				&& (ObjectUtils.isEmpty(lendingApplication.getNachStatus())
+				|| !"approved".equalsIgnoreCase(lendingApplication.getNachStatus()))) {
 			return PENDING_APPLICATION_TAT_TEXT;
 		}
 
