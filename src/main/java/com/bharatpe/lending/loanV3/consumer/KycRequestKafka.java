@@ -15,12 +15,14 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
+import com.bharatpe.lending.loanV3.services.associationsV2.AbflDocGenerateService;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -29,6 +31,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -76,9 +79,18 @@ public class KycRequestKafka {
     @Autowired
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
-    
+
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
+
+    @Autowired
+    AbflDocGenerateService abflDocGenerateService;
+
+    @Value("${lender.doc.generate.enabled.lenders:}")
+    String lenderDocGenerateEnabledLenders;
+
+    @Value("${lender.doc.generate.topup.enabled.lenders:}")
+    String lenderDocGenerateTopUpEnabledLenders;
 
     @KafkaListener(topics= "${abfl.kyc.topic:invoke_kyc}", concurrency = "5")
 
@@ -87,6 +99,7 @@ public class KycRequestKafka {
             concurrency = "5",
             autoStartup = "${kafka.confluent.consumer.new:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
+
     public void kycRequestListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
@@ -207,6 +220,13 @@ public class KycRequestKafka {
 
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())){
                 loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
+            }
+
+            boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.get().getLoanType()) ?
+                    lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.get().getLender());
+            if (generateLenderDoc) {
+                final LendingApplication finalLendingApplication = lendingApplication.get();
+                new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
             }
 
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
