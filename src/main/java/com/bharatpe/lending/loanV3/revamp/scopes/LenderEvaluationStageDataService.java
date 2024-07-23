@@ -54,7 +54,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
         if(loanUtilV3.isPreapprovedRepeatLoan(scopeDataArgs.getApplicationId())){
             lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         }
-        if(loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
+        else if(loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         }
         else{
