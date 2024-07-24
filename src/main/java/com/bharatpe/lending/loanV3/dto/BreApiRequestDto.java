@@ -51,7 +51,7 @@ public class BreApiRequestDto {
          String addressLine3;
          String city;
          String state;
-         Integer pincode;
+         Long pincode;
     }
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)

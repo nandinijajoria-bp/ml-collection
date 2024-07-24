@@ -38,9 +38,9 @@ public class LendingApplicationControllerV3 {
 
 
     @GetMapping("/application/creationStatus")
-    public ResponseEntity<ApiResponse<?>> applicationStatus(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) Long associationId) {
+    public ResponseEntity<ApiResponse<?>> applicationStatus(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) Long associationId, @RequestParam(required = false) String lenderKycStatus) {
         log.info("fetch application creation v3 status request for {} of merchant:{}", associationId, merchant.getId());
-        ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId());
+        ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId(), lenderKycStatus);
         log.info(" application creation status response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);
     }

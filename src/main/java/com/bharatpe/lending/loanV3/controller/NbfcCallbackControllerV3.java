@@ -178,4 +178,12 @@ public class NbfcCallbackControllerV3 {
         ApiResponse<?> response = insurancePolicyDocService.uploadInsurancePolicyDoc(nbfcResponseDto);
         return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
     }
+
+    @PostMapping("eKyc")
+    public ResponseEntity<ApiResponse<?>> listenEKycCallback(@RequestBody EKycCallbackResponseDto eKycCallbackResponseDto) throws JsonProcessingException {
+        log.info("eKyc callback received via controller {}", eKycCallbackResponseDto);
+        kycRequestKafka.eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc event consumed successfully !"));
+    }
+
 }

@@ -60,6 +60,7 @@ public interface LendingConstants {
 	String PAN_NAME = "/api/v1/internal/pan-verify";
 	String PAN_VERIFY = "/api/v3/pan-verify";
 	String PAN_FETCH = "/api/v3/pan-fetch";
+	String PAN_FETCH_INTERNAL = "/api/v3/internal/pan-fetch";
 	String APPLICATION_EVENT_TOPIC = "LENDING_EVENT_APPLICATION_UPDATE";
 	String APPLICATION_DS_EVENT_TOPIC = "LENDING_EVENT_DS_DATA";
   String CREDIT_CARD_STATUS_URL = "/credit_card/status?merchant_id=";
