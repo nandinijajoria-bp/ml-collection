@@ -1682,7 +1682,7 @@ public class LoanDetailsServiceV2 {
                         lendingMerchantReferences.setMerchantId(merchantId);
                         lendingMerchantReferences.setApplicationId(applicationId);
 
-                        if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() != 3) {
+                        if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
                             //For old flow update below parameters for 5/10 contacts, for 3 contacts - only name & number will be saved
                             lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
                             lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
