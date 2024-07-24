@@ -1207,6 +1207,10 @@ public class PaymentService {
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
                     transferType = "EXTERNAL";
             }
+            if("UPI_AUTOPAY".equals(source))
+            {
+                transferType="EXTERNAL";
+            }
 
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
                     .adjustExcessNach(false)
