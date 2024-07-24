@@ -1495,43 +1495,15 @@ public class LoanDetailsServiceV2 {
 
             if(lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
                 //new logic
-                Long referenceCount = lendingRiskVariablesSnapshot.getReferenceCount();
-                MerchantReferencesV2ResponseDto responseDto;
-                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-
-                if (!ObjectUtils.isEmpty(referenceCount) && referenceCount > 0) {
-                    log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
-
-                    if (Objects.isNull(lendingApplicationDetails)) {
-                        lendingApplicationDetails = new LendingApplicationDetails();
-                        lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-                        lendingApplicationDetailsDao.save(lendingApplicationDetails);
-                    }
-
-                    responseDto = MerchantReferencesV2ResponseDto.builder()
-                            .limit(referenceCount)
-                            .ineligible(false)
-                            .build();
-                } else {
-                    responseDto = MerchantReferencesV2ResponseDto.builder()
-                            .limit(null)
-                            .ineligible(true)
-                            .build();
-                }
-
-                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
-                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                    funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),
-                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-                }
-                else{
-                    funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),
-                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
-                }
-                return new ApiResponse<>(responseDto);
+                return handleNewContactReferenceLogic(merchantId, lendingRiskVariablesSnapshot, lendingApplication);
             }
 
             Long referencesLimit = getReferenceLimit(lendingApplication);
+            if (referencesLimit == 3L) {
+                return handleThreeReferencesLimit(merchantId, lendingApplication);
+            }
+
+            log.info("references limit for merchantId:{} {}", merchant.getId(), referencesLimit);
             Integer toBeShown = getToBeShownReferences(referencesLimit);
             MerchantReferencesResponseDto responseDto;
             DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
@@ -1583,20 +1555,65 @@ public class LoanDetailsServiceV2 {
                         references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
 
             }
-            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
-            if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                funnelService.submitEventV3(merchant.getId(), null, lendingApplication.getId(),
-                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-            }
-            else{
-                funnelService.submitEvent(merchant.getId(), null, lendingApplication.getId(),
-                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
-            }
+            submitFunnelEvent(merchantId, lendingApplication, FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED);
             return new ApiResponse<>(responseDto);
         } catch (Exception e) {
             log.error("Error occurred while fetching merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong while getting merchant references!");
+    }
+
+    private ApiResponse<?> handleNewContactReferenceLogic(Long merchantId, LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, LendingApplication lendingApplication) {
+        log.info("New contact reference version for merchantId: {}", merchantId);
+        Long referenceCount = lendingRiskVariablesSnapshot.getReferenceCount();
+        MerchantReferencesV2ResponseDto responseDto;
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
+        if (!ObjectUtils.isEmpty(referenceCount) && referenceCount > 0) {
+            log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
+
+            if (Objects.isNull(lendingApplicationDetails)) {
+                lendingApplicationDetails = new LendingApplicationDetails();
+                lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            }
+
+            responseDto = MerchantReferencesV2ResponseDto.builder()
+                    .limit(referenceCount)
+                    .ineligible(false)
+                    .build();
+        } else {
+            responseDto = MerchantReferencesV2ResponseDto.builder()
+                    .limit(null)
+                    .ineligible(true)
+                    .build();
+        }
+
+        submitFunnelEvent(merchantId, lendingApplication, FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED);
+        return new ApiResponse<>(responseDto);
+    }
+
+    private ApiResponse<?> handleThreeReferencesLimit(Long merchantId, LendingApplication lendingApplication) {
+        log.info("3 references required for merchantId: {}", merchantId);
+        MerchantReferencesV2ResponseDto responseDto = MerchantReferencesV2ResponseDto.builder()
+                .limit(3L)
+                .ineligible(false)
+                .build();
+
+        submitFunnelEvent(merchantId, lendingApplication, FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED);
+        return new ApiResponse<>(responseDto);
+    }
+
+    private void submitFunnelEvent(Long merchantId, LendingApplication lendingApplication, FunnelEnums.StageId stageId, FunnelEnums.StageEvent stageEvent) {
+        LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId);
+        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+            funnelService.submitEventV3(merchantId, null, lendingApplication.getId(),
+                    stageId, stageEvent, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+        }
+        else{
+            funnelService.submitEvent(merchantId, null, lendingApplication.getId(),
+                    stageId, stageEvent, LocalDateTime.now().toString());
+        }
     }
 
     public ApiResponse<?> validateMerchantReferences(BasicDetailsDto merchant, List<ValidateMerchantReferencesRequestDto> referenceList) {
