@@ -27,6 +27,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -274,6 +275,15 @@ public class LiquiloansService {
 
     @Autowired
     LendingConsentDao lendingConsentDao;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Value("${sameDayEdiAdjusment.rollout.percent:0}")
+    Integer sameDayEdiAdjustmentRolloutPercent;
+
+    @Value("${sameDayEdiAdjusment.eligible.lenders:}")
+    String sameDayEdiAdjustmentEligibleLenders;
 
     public void publishForDisbursal(Long lendingAppId) {
 
@@ -829,6 +839,8 @@ public class LiquiloansService {
         if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
+        }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
+            createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
         }
 
         postPayoutResponseDto.setLoanStartDate(lendingPaymentSchedule.getStartDate());
@@ -1029,6 +1041,34 @@ public class LiquiloansService {
         lendingLedger.setDescription(description);
         return lendingLedger;
     }
+
+    private void createFirstDueForSameDayEdiAdjustment(LendingPaymentSchedule lendingPaymentSchedule) {
+        List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLoanIdAndInstallmentNumber(lendingPaymentSchedule.getId(), 1);
+        Double dueAmount = lendingPaymentSchedule.getDueAmount();
+        Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
+        Double dueInterest = lendingPaymentSchedule.getDueInterest();
+        LendingEDISchedule firstEdiSchedule = null;
+        for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
+            if(lendingEDISchedule.getInstallmentNumber() == 1){
+                firstEdiSchedule = lendingEDISchedule;
+            }
+        }
+        dueAmount+= firstEdiSchedule.getTotalEdi();
+        dueInterest+= firstEdiSchedule.getInterest();
+        duePrinciple+= firstEdiSchedule.getPrinciple();
+        LendingLedger lendingLedger =  createLendingLedger(lendingPaymentSchedule, firstEdiSchedule.getDate(),
+                Status.LendingTransactionType.EDI.toString(),
+                -firstEdiSchedule.getTotalEdi().doubleValue(), -firstEdiSchedule.getPrinciple(),
+                -firstEdiSchedule.getInterest(), -0D,
+                0D, null);
+        lendingPaymentSchedule.setDueAmount(dueAmount);
+        lendingPaymentSchedule.setDueInterest(dueInterest);
+        lendingPaymentSchedule.setDuePrinciple(duePrinciple);
+        lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  1);
+        lendingLedgerDao.save(lendingLedger);
+        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+    }
+
 
 
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
