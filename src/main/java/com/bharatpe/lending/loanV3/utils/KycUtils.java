@@ -4,6 +4,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
@@ -299,7 +300,7 @@ public class KycUtils {
                         PoaXmlDTO.Poi poi = poaData.getKycRes().getUidData().getPoi();
                         PoaXmlDTO.Poa poa = poaData.getKycRes().getUidData().getPoa();
                         cKycResponseDto.setAadharNumber(poaData.getKycRes().getUidData().getUid());
-                        cKycResponseDto.setDob(poi.getDob());
+                        cKycResponseDto.setDob(DateTimeUtil.formatDate(poi.getDob(), "dd-MM-yyyy", "dd/MM/yyyy"));
                         cKycResponseDto.setName(poi.getName());
                         cKycResponseDto.setGender(poi.getGender());
                         String address = poa.getCo() + "," + poa.getHouse() + "," + poa.getPo() + "," + poa.getVtc() + "," + poa.getSubdist() + ","
