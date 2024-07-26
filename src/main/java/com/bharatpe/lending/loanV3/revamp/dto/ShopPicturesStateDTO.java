@@ -12,4 +12,6 @@ public class ShopPicturesStateDTO {
     private Long applicationId;
     private Boolean resubmitState = false;
     private String lender;
+    private Boolean lenderKycPipe;
+    private Boolean lenderAssc;
 }

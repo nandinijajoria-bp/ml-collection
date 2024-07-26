@@ -24,7 +24,7 @@ public class AbflKycServiceV2 {
     @Transactional
     public void invokeKycViaAsyncApi(Map<String,String> request) {
         try{
-            kycRequestKafka.kycRequestListener(objectMapper.writeValueAsString(request));
+            kycRequestKafka.eKycRequestListener(objectMapper.writeValueAsString(request));
         } catch (Exception e) {
             log.error("exception occurred while initiating kyc v2 workflow for  {}", request);
         }

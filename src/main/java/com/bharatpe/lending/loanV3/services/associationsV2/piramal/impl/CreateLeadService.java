@@ -6,7 +6,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
+import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.enums.StateMapping;
@@ -16,7 +16,6 @@ import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.Invok
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
