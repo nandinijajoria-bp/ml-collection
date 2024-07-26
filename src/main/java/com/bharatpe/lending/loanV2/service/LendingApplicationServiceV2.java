@@ -43,10 +43,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
-import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
-import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
-import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeRequestDto;
-import com.bharatpe.lending.loanV3.dto.TLUpdateLeadDowngradeResponseDto;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
@@ -3493,6 +3490,21 @@ public class LendingApplicationServiceV2 {
                         lendingGstDetail.setAddressType("Same");
                     }
                 }
+                if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
+                    LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+                    if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                        CKycResponseDto cKycResponseDto = kycUtils.parsePoaXML(lendingApplicationKycDetails.getAadharXml(), merchant.getId(), new CKycResponseDto(), applicationId, false);
+                        if(!ObjectUtils.isEmpty(cKycResponseDto.getAddress())) {
+                            lendingGstDetail.setAddress1(cKycResponseDto.getAddress());
+                            lendingGstDetail.setCity(cKycResponseDto.getCity());
+                            lendingGstDetail.setPincode(cKycResponseDto.getPincode());
+                            lendingGstDetail.setState(cKycResponseDto.getState());
+                            lendingGstDetail.setAddress2(null);
+                            lendingGstDetail.setLandmark(null);
+                            lendingGstDetail.setAddressType("Same");
+                        }
+                    }
+                }
                 log.info("Updating current address details as aadhaar address of applicationId {} and merchantId {}", applicationId, merchant.getId());
             } else {
 
@@ -3547,6 +3559,24 @@ public class LendingApplicationServiceV2 {
                     dto.setGender(kycDoc.getGender());
                     dto.setAadharNumber(kycDoc.getDocIdentifier());
                     return new ApiResponse<>(dto);
+                }
+            }
+            if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+                if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                    CKycResponseDto cKycResponseDto = kycUtils.parsePoaXML(lendingApplicationKycDetails.getAadharXml(), merchant.getId(), new CKycResponseDto(), applicationId, false);
+                    if(!ObjectUtils.isEmpty(cKycResponseDto.getAddress())) {
+                        AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();
+                        dto.setAddress(cKycResponseDto.getAddress());
+                        dto.setCity(cKycResponseDto.getCity());
+                        dto.setPincode(cKycResponseDto.getPincode());
+                        dto.setState(cKycResponseDto.getState());
+                        dto.setName(cKycResponseDto.getName());
+                        dto.setDob(cKycResponseDto.getDob());
+                        dto.setGender(cKycResponseDto.getGender());
+                        dto.setAadharNumber(cKycResponseDto.getAadharNumber());
+                        return new ApiResponse<>(dto);
+                    }
                 }
             }
         } catch (Exception e) {

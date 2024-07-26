@@ -1,4 +1,4 @@
-package com.bharatpe.lending.loanV3;
+package com.bharatpe.lending.loanV3.dto;
 
 import lombok.*;
 
