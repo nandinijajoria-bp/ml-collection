@@ -399,7 +399,7 @@ public class KycRequestKafka {
                     lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(),Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) ||
                     !eKycCallbackResponseDto.getLender().equalsIgnoreCase(existingLendingApplicationLenderDetails.getLender())
-                    || !LenderAssociationStatus.EKYC_IN_PROGRESS.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getKycStatus())) {
+                    || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED).contains(existingLendingApplicationLenderDetails.getKycStatus())) {
                 log.info("lender mismatch while callback ack / callback already received for eKyc in application {}", lendingApplication.get().getId());
                 return;
             }
