@@ -738,26 +738,31 @@ public class PaymentService {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request);
             } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
-                log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
-                LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
-                if (lendingPullPayment != null) {
-                    if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
-                        Long loanId = lendingPullPayment.getLoanId();
-                        String lockKey = "lock:loanId:" + loanId;
-                        if (lendingCache.acquireLock(lockKey, autoPayUpiLockTimeout)) {
-                            handleUpiAutoPaySucessOrder(request, lendingPullPayment);
+                try {
+                    log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
+                    LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
+                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId()).get();
+                    if (lendingPullPayment != null && !"LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                        if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
+                            Long loanId = lendingPullPayment.getLoanId();
+                            String lockKey = "lock:loanId:" + loanId;
+                            if (lendingCache.acquireLock(lockKey, autoPayUpiLockTimeout)) {
+                                handleUpiAutoPaySucessOrder(request, lendingPullPayment);
+                                lendingPullPayment.setStatus(request.getPaymentStatus());
+                                lendingPullPaymentDao.save(lendingPullPayment);
+                            } else {
+                                return "OK";
+                            }
+                        } else {
                             lendingPullPayment.setStatus(request.getPaymentStatus());
                             lendingPullPaymentDao.save(lendingPullPayment);
-                        } else {
                             return "OK";
                         }
-                    } else {
-                        lendingPullPayment.setStatus(request.getPaymentStatus());
-                        lendingPullPaymentDao.save(lendingPullPayment);
-                        return "OK";
                     }
+                    return "OK";
+                }catch (Exception e){
+                    logger.error("Exception occurred while progressing autopay callback {} {}",e.getMessage(), Arrays.asList(e.getStackTrace()));
                 }
-                return "OK";
             }
         }
 
