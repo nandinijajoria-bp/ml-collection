@@ -79,9 +79,6 @@ public class AutoPayUPIService {
     @Autowired
     APIGatewayService apiGatewayService;
 
-    @Value("${autopayupi.checkout.type:JUSPAY}")
-    private String autoPayUpiCheckoutType;
-
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -291,7 +288,7 @@ public class AutoPayUPIService {
 
                 registerPgRequest.setNarration("Register mandate with orderId" + autoPayUPI.getOrderId());
                 registerPgRequest.setOrderId(autoPayUPI.getOrderId());
-                registerPgRequest.setCheckout(autoPayUpiCheckoutType);
+                registerPgRequest.setCheckout("JUSPAY");
 
                 Calendar currentTimeNow = Calendar.getInstance();
                 System.out.println("Current time now : " + currentTimeNow.getTime());
