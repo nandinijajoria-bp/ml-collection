@@ -627,8 +627,8 @@ public class LoanDashboardService {
             rejectionReason = openApplication.getPhysicalReason();
         }
         if("ABFL".equalsIgnoreCase(openApplication.getLender())){
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(openApplication.getId(), openApplication.getLender());
-            if (LenderAssociationStatus.DOC_GENERATE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(openApplication.getId(), openApplication.getLender());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStatus.DOC_GENERATE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
                 rejectionReason = "FORCE_REJECT_LENDER_DOC_GENERATE_FAILED";
             }
         }
