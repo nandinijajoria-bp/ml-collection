@@ -16,4 +16,8 @@ public class LenderAssociationStatusResponse {
     LenderAssociationStatus status;
     Boolean ediModelModified;
     String lender;
+    Boolean showBpKycPage;
+    String lenderKycRedirectionUrl;
+    Boolean lenderKycRetry;
+    String prevLender;
 }

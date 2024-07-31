@@ -2,10 +2,7 @@ package com.bharatpe.lending.loanV3.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV3.dto.InvokeLenderAssociationRequest;
-import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
-import com.bharatpe.lending.loanV3.dto.ModifyLenderDto;
-import com.bharatpe.lending.loanV3.dto.PushApplicationNextStageDto;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.ModifyStageService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
@@ -13,6 +10,7 @@ import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
@@ -40,9 +38,9 @@ public class LendingApplicationControllerV3 {
 
 
     @GetMapping("/application/creationStatus")
-    public ResponseEntity<ApiResponse<?>> applicationStatus(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) Long associationId) {
+    public ResponseEntity<ApiResponse<?>> applicationStatus(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) Long associationId, @RequestParam(required = false) String lenderKycStatus) {
         log.info("fetch application creation v3 status request for {} of merchant:{}", associationId, merchant.getId());
-        ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId());
+        ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId(), lenderKycStatus);
         log.info(" application creation status response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);
     }
@@ -84,6 +82,14 @@ public class LendingApplicationControllerV3 {
         log.info("fetch loan details request for {}", applicationId);
         ApiResponse<?> response = new ApiResponse<>(piramalGetLoanDetails.getLoanDetails(applicationId));
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/invokeStage")
+    public ResponseEntity<?> invokeStage(@RequestBody InvokeStageRequestDTO invokeStageRequest) {
+        log.info("initiated the invoke stage request {}", invokeStageRequest);
+        ApiResponse<?> response = lendingApplicationServiceV3.invokeStageForLender(invokeStageRequest);
+        HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(response);
     }
 
 }

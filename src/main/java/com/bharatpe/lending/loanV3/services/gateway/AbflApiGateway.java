@@ -59,6 +59,9 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
     String nbfcPennyDropUrl;
 
+    @Value("${nbfc.kyc.api:api/v3/lender/eKyc}")
+    String nbfcEKycUrl;
+
     @Value("${nbfc.pennydrop.read.timeout:30000}")
     int nbfcPennyDropReadTimeout;
 
@@ -156,6 +159,15 @@ public class AbflApiGateway extends INbfcLenderGateway {
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(pennyDropRequestDTO), ABFLPennyDropResponseDTO.class,nbfcBaseUrl+nbfcPennyDropUrl, nbfcPennyDropReadTimeout);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while fetching pennyDropRequestDTO to nbfc svc for {}", pennyDropRequestDTO, e);
+        }
+        return null;
+    }
+
+    public EKycApiResponseDto invokeEKyc(EKycRequestApiDto eKycRequestApiDto) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(eKycRequestApiDto), EKycApiResponseDto.class,nbfcBaseUrl+nbfcEKycUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while processing eKyc api call to nbfc svc for {}",eKycRequestApiDto, e);
         }
         return null;
     }

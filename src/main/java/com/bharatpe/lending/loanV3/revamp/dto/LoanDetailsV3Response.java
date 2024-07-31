@@ -56,6 +56,7 @@ public class LoanDetailsV3Response {
 
     private String lender;
     private Double interestRate;
+    private Double annualRoi;
     private Integer arrangerFee;
     private Double disbursalAmount;
     private String tenure;
@@ -84,6 +85,7 @@ public class LoanDetailsV3Response {
     private String offerIncreased;
     private Double previousFinalOffer;
 
+    private Boolean lenderKycPipe;
 
     @Data
     @ToString
@@ -180,6 +182,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setShowKycPage(kycStateDTO.getShowKycPage());
         loanDetailsV3Response.setIsSelfieResumit(kycStateDTO.isSelfieResumit());
         loanDetailsV3Response.setLender(kycStateDTO.getLender());
+        loanDetailsV3Response.setLenderKycPipe(kycStateDTO.isLenderKycPipe());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());
@@ -218,6 +221,7 @@ public class LoanDetailsV3Response {
 
         loanDetailsV3Response.setLender(agreementStateDTO.getLender());
         loanDetailsV3Response.setInterestRate(agreementStateDTO.getInterestRate());
+        loanDetailsV3Response.setAnnualRoi(agreementStateDTO.getAnnualRoi());
         loanDetailsV3Response.setArrangerFee(agreementStateDTO.getArrangerFee());
         loanDetailsV3Response.setDisbursalAmount(agreementStateDTO.getDisbursalAmount());
         loanDetailsV3Response.setTenure(agreementStateDTO.getTenure());
@@ -252,8 +256,10 @@ public class LoanDetailsV3Response {
     private static void setShopPicturesResponse(ShopPicturesStateDTO shopPicturesStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setDummyMerchant(shopPicturesStateDTO.isDummyMerchant());
         loanDetailsV3Response.setLender(shopPicturesStateDTO.getLender());
+        loanDetailsV3Response.setLenderKycPipe(shopPicturesStateDTO.getLenderKycPipe());
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setApplicationId(shopPicturesStateDTO.getApplicationId());
+        applicationDetails.setLenderAssc(shopPicturesStateDTO.getLenderAssc());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
 

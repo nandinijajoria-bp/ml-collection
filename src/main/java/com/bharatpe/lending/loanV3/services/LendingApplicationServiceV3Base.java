@@ -4,7 +4,9 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -15,22 +17,22 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.dto.InvokeLenderAssociationRequest;
-import com.bharatpe.lending.loanV3.dto.LenderAssociationStatusResponse;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.util.ObjectUtils;
 
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 public abstract class LendingApplicationServiceV3Base {
@@ -60,9 +62,20 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     SherlocLoanStatusChangeService sherlocLoanStatusChangeService;
 
+    @Lazy
+    @Autowired
+    NbfcUtils nbfcUtils;
+
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
+
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
-    public ApiResponse<?> fetchApplicationStatus(Long merchantId) {
+    public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus) {
         LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
             LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
@@ -90,9 +103,18 @@ public abstract class LendingApplicationServiceV3Base {
             invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
             invokeLenderAssociationRequest.setForceEnable(false);
             initLenderAssociation(invokeLenderAssociationRequest);
-        }
-        else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            return new ApiResponse<>(false,"lead creation triggered ! Please retry for status in few minutes");
+        } else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            if (checkForBPKycRequired(currentDraftApplication)) {
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
+                        .stage(LenderAssociationStages.LENDER_CHANGE)
+                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                        .lender(currentDraftApplication.getLender())
+                        .showBpKycPage(Boolean.TRUE)
+                        .prevLender(getPrevLender(currentDraftApplication))
+                        .build());
+            }
+            return new ApiResponse<>(false, "lead creation triggered ! Please retry for status in few minutes");
         } else {
             if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
@@ -116,16 +138,69 @@ public abstract class LendingApplicationServiceV3Base {
                         .lender(currentDraftApplication.getLender())
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                         .stage(LenderAssociationStages.KYC)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
+                        .lenderKycRedirectionUrl(lenderKycRedirectionUrl)
+                        .prevLender(!ObjectUtils.isEmpty(lenderKycRedirectionUrl) ? getPrevLender(currentDraftApplication) : null)
+                        .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
                         .build());
             }
         }
         return new ApiResponse<>(false,"something went wrong");
     }
+
+    public Boolean checkForBPKycRequired(LendingApplication currentDraftApplication) {
+        LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.INACTIVE.name());
+        if (ObjectUtils.isEmpty(prevLenderDetails) || nbfcUtils.bharatPeKycLenderAlreadyAssigned(currentDraftApplication.getId(), currentDraftApplication.getMerchantId())
+                || kycUtils.isELigibleForLenderKyc(currentDraftApplication.getLender(), currentDraftApplication.getMerchantId())) {
+            log.info("BP Kyc already done for applicationId {}", currentDraftApplication.getId());
+            return false;
+        }
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(currentDraftApplication.getId(), currentDraftApplication.getLender());
+        if (!ObjectUtils.isEmpty(lendingApplicationKycDetails) && !ObjectUtils.isEmpty(lendingApplicationKycDetails.getConsentDate())) {
+            log.info("BP Kyc already done for applicationId {} with lender {}", currentDraftApplication.getId(), currentDraftApplication.getLender());
+            return false;
+        }
+        return true;
+    }
+
+    private String getLenderKycRedirectionUrl(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String lenderKycStatus) {
+        try {
+            if (kycUtils.isELigibleForLenderKyc(lendingApplicationLenderDetails.getLender(), lendingApplication.getMerchantId())) {
+                if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
+                        && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycMode())
+                        && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
+                    if (LenderAssociationStatus.EKYC_INITIATED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())
+                            || (!ObjectUtils.isEmpty(lenderKycStatus) && "PENDING".equalsIgnoreCase(lenderKycStatus))) {
+                        String lenderKycUrl = lendingApplicationLenderDetails.getNbfcKycAsyncId();
+                        lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_IN_PROGRESS.name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        return lenderKycUrl;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.info("Exception in getting {} kyc redirectionUrl for  applicationId {} {} ", lendingApplicationLenderDetails.getLender(), lendingApplicationLenderDetails.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    private String getPrevLender(LendingApplication lendingApplication) {
+        try {
+            LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.INACTIVE.name());
+            if (!ObjectUtils.isEmpty(prevLenderDetails)) {
+                return prevLenderDetails.getLender();
+            }
+        } catch (Exception e) {
+            log.info("Exception in checking lender kyc required check for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
     private String getWrapperStage(String stage) {
         switch (stage) {
             case "ASSC_COMPLETED":
@@ -307,4 +382,33 @@ public abstract class LendingApplicationServiceV3Base {
         return new ApiResponse<>(false, "something went wrong");
     }
 
+
+    public ApiResponse<?> invokeStageForLender(InvokeStageRequestDTO invokeStageRequest) {
+        try {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
+            log.info("lending application {}", lendingApplication.get());
+            if (ObjectUtils.isEmpty(lendingApplication.get())) {
+                log.info("no application found for {}", invokeStageRequest.getApplicationId());
+                return new ApiResponse<>(false, "No application found for given Id");
+            }
+            LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
+            lenderAssociationDetailsDto.setApplicationId(lendingApplication.get().getId());
+            lenderAssociationDetailsDto.setLendingApplication(lendingApplication.get());
+            lenderAssociationDetailsDto.setMerchantId(lendingApplication.get().getMerchantId());
+            lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                log.info("Lending application lender details not found for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                return new ApiResponse<>(false, "Lending application lender details not found for applicationId");
+            }
+            lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+            Boolean success = nbfcUtils.invokeSpecificStage(lendingApplication.get().getLender(), lenderAssociationDetailsDto, invokeStageRequest.getStage());
+            return new ApiResponse<>(success, invokeStageRequest.getStage() + " stage invoked for " + invokeStageRequest.getApplicationId());
+        } catch (Exception e) {
+            log.info("Exception in invoke stage {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something went wrong in invoking stage");
     }
+
+}

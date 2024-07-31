@@ -904,16 +904,17 @@ public class LiquiloansService {
                 lendingApplication.getLender(),
                 "SELECTED");
 
-        if (ObjectUtils.isEmpty(lendingConsent) && ObjectUtils.isEmpty(lendingLoanInsurance)) {
+        if (ObjectUtils.isEmpty(lendingConsent)) {
             return;
         }
 
         FunnelEnums.StageEvent event;
-        if (lendingConsent.getIsAccepted()) {
+        if (lendingConsent.getIsAccepted() && !ObjectUtils.isEmpty(lendingLoanInsurance)) {
             event = FunnelEnums.StageEvent.ACCEPT;
         } else {
             event = FunnelEnums.StageEvent.REJECT;
         }
+        logger.info("Insurance is: {} for merchant: {}", event.name(), lendingLoanInsurance.getApplicationId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
@@ -2139,7 +2140,7 @@ public class LiquiloansService {
             if(!ObjectUtils.isEmpty(lendingKfs.getSignedKfsDocUrl()) && !ObjectUtils.isEmpty(lendingKfs.getSignedSanctionDocUrl())) {
                 logger.info("Signed docs already exists for applicationId : {}", lendingApplication.getId());
             }
-            Boolean success = associationServiceUtil.invokeFetchSignedDocsService(lendingApplication.getLender(), lendingApplication);
+            Boolean success = associationServiceUtil.invokeDocsGenerateService(lendingApplication.getLender(), lendingApplication, null, false);
             if(success) {
                 logger.info("Successfully fetched and saved signed docs of {} for application {}", lendingApplication.getLender(), lendingApplication.getId());
             }

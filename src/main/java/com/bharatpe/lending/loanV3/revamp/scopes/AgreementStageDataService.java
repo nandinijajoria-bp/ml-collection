@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingConsent;
 import com.bharatpe.lending.common.entity.LendingLoanInsurance;
@@ -13,6 +14,10 @@ import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -39,6 +44,10 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.util.Objects;
+import java.util.Optional;
 
 @Component
 @Slf4j
@@ -60,6 +69,10 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     LendingApplicationServiceV3 lendingApplicationServiceV3;
 
     @Autowired
+    @Lazy
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
     LendingLoanInsuranceDao lendingLoanInsuranceDao;
 
     @Autowired
@@ -70,10 +83,6 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
     @Autowired
     PiramalApiGateway piramalApiGateway;
-
-    @Autowired
-    @Lazy
-    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
     LendingKfsDao lendingKfsDao;
@@ -112,6 +121,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), piramalInsuranceRolloutPercent)) {
             List<LoanInsuranceDTO> oldInsurances = isInsuredBefore(lendingApplication);
             if (!ObjectUtils.isEmpty(oldInsurances) && ObjectUtils.isEmpty(insurances) && ObjectUtils.isEmpty(isInsured)) {
+                log.info("Merchant: {} is insured before for the application id: {} and insurance: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), oldInsurances);
                 insurances = oldInsurances;
                 isInsured = true;
             } else {
@@ -125,11 +135,14 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
         }
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+
         AgreementStateDTO agreementResponseV3 = AgreementStateDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())
                 .loanAmount(lendingApplication.getLoanAmount())
                 .interestRate(lendingApplication.getInterestRate())
+                .annualRoi(getAnnualRoi(lendingApplicationLenderDetails, lendingApplication))
                 .arrangerFee(lendingApplication.getProcessingFee().intValue())
                 .disbursalAmount(lendingApplication.getDisbursalAmount())
                 .tenure(lendingApplication.getTenure())
@@ -272,7 +285,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     }
 
     public void saveInsurancePremiums(LendingApplication lendingApplication, List<LoanInsuranceDTO> insurances, Boolean isInsured) {
-
+        log.info("Saving Insurance Premiums where isInsured: {} and insurances: {}", isInsured, insurances);
         List<LendingLoanInsurance> loanInsurances = lendingLoanInsuranceDao.findAllByApplicationIdAndLender(
                 lendingApplication.getId(), lendingApplication.getLender());
 
@@ -326,5 +339,40 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 lendingConsentDao.save(lendingConsent);
             }
         }
+    }
+
+    public Double getAnnualRoi(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication){
+
+        // for old lenders
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
+            lendingApplicationLenderDetails.setApplicationId(lendingApplication.getId());
+            lendingApplicationLenderDetails.setLender(lendingApplication.getLender());
+            lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
+            lendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.OLD_MODEL.name());
+            lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.OLD_MODEL.name());
+            lendingApplicationLenderDetails.setStage(LenderAssociationStages.COMPLETED.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        }
+
+        if(lendingApplicationLenderDetails.getAnnualRoi() == null){
+
+            DecimalFormat df = new DecimalFormat("#.##");
+            df.setRoundingMode(RoundingMode.DOWN);
+
+            Double annualRoi = Double.valueOf(df.format(
+                    lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(),
+                            LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.getLender())));
+
+            lendingApplicationLenderDetails.setAnnualRoi(annualRoi);
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
+            log.info("Calculated AnnualRoi {}", annualRoi);
+
+            return annualRoi;
+
+        }
+
+        return lendingApplicationLenderDetails.getAnnualRoi();
     }
 }

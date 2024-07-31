@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.RejectionReason;
 import com.bharatpe.lending.common.enums.RejectionStage;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
@@ -220,6 +221,9 @@ public class LoanDashboardService {
 
     @Autowired
     MileStoneDao mileStoneDao;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -622,6 +626,13 @@ public class LoanDashboardService {
 //            rejectionMessage = easyLoanUtil.getRejectionMessage(openApplication.getPhysicalReason(), RejectionStage.QC);
             rejectionReason = openApplication.getPhysicalReason();
         }
+        if("ABFL".equalsIgnoreCase(openApplication.getLender())){
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(openApplication.getId(), openApplication.getLender());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStatus.DOC_GENERATE_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
+                rejectionReason = "FORCE_REJECT_LENDER_DOC_GENERATE_FAILED";
+            }
+        }
+
         rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
         rejectionStateDto.setRejectionReason(rejectionReason);
         rejectionStateDto.setRejectionMessage(rejectionMessage);

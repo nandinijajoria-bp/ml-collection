@@ -359,6 +359,7 @@ public class PaymentService {
                 .getLenderAssociationService(activeLoan.getNbfc());
         if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
             netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+            if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
             finalForeclosureAtLender = netForeclosureAtLender;
             netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
         }
@@ -1220,6 +1221,11 @@ public class PaymentService {
             if("UPI_AUTOPAY".equals(source))
             {
                 transferType="EXTERNAL";
+            }
+
+            if (source == null) {
+                source = "UPI";
+                transferType = "EXTERNAL";
             }
 
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
@@ -2247,7 +2253,7 @@ public class PaymentService {
                             .loanAccounts(lendingApplicationLenderDetails.getLan())
                             .note("Foreclosure")
                             .preClosureReasonId(192)
-                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount()+charge+chargeTax)))
+                            .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
                             .transactionDate(lendingLedger.getDate())
                             .paymentTypeId(1)
                             .interestWaiverAmount(0.0)
