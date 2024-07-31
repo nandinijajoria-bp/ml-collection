@@ -105,6 +105,7 @@ import org.springframework.util.StringUtils;
 import javax.transaction.Transactional;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
+import static com.bharatpe.lending.constant.CommonConstants.AUTO_PAY_SETTLEMENT;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
 import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
@@ -733,11 +734,13 @@ public class PaymentService {
 
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
+        log.info("Pg callback reciverd from pg {}",request);
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request);
             } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
+                log.info("inside settlement of amount of autopay upi presentment");
                 try {
                     log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
                     LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
@@ -745,12 +748,14 @@ public class PaymentService {
                     if (lendingPullPayment != null && !"LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                         if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
                             Long loanId = lendingPullPayment.getLoanId();
-                            String lockKey = "lock:loanId:" + loanId;
+                            String lockKey = AUTO_PAY_SETTLEMENT + loanId;
                             if (lendingCache.acquireLock(lockKey, autoPayUpiLockTimeout)) {
+                                log.info("Acquired lock on lockKey {} , loanId {}",lockKey,loanId);
                                 handleUpiAutoPaySucessOrder(request, lendingPullPayment);
                                 lendingPullPayment.setStatus(request.getPaymentStatus());
                                 lendingPullPaymentDao.save(lendingPullPayment);
                             } else {
+                                log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
                                 return "OK";
                             }
                         } else {
