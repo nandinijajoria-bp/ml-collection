@@ -322,7 +322,7 @@ public class PaymentService {
             }
             return getPaymentDetailsForActiveLoan(activeLoan);
         } catch(Exception ex) {
-            logger.error("Execption while fetching payment details for merchant id {}, Exception is {}", merchant.getId(), ex);
+            logger.error("Execption while fetching payment details for merchant id {}, Exception is {} {}", merchant.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new PaymentDetailsResponseDTO("Something went wrong.");
     }
@@ -546,7 +546,7 @@ public class PaymentService {
             data.setPaymentLink(response.getData().getPaymentURIDeeplink());
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id {}", merchantBasicDetails.getId(), ex);
+            logger.error("Exception while initiating payment for merchant id {} {} {}", merchantBasicDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
@@ -687,7 +687,7 @@ public class PaymentService {
             data.setPsps(psps);
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id {}", merchantBasicDetails.getId(), ex);
+            logger.error("Exception while initiating payment for merchant id {} {} {}", merchantBasicDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
@@ -2641,7 +2641,7 @@ public class PaymentService {
             }
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id:{},Exception:{}",merchantId, ex);
+            logger.error("Exception while initiating payment for merchant id:{},Exception:{} {}",merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
