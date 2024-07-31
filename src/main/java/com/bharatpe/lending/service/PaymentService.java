@@ -727,7 +727,7 @@ public class PaymentService {
             loanPaymentOrderDao.save(order);
             loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
         } catch(Exception ex) {
-            logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
+            logger.error("Exception in payment callback for order id {} {} {}", request.getOrderId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return "OK";
     }
@@ -765,7 +765,7 @@ public class PaymentService {
                         }
                     }
                     return "OK";
-                }catch (Exception e){
+                } catch (Exception e){
                     logger.error("Exception occurred while progressing autopay callback {} {}",e.getMessage(), Arrays.asList(e.getStackTrace()));
                 }
             }
@@ -855,7 +855,7 @@ public class PaymentService {
                     order.setStatus("PENDING");
                     loanPaymentOrderDao.save(order);
                 }
-                logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
+                logger.error("Exception in payment callback for order id {} {} {}", request.getOrderId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             }
             logger.info("final order id : {}  callback payments status is pg callback for request: {}", order.getOrderId(), order.getStatus());
             if (order != null && !CreditConstants.PaymentStatus.PENDING.name().equalsIgnoreCase(order.getStatus())) {
