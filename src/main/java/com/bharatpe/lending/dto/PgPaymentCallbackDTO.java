@@ -22,6 +22,8 @@ public class PgPaymentCallbackDTO {
     private List<Payments> payments;
     private String event;
     private Mandate mandate;
+    private String errorCode;
+    private String errorDescription;
 
 
     @Data
