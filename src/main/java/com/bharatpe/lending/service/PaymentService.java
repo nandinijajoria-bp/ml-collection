@@ -744,11 +744,18 @@ public class PaymentService {
                 log.info("inside settlement of amount of autopay upi presentment");
                 try {
                     log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
-                    LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
-                    LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId()).get();
-                    if(lendingPullPayment == null){
-                        logger.error("Order not found in mandate settlement transaction for orderId {} and loanId {}",request.getOrderId(),lendingPullPayment.getLoanId());
+                    Optional<LendingPullPayment> optionalLendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId()));
+                    if (!optionalLendingPullPayment.isPresent()) {
+                        logger.error("Order not found in mandate settlement transaction for orderId {}",request.getOrderId());
+                        return "OK";
                     }
+                    LendingPullPayment lendingPullPayment = optionalLendingPullPayment.get();
+                    Optional<LendingPaymentSchedule> optionalLendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
+                    if(!optionalLendingPaymentSchedule.isPresent()){
+                        logger.error("LPS not found in mandate settlement transaction for request {}",request);
+                        return "OK";
+                    }
+                    LendingPaymentSchedule lendingPaymentSchedule = optionalLendingPaymentSchedule.get();
                     if (lendingPullPayment != null && !"LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                         if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
                             Long loanId = lendingPullPayment.getLoanId();
