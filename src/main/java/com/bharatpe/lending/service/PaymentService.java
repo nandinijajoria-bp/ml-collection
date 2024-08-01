@@ -746,6 +746,9 @@ public class PaymentService {
                     log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
                     LendingPullPayment lendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId())).get();
                     LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId()).get();
+                    if(lendingPullPayment == null){
+                        logger.error("Order not found in mandate settlement transaction for orderId {} and loanId {}",request.getOrderId(),lendingPullPayment.getLoanId());
+                    }
                     if (lendingPullPayment != null && !"LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                         if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
                             Long loanId = lendingPullPayment.getLoanId();
