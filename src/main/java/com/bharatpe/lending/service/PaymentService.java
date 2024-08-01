@@ -750,6 +750,10 @@ public class PaymentService {
                         return "OK";
                     }
                     LendingPullPayment lendingPullPayment = optionalLendingPullPayment.get();
+                    if("SUCCESS".equalsIgnoreCase( lendingPullPayment.getStatus())){
+                        logger.info("lendingPullPayment status is success for id {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                        return "OK";
+                    }
                     Optional<LendingPaymentSchedule> optionalLendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
                     if(!optionalLendingPaymentSchedule.isPresent()){
                         logger.error("LPS not found in mandate settlement transaction for request {}",request);
