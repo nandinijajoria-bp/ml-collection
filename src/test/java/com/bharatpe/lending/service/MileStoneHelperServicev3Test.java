@@ -27,6 +27,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -95,6 +96,7 @@ public class MileStoneHelperServicev3Test {
     }
 
     @Test
+    @DisplayName("Merchant RTE Eligibility found in cache")
     public void testCalculateEligibility_FreshMerchantCacheHit() throws IOException {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
@@ -111,12 +113,12 @@ public class MileStoneHelperServicev3Test {
         when(objectMapper.readValue(anyString(), eq(MileStoneEligibilityResponseDto.class))).thenReturn(mileStoneEligibilityResponseDto);
 
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
-        System.out.println(responseDto);
         assertNotNull(responseDto);
         assertEquals(true, responseDto.getMilStoneEligibility());
     }
 
     @Test
+    @DisplayName("Fresh merchant with SLIDER program")
     public void testCalculateEligibility_FreshSliderMerchant() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
@@ -171,6 +173,7 @@ public class MileStoneHelperServicev3Test {
     }
 
     @Test
+    @DisplayName("Existing merchant with in-progress SLIDER program")
     public void testCalculateEligibility_ActiveSliderMerchantNoAchievements() throws IOException {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
@@ -212,6 +215,7 @@ public class MileStoneHelperServicev3Test {
 
 
     @Test
+    @DisplayName("Fresh merchant with DS error")
     public void testCalculateEligibility_FreshMerchantDSErrorResponse() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
@@ -249,11 +253,11 @@ public class MileStoneHelperServicev3Test {
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
 
         assertFalse(responseDto.getMilStoneEligibility());
-        System.out.println(responseDto);
         assertEquals("error in target ds api", responseDto.getDsErrorMessage());
     }
 
     @Test
+    @DisplayName("Fresh merchant with NEW_MERCHANT program")
     public void testCalculateEligibility_FreshMerchantProgramTypeNEW_MERCHANT() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
@@ -311,6 +315,7 @@ public class MileStoneHelperServicev3Test {
 
 
     @Test
+    @DisplayName("Existing merchant with in-progress NEW_MERCHANT program")
     public void testCalculateEligibility_ActiveSessionNEW_MERCHANT() throws IOException {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
@@ -370,7 +375,6 @@ public class MileStoneHelperServicev3Test {
         when(mileStoneHelperService.setETCProgramActiveData(anyDouble(), anyString())).thenReturn(null);
 
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
-        System.out.println(responseDto);
         assertEquals(true, responseDto.getMilStoneEligibility());
         verify(funnelService, times(1)).submitEvent(eq(merchant.getId()), any(), any(), any(), any(), any());
         verify(cleverTapEventService, times(1)).sendClevertapEvent(any(), any(), any());

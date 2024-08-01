@@ -119,17 +119,17 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_Eligible() {
+    public void testCheckEligibility_Eligible() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         String loanAmount = "10000";
 
         MileStoneEligibilityResponseDto eligibilityResponseDto = new MileStoneEligibilityResponseDto();
+        eligibilityResponseDto.setMilStoneEligibility(true);
 
         when(easyLoanUtil.percentScaleUp(any(Long.class), anyInt())).thenReturn(true);
         when(mileStoneHelperServicev3.calculateEligibility(any(BasicDetailsDto.class), eq(true)))
                 .thenReturn(eligibilityResponseDto);
-        eligibilityResponseDto.setMilStoneEligibility(true);
 
         ApiResponse<MileStoneEligibilityResponseDto> response = mileStoneProgramService.checkEligibility(merchant, loanAmount);
 
@@ -141,7 +141,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_Ineligible() {
+    public void testCheckEligibility_Ineligible() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000754L);
         String loanAmount = "10000";
@@ -160,7 +160,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramSummary_FoundFromTable() {
+    public void testProgramSummary_FoundFromTable() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -190,7 +190,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramSummary_PincodeNotFound() {
+    public void testProgramSummary_PincodeNotFound() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -205,7 +205,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramSummary_PancardNotFound() {
+    public void testProgramSummary_PancardNotFound() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -225,7 +225,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramSummary_FoundByDSApi() {
+    public void testProgramSummary_FoundByDSApi() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         when(mileStoneDao.findTop1ByMerchantIdAndSessionStatus(eq(merchant.getId()), eq("IN_PROGRESS")))
@@ -268,7 +268,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramSummary_BureauResponseOrDsResponseNotFound() {
+    public void testProgramSummary_BureauResponseOrDsResponseNotFound() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -303,7 +303,7 @@ public class MileStoneProgramServiceTest {
 
 
     @Test
-    void testCreateSession_InProgress() {
+    public void testCreateSession_InProgress() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -323,7 +323,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCreateSession_EligibilityTrue() {
+    public void testCreateSession_EligibilityTrue() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -354,7 +354,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCreateSession_EligibilityFalse() {
+    public void testCreateSession_EligibilityFalse() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -377,7 +377,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCreateSession_Exception() {
+    public void testCreateSession_Exception() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -395,7 +395,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testDashboardDetails_EntityNotFound() {
+    public void testDashboardDetails_EntityNotFound() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -407,7 +407,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testDashboardDetails_AchievementResponseNull() {
+    public void testDashboardDetails_AchievementResponseNull() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -425,7 +425,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testDashboardDetails_AchievementEmpty() {
+    public void testDashboardDetails_AchievementEmpty() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -462,7 +462,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testDashboardDetails_AchievementPresent() {
+    public void testDashboardDetails_AchievementPresent() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -524,7 +524,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testMilestoneOffer_EntityNotFound() {
+    public void testMilestoneOffer_EntityNotFound() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         MileStoneOfferRequest request = new MileStoneOfferRequest();
@@ -539,7 +539,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testMilestoneOffer_EntityNotUpdatedInDb() {
+    public void testMilestoneOffer_EntityNotUpdatedInDb() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         MileStoneOfferRequest request = new MileStoneOfferRequest();
@@ -557,7 +557,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testMilestoneOffer_EntityUpdatedInDb() {
+    public void testMilestoneOffer_EntityUpdatedInDb() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         MileStoneOfferRequest request = new MileStoneOfferRequest();
@@ -577,7 +577,7 @@ public class MileStoneProgramServiceTest {
 
 
     @Test
-    void testMilestoneOffer_CacheDeletion() {
+    public void testMilestoneOffer_CacheDeletion() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         MileStoneOfferRequest request = new MileStoneOfferRequest();
@@ -600,7 +600,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramDetails_CacheHitWithEligibilityData() throws Exception {
+    public void testProgramDetails_CacheHitWithEligibilityData() throws Exception {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
@@ -619,7 +619,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramDetails_CacheHitWithoutEligibilityData() throws Exception {
+    public void testProgramDetails_CacheHitWithoutEligibilityData() throws Exception {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -644,7 +644,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramDetails_NoCacheHitAndNotEligible() {
+    public void testProgramDetails_NoCacheHitAndNotEligible() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -668,7 +668,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testProgramDetails_NoCacheHitAndEligible() {
+    public void testProgramDetails_NoCacheHitAndEligible() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
 
@@ -700,7 +700,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_MerchantSummaryNotFound() {
+    public void testCheckEligibility_MerchantSummaryNotFound() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
@@ -714,7 +714,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_NoExperianRecord() {
+    public void testCheckEligibility_NoExperianRecord() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
@@ -730,7 +730,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_WithPreApprovedTag() {
+    public void testCheckEligibility_WithPreApprovedTag() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
@@ -747,7 +747,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_EligibleLoanExists() {
+    public void testCheckEligibility_EligibleLoanExists() {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
@@ -777,7 +777,7 @@ public class MileStoneProgramServiceTest {
     }
 
     @Test
-    void testCheckEligibility_GlobalLimitFound() throws BureauCallMaskedApiException {
+    public void testCheckEligibility_GlobalLimitFound() throws BureauCallMaskedApiException {
         BasicDetailsDto merchant = new BasicDetailsDto();
         merchant.setId(20000760L);
         RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
