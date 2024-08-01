@@ -25,6 +25,7 @@ import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -72,6 +73,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Lazy
     @Autowired
     KycUtils kycUtils;
+
+    @Value("${abfl.eKyc.retry.count:2}")
+    Integer abflEKycRetryCount;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -139,6 +143,9 @@ public abstract class LendingApplicationServiceV3Base {
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
+                if(Lender.ABFL.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender()) && ObjectUtils.isEmpty(lenderKycRedirectionUrl)) {
+                    lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
+                }
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                         .stage(LenderAssociationStages.KYC)
@@ -409,6 +416,33 @@ public abstract class LendingApplicationServiceV3Base {
             log.info("Exception in invoke stage {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something went wrong in invoking stage");
+    }
+
+    public String updateEKycDetails(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String lenderKycRedirectionUrl) {
+         try {
+             if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
+                     && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycMode())
+                     && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())
+                     && Arrays.asList(LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name()).contains(lendingApplicationLenderDetails.getKycStatus())
+                     && lendingApplicationLenderDetails.getKycRetryCount() < abflEKycRetryCount) {
+                 LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
+                 lenderAssociationDetailsDto.setApplicationId(lendingApplication.getId());
+                 lenderAssociationDetailsDto.setLendingApplication(lendingApplication);
+                 lenderAssociationDetailsDto.setMerchantId(lendingApplication.getMerchantId());
+                 lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+                 lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+                 Boolean success = nbfcUtils.invokeSpecificStage(lendingApplication.getLender(), lenderAssociationDetailsDto, "EKYC_STATUS_CHECK");
+                 if(success) {
+                     lendingApplication = lendingApplicationDao.findById(lendingApplication.getId()).orElse(lendingApplication);
+                     lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name());
+                     lenderKycRedirectionUrl = getLenderKycRedirectionUrl(lendingApplication, lendingApplicationLenderDetails, null);
+                 }
+                 log.info("Successfully updated eKyc status of {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+             }
+         } catch (Exception e) {
+             log.info("Exception in updating eKyc status of {} for applicationId {}  {}", lendingApplication.getLender(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+         }
+         return lenderKycRedirectionUrl;
     }
 
 }

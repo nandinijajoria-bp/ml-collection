@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.DisbursalCallbackCommonDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -13,6 +14,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -124,6 +126,10 @@ public class AssociationServiceUtil {
 
     @Autowired
     AbflDocGenerateService abflDocGenerateService;
+
+    @Lazy
+    @Autowired
+    KycRequestKafka kycRequestKafka;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -350,6 +356,15 @@ public class AssociationServiceUtil {
                 return capriFetchSignedDocService.invokeFetchSignedDocs(lendingApplication);
             case "ABFL":
                 return abflDocGenerateService.invokeDocGenerate(lendingApplication, docType, preSigned, true);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeEkycStatusCheck(String lender, LendingApplication lendingApplication) {
+        switch (lender) {
+            case "ABFL":
+                return kycRequestKafka.eKycStatusCheck(lendingApplication);
             default:
                 return false;
         }
