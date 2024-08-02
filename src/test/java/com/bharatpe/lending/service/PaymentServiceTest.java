@@ -19,8 +19,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Date;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
@@ -41,28 +40,27 @@ public class PaymentServiceTest {
     LenderAssociationStageFactory lenderAssociationStageFactory;
     @Mock
     ForeClosureAmtStageSvcFactory foreClosureAmtStageSvcFactory;
-
-
-
     @Test
     @DisplayName("Payment details without foreclosure details")
     public void testGetPaymentDetailsForActiveLoan_ForeClosureDetailsNotIncluded() {
         LendingPaymentSchedule activeLoan = createStandardActiveLoan();
-        System.out.println(activeLoan);
         Boolean showForeClosureDetails = false;
 
         when(lendingPrepaymentDao.findByMerchantIdAndLoanId(anyLong(), anyLong())).thenReturn(null);
         when(excessNachService.getExcessCollectionBalanceAmount(anyLong(), anyLong())).thenReturn(0D);
 
         PaymentDetailsResponseDTO response = paymentService.getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
-        System.out.println(response);
         assertNotNull(response);
         assertNull(response.getData().getForeClosureAmount());
+        assertNull(response.getData().getForeClosureDetail());
+        assertEquals(Double.valueOf(5000), response.getData().getPaidPrinciple());
+        assertEquals(Integer.valueOf(50), response.getData().getPenaltyFee());
+        assertEquals(Double.valueOf(5100), response.getData().getPendingAmount());
     }
 
     @Test
-    @DisplayName("Payment details with foreclosure details")
-    public void testGetPaymentDetailsForActiveLoan_ForeclosureDetailsIncluded() {
+    @DisplayName("Payment details with foreclosure amount details, charges applicable")
+    public void testGetPaymentDetailsForActiveLoan_ForeclosureAmountIncludedWithDetail() {
         LendingPaymentSchedule activeLoan = createStandardActiveLoan();
         Boolean showForeClosureDetails = true;
 
@@ -84,6 +82,32 @@ public class PaymentServiceTest {
         PaymentDetailsResponseDTO response = paymentService.getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
         assertNotNull(response);
         assertNotNull(response.getData().getForeClosureAmount());
+        assertEquals(100D, response.getData().getForeClosureDetail().getForeclosureCharges());
+        assertEquals(Double.valueOf(1000), response.getData().getForeClosureAmountAtBp());
+        assertEquals(Integer.valueOf(1000), response.getData().getPrincipalDueAmount());
+        assertEquals(Double.valueOf(125), response.getData().getForeClosureAmount());
+    }
+
+    @Test
+    @DisplayName("Payment details with foreclosure details, charges not applicable")
+    public void testGetPaymentDetailsForActiveLoan_ForeclosureAmountIncludedWithDetailNoCharges() {
+        LendingPaymentSchedule activeLoan = createStandardActiveLoan();
+        Boolean showForeClosureDetails = true;
+
+        when(lendingPrepaymentDao.findByMerchantIdAndLoanId(anyLong(), anyLong())).thenReturn(null);
+        when(excessNachService.getExcessCollectionBalanceAmount(anyLong(), anyLong())).thenReturn(0D);
+        when(lendingEDIScheduleDao.getByLoanIdAndEdiType(anyLong(), anyString())).thenReturn(null);
+        when(loanUtil.getForeclosureAmount(any(), any())).thenReturn(1000);
+        when(lenderAssociationStageFactory.getStageAssociatedLenderService(anyString())).thenReturn(foreClosureAmtStageSvcFactory);
+        when(foreClosureAmtStageSvcFactory.getLenderAssociationService(anyString())).thenReturn(null);
+        when(loanUtil.checkIfForeClosureChargesApplicable(any(), anyString())).thenReturn(false);
+
+        PaymentDetailsResponseDTO response = paymentService.getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
+        assertNotNull(response);
+        assertNotNull(response.getData().getForeClosureAmount());
+        assertEquals(Double.valueOf(1000), response.getData().getForeClosureAmountAtBp());
+        assertEquals(Integer.valueOf(1000), response.getData().getPrincipalDueAmount());
+        assertEquals(Double.valueOf(1000), response.getData().getForeClosureAmount());
     }
 
     private LendingPaymentSchedule createStandardActiveLoan() {
