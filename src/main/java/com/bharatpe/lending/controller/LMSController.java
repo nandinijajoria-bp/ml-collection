@@ -19,7 +19,7 @@ public class LMSController {
 
     @RequestMapping(value="/lms/payment/details", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestParam(name = "merchant_id", required = false) Long merchant_id,
-                                                                       @RequestParam Boolean showForeClosureDetails) {
+                                                                       @RequestParam(required = false) Boolean showForeClosureDetails) {
         if (ObjectUtils.isEmpty(merchant_id)) {
             PaymentDetailsResponseDTO paymentDetailsResponseDTO = new PaymentDetailsResponseDTO();
             paymentDetailsResponseDTO.setSuccess(false);
