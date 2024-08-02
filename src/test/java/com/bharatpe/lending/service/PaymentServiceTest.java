@@ -10,6 +10,7 @@ import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.stages.ForeClosureAmtStageSvcFactory;
 import com.bharatpe.lending.util.LoanUtil;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.runner.RunWith;
@@ -40,10 +41,16 @@ public class PaymentServiceTest {
     LenderAssociationStageFactory lenderAssociationStageFactory;
     @Mock
     ForeClosureAmtStageSvcFactory foreClosureAmtStageSvcFactory;
+
+    LendingPaymentSchedule activeLoan;
+
+    @Before
+    public void setup() {
+        activeLoan = createStandardActiveLoan();
+    }
     @Test
     @DisplayName("Payment details without foreclosure details")
     public void testGetPaymentDetailsForActiveLoan_ForeClosureDetailsNotIncluded() {
-        LendingPaymentSchedule activeLoan = createStandardActiveLoan();
         Boolean showForeClosureDetails = false;
 
         when(lendingPrepaymentDao.findByMerchantIdAndLoanId(anyLong(), anyLong())).thenReturn(null);
@@ -61,7 +68,6 @@ public class PaymentServiceTest {
     @Test
     @DisplayName("Payment details with foreclosure amount details, charges applicable")
     public void testGetPaymentDetailsForActiveLoan_ForeclosureAmountIncludedWithDetail() {
-        LendingPaymentSchedule activeLoan = createStandardActiveLoan();
         Boolean showForeClosureDetails = true;
 
         ForeClosureDetailDTO foreClosureDetailDTO = new ForeClosureDetailDTO();
@@ -91,7 +97,6 @@ public class PaymentServiceTest {
     @Test
     @DisplayName("Payment details with foreclosure details, charges not applicable")
     public void testGetPaymentDetailsForActiveLoan_ForeclosureAmountIncludedWithDetailNoCharges() {
-        LendingPaymentSchedule activeLoan = createStandardActiveLoan();
         Boolean showForeClosureDetails = true;
 
         when(lendingPrepaymentDao.findByMerchantIdAndLoanId(anyLong(), anyLong())).thenReturn(null);
