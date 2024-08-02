@@ -1075,8 +1075,7 @@ public class PaymentService {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
-        if("UPI_AUTOPAY".equals(source))
-        {
+        if ("UPI_AUTOPAY".equals(source)) {
             transferType="EXTERNAL";
         }
         if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt())  && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
