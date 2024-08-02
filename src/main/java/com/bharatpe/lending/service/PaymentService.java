@@ -1086,6 +1086,11 @@ public class PaymentService {
                 transferType = "EXTERNAL";
             }
 
+            if("UPI_AUTOPAY".equals(source))
+            {
+                transferType="EXTERNAL";
+            }
+
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
                     .adjustExcessNach(false)
                     .otherAmount(amount)
