@@ -1075,6 +1075,9 @@ public class PaymentService {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if ("UPI_AUTOPAY".equals(source)) {
+            transferType="EXTERNAL";
+        }
         if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt())  && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
@@ -1084,11 +1087,6 @@ public class PaymentService {
             if (source == null) {
                 source = "UPI";
                 transferType = "EXTERNAL";
-            }
-
-            if("UPI_AUTOPAY".equals(source))
-            {
-                transferType="EXTERNAL";
             }
 
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
