@@ -284,6 +284,8 @@ public class LiquiloansService {
 
     @Value("${sameDayEdiAdjusment.eligible.lenders:}")
     String sameDayEdiAdjustmentEligibleLenders;
+    @Autowired
+    private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     public void publishForDisbursal(Long lendingAppId) {
 
@@ -840,7 +842,10 @@ public class LiquiloansService {
                 diffInDisbursalDates > 0) {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
         }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
-            createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
+            Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
+            if(lendingPaymentScheduleLendingCommon.isPresent()){
+                createFirstDueForSameDayEdiAdjustment(lendingPaymentScheduleLendingCommon.get(), lendingPaymentSchedule);
+            }
         }
 
         postPayoutResponseDto.setLoanStartDate(lendingPaymentSchedule.getStartDate());
@@ -1042,7 +1047,7 @@ public class LiquiloansService {
         return lendingLedger;
     }
 
-    private void createFirstDueForSameDayEdiAdjustment(LendingPaymentSchedule lendingPaymentSchedule) {
+    private void createFirstDueForSameDayEdiAdjustment(LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon, LendingPaymentSchedule lendingPaymentSchedule) {
         List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLoanIdAndInstallmentNumber(lendingPaymentSchedule.getId(), 1);
         Double dueAmount = lendingPaymentSchedule.getDueAmount();
         Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
@@ -1067,6 +1072,9 @@ public class LiquiloansService {
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  1);
         lendingLedgerDao.save(lendingLedger);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+
+        lendingPaymentScheduleLendingCommon.setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
+        lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon);
     }
 
 
