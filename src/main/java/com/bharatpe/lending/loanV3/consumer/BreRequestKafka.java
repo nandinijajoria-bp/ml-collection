@@ -11,7 +11,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
+import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -22,7 +22,6 @@ import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV3.utils.RiskEngineUtil;
-import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -230,7 +229,7 @@ public class BreRequestKafka {
             if (!lendingApplication.isPresent()) {
                 log.error("application not found !! {}", applicationId);
             }
-            CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
+            CKycResponseDto cKycResponseDto = kycUtils.getPanData(lendingApplication.get().getMerchantId());
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.get().getId());
             String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             String panName = Optional.ofNullable(cKycResponseDto.getPanName()).orElse("").trim();
@@ -249,19 +248,19 @@ public class BreRequestKafka {
                                             BreApiRequestDto.CustomerReport.builder()
                                                     .kycInfo(
                                                             BreApiRequestDto.KycInfo.builder()
-                                                                    .addressLine1(converterUtils.parseData(cKycResponseDto.getAddress()))
+                                                                    .addressLine1(lendingApplicationServiceV2.constructShopAddress(lendingApplication.get()))
                                                                     .addressLine2("")
                                                                     .addressLine3("")
-                                                                    .city(cKycResponseDto.getCity())
+                                                                    .city(lendingApplication.get().getCity())
                                                                     .dob(dob)
                                                                     .firstName(converterUtils.parseNameData(nameAndDobDetailsDto.getFirstName()))
-                                                                    .gender(cKycResponseDto.getGender())
+                                                                    .gender("FEMALE".equalsIgnoreCase(cKycResponseDto.getGender()) ? "F" : "M")
                                                                     .lastName(converterUtils.parseNameData(nameAndDobDetailsDto.getLastName()))
                                                                     .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                                                                     .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
-                                                                    .pincode(Integer.valueOf(cKycResponseDto.getPincode()))
-                                                                    .state(cKycResponseDto.getState())
+                                                                    .pincode(lendingApplication.get().getPincode())
+                                                                    .state(lendingApplication.get().getState())
                                                                     .build()
                                                     )
                                                     .loanApplicationRequest(BreApiRequestDto.LoanApplicationRequest.builder()

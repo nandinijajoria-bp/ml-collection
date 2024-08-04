@@ -797,7 +797,7 @@ public class SupportService {
             }
             LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
             if (Objects.nonNull(lendingApplicationPriority)) {
-                supportApiResponseDto.setTat(lendingApplicationPriority.getTat());
+                supportApiResponseDto.setTat(loanUtil.getApplicationTAT(lendingApplication));
                 supportApiResponseDto.setPriority(lendingApplicationPriority.getCurrentPriority());
                 supportApiResponseDto.setFiRequired(lendingApplicationPriority.isFiRequired());
                 if (Objects.nonNull(lendingApplicationPriority.getTat()) && Objects.nonNull(lendingApplicationPriority.getTatStartTime())) {
@@ -951,6 +951,9 @@ public class SupportService {
         }
     }
 
+    /*
+    feature-ML-820 : New logic implemented for displaying message based on TAT days.
+
     private String getPriorityMessage(LendingApplicationPriority lendingApplicationPriority, LendingApplication lendingApplication) {
 
         if (ObjectUtils.isEmpty(lendingApplicationPriority)) {
@@ -982,6 +985,11 @@ public class SupportService {
             default:
                 return SupportConstants.DEFAULT_PRIORITY;
         }
+    }
+     */
+
+    public String getPriorityMessage(LendingApplicationPriority lendingApplicationPriority, LendingApplication lendingApplication) {
+        return loanUtil.getApplicationTatMessage(lendingApplication);
     }
 
     private SupportLoanResponseDTO getLoanDetail(SupportLoanResponseDTO supportLoanResponseDTO, Long merchantId) throws ParseException {

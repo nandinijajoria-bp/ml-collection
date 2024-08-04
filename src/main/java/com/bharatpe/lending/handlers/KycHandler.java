@@ -67,6 +67,8 @@ public class KycHandler {
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.POA);
 
+    private static final List<KycDocType> lenderKycPipeMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE);
+
     private HttpHeaders getApiHeaders(Map<String, Object> requestBody) {
         String payload = lendingHmacCalculator.getObjectPayload(requestBody);
         String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
@@ -112,6 +114,32 @@ public class KycHandler {
         return null;
     }
 
+    public List<KycDoc> getKycDoc(Long merchantId, Boolean acceptRejected, Boolean acceptDraft) {
+        log.info("Getting Kyc docs for merchant:{}", merchantId);
+        try {
+            String docs = "PAN_NO,SELFIE,POA";
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchantId", merchantId);
+                put("docs", docs);
+                put("imgRequire", true);
+                put("acceptRejected", acceptRejected);
+                put("acceptDraft", acceptDraft);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=" + acceptRejected + "&acceptDraft=" + acceptDraft;
+            log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
+            ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
+            log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
+            if (Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().isStatus() && responseEntity.getBody().getData() != null) {
+                return responseEntity.getBody().getData().getDocs();
+            }
+        } catch (Exception ex) {
+            log.error("Exception in getKycDoc for merchant:{}, {}, {}", merchantId, ex, Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
+
 
     public List<KycDoc> getKycDoc(Long merchantId, Date validAfterDate, String provider) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
@@ -143,24 +171,29 @@ public class KycHandler {
         return null;
     }
 
-    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider, String docs) {
+    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider, String docs, Boolean acceptRejected, Boolean acceptDraft) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         KycDocResponseDTO kycDocResponseDTO = new KycDocResponseDTO();
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            String validAfter = sdf.format(validAfterDate);
+            String validAfter = "";
+            if(!ObjectUtils.isEmpty(validAfterDate)) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                validAfter = sdf.format(validAfterDate);
+            }
+            String finaValidAfter = validAfter;
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
-                put("validAfter", validAfter);
+                put("validAfter", finaValidAfter);
                 put("provider", provider);
                 put("docs", docs);
                 put("imgRequire", true);
-                put("acceptRejected", true);
+                put("acceptRejected", acceptRejected);
+                put("acceptDraft", acceptDraft);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=true" + "&validAfter=" + validAfter + "&provider=" + provider;
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=" + acceptRejected + "&validAfter=" + validAfter + "&provider=" + provider + "&acceptDraft=" + acceptDraft;
             log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
@@ -204,6 +237,35 @@ public class KycHandler {
             }
         } catch (Exception e) {
             log.error("Exception in getKycStatus for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
+        }
+        return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
+    }
+
+    public KycStatusDTO getKycStatusForLenderKycPipe(Long merchantId) {
+        log.info("Checking kyc status with kyc on lender pipe for merchant:{} ", merchantId);
+
+        if(easyLoanUtil.isDummyMerchant(merchantId) || merchantId == 10407700L) {
+            log.info("Merchant is Dummy, return kyc status as approved");
+            return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+        }
+
+        try {
+            List<KycDoc> kycDocs = getKycDoc(merchantId, false, true);
+            if (!CollectionUtils.isEmpty(kycDocs)) {
+                if (kycDocs.size() < lenderKycPipeMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+                    }
+                    if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.APPROVED) && !(kycDoc.getDocType().equals(KycDocType.SELFIE) && kycDoc.getStatus().equals(KycDocStatus.DRAFT))) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
+                    }
+                }
+
+                return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+            }
+        } catch (Exception e) {
+            log.error("Exception in getKycStatus with kyc on lender pipe for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }
@@ -316,9 +378,13 @@ public class KycHandler {
         log.info("Initiate kyc for merchant:{}", merchantId);
         Map<String, String> responseObj = new HashMap<>();
         try {
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-            sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-            String validAfter = sdf.format(validAfterDate);
+            String validAfter = null;
+            if(!ObjectUtils.isEmpty(validAfterDate)) {
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
+                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+               validAfter = sdf.format(validAfterDate);
+            }
+            String finaValidAfter = validAfter;
             List<Map<String, String>> documents = new ArrayList<>();
             for (KycDocType docType : docTypes) {
                 documents.add(new HashMap<String, String>(){{put("docType", docType.getVal());}});
@@ -330,7 +396,7 @@ public class KycHandler {
                 put("panNumber", initiateKycDTO.getPanNumber());
                 put("merchantId", initiateKycDTO.getMerchantId());
                 put("documents", documents);
-                put("validAfter", validAfter);
+                put("validAfter", finaValidAfter);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
@@ -534,5 +600,29 @@ public class KycHandler {
             log.error("Exception in getKycStatus for merchant:{}", merchantId, e);
         }
         return KycStatus.NEW;
+    }
+
+    public PanFetchKYCResponseDto panFetch(String panNumber, Long merchantId) {
+        try {
+            String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_FETCH_INTERNAL;
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("panNumber", panNumber);
+            payload.put("merchantId", merchantId);
+            payload.put("userType", "MERCHANT");
+            payload.put("source", "LOAN");
+
+            HttpHeaders headers = getApiHeaders(payload);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(payload, headers);
+            log.info("Pan Fetch request for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            ResponseEntity<PanFetchKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanFetchKYCResponseDto.class);
+            log.info("Pan Fetch Response for merchantId: {}, {}", responseEntity.getBody() ,merchantId);
+            return responseEntity.getBody();
+        } catch (HttpClientErrorException exception) {
+            log.error("Exception in fetching pan details for merchantId:{} {}",merchantId, exception.getMessage());
+        }catch (Exception e) {
+            log.error("Error occurred while fetching pan details for merchantId:{}", merchantId, e);
+        }
+        return null;
     }
 }

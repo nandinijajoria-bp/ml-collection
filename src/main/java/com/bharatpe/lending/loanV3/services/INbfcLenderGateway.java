@@ -45,4 +45,8 @@ public abstract class INbfcLenderGateway {
 
     public abstract ABFLPennyDropResponseDTO invokePennyDrop(ABFLPennyDropRequestDTO foreclosureAmountRequest);
 
+    public abstract EKycApiResponseDto invokeEKyc(EKycRequestApiDto eKycRequestApiDto);
+
+    public abstract EKycCallbackResponseDto invokeEKycStatusCheck(EKycStatusCheckRequestApiDto eKycStatusCheckRequest);
+
 }

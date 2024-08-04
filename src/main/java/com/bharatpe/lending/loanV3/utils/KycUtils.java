@@ -1,18 +1,27 @@
 package com.bharatpe.lending.loanV3.utils;
 
+import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.constant.LendingConstants;
+import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.loanV3.NameAndDobDetailsDto;
+import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
+import com.bharatpe.lending.loanV3.dto.PoaXmlDTO;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -42,13 +51,34 @@ public class KycUtils {
     @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
 
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Value("${aws.s3.bucket}")
+    String bucketName;
+
+    @Value("${lender.kyc.pipe.lenders:}")
+    String lenderKycPipeLenders;
+
+    @Value("${abfl.lender.kyc.rollout.percent:1}")
+    Integer abflLenderKycRolloutPercent;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
         if (!basicDetailsDto.isPresent()) {
             return cKycResponseDto;
         }
-        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId);
+        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, true);
         if (ObjectUtils.isEmpty(kycDocs)){
             return cKycResponseDto;
         }
@@ -196,22 +226,16 @@ public class KycUtils {
         String fullName = "";
         String dob = "";
 
-        if(!ObjectUtils.isEmpty(cKycResponseDto.getPanDob())){
-            fullName = cKycResponseDto.getPanName();
-            dob = cKycResponseDto.getPanDob();
-        }
-        else{
+        fullName =!ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ? cKycResponseDto.getPanName() : cKycResponseDto.getName();
+        dob =!ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ? cKycResponseDto.getPanDob() : cKycResponseDto.getDob();
+        if(ObjectUtils.isEmpty(cKycResponseDto.getPanDob())) {
             LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            if(!ObjectUtils.isEmpty(lendingPancardDetails)
+            if (!ObjectUtils.isEmpty(lendingPancardDetails)
                     && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())
                     && !ObjectUtils.isEmpty(lendingPancardDetails.getName())
-            ){
+            ) {
                 dob = lendingPancardDetails.getDob();
                 fullName = lendingPancardDetails.getName();
-            }
-            else {
-                fullName = !ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ? cKycResponseDto.getPanName() : cKycResponseDto.getName();
-                dob = cKycResponseDto.getDob();
             }
         }
         nameAndDobDetailsDto.setFullName(fullName);
@@ -238,5 +262,88 @@ public class KycUtils {
         }
         nameAndDobDetailsDto.setFirstName(fullName);
         return nameAndDobDetailsDto;
+    }
+
+    public CKycResponseDto getPanData(Long merchantId) {
+        CKycResponseDto cKycResponseDto = new CKycResponseDto();
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (!basicDetailsDto.isPresent()) {
+            return cKycResponseDto;
+        }
+        cKycResponseDto.setMobile(basicDetailsDto.get().getMobile());
+        cKycResponseDto.setEmail(basicDetailsDto.get().getEmail());
+        LendingPancardDetails lendingPanCard = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if (ObjectUtils.isEmpty(lendingPanCard)) {
+            return cKycResponseDto;
+        }
+        PanFetchKYCResponseDto panFetchKYCResponseDto = kycHandler.panFetch(lendingPanCard.getPancardNumber(), merchantId);
+        if(!ObjectUtils.isEmpty(panFetchKYCResponseDto) && !ObjectUtils.isEmpty(panFetchKYCResponseDto.getData())) {
+            cKycResponseDto.setPanNumber(panFetchKYCResponseDto.getData().getPanNumber());
+            cKycResponseDto.setPanName(panFetchKYCResponseDto.getData().getName());
+            cKycResponseDto.setPanDob(panFetchKYCResponseDto.getData().getDateOfBirth());
+            cKycResponseDto.setGender(panFetchKYCResponseDto.getData().getGender());
+        }
+        log.info("ckyc response for Pan data {}", cKycResponseDto);
+        return cKycResponseDto;
+    }
+
+    public CKycResponseDto parsePoaXML(String poaXml, Long merchantId, CKycResponseDto cKycResponseDto, Long applicationId, Boolean saveKycDetails) {
+        try {
+            if(!ObjectUtils.isEmpty(poaXml)) {
+                log.info("poaXml {}", poaXml);
+                XmlMapper xmlMapper = new XmlMapper();
+                Map<String, Object> poaXmlMap = xmlMapper.readValue(poaXml, Map.class);
+                if (poaXmlMap.containsKey("CertificateData")) {
+                    PoaXmlDTO poaData = objectMapper.readValue(objectMapper.writeValueAsString(poaXmlMap.get("CertificateData")), PoaXmlDTO.class);
+                    if (!ObjectUtils.isEmpty(poaData) && !ObjectUtils.isEmpty(poaData.getKycRes().getUidData())
+                            && !ObjectUtils.isEmpty(poaData.getKycRes().getUidData().getPoi()) && !ObjectUtils.isEmpty(poaData.getKycRes().getUidData().getPoa())) {
+                        PoaXmlDTO.Poi poi = poaData.getKycRes().getUidData().getPoi();
+                        PoaXmlDTO.Poa poa = poaData.getKycRes().getUidData().getPoa();
+                        cKycResponseDto.setAadharNumber(poaData.getKycRes().getUidData().getUid());
+                        cKycResponseDto.setDob(DateTimeUtil.formatDate(poi.getDob(), "dd-MM-yyyy", "dd/MM/yyyy"));
+                        cKycResponseDto.setName(poi.getName());
+                        cKycResponseDto.setGender(poi.getGender());
+                        String address = poa.getCo() + "," + poa.getHouse() + "," + poa.getPo() + "," + poa.getVtc() + "," + poa.getSubdist() + ","
+                                + poa.getDist() + "," + poa.getLoc() + "," + poa.getState() + "," + poa.getPc();
+                        cKycResponseDto.setAddress(address);
+                        cKycResponseDto.setCity(poa.getDist());
+                        cKycResponseDto.setState(poa.getState());
+                        cKycResponseDto.setPincode(poa.getPc());
+                        cKycResponseDto.setPoAXml(ConverterUtils.convertXmlToBase64String(poaXml));
+                        cKycResponseDto.setPoaString(poaXml);
+                        if (saveKycDetails) {
+                            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+                            if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                                lendingApplicationKycDetails.setAadharAddress(address);
+                                lendingApplicationKycDetails.setAadharApprovedAt(new Date());
+                                lendingApplicationKycDetails.setAadharName(poi.getName());
+                                lendingApplicationKycDetails.setFatherName(poa.getCo().contains("S/O") ? poa.getCo().substring(poa.getCo().indexOf(":") + 1) : null);
+                                lendingApplicationKycDetails.setAadharXml(poaXml);
+                                lendingApplicationKycDetails.setDob(poi.getDob());
+                                lendingApplicationKycDetails.setAadharIdentifier(poaData.getKycRes().getUidData().getUid());
+                                String fileName = applicationId + "_" + UUID.randomUUID() + ".jpeg";
+                                lendingApplicationKycDetails.setAadharImage(s3BucketHandler.uploadToS3Bucket(poaData.getKycRes().getUidData().getPht(), fileName, bucketName));
+                                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.info("Exception in parsing poaXml for merchantId {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+        }
+        return cKycResponseDto;
+    }
+
+    public Boolean isELigibleForLenderKyc(String lender, Long merchantId) {
+        if(lenderKycPipeLenders.contains(lender)) {
+            switch (lender) {
+                case "ABFL" :
+                    return easyLoanUtil.percentScaleUp(merchantId, abflLenderKycRolloutPercent);
+                default:
+                    return false;
+            }
+        }
+        return false;
     }
 }

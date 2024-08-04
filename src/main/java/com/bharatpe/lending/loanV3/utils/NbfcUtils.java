@@ -66,8 +66,13 @@ public class NbfcUtils {
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
+    @Lazy
     @Autowired
     AssociationServiceUtil associationServiceUtil;
+
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
@@ -96,7 +101,7 @@ public class NbfcUtils {
         }
         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
         if (enableLenderChange) {
-            if(!Arrays.asList(LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
+            if(!Arrays.asList(LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
                     || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                 log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
                 lendingApplication.setStatus("rejected");
@@ -117,8 +122,13 @@ public class NbfcUtils {
                 log.info("modified lender for applicationId : {} and lenderAssociationStatus : {}", lendingApplication.getId(), lenderAssociationStatus.name());
                 loanUtil.putApplicationInResignAndRenach(lendingApplication, modifiedLender.name());
             }
-
-            pushApplicationToNextStage(lendingApplication.getId(), modifiedLender.name(), LenderAssociationStages.INIT.name(), Boolean.TRUE);
+            lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
+            lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            if(bharatPeKycLenderAlreadyAssigned(lendingApplication.getId(), lendingApplication.getMerchantId()) || (kycUtils.isELigibleForLenderKyc(modifiedLender.name(), lendingApplication.getMerchantId()))) {
+                log.info("Invoking lender association after lender change for applicationId {} {}", lendingApplication.getId(), lendingApplication.getLender());
+                pushApplicationToNextStage(lendingApplication.getId(), modifiedLender.name(), LenderAssociationStages.INIT.name(), Boolean.TRUE);
+            }
         }
     }
 
@@ -187,9 +197,28 @@ public class NbfcUtils {
         switch (stage) {
             case "GENERATE_DOCUMENT":
                 return associationServiceUtil.invokeDocsGenerateService(lender, lenderAssociationDetailsDto.getLendingApplication(), DocType.LOAN_AGREEMENT, true);
+            case "EKYC_STATUS_CHECK":
+                return associationServiceUtil.invokeEkycStatusCheck(lender, lenderAssociationDetailsDto.getLendingApplication());
             default:
                 return false;
         }
     }
 
+
+    public Boolean bharatPeKycLenderAlreadyAssigned(Long applicationId, Long merchantId) {
+        try {
+            Boolean bpKycLenderFound = Boolean.FALSE;
+            List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
+            for(String lender : alreadyAssignedLender) {
+                if(!kycUtils.isELigibleForLenderKyc(lender, merchantId)) {
+                    bpKycLenderFound = Boolean.TRUE;
+                    break;
+                }
+            }
+            return bpKycLenderFound;
+        } catch (Exception e) {
+            log.info("Exception in checking prev Bp Kyc lenders assigned for applicationId {}", applicationId);
+        }
+        return false;
+    }
 }
