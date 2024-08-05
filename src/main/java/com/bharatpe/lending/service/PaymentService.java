@@ -336,7 +336,18 @@ public class PaymentService {
             ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
                     .getLenderAssociationService(activeLoan.getNbfc());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+                int retry = 0;
+                while (retry < 3) {
+                    try {
+                        netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+                        if (netForeclosureAtLender != null) {
+                            break;
+                        }
+                    }catch (Exception e) {
+                      logger.error("Exception while fetching foreclosure details for merchantId: {} {}", activeLoan.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                    }
+                    retry++;
+                }
                 if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
                 finalForeclosureAtLender = netForeclosureAtLender;
                 netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
