@@ -273,7 +273,7 @@ public class MFLeadService {
                 .ipAddress(lendingApplication.getIp())
                 .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
                 .url("")
-                .body("By clicking on I Agree, I accept the Key Facts Statement, Sanction and loan agreement, Privacy Policy and Terms & Conditions of LSP")
+                .body("By clicking on “I Agree”, I accept the Key Facts Statement, Sanction and loan agreement, pricing details (i.e., “APR”) and Privacy Policy and Terms & Conditions of LSP")
                 .build());
         consents.add(MFUpdateLeadRequestDTO.Consent.builder()
                 .type("BUREAU")

@@ -310,7 +310,7 @@ public class PaymentService {
             }
             return getPaymentDetailsForActiveLoan(activeLoan);
         } catch(Exception ex) {
-            logger.error("Execption while fetching payment details for merchant id {}, Exception is {}", merchant.getId(), ex);
+            logger.error("Execption while fetching payment details for merchant id {}, Exception is {} {}", merchant.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new PaymentDetailsResponseDTO("Something went wrong.");
     }
@@ -534,7 +534,7 @@ public class PaymentService {
             data.setPaymentLink(response.getData().getPaymentURIDeeplink());
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id {}", merchantBasicDetails.getId(), ex);
+            logger.error("Exception while initiating payment for merchant id {} {} {}", merchantBasicDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
@@ -675,7 +675,7 @@ public class PaymentService {
             data.setPsps(psps);
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id {}", merchantBasicDetails.getId(), ex);
+            logger.error("Exception while initiating payment for merchant id {} {} {}", merchantBasicDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }
@@ -716,7 +716,7 @@ public class PaymentService {
             loanPaymentOrderDao.save(order);
             loanClosureService.updateForeclosureChargesStatus(order.getStatus(), order.getId());
         } catch(Exception ex) {
-            logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
+            logger.error("Exception in payment callback for order id {} {} {}", request.getOrderId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return "OK";
     }
@@ -817,7 +817,7 @@ public class PaymentService {
                     order.setStatus("PENDING");
                     loanPaymentOrderDao.save(order);
                 }
-                logger.error("Exception in payment callback for order id {}", request.getOrderId(), ex);
+                logger.error("Exception in payment callback for order id {} {} {}", request.getOrderId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             }
             logger.info("final order id : {}  callback payments status is pg callback for request: {}", order.getOrderId(), order.getStatus());
             if (order != null && !CreditConstants.PaymentStatus.PENDING.name().equalsIgnoreCase(order.getStatus())) {
@@ -1075,6 +1075,9 @@ public class PaymentService {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+        if ("UPI_AUTOPAY".equals(source)) {
+            transferType="EXTERNAL";
+        }
         if (loanPaymentUtil.checkIfNewSettlementAllowed(activeLoan.getCreatedAt())  && !(Objects.nonNull(source) && waiverList.contains(source)) ) {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
@@ -2478,7 +2481,7 @@ public class PaymentService {
             }
             return new InitiatePaymentResponseDTO(data);
         } catch(Exception ex) {
-            logger.error("Exception while initiating payment for merchant id:{},Exception:{}",merchantId, ex);
+            logger.error("Exception while initiating payment for merchant id:{},Exception:{} {}",merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
     }

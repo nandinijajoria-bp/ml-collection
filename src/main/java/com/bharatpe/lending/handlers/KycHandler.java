@@ -67,6 +67,8 @@ public class KycHandler {
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.POA);
 
+    private static final List<KycDocType> lenderKycPipeMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE);
+
     private HttpHeaders getApiHeaders(Map<String, Object> requestBody) {
         String payload = lendingHmacCalculator.getObjectPayload(requestBody);
         String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
@@ -235,6 +237,35 @@ public class KycHandler {
             }
         } catch (Exception e) {
             log.error("Exception in getKycStatus for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
+        }
+        return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
+    }
+
+    public KycStatusDTO getKycStatusForLenderKycPipe(Long merchantId) {
+        log.info("Checking kyc status with kyc on lender pipe for merchant:{} ", merchantId);
+
+        if(easyLoanUtil.isDummyMerchant(merchantId) || merchantId == 10407700L) {
+            log.info("Merchant is Dummy, return kyc status as approved");
+            return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+        }
+
+        try {
+            List<KycDoc> kycDocs = getKycDoc(merchantId, false, true);
+            if (!CollectionUtils.isEmpty(kycDocs)) {
+                if (kycDocs.size() < lenderKycPipeMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
+                for (KycDoc kycDoc : kycDocs) {
+                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+                    }
+                    if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.APPROVED) && !(kycDoc.getDocType().equals(KycDocType.SELFIE) && kycDoc.getStatus().equals(KycDocStatus.DRAFT))) {
+                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
+                    }
+                }
+
+                return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+            }
+        } catch (Exception e) {
+            log.error("Exception in getKycStatus with kyc on lender pipe for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
         }
         return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
     }

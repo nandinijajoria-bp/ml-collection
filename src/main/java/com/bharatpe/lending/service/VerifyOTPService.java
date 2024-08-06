@@ -52,6 +52,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeAdditionalDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -227,6 +228,10 @@ public class VerifyOTPService {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
     @Autowired
     AssociationServiceUtil associationServiceUtil;
+
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
 
     @Value("${skip.update.lead.verify.otp.downgrade}")
     boolean skipUpdateLeadVerifyOtpDowngrade;
@@ -710,7 +715,8 @@ public class VerifyOTPService {
 
     private void updateKycStatus(LendingApplication lendingApplication) {
         try {
-            KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchantId());
+            KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()) ?
+                    kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
             logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
             lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());
             lendingApplication.setCkycDate(new Date());
