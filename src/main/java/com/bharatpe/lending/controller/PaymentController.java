@@ -22,8 +22,9 @@ public class PaymentController {
 	PaymentService paymentService;
 
     @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
-    public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant) {
-    	return new ResponseEntity<>(paymentService.getPaymentDetails(merchant), HttpStatus.OK);
+    public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant,
+                                                                       @RequestParam(required = false) Boolean showForeClosureDetails) {
+    	return new ResponseEntity<>(paymentService.getPaymentDetails(merchant, showForeClosureDetails), HttpStatus.OK);
     }
     
     @RequestMapping(value="/initiate", method = RequestMethod.POST,consumes = "application/json", produces="application/json")

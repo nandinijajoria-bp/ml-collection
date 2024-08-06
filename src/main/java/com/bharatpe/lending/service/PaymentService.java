@@ -22,10 +22,8 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
-import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
-import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.*;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
@@ -65,28 +63,8 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustme
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.util.LoanUtil;
-
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.bharatpe.lending.util.PaymentLinkUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -101,6 +79,13 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import javax.transaction.Transactional;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
@@ -300,7 +285,7 @@ public class PaymentService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
-    public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant) {
+    public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
@@ -308,7 +293,7 @@ public class PaymentService {
                 logger.info("No active loan found for merchant id {}", merchant.getId());
                 return new PaymentDetailsResponseDTO("No active loan found.");
             }
-            return getPaymentDetailsForActiveLoan(activeLoan);
+            return getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
         } catch(Exception ex) {
             logger.error("Execption while fetching payment details for merchant id {}, Exception is {} {}", merchant.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
@@ -316,7 +301,7 @@ public class PaymentService {
     }
 
 
-    public PaymentDetailsResponseDTO getPaymentDetailsForActiveLoan(LendingPaymentSchedule activeLoan)  {
+    public PaymentDetailsResponseDTO getPaymentDetailsForActiveLoan(LendingPaymentSchedule activeLoan, Boolean showForeClosureDetails)  {
         LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
         Integer loanAmount = activeLoan.getLoanAmount().intValue();
@@ -325,61 +310,79 @@ public class PaymentService {
         Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
 
         Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(activeLoan.getMerchantId(), activeLoan.getId());
-
-        Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         boolean isPayable = true;
         if(overdueDays < 2) {
             isPayable = false;
         }
-        if (activeLoan.getTentativeClosingDate().before(new Date())) {
-            double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
-            int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount + advanceEdiAmount));
-            if (extraAmount > 0d) {
-                logger.info("Need to get extra amount:{} for loanId:{}", extraAmount, activeLoan.getId());
-                principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
-            }
-        }
         Double netForeclosureAtLender = 0d;
         double finalForeclosureAtLender = 0d;
-        double netForeclosureAtBp=principalDueAmount+advanceEdiAmount+excessCollectionBalance;
-        ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-                .getLenderAssociationService(activeLoan.getNbfc());
-        if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-            netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
-            if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
-            finalForeclosureAtLender = netForeclosureAtLender;
-            netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
+        PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount());
+
+        if(Boolean.TRUE.equals(showForeClosureDetails)) {
+            //show foreclosure details --
+            Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
+            if (activeLoan.getTentativeClosingDate().before(new Date())) {
+                double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
+                int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount + advanceEdiAmount));
+                if (extraAmount > 0d) {
+                    logger.info("Need to get extra amount:{} for loanId:{}", extraAmount, activeLoan.getId());
+                    principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
+                }
+            }
+            double netForeclosureAtBp=principalDueAmount + advanceEdiAmount + excessCollectionBalance;
+            data.setForeClosureAmountAtBp(netForeclosureAtBp);
+
+            ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
+                    .getLenderAssociationService(activeLoan.getNbfc());
+            if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
+                int retry = 0;
+                while (retry < 3) {
+                    try {
+                        netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
+                        if (netForeclosureAtLender != null) {
+                            break;
+                        }
+                    }catch (Exception e) {
+                      logger.error("Exception while fetching foreclosure details for merchantId: {} {}", activeLoan.getMerchantId(), Arrays.asList(e.getStackTrace()));
+                    }
+                    retry++;
+                }
+                if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
+                finalForeclosureAtLender = netForeclosureAtLender;
+                netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
+            }
+            data.setLenderPrincipalDueAmount(netForeclosureAtLender);
+            data.setForeClosureAmountAtLender(finalForeclosureAtLender);
+            data.setForeClosureAmount(Double.valueOf(principalDueAmount));
+            principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
+            logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
+            principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
+            data.setPrincipalDueAmount(principalDueAmount);
+            logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
+
+            if(loanUtil.checkIfForeClosureChargesApplicable(activeLoan.getLoanApplication().getCreatedAt() , activeLoan.getNbfc())){
+                log.info("loanId {} is eligible for fore closure charges ",activeLoan.getId());
+                data.setForeClosureDetail(loanUtil.calculateForeClosureCharges(activeLoan,data));
+                log.info("fore closure charges {} for loanId {}",data.getForeClosureDetail(),activeLoan.getId());
+                if(data.getForeClosureDetail() != null) {
+                    data.setForeClosureAmount(data.getForeClosureDetail().getPrincipalOutstanding() +
+                            data.getForeClosureDetail().getForeclosureCharges()+data.getForeClosureDetail().getGst());
+                }
+            }
         }
-        principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
-        logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
-        principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
-        logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
-        PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, principalDueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount(), netForeclosureAtLender);
         Double paidPrinciple = activeLoan.getPaidPrinciple() != null
                 ? activeLoan.getPaidPrinciple()
                 : 0d;
         Double dueInterest = activeLoan.getDueInterest() != null ? activeLoan.getDueInterest()
                 : 0d;
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
-        data.setForeClosureAmountAtLender(finalForeclosureAtLender);
-        data.setForeClosureAmountAtBp(netForeclosureAtBp);
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
         data.setPaidPrinciple(paidPrinciple);
         data.setRepaymentAmount(activeLoan.getTotalPayableAmount());
         data.setPenaltyFee(penaltyFee);
-        data.setForeClosureAmount(Double.valueOf(data.getPrincipalDueAmount()));
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
-       if(loanUtil.checkIfForeClosureChargesApplicable(activeLoan.getLoanApplication().getCreatedAt() , activeLoan.getNbfc())){
-           log.info("loanId {} is eligible for fore closure charges ",activeLoan.getId());
-           data.setForeClosureDetail(loanUtil.calculateForeClosureCharges(activeLoan,data));
-           log.info("fore closure charges {} for loanId {}",data.getForeClosureDetail(),activeLoan.getId());
-           if(data.getForeClosureDetail() != null) {
-               data.setForeClosureAmount(data.getForeClosureDetail().getPrincipalOutstanding() +
-                       data.getForeClosureDetail().getForeclosureCharges()+data.getForeClosureDetail().getGst());
-           }
-       }
         return new PaymentDetailsResponseDTO(data);
     }
 
@@ -2337,7 +2340,7 @@ public class PaymentService {
                 logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
                 return new PaymentDetailsResponseDTO("NO ACTIVE LOAN");
             }
-            PaymentDetailsResponseDTO paymentDetailsResponseDTO=getPaymentDetailsForActiveLoan(activeLoan);
+            PaymentDetailsResponseDTO paymentDetailsResponseDTO=getPaymentDetailsForActiveLoan(activeLoan, true);
             // add mobile number of merchant
             Optional<BasicDetailsDto> merchantBasicDetails=merchantService.fetchMerchantBasicDetails(merchantId);
             merchantBasicDetails.ifPresent(basicDetailsDto -> paymentDetailsResponseDTO.getData().setMobile(basicDetailsDto.getMobile()));
