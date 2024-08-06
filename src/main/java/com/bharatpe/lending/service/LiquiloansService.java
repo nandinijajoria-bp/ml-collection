@@ -1066,10 +1066,16 @@ public class LiquiloansService {
                 -firstEdiSchedule.getTotalEdi().doubleValue(), -firstEdiSchedule.getPrinciple(),
                 -firstEdiSchedule.getInterest(), -0D,
                 0D, null);
+
+        Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
+        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+
         lendingPaymentSchedule.setDueAmount(dueAmount);
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  1);
+        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         lendingLedgerDao.save(lendingLedger);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 
