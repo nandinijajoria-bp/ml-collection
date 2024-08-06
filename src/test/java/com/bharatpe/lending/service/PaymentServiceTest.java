@@ -8,6 +8,7 @@ import com.bharatpe.lending.dto.ForeClosureDetailDTO;
 import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
+import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.loanV3.services.stages.ForeClosureAmtStageSvcFactory;
 import com.bharatpe.lending.util.LoanUtil;
 import org.junit.Before;
@@ -41,6 +42,9 @@ public class PaymentServiceTest {
     LenderAssociationStageFactory lenderAssociationStageFactory;
     @Mock
     ForeClosureAmtStageSvcFactory foreClosureAmtStageSvcFactory;
+
+    @Mock
+    AbflForeclosureFetchService abflForeclosureFetchService;
 
     LendingPaymentSchedule activeLoan;
 
@@ -113,6 +117,30 @@ public class PaymentServiceTest {
         assertEquals(Double.valueOf(1000), response.getData().getForeClosureAmountAtBp());
         assertEquals(Integer.valueOf(1000), response.getData().getPrincipalDueAmount());
         assertEquals(Double.valueOf(1000), response.getData().getForeClosureAmount());
+    }
+
+    @Test
+    @DisplayName("Payment details with max value of principle amt & netforeclosureAmount of lender")
+    public void testGetPaymentDetailsForActiveLoan_maxValue() {
+        Boolean showForeClosureDetails = true;
+
+        when(lendingPrepaymentDao.findByMerchantIdAndLoanId(anyLong(), anyLong())).thenReturn(null);
+        when(excessNachService.getExcessCollectionBalanceAmount(anyLong(), anyLong())).thenReturn(0D);
+        when(lendingEDIScheduleDao.getByLoanIdAndEdiType(anyLong(), anyString())).thenReturn(null);
+        when(loanUtil.getForeclosureAmount(any(), any())).thenReturn(1000);
+        when(lenderAssociationStageFactory.getStageAssociatedLenderService(anyString())).thenReturn(foreClosureAmtStageSvcFactory);
+        when(foreClosureAmtStageSvcFactory.getLenderAssociationService(anyString())).thenReturn(abflForeclosureFetchService);
+        when(abflForeclosureFetchService.invoke(anyLong(), any())).thenReturn(1200D);
+        when(loanUtil.checkIfForeClosureChargesApplicable(any(), anyString())).thenReturn(false);
+
+        PaymentDetailsResponseDTO response = paymentService.getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
+        assertNotNull(response);
+        assertNotNull(response.getData().getForeClosureAmount());
+        assertEquals(Double.valueOf(1000), response.getData().getForeClosureAmountAtBp());
+        assertEquals(Integer.valueOf(1200), response.getData().getPrincipalDueAmount());
+        assertEquals(Double.valueOf(1200), response.getData().getForeClosureAmount());
+        assertEquals(Double.valueOf(1200), response.getData().getLenderPrincipalDueAmount());
+        assertEquals(Double.valueOf(1200), response.getData().getForeClosureAmountAtLender());
     }
 
     private LendingPaymentSchedule createStandardActiveLoan() {
