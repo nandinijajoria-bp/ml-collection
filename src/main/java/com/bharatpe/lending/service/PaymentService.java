@@ -352,13 +352,14 @@ public class PaymentService {
                 finalForeclosureAtLender = netForeclosureAtLender;
                 netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
             }
-            data.setLenderPrincipalDueAmount(netForeclosureAtLender);
-            data.setForeClosureAmountAtLender(finalForeclosureAtLender);
-            data.setForeClosureAmount(Double.valueOf(principalDueAmount));
             principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
             logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
             principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
+
             data.setPrincipalDueAmount(principalDueAmount);
+            data.setLenderPrincipalDueAmount(netForeclosureAtLender);
+            data.setForeClosureAmountAtLender(finalForeclosureAtLender);
+            data.setForeClosureAmount(Double.valueOf(principalDueAmount));
             logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
 
             if(loanUtil.checkIfForeClosureChargesApplicable(activeLoan.getLoanApplication().getCreatedAt() , activeLoan.getNbfc())){
