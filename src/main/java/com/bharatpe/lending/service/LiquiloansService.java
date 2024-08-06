@@ -844,7 +844,9 @@ public class LiquiloansService {
         }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
             Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
             if(lendingPaymentScheduleLendingCommon.isPresent()){
-                createFirstDueForSameDayEdiAdjustment(lendingPaymentScheduleLendingCommon.get(), lendingPaymentSchedule);
+                lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
+                lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
+                createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
             }
         }
 
@@ -1047,7 +1049,7 @@ public class LiquiloansService {
         return lendingLedger;
     }
 
-    private void createFirstDueForSameDayEdiAdjustment(LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon, LendingPaymentSchedule lendingPaymentSchedule) {
+    private void createFirstDueForSameDayEdiAdjustment(LendingPaymentSchedule lendingPaymentSchedule) {
         List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLoanIdAndInstallmentNumber(lendingPaymentSchedule.getId(), 1);
         Double dueAmount = lendingPaymentSchedule.getDueAmount();
         Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
@@ -1078,9 +1080,6 @@ public class LiquiloansService {
         lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         lendingLedgerDao.save(lendingLedger);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
-
-        lendingPaymentScheduleLendingCommon.setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
-        lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon);
     }
 
 
