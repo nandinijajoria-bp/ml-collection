@@ -90,7 +90,16 @@ public class PaymentDetailsResponseDTO {
 			
 		}
 		
-		public Data(Integer loanAmount, Integer overdueAmount, Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment, Integer remainingEdiCount, Double ediAmount, Double lenderPrincipalDueAmount) {
+		public Data(Integer loanAmount, Integer overdueAmount, Integer overdueDays, Boolean isEligibleForPayment, Integer remainingEdiCount, Double ediAmount) {
+			this.loanAmount = loanAmount;
+			this.overdueAmount = overdueAmount;
+			this.overdueDays = overdueDays;
+			this.isEligibleForPayment = isEligibleForPayment;
+			this.remainingEdiCount = remainingEdiCount;
+			this.ediAmount = ediAmount;
+		}
+
+		public Data(Integer loanAmount, Integer overdueAmount,Integer principalDueAmount, Integer overdueDays, Boolean isEligibleForPayment, Integer remainingEdiCount, Double ediAmount, Double lenderPrincipalDueAmount) {
 			this.loanAmount = loanAmount;
 			this.overdueAmount = overdueAmount;
 			this.principalDueAmount = principalDueAmount;
