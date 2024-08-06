@@ -23,7 +23,7 @@ public class PaymentController {
 
     @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant,
-                                                                       @RequestParam(required = false) Boolean showForeClosureDetails) {
+                                                                       @RequestParam(required = false, defaultValue = "true") Boolean showForeClosureDetails) {
     	return new ResponseEntity<>(paymentService.getPaymentDetails(merchant, showForeClosureDetails), HttpStatus.OK);
     }
     
