@@ -294,7 +294,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         initiateKycResponse.setLender(lendingApplication.getLender());
         initiateKycResponse.setTopup(isTopup);
-        List<KycDocType> docTypes = getKycTypesByLender(Lender.valueOf(lendingApplication.getLender()), lendingApplication.getMerchantId());
+        List<KycDocType> docTypes = new ArrayList<>(getKycTypesByLender(Lender.valueOf(lendingApplication.getLender()), lendingApplication.getMerchantId()));
 //        docTypes.add(KycDocType.PAN_CARD);
         if(isResubmittedApplication) {
             docTypes.clear();
