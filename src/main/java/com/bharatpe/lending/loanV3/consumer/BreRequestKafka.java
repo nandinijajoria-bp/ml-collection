@@ -260,7 +260,7 @@ public class BreRequestKafka {
                                                                     .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(lendingApplication.get().getPincode())
-                                                                    .state(lendingApplication.get().getState())
+                                                                    .state(converterUtils.parseStateData(lendingApplication.get().getState()))
                                                                     .build()
                                                     )
                                                     .loanApplicationRequest(BreApiRequestDto.LoanApplicationRequest.builder()
@@ -276,7 +276,7 @@ public class BreRequestKafka {
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
                                     .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
-                                    .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : String.valueOf(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
+                                    .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : new DecimalFormat("#").format(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
                                     .shopPincode(lendingApplication.get().getPincode())
                                     .build())
                     .build();
