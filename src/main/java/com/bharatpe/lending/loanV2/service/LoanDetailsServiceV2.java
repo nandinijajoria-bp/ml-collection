@@ -1599,13 +1599,11 @@ public class LoanDetailsServiceV2 {
         List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, lendingApplication.getId());
         MerchantReferencesV2ResponseDto responseDto;
 
-        if (!ObjectUtils.isEmpty(savedMerchantReferencesList) && savedMerchantReferencesList.size() >= 3) {
-            List<LendingMerchantReferences> topThreeSavedReferences = lendingMerchantReferencesDao.findTop3ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, lendingApplication.getId());
-
-            List<MerchantReferencesV2ResponseDto.MerchantReferenceData> references = topThreeSavedReferences.stream()
+        if (!ObjectUtils.isEmpty(savedMerchantReferencesList) && savedMerchantReferencesList.size() == 3) {
+            List<MerchantReferencesV2ResponseDto.MerchantReferenceData> references = savedMerchantReferencesList.stream()
                     .map(reference -> MerchantReferencesV2ResponseDto.MerchantReferenceData.builder()
                             .name(reference.getReferenceName())
-                            .referenceNumber(reference.getReferenceNumber())
+                            .phoneNumber(reference.getReferenceNumber())
                             .build())
                     .collect(Collectors.toList());
 
@@ -1686,10 +1684,9 @@ public class LoanDetailsServiceV2 {
                 if (Objects.isNull(requestedReferenceList)) {
                     return new ApiResponse<>(false, "references field can not be empty!");
                 }
-                boolean toBeAdded;
+                List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
                 if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() == 3) {
-                    List<LendingMerchantReferences> topThreeSavedReferences = lendingMerchantReferencesDao.findTop3ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, lendingApplication.getId());
-                    if(ObjectUtils.isEmpty(topThreeSavedReferences)) {
+                    if(ObjectUtils.isEmpty(savedMerchantReferencesList)) {
                         log.info("Adding fresh references for merchantId: {}", merchant.getId());
                         for(MerchantReference requestedReferences : requestedReferenceList) {
                             LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
@@ -1702,8 +1699,9 @@ public class LoanDetailsServiceV2 {
                         }
                     }
                     else {
+                        log.info("Merchant references size: {} for merchantId: {}", savedMerchantReferencesList.size(), merchant.getId());
                         for(int i = 0 ; i < 3 ; i++) {
-                            LendingMerchantReferences savedReference = topThreeSavedReferences.get(i);
+                            LendingMerchantReferences savedReference = savedMerchantReferencesList.get(i);
                             MerchantReference requestedReference = requestedReferenceList.get(i);
                             savedReference.setReferenceName(requestedReference.getName());
                             savedReference.setReferenceNumber(requestedReference.getPhoneNumber());
@@ -1713,7 +1711,7 @@ public class LoanDetailsServiceV2 {
                     }
                 }
                 else {
-                    List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+                    boolean toBeAdded;
                     for (MerchantReference requestedReferences : requestedReferenceList) {
                         toBeAdded = true;
                         for (LendingMerchantReferences savedReference : savedMerchantReferencesList) {

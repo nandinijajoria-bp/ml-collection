@@ -24,9 +24,8 @@ public class MerchantReferencesV2ResponseDto {
     @NoArgsConstructor
     @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public class MerchantReferenceData {
+    public static class MerchantReferenceData {
         private String name;
-        private String referenceNumber;
-
+        private String phoneNumber;
     }
 }
