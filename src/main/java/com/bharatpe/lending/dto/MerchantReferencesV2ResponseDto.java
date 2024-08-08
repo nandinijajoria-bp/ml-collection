@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import lombok.Builder;
-import lombok.Data;
-import lombok.ToString;
+import lombok.*;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -17,4 +17,19 @@ import lombok.ToString;
 public class MerchantReferencesV2ResponseDto {
     private Long limit;
     private Boolean ineligible;
+    private List<MerchantReferenceData> references;
+
+    @lombok.Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    @ToString
+    @Builder
+    @Getter
+    @Setter
+    public class MerchantReferenceData {
+        private String name;
+        private String referenceNumber;
+
+    }
 }
