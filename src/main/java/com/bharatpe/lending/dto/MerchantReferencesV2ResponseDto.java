@@ -19,14 +19,11 @@ public class MerchantReferencesV2ResponseDto {
     private Boolean ineligible;
     private List<MerchantReferenceData> references;
 
-    @lombok.Data
+    @Data
     @AllArgsConstructor
     @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @ToString
     @Builder
-    @Getter
-    @Setter
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public class MerchantReferenceData {
         private String name;
         private String referenceNumber;
