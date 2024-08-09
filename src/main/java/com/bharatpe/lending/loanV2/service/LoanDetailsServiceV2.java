@@ -1679,97 +1679,99 @@ public class LoanDetailsServiceV2 {
                 rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_1);
                 log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", applicationId, merchantId);
                 return new ApiResponse<>(true, "Successfully rejected applicationId because of insufficient references");
-            } else {
-                List<MerchantReference> requestedReferenceList = requestDto.getReferences();
-                if (Objects.isNull(requestedReferenceList)) {
-                    return new ApiResponse<>(false, "references field can not be empty!");
-                }
-                List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
-                if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() == 3) {
-                    if(ObjectUtils.isEmpty(savedMerchantReferencesList)) {
-                        log.info("Adding fresh references for merchantId: {}", merchant.getId());
-                        for(MerchantReference requestedReferences : requestedReferenceList) {
-                            LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
-                            lendingMerchantReferences.setReferenceName(requestedReferences.getName());
-                            lendingMerchantReferences.setReferenceNumber(requestedReferences.getPhoneNumber());
-                            lendingMerchantReferences.setMerchantId(merchantId);
-                            lendingMerchantReferences.setApplicationId(applicationId);
-                            lendingMerchantReferencesDao.save(lendingMerchantReferences);
-                            log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReferences, merchantId);
+            }
+            List<MerchantReference> requestedReferenceList = requestDto.getReferences();
+            if (Objects.isNull(requestedReferenceList)) {
+                return new ApiResponse<>(false, "references field can not be empty!");
+            }
+            List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+            if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() == 3) {
+                //3 references - v3 changes.
+                processThreeReferences(merchant, lendingApplication, savedMerchantReferencesList, requestedReferenceList);
+            }else {
+                boolean toBeAdded;
+                for (MerchantReference requestedReferences : requestedReferenceList) {
+                    toBeAdded = true;
+                    for (LendingMerchantReferences savedReference : savedMerchantReferencesList) {
+                        if (requestedReferences.getPhoneNumber().equals(savedReference.getReferenceNumber())) {
+                            toBeAdded = false;
+                            break;
                         }
                     }
-                    else {
-                        log.info("Merchant references size: {} for merchantId: {}", savedMerchantReferencesList.size(), merchant.getId());
-                        for(int i = 0 ; i < 3 ; i++) {
-                            LendingMerchantReferences savedReference = savedMerchantReferencesList.get(i);
-                            MerchantReference requestedReference = requestedReferenceList.get(i);
-                            savedReference.setReferenceName(requestedReference.getName());
-                            savedReference.setReferenceNumber(requestedReference.getPhoneNumber());
-                            lendingMerchantReferencesDao.save(savedReference);
-                            log.info("Updated reference: {} of merchantId: {}", requestedReference.getName(), merchant.getId());
-                        }
-                    }
-                }
-                else {
-                    boolean toBeAdded;
-                    for (MerchantReference requestedReferences : requestedReferenceList) {
-                        toBeAdded = true;
-                        for (LendingMerchantReferences savedReference : savedMerchantReferencesList) {
-                            if (requestedReferences.getPhoneNumber().equals(savedReference.getReferenceNumber())) {
-                                toBeAdded = false;
-                                break;
-                            }
-                        }
-                        if (toBeAdded) {
-                            LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
-                            lendingMerchantReferences.setReferenceName(requestedReferences.getName());
-                            lendingMerchantReferences.setReferenceNumber(requestedReferences.getPhoneNumber());
-                            lendingMerchantReferences.setMerchantId(merchantId);
-                            lendingMerchantReferences.setApplicationId(applicationId);
+                    if (toBeAdded) {
+                        LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
+                        lendingMerchantReferences.setReferenceName(requestedReferences.getName());
+                        lendingMerchantReferences.setReferenceNumber(requestedReferences.getPhoneNumber());
+                        lendingMerchantReferences.setMerchantId(merchantId);
+                        lendingMerchantReferences.setApplicationId(applicationId);
 
-                            if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
-                                //For old flow update below parameters for 5/10 contacts, for 3 contacts - only name & number will be saved
-                                lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
-                                lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
-                                lendingMerchantReferences.setInferredName(requestedReferences.getInferredName());
-                                lendingMerchantReferences.setInferredLocation(requestedReferences.getInferredLocation());
-                                lendingMerchantReferences.setInferredNameConfidence(requestedReferences.getInferredNameConfidence());
-                                lendingMerchantReferences.setInferredOccupation(requestedReferences.getInferredOccupation());
-                                lendingMerchantReferences.setInferredRelation(requestedReferences.getInferredRelation());
-                                lendingMerchantReferences.setNumHits(requestedReferences.getNumHits());
-                                lendingMerchantReferences.setScore(requestedReferences.getScore());
-                            }
-                            lendingMerchantReferencesDao.save(lendingMerchantReferences);
-                            log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReferences, merchantId);
+                        if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
+                            //For old flow update below parameters for 5/10 contacts, for 3 contacts - only name & number will be saved
+                            lendingMerchantReferences.setFraudFlag(requestedReferences.getFraudFlag());
+                            lendingMerchantReferences.setInferredCompany(requestedReferences.getInferredCompany());
+                            lendingMerchantReferences.setInferredName(requestedReferences.getInferredName());
+                            lendingMerchantReferences.setInferredLocation(requestedReferences.getInferredLocation());
+                            lendingMerchantReferences.setInferredNameConfidence(requestedReferences.getInferredNameConfidence());
+                            lendingMerchantReferences.setInferredOccupation(requestedReferences.getInferredOccupation());
+                            lendingMerchantReferences.setInferredRelation(requestedReferences.getInferredRelation());
+                            lendingMerchantReferences.setNumHits(requestedReferences.getNumHits());
+                            lendingMerchantReferences.setScore(requestedReferences.getScore());
                         }
+                        lendingMerchantReferencesDao.save(lendingMerchantReferences);
+                        log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReferences, merchantId);
                     }
                 }
-                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-                log.info("lendingApplicationDetails of applicationId: {}, {}",applicationId,lendingApplicationDetails);
-                if (Objects.nonNull(lendingApplicationDetails) && Objects.nonNull(lendingApplicationDetails.getReferencesFromDe())) {
-                    lendingApplicationDetails.setSavedReferences(requestedReferenceList.size());
-                    lendingApplicationDetails.setReferencesAddedByMerchant(Math.max(requestedReferenceList.size() - lendingApplicationDetails.getReferencesFromDe(), 0));
-                    lendingApplicationDetailsDao.save(lendingApplicationDetails);
-                }
-
-                log.info("Successfully saved all references of merchantId: {}", merchantId);
-                LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId, lendingApplication);
-                if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-                    funnelService.submitEventV3(merchant.getId(), null, applicationId,
-                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-                }
-                else{
-                    funnelService.submitEvent(merchant.getId(), null, applicationId,
-                            FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
-                }
-                loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, LendingViewStates.AGREEMENT_PAGE);
-                return new ApiResponse<>(true, "Successfully updated merchant References!");
+            }
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+            log.info("lendingApplicationDetails of applicationId: {}, {}",applicationId,lendingApplicationDetails);
+            if (Objects.nonNull(lendingApplicationDetails) && Objects.nonNull(lendingApplicationDetails.getReferencesFromDe())) {
+                lendingApplicationDetails.setSavedReferences(requestedReferenceList.size());
+                lendingApplicationDetails.setReferencesAddedByMerchant(Math.max(requestedReferenceList.size() - lendingApplicationDetails.getReferencesFromDe(), 0));
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
             }
 
+            log.info("Successfully saved all references of merchantId: {}", merchantId);
+            LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId, lendingApplication);
+            if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+                funnelService.submitEventV3(merchant.getId(), null, applicationId,
+                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+            }
+            else{
+                funnelService.submitEvent(merchant.getId(), null, applicationId,
+                        FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
+            }
+            loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, LendingViewStates.AGREEMENT_PAGE);
+            return new ApiResponse<>(true, "Successfully updated merchant References!");
         } catch (Exception e) {
             log.error("Error occurred while updating merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something Went Wrong while updating merchant references!");
+    }
+
+    private void processThreeReferences(BasicDetailsDto merchant, LendingApplication lendingApplication, List<LendingMerchantReferences> savedMerchantReferencesList, List<MerchantReference> requestedReferenceList) {
+        log.info("Processing three references for merchantId: {} & applicationId: {}", merchant.getId(), lendingApplication.getId());
+        if(ObjectUtils.isEmpty(savedMerchantReferencesList)) {
+            log.info("Adding fresh references for merchantId: {}", merchant.getId());
+            for(MerchantReference requestedReference : requestedReferenceList) {
+                LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
+                lendingMerchantReferences.setReferenceName(requestedReference.getName());
+                lendingMerchantReferences.setReferenceNumber(requestedReference.getPhoneNumber());
+                lendingMerchantReferences.setMerchantId(merchant.getId());
+                lendingMerchantReferences.setApplicationId(lendingApplication.getId());
+                lendingMerchantReferencesDao.save(lendingMerchantReferences);
+                log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReference.getName(), merchant.getId());
+            }
+        }else {
+            log.info("Updating references for merchantId: {}", merchant.getId());
+            for(int i = 0 ; i < 3 ; i++) {
+                LendingMerchantReferences savedReference = savedMerchantReferencesList.get(i);
+                MerchantReference requestedReference = requestedReferenceList.get(i);
+                savedReference.setReferenceName(requestedReference.getName());
+                savedReference.setReferenceNumber(requestedReference.getPhoneNumber());
+                lendingMerchantReferencesDao.save(savedReference);
+                log.info("Updated reference: {} of merchantId: {}", requestedReference.getName(), merchant.getId());
+            }
+        }
     }
 
     private void rejectingLoanDueToInsufficientReferences(LendingApplication lendingApplication,String rejection_reason) {
