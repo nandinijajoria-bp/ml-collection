@@ -1685,7 +1685,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
             List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
-            if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() == 3) {
+            if(requestedReferenceList.size() == 3) {
                 //3 references - v3 changes.
                 processThreeReferences(merchant, lendingApplication, savedMerchantReferencesList, requestedReferenceList);
             }else {
