@@ -1601,6 +1601,7 @@ public class LoanDetailsServiceV2 {
         MerchantReferencesV2ResponseDto responseDto;
 
         if (!ObjectUtils.isEmpty(savedMerchantReferencesList) && savedMerchantReferencesList.size() == 3) {
+            log.info("Populating existing 3 references for merchantId: {}", merchantId);
             List<MerchantReferencesV2ResponseDto.MerchantReferenceData> references = savedMerchantReferencesList.stream()
                     .map(reference -> MerchantReferencesV2ResponseDto.MerchantReferenceData.builder()
                             .name(reference.getReferenceName())
