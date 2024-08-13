@@ -7,6 +7,7 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.LendingPullPayment;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -401,5 +402,55 @@ public class AutoPayUPIService {
 
 
         return new UPIRegisterResponseDto(data);
+    }
+
+    public void executeAutoPayUPI(LendingPaymentSchedule lendingPaymentSchedule, AutoPayUPI entity) {
+
+        LendingEnum.LENDER lender = LendingEnum.LENDER.valueOf(lendingPaymentSchedule.getNbfc());
+        double presentmentAmount = lendingPaymentSchedule.getDueAmount();
+        log.info("AUTOPAY : presentment Amount {} ", presentmentAmount);
+        if(presentmentAmount == 0 ) log.info("AUTOPAY : Presentment amount is 0 for loanID {}",lendingPaymentSchedule.getId());
+        if (presentmentAmount > 0) {
+            UPIPgRequestDto requestDto = new UPIPgRequestDto();
+            log.info("AUTOPAY : Final presentment amount for loanId {} is {}", lendingPaymentSchedule.getId(), presentmentAmount);
+            LendingPullPayment pullPayment = createOrderLendingPullPayment(lendingPaymentSchedule, presentmentAmount);
+            requestDto.setExecutionDate(getMandateTransactionExecutionDate());
+            requestDto.setLender(lender);
+            requestDto.setOrderAmount(presentmentAmount);
+            requestDto.setMandateId(entity.getMandateId());
+            requestDto.setOrderId(pullPayment.getId().toString());
+
+            apiGatewayService.executeAutoPayUPIWithPg(lendingPaymentSchedule.getMerchantId(), pullPayment, requestDto);
+
+        }
+    }
+
+    public LendingPullPayment createOrderLendingPullPayment(LendingPaymentSchedule lendingPaymentSchedule, Double amount) {
+        LendingPullPayment pullPayment = new LendingPullPayment();
+        pullPayment.setMerchantId(lendingPaymentSchedule.getMerchantId());
+        pullPayment.setStatus("INIT");
+        pullPayment.setOwnerId(lendingPaymentSchedule.getId());
+        pullPayment.setMode("AUTOPAYUPI");
+        pullPayment.setDueAmount(lendingPaymentSchedule.getDueAmount());
+        pullPayment.setDuePrinciple(lendingPaymentSchedule.getDuePrinciple());
+        pullPayment.setLoanId(lendingPaymentSchedule.getId());
+        pullPayment.setMerchantStoreId(lendingPaymentSchedule.getMerchantStoreId());
+        pullPayment.setTxnDate(new SimpleDateFormat("yyyy-MM-dd").format(new Date()));
+        pullPayment.setDueInterest(lendingPaymentSchedule.getDueInterest());
+        pullPayment.setDeductedAmount(amount);
+        return lendingPullPaymentDao.save(pullPayment);
+
+    }
+
+    private long getMandateTransactionExecutionDate() {
+        Calendar currentTime = Calendar.getInstance();
+        // LC_478- Check if the current time is after 6 PM
+        if (currentTime.get(Calendar.HOUR_OF_DAY) >= 18) {
+            currentTime.add(Calendar.HOUR_OF_DAY, 48);
+            return currentTime.getTimeInMillis();
+        }
+
+        currentTime.add(Calendar.HOUR_OF_DAY, 24);
+        return currentTime.getTimeInMillis();
     }
 }

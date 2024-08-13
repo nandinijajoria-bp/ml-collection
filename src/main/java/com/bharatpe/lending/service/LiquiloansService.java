@@ -29,9 +29,11 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -278,6 +280,12 @@ public class LiquiloansService {
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
+    @Autowired
+    AutoPayUPIService autoPayUPIService;
 
     @Value("${sameDayEdiAdjusment.rollout.percent:0}")
     Integer sameDayEdiAdjustmentRolloutPercent;
@@ -847,6 +855,8 @@ public class LiquiloansService {
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
                 lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
                 createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
+
+                checkAndExecuteAutoPayUpiPresentment(lendingPaymentSchedule);
             }
         }
 
@@ -2201,6 +2211,23 @@ public class LiquiloansService {
         } catch (Exception ex) {
             logger.error("Exception while saving signed docs of {} for applicationId {}, Exception is {} {}", lendingApplication.getLender(), lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return false;
+        }
+    }
+
+    public void checkAndExecuteAutoPayUpiPresentment(LendingPaymentSchedule lendingPaymentSchedule){
+        AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingPaymentSchedule.getApplicationId());
+        if (autoPayUpi == null) {
+            logger.info("AUTOPAY : No autopay request exist for applicationId : {}, lender : {}", lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+            return;
+        }
+
+        logger.info("AUTOPAY : Starting Autopay for entity : {}", autoPayUpi);
+        if (autoPayUpi.getMandateId() != null && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
+            logger.info("AUTOPAY :Processing autoPay pull loans batch starting at entity {}", autoPayUpi.getApplicationId());
+            autoPayUPIService.executeAutoPayUPI(lendingPaymentSchedule, autoPayUpi);
+        } else {
+            logger.info("AUTOPAY :Processing AutoPay is not possible for this active loan, " +
+                    "since registration is not completed {}", lendingPaymentSchedule.getId());
         }
     }
 }

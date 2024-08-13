@@ -54,6 +54,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -267,6 +268,9 @@ public class APIGatewayService {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
+    @Autowired
+    LendingPullPaymentDao lendingPullPaymentDao;
+
     @Value("${global.api.cache.ttl:48}")
     Long globalApiCacheTtl;
 
@@ -275,6 +279,9 @@ public class APIGatewayService {
 
     @Value("${x.api.key.underwriting.service}")
     public String xApiKeyUnderwritingService;
+
+    @Value("${mandate.execution.endpoint}")
+    public String mandateExecutionURL ;
 
     @PostConstruct
     public void init() {
@@ -3112,5 +3119,58 @@ public class APIGatewayService {
             logger.error("Error occurred while getting Scenaptic bureau-consent for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    public PgStatusResponseDto executeAutoPayUPIWithPg(Long merchantId, LendingPullPayment pullPayment,UPIPgRequestDto executeUPIPgDto) {
+        logger.info("AUTOPAY : executing auto pay UPI for merchantId {}", merchantId);
+        LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(executeUPIPgDto.getLender().name(), "ACTIVE");
+        logger.info("AUTOPAY : pg config related to mid for merchantId: {}", pgMidConfig);
+        ResponseEntity<PgStatusResponseDto> responseEntity = null;
+        try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("orderId", executeUPIPgDto.getOrderId());
+            requestParams.put("orderAmount", executeUPIPgDto.getOrderAmount());
+            requestParams.put("mandateId", executeUPIPgDto.getMandateId());
+            requestParams.put("executionDate", executeUPIPgDto.getExecutionDate());
+
+            String hash = lendingHmacCalculator.calculateHmac
+                    (lendingHmacCalculator.getPayload(requestParams), getPgSecret(Lender.valueOf(executeUPIPgDto.getLender().name()),
+                            pgMidConfig, merchantId));
+
+            logger.info("Calculated hash {} for merchant id is {}",hash,merchantId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getPgMid(Lender.valueOf(executeUPIPgDto.getLender().name()), pgMidConfig, merchantId));
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+            logger.info("AUTOPAY : For Merchant Id {} Create pg transaction internal request: {}", merchantId,objectMapper.writeValueAsString(request));
+            try {
+                String pgCreateTxnURL = PG_URL + mandateExecutionURL;
+                logger.info("AUTOPAY : pg mandate presentment create url: {}", pgCreateTxnURL);
+                responseEntity = restTemplate.exchange(pgCreateTxnURL, HttpMethod.POST, request, PgStatusResponseDto.class);
+                logger.info("AUTOPAY : response entity is {}",responseEntity);
+                if (responseEntity.getStatusCode().is2xxSuccessful() &&
+                        ( responseEntity.getBody().getData().getPaymentStatus().equalsIgnoreCase("SUCCESS")
+                                || responseEntity.getBody().getData().getPaymentStatus().equalsIgnoreCase("PENDING"))) {
+                    logger.info("AUTOPAY : Response for mandate presentment is Success");
+                    pullPayment.setStatus("PENDING");
+                } else {
+                    logger.info("AUTOPAY : Response for mandate presentment is failure");
+                    pullPayment.setStatus("FAILED");
+                }
+                lendingPullPaymentDao.save(pullPayment);
+            }
+            catch (HttpClientErrorException e) {
+                logger.error("AUTOPAY : exception in client is {} ", e.getResponseBodyAsString());
+                return new PgStatusResponseDto(e.getStatusCode().toString(), e.getMessage());
+            }
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException();
+        } catch (Exception ex) {
+            logger.error("AUTOPAY : error processing in api call to create pg mandate transaction for merchant id:{} ex{}", merchantId, ex.getMessage());
+        }
+        return responseEntity.getBody();
     }
 }
