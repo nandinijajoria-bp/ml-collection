@@ -94,7 +94,7 @@ public abstract class LendingApplicationServiceV3Base {
             return new ApiResponse<>(false,"open draft lending application not found");
         }
         if(Lender.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
-            return fetchTopupApplicationStatus(currentDraftApplication);
+            return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus);
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -342,7 +342,7 @@ public abstract class LendingApplicationServiceV3Base {
         return new ApiResponse<>(true,"success");
     }
 
-    public ApiResponse<?> fetchTopupApplicationStatus(LendingApplication currentDraftApplication) {
+    public ApiResponse<?> fetchTopupApplicationStatus(LendingApplication currentDraftApplication, String lenderKycStatus) {
         log.info("Fetching topup loan application status for : {}", currentDraftApplication.getId());
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -379,11 +379,17 @@ public abstract class LendingApplicationServiceV3Base {
                     .lender(currentDraftApplication.getLender())
                     .build());
         } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+            String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
+            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender()) && ObjectUtils.isEmpty(lenderKycRedirectionUrl)) {
+                lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
+            }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                     .stage(LenderAssociationStages.KYC)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
+                    .lenderKycRedirectionUrl(lenderKycRedirectionUrl)
+                    .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
                     .build());
         }
         return new ApiResponse<>(false, "something went wrong");

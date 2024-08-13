@@ -90,8 +90,8 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                         nextPage = LendingViewStates.LENDER_TOPUP_REJECTED;
                     } else if(LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())){
                         lenderEvaluationStateDTO.setIsRetryable(Boolean.TRUE);
-                    } else if (LenderAssociationStatus.KYC_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
-                        log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as KYC_FAILED for applicationId: {}", lendingApplication.getId());
+                    } else if (Arrays.asList(LenderAssociationStatus.KYC_FAILED.name(), LenderAssociationStatus.EKYC_FAILED.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
+                        log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as KYC_FAILED / EKYC_FAILED for applicationId: {}", lendingApplication.getId());
                         lendingApplication.setStatus("rejected");
                         lendingApplicationDao.save(lendingApplication);
                         lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
