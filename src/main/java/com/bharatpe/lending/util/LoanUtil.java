@@ -1819,7 +1819,11 @@ public class LoanUtil {
 
 			logger.info("received risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, loanApplicationAmountTolastLoanAmountRatio ,lendingApplication.getId());
 
-			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.5) {
+			if (Arrays.asList("R1", "R2").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.75) {
+				return Boolean.TRUE;
+			}
+
+			if (Arrays.asList("R3").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.5) {
 				return Boolean.TRUE;
 			}
 
@@ -1881,7 +1885,11 @@ public class LoanUtil {
 
 			logger.info("recieved risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, topupLoanAmountToActiveLoanAmountRatio ,lendingApplication.getId());
 
-			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.5) {
+			if (Arrays.asList("R1", "R2").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.75) {
+				return Boolean.TRUE;
+			}
+
+			if (Arrays.asList("R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.5) {
 				return Boolean.TRUE;
 			}
 
