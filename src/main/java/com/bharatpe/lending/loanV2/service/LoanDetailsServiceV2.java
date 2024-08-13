@@ -1500,6 +1500,7 @@ public class LoanDetailsServiceV2 {
 
             Long referencesLimit = getReferenceLimit(lendingApplication);
             if (referencesLimit == 3L) {
+                //old version & 3 references - v3 changes
                 return handleThreeReferencesLimit(merchantId, lendingApplication);
             }
 
@@ -1685,8 +1686,8 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
             List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
-            if(requestedReferenceList.size() == 3) {
-                //3 references - v3 changes.
+            if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() == 3) {
+                //old version & 3 references - v3 changes.
                 processThreeReferences(merchant, lendingApplication, savedMerchantReferencesList, requestedReferenceList);
             }else {
                 boolean toBeAdded;
@@ -1762,7 +1763,7 @@ public class LoanDetailsServiceV2 {
                 log.info("Successfully saved merchant reference: {} of merchantId: {}", requestedReference.getName(), merchant.getId());
             }
         }else {
-            log.info("Updating references for merchantId: {}", merchant.getId());
+            log.info("Updating existing references for merchantId: {}", merchant.getId());
             for(int i = 0 ; i < 3 ; i++) {
                 LendingMerchantReferences savedReference = savedMerchantReferencesList.get(i);
                 MerchantReference requestedReference = requestedReferenceList.get(i);
