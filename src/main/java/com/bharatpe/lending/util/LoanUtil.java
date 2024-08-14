@@ -1103,6 +1103,7 @@ public class LoanUtil {
 				logger.info("setting data for minTvrCount & newContactRefLogic for applicationId: {}",lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMinTvrCount(lendingRiskVariables.getMinTvrCount());
 				lendingRiskVariablesSnapshot.setNewContactReferenceLogic(lendingRiskVariables.getNewContactReferenceLogic());
+				lendingRiskVariablesSnapshot.setStpFlag(lendingRiskVariables.getStpFlag());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
