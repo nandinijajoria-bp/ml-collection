@@ -852,6 +852,7 @@ public class LiquiloansService {
         }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
             Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
             if(lendingPaymentScheduleLendingCommon.isPresent()){
+                logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
                 lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
                 createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
@@ -1060,36 +1061,35 @@ public class LiquiloansService {
     }
 
     private void createFirstDueForSameDayEdiAdjustment(LendingPaymentSchedule lendingPaymentSchedule) {
-        List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLoanIdAndInstallmentNumber(lendingPaymentSchedule.getId(), 1);
-        Double dueAmount = lendingPaymentSchedule.getDueAmount();
-        Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
-        Double dueInterest = lendingPaymentSchedule.getDueInterest();
-        LendingEDISchedule firstEdiSchedule = null;
-        for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
-            if(lendingEDISchedule.getInstallmentNumber() == 1){
-                firstEdiSchedule = lendingEDISchedule;
+        try{
+            List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLoanIdAndInstallmentNumber(lendingPaymentSchedule.getId(), 1);
+            if(ObjectUtils.isEmpty(lendingEDISchedules)){
+                logger.error("unable to fetch first edi schedule for loan : {}, application : {}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getApplicationId());
+                return;
             }
+            LendingEDISchedule firstEdiSchedule = lendingEDISchedules.get(0);
+            LendingLedger lendingLedger =  createLendingLedger(lendingPaymentSchedule, firstEdiSchedule.getDate(),
+                    Status.LendingTransactionType.EDI.name(),
+                    -firstEdiSchedule.getTotalEdi().doubleValue(), -firstEdiSchedule.getPrinciple(),
+                    -firstEdiSchedule.getInterest(), 0D,
+                    0D, null);
+
+            Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
+            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+
+            lendingPaymentSchedule.setDueAmount((double)firstEdiSchedule.getTotalEdi());
+            lendingPaymentSchedule.setDueInterest(firstEdiSchedule.getInterest());
+            lendingPaymentSchedule.setDuePrinciple(firstEdiSchedule.getPrinciple());
+            lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  1);
+            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
+            lendingLedgerDao.save(lendingLedger);
+            lendingPaymentScheduleDao.save(lendingPaymentSchedule);
         }
-        dueAmount+= firstEdiSchedule.getTotalEdi();
-        dueInterest+= firstEdiSchedule.getInterest();
-        duePrinciple+= firstEdiSchedule.getPrinciple();
-        LendingLedger lendingLedger =  createLendingLedger(lendingPaymentSchedule, firstEdiSchedule.getDate(),
-                Status.LendingTransactionType.EDI.toString(),
-                -firstEdiSchedule.getTotalEdi().doubleValue(), -firstEdiSchedule.getPrinciple(),
-                -firstEdiSchedule.getInterest(), -0D,
-                0D, null);
+        catch(Exception e){
+            logger.error("Exception while creating first due for perpetual dpd loan for loan : {}, {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
 
-        Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
-        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
-        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
-
-        lendingPaymentSchedule.setDueAmount(dueAmount);
-        lendingPaymentSchedule.setDueInterest(dueInterest);
-        lendingPaymentSchedule.setDuePrinciple(duePrinciple);
-        lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  1);
-        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
-        lendingLedgerDao.save(lendingLedger);
-        lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
 
 
@@ -2215,19 +2215,24 @@ public class LiquiloansService {
     }
 
     public void checkAndExecuteAutoPayUpiPresentment(LendingPaymentSchedule lendingPaymentSchedule){
-        AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingPaymentSchedule.getApplicationId());
-        if (autoPayUpi == null) {
-            logger.info("AUTOPAY : No autopay request exist for applicationId : {}, lender : {}", lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
-            return;
-        }
+        try{
+            AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingPaymentSchedule.getApplicationId());
+            if (autoPayUpi == null) {
+                logger.info("AUTOPAY : No autopay request exist for applicationId : {}, lender : {}", lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
+                return;
+            }
 
-        logger.info("AUTOPAY : Starting Autopay for entity : {}", autoPayUpi);
-        if (autoPayUpi.getMandateId() != null && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
-            logger.info("AUTOPAY :Processing autoPay pull loans batch starting at entity {}", autoPayUpi.getApplicationId());
-            autoPayUPIService.executeAutoPayUPI(lendingPaymentSchedule, autoPayUpi);
-        } else {
-            logger.info("AUTOPAY :Processing AutoPay is not possible for this active loan, " +
-                    "since registration is not completed {}", lendingPaymentSchedule.getId());
+            logger.info("AUTOPAY : Starting Autopay for entity : {}", autoPayUpi);
+            if (autoPayUpi.getMandateId() != null && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
+                logger.info("AUTOPAY :Processing autoPay pull loans batch starting at entity {}", autoPayUpi.getApplicationId());
+                autoPayUPIService.executeAutoPayUPI(lendingPaymentSchedule, autoPayUpi);
+            } else {
+                logger.info("AUTOPAY :Processing AutoPay is not possible for this active loan, " +
+                        "since registration is not completed {}", lendingPaymentSchedule.getId());
+            }
+        }
+        catch(Exception e){
+            logger.error("autopay upi presentment failed for {}, {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), e.getStackTrace());
         }
     }
 }
