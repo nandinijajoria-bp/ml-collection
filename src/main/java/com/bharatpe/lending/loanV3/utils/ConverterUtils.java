@@ -87,4 +87,10 @@ public class ConverterUtils {
                 .replaceAll("`","").replaceAll("\\.", "").replaceAll(",", "");
     }
 
+    public String parseStateData(String data) {
+        if(data.contains("/")) {
+            return data.substring(0, data.indexOf("/"));
+        }
+        return data;
+    }
 }
