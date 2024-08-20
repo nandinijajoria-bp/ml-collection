@@ -96,6 +96,9 @@ public class KycRequestKafka {
     @Value("${abfl.eKyc.retry.count:2}")
     Integer abflEKycRetryCount;
 
+    @Value("${abfl.topup.kyc.retry.count:2}")
+    Integer abflTopupKycRetryCount;
+
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
@@ -189,7 +192,7 @@ public class KycRequestKafka {
             }
             if (Boolean.FALSE.equals(kycCallbackResponseDto.getSuccess())) {
                 if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
-                    if(existingLendingApplicationLenderDetails.getKycRetryCount() < 3) {
+                    if(existingLendingApplicationLenderDetails.getKycRetryCount() < abflTopupKycRetryCount) {
                         log.info("marking kycStatus KYC_retry for topup application as kyc callback resulted in failure for  {}", lendingApplication.get().getId());
                         existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
                         Integer currentKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
@@ -314,9 +317,43 @@ public class KycRequestKafka {
                 log.info("no application found for id {}", eKycRequest.get("application_id"));
             }
 
+            lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(),Status.ACTIVE.name(), Lender.ABFL.name());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
+                    (!lendingApplication.get().getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) ||
+                    !LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                log.info("lender or stage mismatch while initiating eKyc for application {}", lendingApplication.get().getId());
+                return;
+            }
+
             if(!kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId())) {
                 log.info("skipping digiLocker kyc flow on ABFL for applicationId : {}", lendingApplication.get().getId());
                 kycRequestListener(request);
+                return;
+            }
+
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())
+                    && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getKycStatus())) {
+                boolean kycValid = invokeKycValidity(lendingApplication.get(), lendingApplicationLenderDetails);
+                if(kycValid) {
+                    lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
+                    LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.get().getLender()),LenderAssociationStages.KYC);
+                    lendingApplicationLenderDetails.setStage(nextStage.name());
+                    lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                    loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
+                    if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender())) {
+                        final LendingApplication finalLendingApplication = lendingApplication.get();
+                        new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
+                    }
+                    nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
+                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC));
+                    log.info("kyc completed for the application {} ", lendingApplication.get().getId());
+                    return;
+                }
+                log.info("marking kycStatus KYC_RETRY for topup application as kyc validity resulted in failure for  {}", lendingApplication.get().getId());
+                lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.KYC_PAGE);
                 return;
             }
 
@@ -329,14 +366,6 @@ public class KycRequestKafka {
                             .accountId(lendingApplication.get().getExternalLoanId())
                             .build())
                     .build();
-
-            lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(eKycRequestApiDto.getApplicationId(),Status.ACTIVE.name(), Lender.ABFL.name());
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) &&
-                    (!eKycRequestApiDto.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) ||
-                    !LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                log.info("lender or stage mismatch while initiating eKyc for application {}", eKycRequestApiDto.getApplicationId());
-                return;
-            }
 
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
@@ -380,8 +409,9 @@ public class KycRequestKafka {
                 return;
             }
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
-                log.info("marking kycStatus EKYC_FAILED for topup application as eKyc resulted in failure for  {}", lendingApplication.get().getId());
-                lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_FAILED.name());
+                log.info("marking kycStatus KYC_FAILED for topup application as eKyc resulted in failure for  {}", lendingApplication.get().getId());
+                lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
+                lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.EKYC_FAILED.name());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 return;
             }
@@ -432,8 +462,9 @@ public class KycRequestKafka {
                     return;
                 }
                 if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
-                    log.info("marking kycStatus EKYC_FAILED for topup application as eKyc callback resulted in failure for  {}", lendingApplication.get().getId());
-                    existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_FAILED.name());
+                    log.info("marking kycStatus KYC_FAILED for topup application as eKyc callback resulted in failure for  {}", lendingApplication.get().getId());
+                    existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
+                    existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.EKYC_FAILED.name());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                     return;
                 }
@@ -507,5 +538,33 @@ public class KycRequestKafka {
             log.error("exception occurred while processing eKyc status check request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return false;
+    }
+
+    private boolean invokeKycValidity(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+       try {
+           CKycResponseDto cKycResponseDto = kycUtils.getPanData(lendingApplication.getMerchantId());
+           KycValidityRequestApiDto payload = KycValidityRequestApiDto.builder()
+                   .applicationId(lendingApplication.getId())
+                   .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
+                   .lender(lendingApplication.getLender())
+                   .productName("LENDING")
+                   .payload(KycValidityRequestApiDto.Payload.builder()
+                           .cccId(lendingApplicationLenderDetails.getCccId())
+                           .panNo(cKycResponseDto.getPanNumber())
+                           .build())
+                   .build();
+           INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(payload.getLender());
+           KycValidityApiResponseDto kycValidityApiResponse = apiGatewayV3.invokeKycValidity(payload);
+           if(!ObjectUtils.isEmpty(kycValidityApiResponse) && kycValidityApiResponse.getSuccess() && !ObjectUtils.isEmpty(kycValidityApiResponse.getData())) {
+              if("SUCCESS".equalsIgnoreCase(kycValidityApiResponse.getData().getResponseStatus()) && kycValidityApiResponse.getData().getData().getKycValidity()) {
+                  log.info("Kyc is valid from ABFL's with response {} for applicationId {}", kycValidityApiResponse, lendingApplication.getId());
+                  return true;
+              }
+           }
+           log.info("Kyc validity api response {} is false for applicationId {} ", kycValidityApiResponse, lendingApplication.getId());
+       } catch (Exception e) {
+           log.info("Exception in invoking kyc validity API of ABFL for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+       }
+       return false;
     }
 }
