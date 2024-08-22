@@ -163,12 +163,8 @@ public class NbfcUtils {
     }
 
     public void retryApplicationStage(Long applicationId, String lender, String lenderAssociationStage) {
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-        if(!ObjectUtils.isEmpty(lendingApplicationDetails)) {
-            lendingApplicationDetails.setStage(lenderAssociationStage);
-            lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
-            lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            log.info("stage updated in app details for application {}", applicationId);
+        try {
+            log.info("retrying stage {} for {}", lenderAssociationStage, applicationId);
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(lenderAssociationStage).getLenderAssociationService(lender);
             Map<String, Object> args = new HashMap<String, Object>() {{
@@ -176,6 +172,8 @@ public class NbfcUtils {
             }};
             iLenderAssociationService.invoke(applicationId, args);
             log.info("application {} successfully pushed to retry for stage {}", applicationId, lenderAssociationStage);
+        } catch (Exception e) {
+            log.error("Exception in retrying stage {} for applicationId {} {}", lenderAssociationStage, applicationId, Arrays.asList(e.getStackTrace()));
         }
     }
 
