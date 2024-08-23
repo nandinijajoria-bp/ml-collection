@@ -220,7 +220,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
 //            lendingApplication.setNachLender("BHARATPE");
-            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
+            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()) || EnachMode.UPI.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
                 lendingApplication.setNachStatus("PENDING_VERIFICATION");
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.PENDING_APPLICATION, bharatPeEnach.getMode());
@@ -399,7 +399,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
 
-            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
+            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()) || EnachMode.UPI.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
                 lendingApplication.setNachStatus("PENDING_VERIFICATION");
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.PENDING_APPLICATION, bharatPeEnach.getMode());
