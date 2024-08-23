@@ -214,6 +214,8 @@ public abstract class LendingApplicationServiceV3Base {
             case "SANCTION_WRAPPER":
             case "DRAWDOWN":
             case "DOCUMENT_UPLOAD":
+            case "DOC_UPLOAD":
+            case "PUSH_AUDIT":
             case "COMPLETED":
                 return "COMPLETED";
         }
