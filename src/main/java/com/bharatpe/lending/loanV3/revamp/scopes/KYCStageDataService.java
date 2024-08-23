@@ -239,18 +239,19 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
                     initiateKycResponse.setDeeplink(kycDeepLink);
                     initiateKycResponse.setShowKycPage(true);
-                    loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
-                    if(initiateKycResponse.isTopup() && !kycRetry){
-                        return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
-                    }
-                    if(kycRetry) {
+                    if(initiateKycResponse.isTopup() && kycRetry) {
                         if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                             lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
                             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                         }
                         initiateKycResponse.setShowKycPage(false);
-                        new Thread(()-> nbfcUtils.retryApplicationStage(lendingApplication.getId(), lendingApplication.getLender(), lendingApplicationDetails.getStage())).start();
                         loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.LENDER_EVALUATION_PAGE);
+                        new Thread(()-> nbfcUtils.retryApplicationStage(lendingApplication.getId(), lendingApplication.getLender(), lendingApplicationDetails.getStage())).start();
+                        return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
+                    }
+                    loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
+                    if(initiateKycResponse.isTopup()){
+                        return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
