@@ -40,10 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -102,6 +99,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
     @Autowired
     FunnelService funnelService;
+
+    @Value("${upi.nach.lender:-}")
+    private Set<String> upiNachLender;
 
 
     @Override
@@ -341,7 +341,8 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         // UPI NACH for Loan Amount <= 50000
         if (lendingApplication.getLoanAmount() > maxLoanAmountForNachUPI
             || !easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiNachRolloutPercent)
-            || (!ObjectUtils.isEmpty(appVersion) && appVersion < upiAppVersion)) {
+            || (!ObjectUtils.isEmpty(appVersion) && appVersion < upiAppVersion)
+            || !upiNachLender.contains(lendingApplication.getLender())) {
             enachModes.removeIf(mode -> mode.getName().equals(EnachMode.UPI.name()));
             log.info("UPI removed because, Amount > {} or App version doesn't support UPI NACH appversion: {}", maxLoanAmountForNachUPI, appVersion);
         }
