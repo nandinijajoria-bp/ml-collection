@@ -94,7 +94,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${upi.nach.rollout.percent:10}")
     Integer upiNachRolloutPercent;
 
-    @Value("${upi.app.version:696}")
+    @Value("${upi.app.version:709}")
     Integer upiAppVersion;
 
     @Autowired
