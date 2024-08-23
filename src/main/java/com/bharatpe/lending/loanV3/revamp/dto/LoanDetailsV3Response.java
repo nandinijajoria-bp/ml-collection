@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -335,7 +336,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLender(enachStateDTO.getLender());
         applicationDetails.setEnachDeeplink(enachStateDTO.getEnachDeeplink());
         applicationDetails.setEnachDone(enachStateDTO.getEnachDone());
-        applicationDetails.setEnachMode(enachStateDTO.getEnachMode());
+        applicationDetails.setEnachModes(enachStateDTO.getEnachModes());
         applicationDetails.setNachStartedAt(enachStateDTO.getNachStartedAt());
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());

@@ -55,6 +55,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -298,6 +299,12 @@ public class LoanDetailsServiceV2 {
 
     @Value("${eligibleLoan.creation.skip.rollout:0}")
     Integer eligibleLoanCreationSkipRollout;
+
+    @Value("${upinach.max.loan.amount:50000}")
+    Double maxLoanAmountForNachUPI;
+
+    @Value("${upi.nach.rollout.percent:10}")
+    Integer upiNachRolloutPercent;
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
@@ -976,13 +983,17 @@ public class LoanDetailsServiceV2 {
                             Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
                         applicationDetails.setEnachMode(EnachMode.NB_DC.name());
                     }
-                    else{
-                        String enachMode = loanUtil.getEnachBankMode(openApplication.getMerchantId());
-                        if(EnachMode.BOTH.name().equalsIgnoreCase(enachMode))
-                            applicationDetails.setEnachMode(EnachMode.NB_DC.name());
-                        else if (EnachMode.NB_DC.name().equalsIgnoreCase(enachMode))
-                            applicationDetails.setEnachMode(EnachMode.NB_DC.name());
-                        else if(EnachMode.ADHAAR.name().equalsIgnoreCase(enachMode))applicationDetails.setEnachMode(EnachMode.ADHAAR.name());
+                    else {
+                        List<EnachModeDTO> enachModes = loanUtil.getEnachModes(openApplication.getMerchantId());
+                        if (openApplication.getLoanAmount() > maxLoanAmountForNachUPI && !easyLoanUtil.percentScaleUp(openApplication.getMerchantId(),upiNachRolloutPercent)) {
+                            enachModes.removeIf(mode -> mode.getName().equals(EnachMode.UPI.name()));
+                        }
+                        if (Objects.nonNull(enachModes)) {
+                            applicationDetails.setEnachMode(enachModes.stream().map(EnachModeDTO::getName)
+                                    .collect(Collectors.toList()).toString()
+                                    .replace("[", "")
+                                    .replace("]", ""));
+                        }
                     }
                     BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
                     if(ObjectUtils.isEmpty(bharatPeEnach)){

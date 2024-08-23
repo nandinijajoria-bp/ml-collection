@@ -313,7 +313,7 @@ public class LenderAssignService implements ILenderAssignService {
 
     private boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender) {
         if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
-            String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId());
+            String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
                 return false;
             }
@@ -468,8 +468,8 @@ public class LenderAssignService implements ILenderAssignService {
             }
             saveLenderChangeAudit(application, decidedLender);
         }
-
-        if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(loanUtil.getEnachBankMode(application.getMerchantId()))) {
+        String enachMode = loanUtil.getEnachBankMode(application.getMerchantId()).getMode();
+        if (Lender.LDC.name().equals(decidedLender) && EnachMode.ADHAAR.name().equalsIgnoreCase(enachMode)) {
             decidedLender = LIQUILOANS_NBFC.name();
             saveLenderChangeAudit(application, decidedLender);
         }
