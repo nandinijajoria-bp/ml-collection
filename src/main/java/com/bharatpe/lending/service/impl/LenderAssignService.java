@@ -167,7 +167,7 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
-    @Value("${max.eligible.lenders.for.modify:2}")
+    @Value("${max.eligible.lenders.for.modify:3}")
     Integer maxEligibleLendersCountForModify;
 
     @Override
