@@ -220,7 +220,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
 //            lendingApplication.setNachLender("BHARATPE");
-            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()) || EnachMode.UPI.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
+            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
                 lendingApplication.setNachStatus("PENDING_VERIFICATION");
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.PENDING_APPLICATION, bharatPeEnach.getMode());
@@ -325,6 +325,10 @@ public class ENachService {
         requestDTO.setLender(lendingApplication.getLender());
         ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING", lendingApplication.getLoanType());
 
+        if(ObjectUtils.isEmpty(eNachIntitiationResponseDTO)){
+            lendingApplication.setNachStatus(null);
+        }
+
         if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
             if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData().getLender())){
                 lendingApplication.setNachLender(eNachIntitiationResponseDTO.getData().getLender());
@@ -399,7 +403,7 @@ public class ENachService {
             }
             lendingApplication.setNachType("ENACH");
 
-            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode()) || EnachMode.UPI.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
+            if (EnachMode.ADHAAR.name().equalsIgnoreCase(bharatPeEnach.getMode())) {
                 lendingApplication.setNachStatus("PENDING_VERIFICATION");
                 funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.PENDING_APPLICATION, bharatPeEnach.getMode());
