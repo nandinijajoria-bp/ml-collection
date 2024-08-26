@@ -7,8 +7,10 @@ import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -32,6 +34,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -86,6 +89,12 @@ public class BPEnachService {
     @Autowired
     MerchantLoansService merchantLoansService;
 
+    @Autowired
+    FunnelService funnelService;
+
+    @Value("${upi.nach.amount:15000}")
+    Double upiNachAmount;
+
     Logger logger = LoggerFactory.getLogger(BPEnachService.class);
     
     private static String drfDeepLinkStr = "drf-onboard";
@@ -124,8 +133,18 @@ public class BPEnachService {
                 return responseDTO;
             }
 
-            Double nachAmount = (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D)
-                    ? 100000D : lendingApplication.getLoanAmount();
+            logger.info("Initiating nach for applicationId : {} for merchantId : {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                    FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, nachMode);
+
+            Double nachAmount = lendingApplication.getLoanAmount();
+
+            if (EnachMode.UPI.name().equalsIgnoreCase(nachMode)) {
+                nachAmount = lendingApplication.getLoanAmount() > upiNachAmount ? upiNachAmount : nachAmount;
+            } else if (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode)) {
+                nachAmount = lendingApplication.getLoanAmount() > 100000D ? 100000D : nachAmount;
+            }
+
             String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
             String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
@@ -160,9 +179,17 @@ public class BPEnachService {
         lendingApplicationDao.save(lendingApplication);
 
         logger.info("Initiating nach for applicationId : {} for merchantId : {}", lendingApplication.getId(), lendingApplication.getMerchantId());
+        funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.INITIATED, nachMode);
 
-        Double nachAmount = (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode) && lendingApplication.getLoanAmount() > 100000D)
-          ? 100000D : lendingApplication.getLoanAmount();
+        Double nachAmount = lendingApplication.getLoanAmount();
+
+        if (EnachMode.UPI.name().equalsIgnoreCase(nachMode)) {
+            nachAmount = lendingApplication.getLoanAmount() > upiNachAmount ? upiNachAmount : nachAmount;
+        } else if (EnachMode.ADHAAR.name().equalsIgnoreCase(nachMode)) {
+            nachAmount = lendingApplication.getLoanAmount() > 100000D ? 100000D : nachAmount;
+        }
+
         String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
         String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 

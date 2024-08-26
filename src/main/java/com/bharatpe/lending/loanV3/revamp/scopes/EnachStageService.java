@@ -7,15 +7,19 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
@@ -36,8 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.Date;
-import java.util.Objects;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -85,6 +88,21 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Autowired
     MerchantLoansService merchantLoansService;
 
+    @Value("${upinach.max.loan.amount:50000}")
+    Double maxLoanAmountForNachUPI;
+
+    @Value("${upi.nach.rollout.percent:10}")
+    Integer upiNachRolloutPercent;
+
+    @Value("${upi.app.version:709}")
+    Integer upiAppVersion;
+
+    @Autowired
+    FunnelService funnelService;
+
+    @Value("${upi.nach.lender:-}")
+    private Set<String> upiNachLender;
+
 
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -126,15 +144,11 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             String lender = openApplication.getLender();
             if("TOPUP".equalsIgnoreCase(openApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
                     Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
-                enachStateDTO.setEnachMode("NB_DC");
+                enachStateDTO.setEnachModes(Arrays.asList(new EnachModeDTO(EnachMode.NB_DC.name(), true, null)));
             }
             else{
-                String enachMode = loanUtil.getEnachBankMode(openApplication.getMerchantId());
-                if("BOTH".equalsIgnoreCase(enachMode))
-                    enachStateDTO.setEnachMode("NB_DC");
-                else if ("NB_DC".equalsIgnoreCase(enachMode))
-                    enachStateDTO.setEnachMode("NB_DC");
-                else if("ADHAAR".equalsIgnoreCase(enachMode))enachStateDTO.setEnachMode("ADHAAR");
+                List<EnachModeDTO> enachModes = getAvailableEnachMode(openApplication, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
+                enachStateDTO.setEnachModes(enachModes);
             }
             BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationId(openApplication.getMerchantId(), openApplication.getId());
             if(ObjectUtils.isEmpty(bharatPeEnach)){
@@ -205,15 +219,11 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             String lender = lendingApplication.getLender();
             if("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) || Lender.LDC.name().equalsIgnoreCase(lender) || Lender.MAMTA.name().equalsIgnoreCase(lender) ||
               Lender.MAMTA0.name().equalsIgnoreCase(lender) || Lender.MAMTA1.name().equalsIgnoreCase(lender) || Lender.MAMTA2.name().equalsIgnoreCase(lender)){
-                enachStateDTO.setEnachMode("NB_DC");
+                enachStateDTO.setEnachModes(Arrays.asList(new EnachModeDTO(EnachMode.NB_DC.name(), true, null)));
             }
             else {
-                String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId());
-                if("BOTH".equalsIgnoreCase(enachMode))
-                    enachStateDTO.setEnachMode("NB_DC");
-                else if ("NB_DC".equalsIgnoreCase(enachMode))
-                    enachStateDTO.setEnachMode("NB_DC");
-                else if("ADHAAR".equalsIgnoreCase(enachMode))enachStateDTO.setEnachMode("ADHAAR");
+                List<EnachModeDTO> enachModes = getAvailableEnachMode(lendingApplication, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
+                enachStateDTO.setEnachModes(enachModes);
             }
 
             final Date renachRolloutDate = loanUtil.parseRolloutDate(this.renachRolloutDate);
@@ -301,5 +311,42 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             log.error("Exception in getEnachError for merchant:{}", openApplication.getMerchantId());
         }
         return null;
+    }
+
+    private List<EnachModeDTO> getAvailableEnachMode(LendingApplication lendingApplication, Integer appVersion) {
+
+        log.info("Fetching EnachModes for merchant: {}", lendingApplication.getMerchantId());
+        List<EnachModeDTO> enachModes = loanUtil.getEnachModes(lendingApplication.getMerchantId());
+
+        long last24hrs = System.currentTimeMillis() - (24 * 60 * 60 * 1000); // for last 24 hours record.
+        String finalLender = loanUtil.enachServiceLenderMapper(lendingApplication.getLender());
+        Integer upiNachAttempts = enachHandler.getNachAttemptsbyMode(lendingApplication.getId(), lendingApplication.getMerchantId(), finalLender, EnachMode.UPI.name(), last24hrs);
+
+        if (upiNachAttempts == null) {
+            log.error("getNachAttemptsbyMode API failed nachAttempts: {}", upiNachAttempts);
+            upiNachAttempts = 0;
+        }
+        funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+                FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.ATTEMPTS, upiNachAttempts.toString(), "UPI");
+
+        if (upiNachAttempts >= 3) {
+            enachModes.stream()
+                    .filter(mode -> mode.getName().equalsIgnoreCase(EnachMode.UPI.name()))
+                    .forEach(mode -> {
+                        mode.setEnabled(false);
+                        mode.setReason("Retry after 24 hours");
+                    });
+        }
+
+        // UPI NACH for Loan Amount <= 50000
+        if (lendingApplication.getLoanAmount() > maxLoanAmountForNachUPI
+            || !easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiNachRolloutPercent)
+            || (!ObjectUtils.isEmpty(appVersion) && appVersion < upiAppVersion)
+            || !upiNachLender.contains(lendingApplication.getLender())) {
+            enachModes.removeIf(mode -> mode.getName().equals(EnachMode.UPI.name()));
+            log.info("UPI removed because, Amount > {} or App version doesn't support UPI NACH appversion: {}", maxLoanAmountForNachUPI, appVersion);
+        }
+        log.info("Available EnachModes for merchant: {} are: {}", lendingApplication.getMerchantId(), enachModes);
+        return enachModes;
     }
 }
