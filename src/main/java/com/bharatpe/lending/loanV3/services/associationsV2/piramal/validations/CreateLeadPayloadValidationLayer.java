@@ -26,7 +26,6 @@ public class CreateLeadPayloadValidationLayer {
     public boolean isInValidPayload(CKycResponseDto cKycResponseDto, Long merchantId) {
         NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, merchantId);
         return ( ObjectUtils.isEmpty(nameAndDobDetailsDto.getFirstName()) ||
-                ObjectUtils.isEmpty(nameAndDobDetailsDto.getLastName()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getDob()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getCity()) ||
