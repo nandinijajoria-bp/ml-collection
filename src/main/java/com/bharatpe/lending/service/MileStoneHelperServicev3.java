@@ -155,6 +155,7 @@ public class MileStoneHelperServicev3 {
                 }
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
+            log.info("rte response --> {}", responseDto);
             if(!ObjectUtils.isEmpty(responseDto.getProgramType())) {
                 cleverTapFunnelEventHandler(merchant, entity, responseDto);
             }
@@ -681,10 +682,9 @@ public class MileStoneHelperServicev3 {
     private MileStoneEligibilityResponseDto experianNotFound(BasicDetailsDto merchant, Experian experian,String kycPancard, int pincode, MileStoneEligibilityResponseDto responseDto) {
         log.info("experian is {} for merchantId:{} ", experian, merchant.getId());
         responseDto.setEnrollState(false);
-        responseDto.setMilStoneEligibility(true);
+        responseDto.setMilStoneEligibility(false);
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
-        responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
         responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
         responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
         responseDto.setIsMileStoneExpiry(false);
@@ -778,10 +778,9 @@ public class MileStoneHelperServicev3 {
     private MileStoneEligibilityResponseDto panCardNotFound(BasicDetailsDto merchant, int pincode, MileStoneEligibilityResponseDto responseDto) {
         log.info("panCard is empty for merchant", merchant.getId());
         responseDto.setEnrollState(false);
-        responseDto.setMilStoneEligibility(true);
+        responseDto.setMilStoneEligibility(false);
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
-        responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
         responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
         responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
         responseDto.setIsMileStoneExpiry(false);
