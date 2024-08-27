@@ -201,7 +201,12 @@ public class ENachService {
             return responseDTO;
         }
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
-        if (requestDTO.getStatus()) {
+
+        requestDTO.setLender(lendingApplication.getLender());
+
+        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING");
+
+        if (!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData()) && requestDTO.getStatus()) {
             logger.info("Enach success for merchant:{}", merchant.getId());
             if(Objects.nonNull(lendingApplication) && !StringUtils.isEmpty(lendingApplication.getCkycId())) {
                 responseDTO.getData().setDeep_link("bharatpe://dynamic?key=easy-loans&wroute=enachSuccess");
@@ -320,13 +325,6 @@ public class ENachService {
         } else {
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.FAILED, bharatPeEnach.getMode());
-        }
-        
-        requestDTO.setLender(lendingApplication.getLender());
-        ENachIntitiationResponseDTO eNachIntitiationResponseDTO = apiGatewayService.submitEnach(requestDTO, token, merchant.getId(), bharatPeEnach.getEnachProvider(), "LENDING", lendingApplication.getLoanType());
-
-        if(ObjectUtils.isEmpty(eNachIntitiationResponseDTO)){
-            lendingApplication.setNachStatus(null);
         }
 
         if(!ObjectUtils.isEmpty(eNachIntitiationResponseDTO) && !ObjectUtils.isEmpty(eNachIntitiationResponseDTO.getData())){
