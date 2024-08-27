@@ -1,11 +1,10 @@
 package com.bharatpe.lending.loanV2.controller;
 
+import com.bharatpe.common.entities.MerchantUser;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.dto.LendingMerchantPermissionsDto;
-import com.bharatpe.lending.dto.UpdateMerchantReferencesRequestDto;
-import com.bharatpe.lending.dto.ValidateMerchantReferencesRequestDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -231,6 +230,17 @@ public class LoanDetailsControllerV2 {
     @GetMapping(value = "/merchant/eligibility")
     public ResponseEntity<ApiResponse<?>> fetchMerchantEligibilityForLoan(@RequestParam Long merchantId) {
         return ResponseEntity.ok(loanDetailsServiceV2.fetchMerchantEligibilityForLoan(merchantId));
+    }
+
+    @PostMapping("/send_money/sync_psp")
+    public ApiResponseDTO syncPsp(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<SyncPspDTO> requestDTO) {
+        log.info("sync_psp for merchant user: {}", merchant.getId());
+
+        new Thread(() -> loanDetailsServiceV2.saveMerchantPspInMongo(requestDTO, merchant)).start();
+        ApiResponseDTO apiResponseDTO = new ApiResponseDTO();
+        apiResponseDTO.setSuccess(true);
+        log.info("sync_psp response: {} for merchant user: {}", apiResponseDTO, merchant.getId());
+        return apiResponseDTO;
     }
 
 }
