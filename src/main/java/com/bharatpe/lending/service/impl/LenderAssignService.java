@@ -17,6 +17,7 @@ import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
@@ -24,6 +25,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -169,6 +171,10 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${max.eligible.lenders.for.modify:3}")
     Integer maxEligibleLendersCountForModify;
+
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -824,6 +830,10 @@ public class LenderAssignService implements ILenderAssignService {
                 }
             }
             LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+            if(ObjectUtils.isEmpty(fallbackLender)){
+                handleNullFallbackLender(application.get());
+                return null;
+            }
             if(!ObjectUtils.isEmpty(fallbackLender) && !alreadyAssignedLender.contains(fallbackLender.getLender())){
                 log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
                 LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
@@ -874,6 +884,10 @@ public class LenderAssignService implements ILenderAssignService {
     public String assignFallackLender(LendingApplication lendingApplication, EdiModel ediModel){
         log.info("Assigning fallback lender");
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+        if(ObjectUtils.isEmpty(fallbackLender)){
+            handleNullFallbackLender(lendingApplication);
+            return null;
+        }
         if(ObjectUtils.isEmpty(fallbackLender)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
             return Lender.LIQUILOANS_P2P.name();
@@ -1022,5 +1036,14 @@ public class LenderAssignService implements ILenderAssignService {
             log.error("Exception in checking forceful assigned lender for merchantId : {}, {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private void handleNullFallbackLender(LendingApplication lendingApplication) {
+        saveEligibleLenderAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS");
+        lendingApplication.setStatus("rejected");
+        lendingApplicationDao.save(lendingApplication);
+        lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
     }
 }
