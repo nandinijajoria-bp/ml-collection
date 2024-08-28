@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>SL form PayU</title>
+    <style>
+        .fw-bold {
+            font-weight: bold;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .width-33 {
+            width: 33%;
+        }
+
+        .width-66 {
+            width: 66%;
+        }
+
+        .width-20 {
+            width: 20%;
+        }
+
+        .width-80 {
+            width: 80%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mb30 {
+            margin-bottom: 30px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .mb60 {
+            margin-bottom: 60px;
+        }
+
+        .mt10 {
+            margin-top: 10px;
+        }
+
+        .mr20 {
+            margin-right: 20px;
+        }
+
+        .ml40 {
+            margin-left: 40px;
+        }
+
+        .mt30 {
+            margin-top: 30px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .fw600 {
+            font-weight: 600;
+        }
+
+        .width-33 {
+            width: 33%;
+        }
+
+        .width-66 {
+            width: 66%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .upper-case {
+            text-transform: uppercase
+        }
+
+        .common-text-margin {
+            margin: 6px 16px;
+        }
+
+        .m16 {
+            margin: 16px;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-justify {
+            justify-content: space-between;
+        }
+
+        .common-text {
+            font-weight: 400;
+            text-align: left;
+            margin: 16px;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .terms-text {
+            font-weight: 400;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+<div style="padding: 30px; margin-top: 50px">
+    <div class="text-center">{{lender_logo}}</div>
+    <div class="mb10">{{date}}</div>
+    <div class="mb10">Sanction Letter Reference No: {{lead_id}}_{{offer_id}}_{{time_stamp}}</div>
+    <div class="mb10">Name: {{borrower_name}}</div>
+    <div class="text-center underline fw-bold mb40">Subject: Sanction Letter</div>
+    <div class="mb40">Dear Borrower,
+        <ul>
+            <li class="mb10">We, PayU Finance India Private Limited <span class="fw-bold">(PayU Finance or
+                        Lender)</span>, refer to the application form
+                filled and submitted by the Borrower through Resilient Digi Services Private Limited (being the
+                lending service provider of PayU Finance), requesting PayU Finance to grant a term loan facility for
+                an amount as set out under the application form and for the purpose as set out under the facility
+                documents (<span class="fw-bold">Facility</span>).
+            </li>
+            <li class="mb10">Pursuant to the application form, PayU Finance is issuing this non-binding sanction
+                letter (Sanction
+                Letter) containing certain indicative terms and conditions of the Facility proposed to be granted to
+                the Borrower, as more particularly specified in the <span class="fw-bold">Annexure.</span></li>
+            <li class="mb10">The grant of the Facility by PayU Finance is subject to: (a) the Borrower accepting the
+                terms and
+                conditions specified in this Sanction Letter, (b) the Borrower executing the definitive facility
+                documents in favour of PayU Finance, in a form and manner acceptable to PayU Finance, (c) there
+                being no adverse findings in the Borrower’s credit evaluation by PayU Finance, and (d) the
+                satisfactory conclusion of the know your customer (KYC) and any other checks by PayU Finance.
+            </li>
+            <li class="mb10">This Sanction Letter is not and shall not be construed as a commitment from PayU
+                Finance or any of
+                its affiliates or service providers or agents or business partners to enter any financing
+                transactions with the Borrower or to grant any term loan facility to the Borrower or to arrange any
+                financing for the Borrower. PayU Finance reserves its right to cancel and repudiate or not act on
+                this Sanction Letter, at any time without notice and without giving any reason to the Borrower.
+            </li>
+
+        </ul>
+    </div>
+
+    <div class="mb30">Yours faithfully,</div>
+    <div class="mb30 fw-bold">For PayU Finance India Private Limited:</div>
+
+    <div class="text-center fw-bold mb20">Annexure</div>
+    <div class="text-center fw-bold mb40">Terms and conditions of the sanction</div>
+
+    <table border="1" cellspacing="0" class="width-100 mb50">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>
+                    Borrower identification number
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                {{smb_user_id}}
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>
+                    Name of the Borrower
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                {{borrower_name}}
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>
+                    Address of the Borrower
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                {{address_of_borrower}}
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>
+                    PAN of Borrower
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                {{pan_of_borrower}}
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>
+                    Nature of Facility
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                Term Loan
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Purpose</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                Personal loan
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Facility amount</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66 fw-bold">
+                INR. {{loan_amount_in_figure}}
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Tenure of the Facility and Repayment term</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10">The overall tenure of the Facility is <span
+                        class="fw-bold">{{tenure_of_loan_in_months}}</span>
+                    months from the date of disbursement under the Facility.</p>
+                <p>The Facility shall be repayable in <span class="fw-bold">{{no_of_edis}}</span> number of
+                    instalments payable on a daily basis in accordance with the repayment schedule specified in
+                    other facility documents. </p>
+                <p>The overall tenure of the Facility will be calculated on the basis of a year of 360 days and a month of 30 days.</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Interest Rate per annum </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10">The applicable Interest Rate will be reducing rate <span class="fw-bold">{{annual_roi}} %</span> per annum.
+                </p>
+                <p>In relation to the above: </p>
+                <ul>
+                    <li>the Interest Rate may be varied from time to time at the sole discretion of the Lender
+                        based on, among other things, the behaviour and performance of the Borrower;
+                    </li>
+                    <li>subject to applicable law, the Lender may at its sole discretion also change the
+                        Interest Rate from time to time;
+                    </li>
+                    <li>the Interest Rate may also be changed pursuant to directions issued by RBI or other
+                        Governmental Authorities;
+                    </li>
+                    <li>any such variation or change or revision in the Interest Rate will be applicable
+                        prospectively and the Lender shall intimate the Borrower in relation to the same at
+                        least 15 (fifteen) days prior to such change by way of a notification on the dashboard
+                        provided on the Service Platform or a notification on the dashboard provided by the
+                        Lender or a notification sent either on the registered mobile number of the Borrower or
+                        the registered email address of the Borrower or a notification sent on the communication
+                        address details, which are provided by the Borrower to the Lender in the Application
+                        Form; and
+                    </li>
+                    <li>the Borrower shall have an option to prepay the Facility (without any foreclosure or
+                        prepayment charges) within a period of 30 days from the end of 15 days or end of such
+                        other period as may be required under Applicable Law or prescribed by RBI or other
+                        Governmental Authorities, in case of such change or variation is not acceptable to the
+                        Borrower. However, the Borrower shall be required to communicate his/her decision to the
+                        Lender in this regard at any time prior to such variation or change taking effect. Any
+                        repayment of the Facility thereafter shall be subject to the applicable varied/changed
+                        Interest rate.
+                    </li>
+                </ul>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Rate of annualized penal charges in case of delayed payments (if any)</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10"><span class="fw-bold">36 % per annum plus GST (as applicable)</span> may be
+                    charged per day on principal overdue amount for the instalment that remains unpaid for a
+                    period of 07 (seven) days from the respective Due Date, in addition to the applicable
+                    Interest Rate.</p>
+                <p>If the instalment remains unpaid, then penal charges as mentioned above shall continue to be
+                    levied upto 180 (one hundred and eighty) days from the respective Due Date. </p>
+                <p>It is being clarified that no penal charges shall be levied upon expiry of 180 (one hundred
+                    and eighty) days from the Due Date, even if the instalment continues to remain unpaid beyond
+                    such period of 180 (one hundred and eighty) days.</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Due Date(s) </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10">The Borrower agree that the repayment frequency permitted by the Lender shall be
+                    a daily repayment basis (Due Date) during the tenure of the Facility in accordance with the
+                    repayment schedule specified in the Key Facts Statement applicable for this Facility.</p>
+                <p>Where the Borrower makes a payment which is more than the Instalment amount which is due on
+                    the respective Due Date(s), in such cases any excess amount paid by the Borrower to the
+                    Lender shall be adjusted against subsequent Instalments of the Borrower on the succeeding
+                    Due Dates. In case the tenure for the Facility has ended, the Lender shall refund/transfer
+                    any excess amount paid by the Borrower to the Lender into the Borrower’s Bank Account(s)
+                    within 5 Business Days of receipt of such excess amount by the Lender.</p>
+                <p>Notwithstanding the foregoing, the Borrower shall be entitled to pay the Facility in whole at
+                    any time prior to the applicable Due Date subject to payment of applicable charges.</p>
+                <p>Any changes to the Due Date(s) in relation to the disbursement under this Facility will be at
+                    the sole discretion of the Lender and may be notified to the Borrower by way of a
+                    notification sent either on the registered mobile number of the Borrower or on the online
+                    account of the Borrower at any time during the tenure of the Facility or on the
+                    communication address details, which are provided by the Borrower to the Lender in the
+                    Application Form .</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Payment Instructions for repayment of Outstanding under the Facility</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <ul>
+                    <li>The Borrower irrevocably and unconditionally provides his/her express consent to the
+                        Resilient Innovations Private Limited (offline payment aggregator of the Borrower) being
+                        one of the <span class="fw-bold">“Mandated Third Party”</span> to deduct the applicable
+                        Instalments daily in
+                        accordance with the repayment schedule specified in this KFS and/or any other dues in
+                        accordance with the Facility documents. The Mandated Third Party, upon receipt of such
+                        instructions from the Borrower, shall deduct the Instalment amounts and/or any other
+                        dues in accordance with the Facility documents, from the daily settlement amount
+                        (received by the Mandated Third Party on behalf of the Borrower) and transfer such
+                        Instalment amounts and/or any other dues as per the Facility Documents to the Lender’s
+                        bank account against repayment of the Facility.
+                    </li>
+                    <li>The Borrower hereby irrevocably and unconditionally confirms and undertakes that the
+                        aforesaid instructions issued in favor of the Mandated Third Party shall not be revoked
+                        until the entire Outstanding under the Facility have been repaid in full to the
+                        satisfaction of the Lender.
+                    </li>
+                    <li>In the event, the deduction of Instalment amount and/or any other dues as per the
+                        Facility Documents from the settlement amount (as mentioned in point (a) above) is not
+                        available or sufficient to meet the entire Outstanding dues under the Facility on the
+                        respective Due Date, the Borrower shall make payment of the Outstanding through any
+                        other mode such as Electronic Clearing Mandate/ECS/National Automated Clearing House
+                        (NACH)/UPI Autopay/standing instructions and/or any other electronic or other clearing
+                        mandate or instructions available through the Lender and/or the Referral Partner or the
+                        Lender, at its sole discretion, may also present any Payment Instruction(s) granted in
+                        its favor for repayment of the Facility.
+                    </li>
+                    <li>Save and except with the prior written consent of the Lender, the Borrower shall not,
+                        under any circumstances, revoke, cancel or alter the Payment Instruction(s) or cancel or
+                        issue stop-payment instructions with respect to these Payment Instruction(s) or do or
+                        omit to do anything which may result in the Borrower's bank(s) and/or Mandated Third
+                        Party not transferring the amounts equal to the Instalments amounts and/or any other
+                        dues as per the Facility Documents due under the Facility Documents, to the bank account
+                        of the Lender on the relevant Due Date. Any attempt to do so shall be considered as an
+                        Event of Default.
+                    </li>
+                    <li>If any amounts (not being the principal amount of the Facility or Interest thereon) are
+                        outstanding for payment/repayment by the Borrower in terms of the Facility Documents by
+                        the Borrower to the Lender, under this Facility, the Lender shall be entitled to
+                        present/invoke the Payment Instruction(s) for the satisfaction of such outstanding
+                        amounts, notwithstanding that Payment Instruction(s) have been issued for repayment of
+                        the principal amount of the Facility and/ or Interest thereon, and the Borrower shall
+                        continue to be indebted to the Lender for the Facility and/or Interest, as the case may
+                        be.
+                    </li>
+                    <li>All Payment Instruction(s) issued by the Borrower in favor of the Lender are for the
+                        purpose of discharge of the Outstandings that may be due to the Lender by the Borrower
+                        under the Facility Documents in relation to the Facility and the same are not proposed
+                        to be issued as and by way of a security for any purpose whatsoever. The Payment
+                        Instruction(s) is intended to be used at any time by the Lender as the Lender may
+                        consider fit and proper, to recover the Outstandings owed by the Borrower to the Lender,
+                        and the Borrower, by accepting and executing the Facility Documents, has unconditionally
+                        and irrevocably authorized the Lender for the same.
+                    </li>
+                    <li>The Borrower further irrevocably and unconditionally confirms and authorizes the Lender
+                        to invoke Lender’s right under the instructions issued by the Borrower to Mandated Third
+                        Party or Borrower’s bank, in the event Borrower has failed to make payment of the
+                        Outstanding Amount on the respective Due Date.
+                    </li>
+                    <li>The Borrower shall: (i) not close or issue any instructions for the closure of the
+                        Borrower’s Bank Account(s) or for any modification or cancellation of instructions to
+                        any Mandated Third Party without the prior written consent of the Lender; (ii) not
+                        commit or omit to do any act, agreement or thing which may entitle its bank to close or
+                        suspend the Borrower’s Bank Account or entitle any Mandated Third Party to close or
+                        suspend payment to the Lender; (iii) not claim that any Payment Instruction(s) is
+                        invalid; (iv) ensure availability of funds in the Borrower’s Bank Account , in respect
+                        of which the Payment Instruction(s), if any, have been made; and (v) not issue any
+                        notice instructing the Lender not to present any such Payment Instruction(s), if any,
+                        towards payment of any Instalment or other Outstanding.
+                    </li>
+                </ul>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Cooling Off Period</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10">3 (three) days from the date of the disbursement of the Facility.</p>
+                <p>During the aforesaid Cooling Off Period, the Borrower may decide not to continue with the
+                    Facility, without being liable to pay any Early Repayment Charges. However, the Borrower
+                    shall be liable to pay the outstanding principal amount under the Facility and the
+                    proportionate Annual Percentage Rate. Upon such payment by the Borrower, the Facility shall
+                    cease to be available, and the facility documents shall stand terminated. It is clarified
+                    that the Processing Fees shall be retained by the Lender in case the Borrower forecloses the
+                    Facility during the Cooling-Off Period.</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Taxes & Levies</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p>All the charges indicated in the facility documents shall be exclusive of all taxes and
+                    statutory levies as may be applicable on the same including, without limitation, GST at the
+                    rate of 18% (or any other rate that may be specified by the relevant Governmental authority
+                    in this regard from time to time) together with any cess and such taxes and statutory levies
+                    shall be payable by the Borrower as specified in the facility documents. </p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Minimum Prior Notice for Early Repayment/Foreclosure</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p>After the cooling off period, a prior notice of 5 (five) days from the Borrower to the Lender
+                    will be required.</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Documentation Fee</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10">The Borrower shall pay a one-time documentation fee to the Lender of an amount
+                    of INR <span class="fw-bold">NIL</span> plus GST, which will be deducted from the principal amount disbursed under the
+                    Facility and will be notified to the Borrower by the Lender by way of statement(s) and/or
+                    other facility documents at the time of disbursement of the Facility to the Borrower.</p>
+                <p>Total Documentation Fees to be paid by the Borrower: INR <span class="fw-bold">NIL</span> (inclusive of GST)</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Processing Fee</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p>The Borrower shall pay a processing fee of <span class="fw-bold">{{processing_percentage_without_gst}}%</span> of the Facility
+                    amount sanctioned plus GST to the Lender which will be deducted from the principal amount
+                    disbursed under the Facility and will be notified to the Borrower by the Lender by way of a
+                    notification on the dashboard provided on the Service Platform or a notification on the
+                    dashboard provided by the Lender or otherwise by way of Statements and/or other facility
+                    documents at the time of disbursement of the Facility to the Borrower or in the Statement
+                    generated for the first month of the Facility. Total Processing Fees to be paid by the
+                    Borrower: INR <span class="fw-bold">{{processing_fee_includes_tax}}</span> (inclusive of GST)</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Early Repayment Charge</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="mb10">If the Borrower intends to prepay the outstanding under the Facility in full
+                    anytime during the term of the Facility, for any reason whatsoever, then the Lender may
+                    additionally levy Early Repayment Charges at <span class="fw-bold">3%</span> (three percent) on the principal amount
+                    outstanding under the Facility plus applicable GST.</p>
+                <p>The Borrower agrees and acknowledges that the charges as specified above are subject to
+                    change from time to time at the discretion of the Lender. Any such change in these charges
+                    shall be intimated to the Borrower at least 15 days prior to implementing such change. The
+                    Borrower shall have an option to foreclose the sanctioned Facility (by paying the existing
+                    foreclosure charges in addition to outstanding under the sanctioned Facility) within a
+                    period of 30 days from the end of 15 days (as mentioned above) in case such change is not
+                    acceptable to the Borrower. However, the Borrower shall be required to communicate
+                    his/her/its decision to the Lender in this regard at any time prior to such change taking
+                    effect. Any foreclosure of the sanctioned Facility thereafter shall be subject to the
+                    applicable changed/revised foreclosure charges. </p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Payment Instructions registration charges</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="fw-bold">INR NIL.</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Payment Instructions bounce charges</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="fw-bold">
+                    Not exceeding INR 500+ applicable GST for dishonour of NACH/e-mandate. To be levied only
+                    once
+                    across a 30-day period.
+                </p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Annual Percentage Rate (i.e. all-inclusive cost of the Facility to the Borrower as an annual
+                    percentage rate (in percentage))</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p>{{apr}}%</p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Interest Rate Policy</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p>The interest rate policy of the Lender is available on the website <a
+                        href="https://www.payufin.in" target="_blank">https://www.payufin.in</a> . The Lender
+                    shall declare and display the rate of interest (including any revisions in the rate of
+                    interest) on its website and the same shall be deemed to be a notice to the Borrower. The
+                    Borrower hereby agree that it shall be the duty of the Borrower to keep himself or herself
+                    or themselves updated of any such changes or variations in the rate of interest by visiting
+                    the website of the Lender as specified above. The Lender may also, but shall not be
+                    obligation to, notify the Borrower of any change in the rate of interest. Such revised rate
+                    of interest shall be applicable prospectively. </p>
+            </td>
+        </tr>
+
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Details of the Lending Service Provider/ Referral Partner</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="fw-bold">Name: Resilient Digi Services Private Limited </p>
+                <p>Registered office address: 3rd Floor, Ramnath House, 18, Community Centre, Opp. Jet Airways,
+                    Yusuf Sarai, New Delhi 110049.</p>
+                <p>Corporate office address: Building No 8, Tower C, 7th & 12th Floor, Cyber City, Gurgaon,
+                    Haryana, India, 122002.</p>
+                <p>Website: <a href="https://www.bharatpemoney.com" target="_blank">www.bharatpemoney.com</a>
+                </p>
+                <p>Email: <a
+                        href="mailto:customersupport@bharatpemoney.com">customersupport@bharatpemoney.com</a>
+                </p>
+                <p>Privacy policy: Available at: <span><a
+                        href="https://bharatpemoney.com/documents/privacy-policy.pdf"
+                        target="_blank">https://bharatpemoney.com/documents/privacy-policy.pdf</a></span>
+                </p>
+                <p>Terms and conditions for loan services available at: <span><a
+                        href="https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf"
+                        target="_blank">https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf</a></span>
+                </p>
+                <p>Digital Lending Application/Service Platform: <span class="fw-bold">BharatPe for Business</span></p>
+            </td>
+        </tr>
+        <tr class="width-66">
+            <td style="padding: 0px 5px" class="width-33 fw-bold">
+                <p>Details of LSP acting as recovery agent and authorized to approach the Borrower</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-66">
+                <p class="fw-bold">Resilient Digi Services Private Limited (address and other details mentioned
+                    above)</p>
+                <p>For undertaking collection and recovery, the Lender may, either on its own or through the
+                    Referral Partner/LSP or other service providers (including its/their agents), undertake
+                    collection or recovery from the Borrower. For details of Referral Partner/LSP and/or service
+                    providers and/or its/their agents, please refer to <a href="https://www.payufin.in"
+                                                                          target="_blank">https://www.payufin.in</a> .
+                </p>
+                <p>Please note that the LSP has been authorized by the Lender to contact the Borrower in case
+                    the Borrower defaults in his/her repayment obligations towards the Lender. The Borrower is
+                    advised to ensure that there is no default in his/her repayment obligations towards the
+                    Lender.</p>
+                <p>The LSP and/or the Lender or other service providers of the Lender, shall be contacting the
+                    Borrower through phone, SMS, WhatsApp, email, digital mediums and/or by way of physical
+                    visits, either itself and/or through a third party for the purpose of collection of any
+                    overdue amount.</p>
+                <p>The Lender shall also be reporting defaults of the Borrower with the credit information
+                    companies and RBI.</p>
+
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="mb20 fw-bold">For PayU Finance India Private Limited:</div>
+    <div class="mb10">Authorized Signatory</div>
+    <div class="mb20 fw-bold">Acknowledgment and acceptance by the Borrower:</div>
+    <div class="mb40">I have carefully read and understood the terms and conditions of this Sanction Letter and its
+        Annexure and would like to confirm my acceptance.
+    </div>
+
+</div>
+</body>
+
+</html>

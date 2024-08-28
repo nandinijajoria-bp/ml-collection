@@ -274,6 +274,9 @@ public class PaymentService {
     @Value("${nbfc.trilionloans.foreclosure.charges.topic:post_charges_trillion}")
     String nbfcTrilionLoansForeclosureChargesTopic;
 
+    @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
+    String nbfcPayuForeclosureTopic;
+
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
     @Autowired
@@ -1414,7 +1417,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 postForeclosureReceiptPiramal(activeLoan, lendingLedger);
             }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "PAYU").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
@@ -1568,6 +1571,8 @@ public class PaymentService {
                 return nbfcUsfbForeclosureTopic;
             case "CAPRI":
                 return nbfcCapriForeclosureTopic;
+            case "PAYU":
+                return nbfcPayuForeclosureTopic;
             default:
                 return null;
         }
@@ -2279,7 +2284,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
             }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "PAYU").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
                     || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())

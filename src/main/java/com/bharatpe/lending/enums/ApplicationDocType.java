@@ -16,7 +16,12 @@ public enum ApplicationDocType {
     LIQUILOANS_NBFC_FOOTER,
     AUTHORIZATION_LETTER_DOC,
     MUTHOOT_LETTERHEAD_FOOTER,
-    CAPRI_LETTERHEAD_FOOTER;
+    CAPRI_LETTERHEAD_FOOTER,
+    PAYU_LETTERHEAD_FOOTER,
+    PAYU_MITC_DOC,
+    PAYU_GTC_DOC,
+    PAYU_LOA_DOC,
+    PAYU_APPLICATION_FORM_DOC;
 
 
     public static ApplicationDocType getFooterMapping(Lender lender) {
@@ -32,6 +37,8 @@ public enum ApplicationDocType {
                 return MUTHOOT_LETTERHEAD_FOOTER;
             case CAPRI:
                 return CAPRI_LETTERHEAD_FOOTER;
+            case PAYU:
+                return PAYU_LETTERHEAD_FOOTER;
         }
         return null;
     }

@@ -1677,6 +1677,9 @@ public class LoanUtil {
 		if("CAPRI".equalsIgnoreCase(lender)) {
 			finalLender = Lender.CAPRI.name();
 		}
+		if("PAYU".equalsIgnoreCase(lender)) {
+			finalLender = Lender.PAYU.name();
+		}
 		return finalLender;
 	}
 
@@ -2336,6 +2339,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(ABFL.name(), "ABFL");
 		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
+		rejectedLenderMapping.put(PAYU.name(), "PAYU");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
