@@ -10,7 +10,14 @@ public enum DocType {
     SHOP_STOCK("CONSENTS_DOCUMENT", "OTHER", ".jpeg", "URL"),
     KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
     LOAN_AGREEMENT_NEW("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
-    KEY_FACT_STATEMENT_NEW("LOAN_DOCUMENT", "OTHER", ".pdf", "URL");
+    KEY_FACT_STATEMENT_NEW("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
+    MITC("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
+    GTC("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
+    LOA("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
+    APPLICATION_FORM("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
+    LOAN_DOCS("LOAN_DOCUMENT", "OTHER", ".pdf", "URL");
+
+
 
     String category;
     String subCategory;

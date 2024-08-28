@@ -113,6 +113,7 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
                 return associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequest.getLendingApplication().getLender(), lenderAssociationDetailsRequest);
             case "MUTHOOT":
             case "CAPRI":
+            case "PAYU":
                 return true;    // Skipped update lead as its only taking same payload as createLead
             default:
                 return false;

@@ -14,6 +14,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.KYC;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -24,6 +25,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.BRE;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -34,6 +36,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.ASSC_COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -44,6 +47,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.DOC_UPLOAD;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -53,6 +57,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.DRAWDOWN;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -64,6 +69,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.SANCTION_WRAPPER;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -74,6 +80,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -92,6 +99,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return LenderAssociationStages.KYC;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -107,6 +115,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -117,6 +126,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -127,6 +137,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -137,6 +148,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -147,6 +159,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -158,6 +171,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -167,6 +181,7 @@ public class LenderAssociationStageFactoryV2 {
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
+                    case PAYU:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;

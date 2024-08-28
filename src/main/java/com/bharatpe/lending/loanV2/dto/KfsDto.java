@@ -50,4 +50,7 @@ public class KfsDto {
     private String lenderKfsUrl;
 
     private Double insurancePremium;
+    private String smbId;
+    private String offerId;
+    private String leadId;
 }

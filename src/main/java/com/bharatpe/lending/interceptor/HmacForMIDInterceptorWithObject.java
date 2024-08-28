@@ -45,7 +45,7 @@ public class HmacForMIDInterceptorWithObject implements HandlerInterceptor {
 
     List<String> pgMids = Arrays.asList("LENTRIgUqSD3gV0xCW6gCijBLsZU9eU2", "LENLDCmzpVvR90yJCzKJWuYgWMvpVPZg", "LENLLzV9L6C0FcejvkqDzVbZvQpBUQY4",
             "LENHIN7nhdRBCGrskaRyHQSOYrN3paPh", "LENMAM1T78fJ3PBkYPfOvHAOGdLuiopm", "LENLLOBmSHeoNlJ3lfd7M5SDu2HJXYwY", "LENLLOFr0ZxlHGwodR5bklVHWkTCHCk0",
-            "LENABFLcuNy15FG7NEhhuJK31S1f7HbO", "LENPRIxLIazvVGKRK5dngMzTWsvhFsWp", "LENMUTL1HAWyPzvF7g7HQrz73oa3tiwQ",  "LENCAPcZlZOB8o7GVzxHHRJZSKw3Rono");
+            "LENABFLcuNy15FG7NEhhuJK31S1f7HbO", "LENPRIxLIazvVGKRK5dngMzTWsvhFsWp", "LENMUTL1HAWyPzvF7g7HQrz73oa3tiwQ",  "LENCAPcZlZOB8o7GVzxHHRJZSKw3Rono", "LENPAYU8lfGGqVRwiurdRuFe48YPAKNA");
 
 
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
