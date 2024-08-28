@@ -35,6 +35,7 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -46,6 +47,7 @@ import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
+import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -1103,6 +1105,7 @@ public class LoanUtil {
 				logger.info("setting data for minTvrCount & newContactRefLogic for applicationId: {}",lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMinTvrCount(lendingRiskVariables.getMinTvrCount());
 				lendingRiskVariablesSnapshot.setNewContactReferenceLogic(lendingRiskVariables.getNewContactReferenceLogic());
+				lendingRiskVariablesSnapshot.setStpFlag(lendingRiskVariables.getStpFlag());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -1309,7 +1312,7 @@ public class LoanUtil {
 		return lendingNachBank != null;
 	}
 
-	public String getEnachBankMode(Long merchantId) {
+	public LendingNachBankResponseDTO getEnachBankMode(Long merchantId) {
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
 		if (bankDetailsDtoOptional.isPresent())
@@ -1321,7 +1324,7 @@ public class LoanUtil {
 			lendingNachBank = enachHandler.findByIfsc("BCBM");
 		}
 		logger.info("lendingNachBank for {} : {}", merchantId, lendingNachBank);
-		if(!ObjectUtils.isEmpty(lendingNachBank))return lendingNachBank.getMode();
+		if(!ObjectUtils.isEmpty(lendingNachBank))return lendingNachBank;
 		return null;
 	}
 
@@ -1819,7 +1822,11 @@ public class LoanUtil {
 
 			logger.info("received risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, loanApplicationAmountTolastLoanAmountRatio ,lendingApplication.getId());
 
-			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.5) {
+			if (Arrays.asList("R1", "R2").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.75) {
+				return Boolean.TRUE;
+			}
+
+			if (Arrays.asList("R3").contains(riskGroup) && loanApplicationAmountTolastLoanAmountRatio <= 1.5) {
 				return Boolean.TRUE;
 			}
 
@@ -1881,7 +1888,11 @@ public class LoanUtil {
 
 			logger.info("recieved risk group in lending risk variable snapshot: {} and riskSegment:{} and topupLoanToActiveLoanAmountRatio : {} for applicationId : {}", riskGroup, riskSegment, topupLoanAmountToActiveLoanAmountRatio ,lendingApplication.getId());
 
-			if (Arrays.asList("R1", "R2", "R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.5) {
+			if (Arrays.asList("R1", "R2").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.75) {
+				return Boolean.TRUE;
+			}
+
+			if (Arrays.asList("R3").contains(riskGroup) && topupLoanAmountToActiveLoanAmountRatio <= 1.5) {
 				return Boolean.TRUE;
 			}
 
@@ -2337,6 +2348,34 @@ public class LoanUtil {
 				applicationId,
 				lender,
 				status);
+	}
+	public List<EnachModeDTO> getEnachModes(Long merchantId) {
+		LendingNachBankResponseDTO lendingNachBankResponse = getEnachBankMode(merchantId);
+
+		if (Objects.isNull(lendingNachBankResponse)) {
+			return null;
+		}
+//		String availableEnachModes = "UPI, NB_DC, ADHAAR";
+		StringBuilder enachModes = new StringBuilder();
+		if (lendingNachBankResponse.getUpiMandate() != null) {
+			if (lendingNachBankResponse.getUpiMandate()) {
+				enachModes.append("UPI,");
+			}
+		} else {
+			logger.error("UPI Mandate mode for Nach Bank is null");
+		}
+		if(EnachMode.BOTH.name().equalsIgnoreCase(lendingNachBankResponse.getMode()))
+			enachModes.append("NB_DC");
+		else if (EnachMode.NB_DC.name().equalsIgnoreCase(lendingNachBankResponse.getMode()))
+			enachModes.append("NB_DC");
+		else if(EnachMode.ADHAAR.name().equalsIgnoreCase(lendingNachBankResponse.getMode()))
+			enachModes.append("ADHAAR");
+
+		String availableEnachModes = enachModes.toString();
+		return Arrays.stream(availableEnachModes.split(","))
+				.filter(mode -> (!Objects.equals(mode.trim(), "")))
+				.map(mode -> new EnachModeDTO(mode.trim(), true, null))
+				.collect(Collectors.toList());
 	}
 }
 
