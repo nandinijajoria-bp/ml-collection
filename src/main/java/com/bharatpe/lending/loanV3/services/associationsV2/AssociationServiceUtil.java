@@ -252,7 +252,7 @@ public class AssociationServiceUtil {
         }
     }
 
-    public LenderEdIScheduleResponseDTO invokeRepaymentScheduleService(String lender, Long applicationId) {
+    public LenderEdIScheduleResponseDTO invokeRepaymentScheduleService(String lender, Long applicationId, Boolean isPreview) {
         switch (lender) {
             case "USFB":
                 return repaymentService.invokeRpsGenerate(applicationId);
@@ -263,7 +263,7 @@ public class AssociationServiceUtil {
             case "CAPRI":
                 return capriRepaymentScheduleService.invokeRpsGenerate(applicationId);
             case "PAYU":
-                return payURepaymentScheduleService.invokeRpsGenerate(applicationId);
+                return payURepaymentScheduleService.invokeRpsGenerate(applicationId, isPreview);
             default:
                 return null;
         }
