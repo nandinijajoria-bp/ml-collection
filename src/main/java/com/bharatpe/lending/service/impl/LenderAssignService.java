@@ -831,7 +831,7 @@ public class LenderAssignService implements ILenderAssignService {
             }
             LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
             if(ObjectUtils.isEmpty(fallbackLender)){
-                handleNullFallbackLender(application.get());
+                //handleNullFallbackLender(application.get());
                 return null;
             }
             if(!ObjectUtils.isEmpty(fallbackLender) && !alreadyAssignedLender.contains(fallbackLender.getLender())){
