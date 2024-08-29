@@ -90,9 +90,6 @@ public class KycRequestKafka {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Value("${eKyc.redirection.url:}")
-    String eKycRedirectionUrl;
-
     @Value("${abfl.eKyc.retry.count:2}")
     Integer abflEKycRetryCount;
 
@@ -192,10 +189,10 @@ public class KycRequestKafka {
             }
             if (Boolean.FALSE.equals(kycCallbackResponseDto.getSuccess())) {
                 if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
-                    if(existingLendingApplicationLenderDetails.getKycRetryCount() < abflTopupKycRetryCount) {
+                    Integer currentKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
+                    if(currentKycRetryCount < abflTopupKycRetryCount) {
                         log.info("marking kycStatus KYC_retry for topup application as kyc callback resulted in failure for  {}", lendingApplication.get().getId());
                         existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
-                        Integer currentKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
                         existingLendingApplicationLenderDetails.setKycRetryCount(currentKycRetryCount + 1);
                         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                         loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.KYC_PAGE);
@@ -251,7 +248,7 @@ public class KycRequestKafka {
                 log.info("poaXml not found for applicationId {}", lendingApplication.get().getId());
                 throw new RuntimeException("poaXml not found for application " + lendingApplication.get().getId());
             }
-            cKycResponseDto = kycUtils.parsePoaXML(poaXml, lendingApplication.get().getMerchantId(), cKycResponseDto, lendingApplication.get().getId(), true);
+            cKycResponseDto = kycUtils.parsePoaXML(poaXml, lendingApplication.get().getMerchantId(), cKycResponseDto, lendingApplication.get().getId());
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId,Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 log.info("lending application lender details not found for {}", applicationId);
@@ -393,19 +390,17 @@ public class KycRequestKafka {
                 && !ObjectUtils.isEmpty(eKycApiResponseDto.getData().getData())
                 && lendingApplicationLenderDetails.getAnnualRoi() < 50) {
                 lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_INITIATED.name());
-                lendingApplicationLenderDetails.setNbfcKycAsyncId(eKycApiResponseDto.getData().getData().getCaptureLink() + eKycRedirectionUrl);
+                lendingApplicationLenderDetails.setNbfcKycAsyncId(eKycApiResponseDto.getData().getData().getCaptureLink());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 log.info("successfully placed the eKyc request at lender for {}", request);
                 return;
             }
-            if(lendingApplicationLenderDetails.getKycRetryCount() < abflEKycRetryCount) {
+            Integer currentEKycRetryCount = ObjectUtils.isEmpty(lendingApplicationLenderDetails.getKycRetryCount()) ? 0 : lendingApplicationLenderDetails.getKycRetryCount();
+            if(currentEKycRetryCount < abflEKycRetryCount) {
                 log.info("marking kycStatus EKYC_RETRY for application as eKyc initiation resulted in failure for  {}", lendingApplication.get().getId());
                 lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_RETRY.name());
-                Integer currentEKycRetryCount = ObjectUtils.isEmpty(lendingApplicationLenderDetails.getKycRetryCount()) ? 0 : lendingApplicationLenderDetails.getKycRetryCount();
                 lendingApplicationLenderDetails.setKycRetryCount(currentEKycRetryCount + 1);
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                LendingApplication finalLendingApplication = lendingApplication.get();
-                new Thread(() -> nbfcUtils.retryApplicationStage(finalLendingApplication.getId(), finalLendingApplication.getLender(), LenderAssociationStages.KYC.name())).start();
                 return;
             }
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
@@ -452,13 +447,12 @@ public class KycRequestKafka {
                 || ObjectUtils.isEmpty(eKycCallbackResponseDto.getData())
                 || (!"SUCCESS".equalsIgnoreCase(eKycCallbackResponseDto.getData().getResponseStatus()) && !(200L == eKycCallbackResponseDto.getData().getStatus()))
                 || ObjectUtils.isEmpty(eKycCallbackResponseDto.getData().getData())) {
-                if(existingLendingApplicationLenderDetails.getKycRetryCount() < abflEKycRetryCount) {
+                Integer currentEKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
+                if(currentEKycRetryCount < abflEKycRetryCount) {
                     log.info("marking kycStatus EKYC_RETRY for application as eKyc callback resulted in failure for  {}", lendingApplication.get().getId());
                     existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_RETRY.name());
-                    Integer currentEKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
                     existingLendingApplicationLenderDetails.setKycRetryCount(currentEKycRetryCount + 1);
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-                    nbfcUtils.retryApplicationStage(lendingApplication.get().getId(), lendingApplication.get().getLender(), LenderAssociationStages.KYC.name());
                     return;
                 }
                 if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
@@ -510,7 +504,11 @@ public class KycRequestKafka {
                     lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), Lender.ABFL.name());
             if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails)
                     || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name()).contains(existingLendingApplicationLenderDetails.getKycStatus())) {
-                log.info("Kyc Status {} is not correct in lender details for eKyc for application {}", existingLendingApplicationLenderDetails.getKycStatus(), lendingApplication.getId());
+                log.info("Kyc Status is not correct in lender details for eKyc status check for application {}", lendingApplication.getId());
+                return false;
+            }
+            if(existingLendingApplicationLenderDetails.getKycRetryCount() >= abflEKycRetryCount) {
+                log.info("skipping status check for last retry of eKyc of {} for {}", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
             EKycStatusCheckRequestApiDto eKycStatusCheckRequestApiDto = EKycStatusCheckRequestApiDto.builder()
@@ -533,7 +531,7 @@ public class KycRequestKafka {
                         .build();
             }
             eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));
-            return true;
+            return eKycCallbackResponseDto.getSuccess();
         } catch (Exception ex) {
             log.error("exception occurred while processing eKyc status check request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
