@@ -149,6 +149,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${capri.rollout.percent:1}")
     Integer capriRolloutPercent;
 
+    @Value("${payu.rollout.percent:1}")
+    Integer payuRolloutPercent;
+
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
 
@@ -255,13 +258,18 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
-                            if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getLoanAmount() > tpvOffer) {
-                                log.info("skipping muthoot for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
+                            if (Arrays.asList(MUTHOOT.name(), PAYU.name()).contains(lender) && application.getLoanAmount() > tpvOffer) {
+                                log.info("skipping muthoot/payu for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
                                 iterator.remove();
                                 continue;
                             }
                             if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getEdi() > 0.9 * summaryTpv) {
                                 log.info("skipping muthoot for application id : {} due to merchant loan edi amount is greater than 0.9 * summary_tpv {}", application.getId(), 0.9 * summaryTpv);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (PAYU.name().equalsIgnoreCase(lender) && application.getEdi() > summaryTpv) {
+                                log.info("skipping payu for application id : {} due to merchant loan edi amount is greater than summary_tpv {}", application.getId(), summaryTpv);
                                 iterator.remove();
                                 continue;
                             }
@@ -787,6 +795,9 @@ public class LenderAssignService implements ILenderAssignService {
                 break;
             case "CAPRI":
                 rolloutPercent = capriRolloutPercent;
+                break;
+            case "PAYU":
+                rolloutPercent = payuRolloutPercent;
                 break;
             default:
                 rolloutPercent = 0;

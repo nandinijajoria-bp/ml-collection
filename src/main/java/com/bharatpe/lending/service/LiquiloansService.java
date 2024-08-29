@@ -697,7 +697,7 @@ public class LiquiloansService {
 
                 if (Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
                         || Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())
-                        || Lender.MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.CAPRI.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                        || Lender.MUTHOOT.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.CAPRI.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) || Lender.PAYU.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
 
@@ -708,7 +708,7 @@ public class LiquiloansService {
                 Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
 //                Date tomorrow = new Date();
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
-                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI").contains(lendingApplication.getLender())) {
+                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU").contains(lendingApplication.getLender())) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
                 }
                 tomorrow = format.parse(format.format(tomorrow));
@@ -1624,7 +1624,7 @@ public class LiquiloansService {
             if(!flag) {
                 constructBharatPeEDISchedule(paymentSchedule);
             }
-        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI").contains(paymentSchedule.getNbfc()))  {
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU").contains(paymentSchedule.getNbfc()))  {
             boolean success = constructLenderEDISchedule(paymentSchedule);
             if(!success) {
                 logger.info("creating bharatPe edi schedule as failed to create lender edi schedule for {}", paymentSchedule.getApplicationId());
@@ -1909,7 +1909,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(lenderEdIScheduleResponse.getTotalInterestPayable());
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(lenderEdIScheduleResponse.getLoanMaturityDate());
-            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(paymentSchedule.getNbfc())) {
+            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name()).contains(paymentSchedule.getNbfc())) {
                 LendingApplication lendingApplication = paymentSchedule.getLoanApplication();
                 Double totalPayableAmount = lendingApplication.getLoanAmount() + lenderEdIScheduleResponse.getTotalInterestPayable();
                 paymentSchedule.setTotalPayableAmount(totalPayableAmount);

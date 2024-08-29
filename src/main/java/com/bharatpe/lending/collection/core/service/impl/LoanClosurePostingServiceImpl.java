@@ -89,6 +89,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     String nbfcForeClosureChargePosting;
     @Value("${nbfc.liquiloans.foreclosure.charges.topic:penalty_fee_on_nbfc}")
     String nbfcLiquiLoansForeclosureTopic;
+    @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
+    String nbfcPayuForeclosureTopic;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
@@ -322,6 +324,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return nbfcUsfbForeclosureTopic;
             case "CAPRI":
                 return nbfcCapriForeclosureTopic;
+            case "PAYU":
+                return nbfcPayuForeclosureTopic;
             default:
                 return null;
         }
