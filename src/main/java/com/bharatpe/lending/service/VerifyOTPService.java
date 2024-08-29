@@ -400,9 +400,12 @@ public class VerifyOTPService {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
 
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()); //TODO PAYU check once if to be made specific to payu
-                lendingApplicationLenderDetails.setAgreementOtp(otp);
-                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                //Specific requirement for payu
+                if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                    lendingApplicationLenderDetails.setAgreementOtp(otp);
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                }
 
                 finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
                 //createPrebookTarget(lendingApplication, merchant);

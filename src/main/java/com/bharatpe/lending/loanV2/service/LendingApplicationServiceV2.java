@@ -2450,6 +2450,13 @@ public class LendingApplicationServiceV2 {
                 insurancePremium = null;
             }
 
+            Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (lendingApplication.getLoanAmount()) * 100));
+
+            if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
+                processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
+            }
+
+
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2466,7 +2473,7 @@ public class LendingApplicationServiceV2 {
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
                     .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
-                    .processingFeePercentageWithoutGst(Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee()*100D/(100D + GST_PERCENTAGE))/(lendingApplication.getLoanAmount()) * 100)))
+                    .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
                     .repaymentAmount(lendingApplication.getRepayment())
@@ -3183,7 +3190,7 @@ public class LendingApplicationServiceV2 {
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
-        String repaymentSchedule = getRepaymentSchedule(applicationId, merchant);
+        String repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
         if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
         if(timeStamp)data.put("date", new SimpleDateFormat("dd-MM-yyyy").format(dateTime));
@@ -3238,18 +3245,16 @@ public class LendingApplicationServiceV2 {
             log.info("borrower bank details getting populated for application ; {}",applicationId);
         }
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
-        if (!ObjectUtils.isEmpty(lendingGstDetail)) {
+        if (Lender.PAYU.name().equalsIgnoreCase(kfsDto.getLender()) && !ObjectUtils.isEmpty(lendingGstDetail)) {
             data.put("business_city",lendingGstDetail.getCity());
             data.put("business_state",lendingGstDetail.getState());
             data.put("business_pincode",lendingGstDetail.getPincode());
         }
 
-        if(kfsDto.getLender().equalsIgnoreCase(Lender.PAYU.name())){
+        if(Lender.PAYU.name().equalsIgnoreCase(kfsDto.getLender())){
             data.put("processing_fee_includes_tax", String.format("%.2f", kfsDto.getProcessingFee()));
             data.put("processing_percentage_without_gst", String.format("%.2f",kfsDto.getProcessingFeePercentageWithoutGst()));
         }
-
-        else throw new Exception("Unable to get Gst details for : " + applicationId);
 
         String ediStartDate = lendingEdiScheduleService.getEdiStartDate(merchant.getId(),applicationId);
         if(!ObjectUtils.isEmpty(ediStartDate))
@@ -3404,7 +3409,15 @@ public class LendingApplicationServiceV2 {
         return logoUrl;
     }
 
-    public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant) {
+    public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant, String lender) {
+
+        if(Arrays.asList(Lender.PAYU.name()).contains(lender)) {
+            String lenderRps = getLenderRepaymentSchedule(applicationId, lender);
+            if (!ObjectUtils.isEmpty(lenderRps)) {
+                return lenderRps;
+            }
+        }
+
         CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
         if(!response.isSuccess()){
             log.info(response.getMessage());
@@ -3435,6 +3448,40 @@ public class LendingApplicationServiceV2 {
                     "      </td>\n" +
                     "      <td class=\"width-auto\">\n" +
                     "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + ediSchedule.get(i).getEdiAmount() + "</p>\n" +
+                    "      </td>\n" +
+                    "    </tr>\n";
+        }
+        return html;
+    }
+
+    public String getLenderRepaymentSchedule(Long applicationId, String lender) {
+        LenderEdIScheduleResponseDTO lenderEdIScheduleResponse= associationServiceUtil.invokeRepaymentScheduleService(lender, applicationId, Boolean.TRUE);
+        if(ObjectUtils.isEmpty(lenderEdIScheduleResponse)){
+            log.info("Unable to fetch lender edi schedule for applicationId : {}", applicationId);
+            return null;
+        }
+
+        String html = "";
+        LenderEdIScheduleResponseDTO.RepaymentSchedule edi = null;
+        log.info("lenderEdIScheduleResponse response received from loan preview is : {}", lenderEdIScheduleResponse);
+        for(int i = 0; i < lenderEdIScheduleResponse.getRepaymentSchedule().size(); i++){
+            edi = lenderEdIScheduleResponse.getRepaymentSchedule().get(i);
+            int serialNumber = i+1;
+            html += "    <tr class=\"width-100\">\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + serialNumber + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getOpeningBalance() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getPrincipal() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getInterest() + "</p>\n" +
+                    "      </td>\n" +
+                    "      <td class=\"width-auto\">\n" +
+                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getTotalEdi() + "</p>\n" +
                     "      </td>\n" +
                     "    </tr>\n";
         }
