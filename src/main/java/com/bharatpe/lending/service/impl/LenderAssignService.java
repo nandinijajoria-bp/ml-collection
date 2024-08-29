@@ -886,7 +886,7 @@ public class LenderAssignService implements ILenderAssignService {
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(ObjectUtils.isEmpty(fallbackLender)){
             handleNullFallbackLender(lendingApplication);
-            return "none";
+            return "NONE";
         }
         if(ObjectUtils.isEmpty(fallbackLender)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
