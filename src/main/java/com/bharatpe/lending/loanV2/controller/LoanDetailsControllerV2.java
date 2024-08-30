@@ -234,7 +234,7 @@ public class LoanDetailsControllerV2 {
 
     @PostMapping("/sync_psp")
     public ApiResponseDTO syncPsp(@RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<SyncPspDTO> requestDTO) {
-        log.info("sync_psp for merchant user: {}", merchant.getId());
+        log.info("sync_psp for merchant user: {}, requestDTO {}", merchant.getId(), requestDTO);
 
         new Thread(() -> loanDetailsServiceV2.saveMerchantPspInMongo(requestDTO, merchant)).start();
         ApiResponseDTO apiResponseDTO = new ApiResponseDTO();
