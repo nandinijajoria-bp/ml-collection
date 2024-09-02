@@ -192,7 +192,7 @@ private NBFCRequestDTO getLoanPreviewPayload(LendingApplication lendingApplicati
 
                     totalInterest += periods.getInterestDue();
                 }
-                log.info("Payu : inside loan preview - repaymentSchedule is : {}", ediSchedules);
+                log.info("Payu : inside loan preview - repaymentSchedule for applicationId {} fetched successfully", lendingApplication.getId());
                 return LenderEdIScheduleResponseDTO.builder().repaymentSchedule(ediSchedules).totalInterestPayable(totalInterest).loanMaturityDate(maturityDate).build();
 
             }

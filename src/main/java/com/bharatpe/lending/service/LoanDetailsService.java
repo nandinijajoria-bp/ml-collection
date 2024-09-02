@@ -49,6 +49,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
@@ -205,6 +206,7 @@ public class LoanDetailsService {
 	KycHandler kycHandler;
 //	@Transactional
 
+	@Lazy
 	@Autowired
 	LendingApplicationServiceV2 lendingApplicationServiceV2;
 
