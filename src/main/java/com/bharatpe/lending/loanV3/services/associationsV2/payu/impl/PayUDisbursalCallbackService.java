@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.payu.impl;
 
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.loanV3.dto.DisbursalCallbackCommonDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUDisbursalCallbackResponseDTO;
@@ -35,7 +36,7 @@ public class PayUDisbursalCallbackService {
                         .applicationId(Long.parseLong(nbfcResponseDTO.getApplicationId()))
                         .leadId(lendingApplicationLenderDetails.getLeadId())
                         .lender("PAYU")
-                        .disbursalDate((new SimpleDateFormat("yyyy-MM-dd")).parse(payUDisbursalCallbackResponseDTO.getData().getEventDetails().getDisbursalDate()))
+                        .disbursalDate(DateTimeUtil.parseDate(payUDisbursalCallbackResponseDTO.getData().getEventDetails().getDisbursalDate(), "yyyy-MM-dd"))
                         .disbursalAmount(Double.valueOf(payUDisbursalCallbackResponseDTO.getData().getEventDetails().getDisbursedAmount()))
                         .utr(payUDisbursalCallbackResponseDTO.getData().getEventDetails().getDisbursalUtrNumber())
                         .lan(payUDisbursalCallbackResponseDTO.getData().getEventDetails().getLoanId())

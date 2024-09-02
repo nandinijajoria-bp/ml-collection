@@ -277,7 +277,7 @@ public class PayUNachMandateService {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 
         applicantDetails = PayUUpdateLeadRequestDTO.ApplicantDetailsDTO.builder()
-                .address(getAddress(lenderAssociationDetailsRequestDto, "applicant_address"))
+                .address(getAddress(lenderAssociationDetailsRequestDto, lendingApplicationDetails))
                 .residenceAddressSameAsPermanentAddress(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress())
                 .build();
 
@@ -286,7 +286,7 @@ public class PayUNachMandateService {
 
     }
 
-    private List<PayUUpdateLeadRequestDTO.AddressDTO> getAddress(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, String type) {
+    private List<PayUUpdateLeadRequestDTO.AddressDTO> getAddress(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, LendingApplicationDetails lendingApplicationDetails) {
 
         List<PayUUpdateLeadRequestDTO.AddressDTO> addressDataList = new ArrayList<>();
         PayUUpdateLeadRequestDTO.AddressDTO currentAddress = null;
@@ -303,7 +303,7 @@ public class PayUNachMandateService {
                 .locality(null)
                 .pincode(lendingGstDetail.getPincode())
                 .ownershipIndicator("owned")
-                .addressType("PERMANENT")
+                .addressType(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress() ? "PERMANENT" : "RESIDENCE")
                 .build();
 
         addressDataList.add(currentAddress);
