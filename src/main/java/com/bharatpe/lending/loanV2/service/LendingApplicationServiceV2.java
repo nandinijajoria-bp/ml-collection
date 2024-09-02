@@ -15,9 +15,11 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
 import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.query.entity.LendingApplicationLenderDetailsSlave;
 import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
@@ -315,6 +317,9 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     AssociationServiceUtil associationServiceUtil;
+
+    @Autowired
+    LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
 
     @Value("${lender.doc.generate.enabled.lenders:}")
     String lenderDocGenerateEnabledLenders;
@@ -1418,6 +1423,14 @@ public class LendingApplicationServiceV2 {
             }  else {
                 headerDTO = null;
             }
+
+            LendingApplicationLenderDetailsSlave lendingApplicationLenderDetailsSlave = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingApplication.getLender());
+            if(!ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave)){
+                Double annualROI = lendingApplicationLenderDetailsSlave.getAnnualRoi();
+                applicationLoanDetailsDTO.setAnnualRoi(annualROI);
+            }
+
+
             applicationStatusResponseDTO.setApplicationLoanDetailsDTO(applicationLoanDetailsDTO);
             applicationStatusResponseDTO.setHeader(isSmallTicketLoan ? null : headerDTO);
             applicationStatusResponseDTO.setApplicationDTOList(applicationDTO);

@@ -10,13 +10,12 @@ import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.RejectionReason;
-import com.bharatpe.lending.common.enums.RejectionStage;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationLenderDetailsSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
@@ -38,6 +37,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanApplicationDetailsV3;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDashboardResponse;
@@ -141,6 +141,9 @@ public class LoanDashboardService {
     @Autowired
     private LendingApplicationServiceV3 lendingApplicationServiceV3;
 
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
@@ -224,6 +227,9 @@ public class LoanDashboardService {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
 
     private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -344,6 +350,8 @@ public class LoanDashboardService {
             if(Objects.nonNull(topupApplication)){
                 LoanApplicationDetailsV3 topUpApplicationDetails = setApplicationDetails(topupApplication,merchantDetails);
                 loanDashboardResponse.setTopupLoanApplication(topUpApplicationDetails);
+
+                loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(topupApplication));
             }
             loanDashboardResponse.setActiveLoan(true);
             excessNachService.setExcessCollectionDetails(merchantDetails.getId(), loanDashboardResponse);
@@ -362,6 +370,10 @@ public class LoanDashboardService {
             //kyc checks can be removed from here...
             LoanApplicationDetailsV3 loanApplicationDetailsV3 = setApplicationDetails(openApplication, merchantDetails);
             loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
+
+
+            loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(openApplication));
+
             if (loanDashboardResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDashboardResponse.getLoanApplication().getReapply())) {
                 //if no reapply then dont check eligibility
                 cacheLoanDetailsData(loanDashboardResponse);
@@ -1168,5 +1180,26 @@ public class LoanDashboardService {
             return true;
         }
         return false;
+    }
+
+    private Double getAnnualROI(LendingApplicationSlave lendingApplicationSlave) {
+        Double annualROI = null;
+        try {
+            LendingApplicationLenderDetailsSlave lendingApplicationLenderDetailsSlave = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplicationSlave.getId(), "ACTIVE", lendingApplicationSlave.getLender());
+
+            if(!ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave)){
+                annualROI = lendingApplicationLenderDetailsSlave.getAnnualRoi();
+            }
+
+            if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplicationSlave.getLoanType()) && ObjectUtils.isEmpty(annualROI)){
+                    annualROI = lendingApplicationServiceV2.getApr(lendingApplicationSlave.getMerchantId(), lendingApplicationSlave.getId(), lendingApplicationSlave.getLoanAmount(),
+                            LenderOffDays.valueOf(lendingApplicationSlave.getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplicationSlave.getLender());
+            }
+            log.info("AnnualROI--------> {} , applicationID: {}", annualROI, lendingApplicationSlave.getId());
+        }catch (Exception ex){
+            log.error("Exception in fetching annual roi for applicationID {}", lendingApplicationSlave.getId());
+        }
+
+        return annualROI;
     }
 }
