@@ -56,6 +56,7 @@ import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
+import com.bharatpe.lending.util.MongoPublisherUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -305,6 +306,9 @@ public class LoanDetailsServiceV2 {
 
     @Value("${upi.nach.rollout.percent:10}")
     Integer upiNachRolloutPercent;
+
+    @Autowired
+    MongoPublisherUtil mongoPublisherUtil;
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
 
@@ -2761,5 +2765,36 @@ public class LoanDetailsServiceV2 {
             log.error("Error while fetching if merchant should redirect to new reference logic or not for merchantId: {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something went wrong");
+    }
+
+    public void saveMerchantPspInMongo(RequestDTO<SyncPspDTO> requestDTO, BasicDetailsDto merchantUser){
+
+        try{
+            List<PspDTO> pspDTOList = requestDTO.getPayload().getPspList();
+            if(pspDTOList == null || pspDTOList.isEmpty()) {
+                log.info("PSP List is Empty for Merchant : {}", merchantUser.getId());
+                return;
+            }
+            List<MerchantPSPMongo> psps = new ArrayList<>();
+
+            MerchantPSPMongo merchantPsps = new MerchantPSPMongo();
+            List<MerchantPSPMongo.AppDetails> appDetailList = new ArrayList<>();
+
+            merchantPsps.setMerchantId((merchantUser.getId()));
+            for (PspDTO pspDTO : pspDTOList) {
+                MerchantPSPMongo.AppDetails appDetails = merchantPsps.new AppDetails();
+                appDetails.setAppName(pspDTO.getAppName());
+                appDetails.setPackageName(pspDTO.getPackageName());
+                appDetailList.add(appDetails);
+            }
+
+            merchantPsps.setAppDetails(appDetailList);
+            psps.add(merchantPsps);
+            mongoPublisherUtil.publish("SendMoney", "merchant_psp_dump", merchantUser.getId().toString(), psps);
+
+        }catch (Exception ex){
+            log.error("Exception while saving Merchant PSP in Mongo, Exception is :{}", Arrays.asList(ex.getStackTrace()));
+
+        }
     }
 }
