@@ -170,6 +170,10 @@
             justify-content: space-between;
         }
 
+        .flex-end {
+            justify-content: end;
+        }
+
         .common-text {
             font-weight: 400;
             text-align: left;
@@ -238,7 +242,7 @@
 </tr> -->
         <tr class="width-100">
             <td style="padding: 0px 5px">
-                <div class="flex flex-justify word-wrap">
+                <div class="flex flex-justify word-wrap width-100">
                     <div>
                         <p class="common-text">
                             Mother's/ Father’s/Spouse Name: NA
@@ -262,7 +266,7 @@
                             Proof of Address: Aadhaar
                         </p>
                     </div>
-                    <div>
+                    <div class="flex flex-end ">
                         <img src={{borrower_selfie}} alt="selfie" height="200" width="150" style="border: 1px solid #000;"
                              class="mt10" />
                     </div>
@@ -620,6 +624,47 @@
                 Confirm and Accepted
             </span>
     </div>
+
+    <div class="mt30">
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb60" style="page-break-inside: avoid !important">
+            <tbody>
+<!--            <tr class="width-100">-->
+<!--                <td colspan="2" style="padding: 0px 5px; text-align: center" class="width-auto"> Table </td>-->
+<!--            </tr>-->
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> Mobile Number </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{mobile_number_for_otp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{ip_address}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{time_stamp}}
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
 </div>
 </body>
 

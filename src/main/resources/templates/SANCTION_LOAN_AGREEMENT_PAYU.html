@@ -172,6 +172,15 @@
             font-weight: 400;
             margin-bottom: 10px;
         }
+        .center-box {
+            padding: 15px;
+            border: 1px solid #000;
+            display: flex;
+            width: fit-content;
+            justify-content: center;
+            align-items: center;
+            margin: auto;
+        }
     </style>
 </head>
 
@@ -650,6 +659,53 @@
     <div class="mb40">I have carefully read and understood the terms and conditions of this Sanction Letter and its
         Annexure and would like to confirm my acceptance.
     </div>
+
+    <div class="text-center center-box mb30">
+        <span class="fw-bold">
+            Confirm and Accepted
+        </span>
+    </div>
+
+    <div class="mt30">
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb60" style="page-break-inside: avoid !important">
+            <tbody>
+<!--            <tr class="width-100">-->
+<!--                <td colspan="2" style="padding: 0px 5px; text-align: center" class="width-auto"> Table </td>-->
+<!--            </tr>-->
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> Mobile Number </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{mobile_number_for_otp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{ip_address}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{time_stamp}}
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
 
 </div>
 </body>

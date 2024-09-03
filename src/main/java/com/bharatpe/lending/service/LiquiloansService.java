@@ -1873,7 +1873,7 @@ public class LiquiloansService {
             LenderEdIScheduleResponseDTO lenderEdIScheduleResponse = null;
             int retry = 0;
             do {
-                lenderEdIScheduleResponse = associationServiceUtil.invokeRepaymentScheduleService(paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId());
+                lenderEdIScheduleResponse = associationServiceUtil.invokeRepaymentScheduleService(paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId(), Boolean.FALSE);
                 retry++;
             } while (ObjectUtils.isEmpty(lenderEdIScheduleResponse) && retry < 5);
             logger.info("response from {} repayment schedule for application id : {} is : {}", paymentSchedule.getNbfc(), paymentSchedule.getLoanApplication().getId(), lenderEdIScheduleResponse);

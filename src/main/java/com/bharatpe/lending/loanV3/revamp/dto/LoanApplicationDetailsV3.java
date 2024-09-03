@@ -58,5 +58,7 @@ public class LoanApplicationDetailsV3 {
     private Boolean isInsured;
     private List<LoanInsuranceDTO> loanInsurances;
     private Double apr;
+
+    private Double annualRoi;
 }
 
