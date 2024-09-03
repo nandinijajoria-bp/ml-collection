@@ -1,20 +1,32 @@
 package com.bharatpe.lending.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.Builder;
+import lombok.Data;
+import lombok.ToString;
 import org.apache.commons.lang.builder.ToStringBuilder;
 
+
+
+@Data
+@ToString
+@Builder
+@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class PspDTO {
    
-	@JsonProperty("app_name")
+
     public String appName;
 
-    @JsonProperty("package_name")
+
     public String packageName;
     
-    @JsonProperty("merchant_id")
+
     public Long merchantId;
     
-    @JsonProperty("merchant_store_id")
+
     public Long merchantStoreId;
 
     public String getAppName() {
@@ -52,5 +64,7 @@ public class PspDTO {
 	@Override
     public String toString() {
         return ToStringBuilder.reflectionToString(this);
+
+
     }
 }
