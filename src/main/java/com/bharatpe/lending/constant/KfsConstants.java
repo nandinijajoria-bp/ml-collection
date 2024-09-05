@@ -88,7 +88,7 @@ public interface KfsConstants {
     String LENDER_CORPORATE_NAME_PAYU = "PayU Finance India Private Limited";
     String LENDER_BUSINESS_ADDRESS_PAYU = "Wallace Towers, Fourth Floor, Crossing of Sahar Road, Vile Parle East, Mumbai, Maharashtra, 400057";
     String LENDER_CONTACT_NAME_PAYU = "Mr. Suraj Sapte";
-    String LENDER_CONTACT_EMAIL_PAYU = "grievance.bharatpe@payufin.com";
+    String LENDER_CONTACT_EMAIL_PAYU = "grievance.smbbharatpe@payufin.com";
     String LENDER_CONTACT_NUMBER_PAYU = "+91 2269821144";
 
 }
