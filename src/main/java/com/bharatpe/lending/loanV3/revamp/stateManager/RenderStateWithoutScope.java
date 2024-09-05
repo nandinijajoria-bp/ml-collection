@@ -175,10 +175,10 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             lendingStateDTO = new LendingStateDTO<>();
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         }
-//        if(!loanUtilV3.isPanNsdlVerified(scopeDataArgs.getMerchant().getId())){
-//            lendingStateDTO = new LendingStateDTO<>();
-//            lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
-//        }
+        if(!loanUtilV3.isPanNsdlVerified(scopeDataArgs.getMerchant().getId())){
+            lendingStateDTO = new LendingStateDTO<>();
+            lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
+        }
         return lendingStateDTO;
     }
 
