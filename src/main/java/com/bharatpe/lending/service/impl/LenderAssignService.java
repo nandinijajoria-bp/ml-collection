@@ -222,6 +222,7 @@ public class LenderAssignService implements ILenderAssignService {
             } catch (Exception exception) {
                 log.info("exception while logging the lender assignment details under rules based lenders", exception);
             }
+            LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
             if(!ObjectUtils.isEmpty(ruleList)) {
                 lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage);
                 try {
@@ -245,6 +246,11 @@ public class LenderAssignService implements ILenderAssignService {
                                     iterator.remove();
                                     continue;
                                 }
+                            }
+                            if(!ObjectUtils.isEmpty(fallbackLender) && fallbackLender.equals(lender)){
+                                log.info("skipping {} as it is a default lender for {}", lender, application.getId());
+                                iterator.remove();
+                                continue;
                             }
                             if (!baseChecksPassedForLenders(application, lender)) {
                                 log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
@@ -888,10 +894,12 @@ public class LenderAssignService implements ILenderAssignService {
             handleNullFallbackLender(lendingApplication);
             return "NONE";
         }
-        if(ObjectUtils.isEmpty(fallbackLender)){
-            modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
-            return Lender.LIQUILOANS_P2P.name();
-        }
+
+        //if(ObjectUtils.isEmpty(fallbackLender)){
+        //    modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
+        //    return Lender.LIQUILOANS_P2P.name();
+        //}
+
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel());
         }
