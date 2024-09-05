@@ -1354,7 +1354,7 @@ public class LendingApplicationServiceV2 {
             if (!"rejected".equalsIgnoreCase(lendingApplication.getStatus())) {
                 ApplicationDTO applicationDTO6 = new ApplicationDTO();
                 applicationDTO6.setDisabled(!applicationStatus.equalsIgnoreCase("approved"));
-                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())) applicationDTO6.setText("Bank Transfer");
+                if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())) applicationDTO6.setText("Decision Pending");
                 else applicationDTO6.setText("Disbursal!");
                 applicationDTO.add(applicationDTO6);
                 if (!applicationDTO6.isDisabled()) {
