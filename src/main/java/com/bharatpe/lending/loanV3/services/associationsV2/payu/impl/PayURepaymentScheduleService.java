@@ -109,13 +109,13 @@ public class PayURepaymentScheduleService {
 
                 ediSchedules.add(LenderEdIScheduleResponseDTO.RepaymentSchedule.builder()
                         .dueDate(date)
-                        .openingBalance((double)periods.getPrincipalLoanBalanceOutstanding())
-                        .principal((double)periods.getPrincipalDue())
-                        .interest((double)periods.getInterestDue())
+                        .openingBalance(periods.getPrincipalLoanBalanceOutstanding().doubleValue())
+                        .principal(periods.getPrincipalDue().doubleValue())
+                        .interest(periods.getInterestDue().doubleValue())
                         .totalEdi(periods.getTotalDueForPeriod().intValue())
                         .build()
                 );
-                totalInterest += (double)periods.getInterestDue();
+                totalInterest += periods.getInterestDue().doubleValue();
             }
             return LenderEdIScheduleResponseDTO.builder().repaymentSchedule(ediSchedules).totalInterestPayable(totalInterest).loanMaturityDate(maturityDate).build();
         }
