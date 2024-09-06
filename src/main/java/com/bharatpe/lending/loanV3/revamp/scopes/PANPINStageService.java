@@ -99,6 +99,8 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                             if (data != null) {
                                 if (data.getIsPanNsdlVerified() != null) {
                                     eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                                    eligibilityStateDTO.setDob(data.getDateOfBirth());
+                                    eligibilityStateDTO.setFullName(data.getName());
                                     if(data.getIsPanNsdlVerified()){
                                         if (!ObjectUtils.isEmpty(lendingPancardDetails)) {
                                             lendingPancardDetails.setName(data.getVerifiedName());

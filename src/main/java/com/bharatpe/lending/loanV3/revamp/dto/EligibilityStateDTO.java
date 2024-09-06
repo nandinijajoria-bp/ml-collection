@@ -56,5 +56,7 @@ public class EligibilityStateDTO {
     private Boolean eligibilityExceptionFlag;
     private String offerIncreased;
     private Double previousFinalOffer;
+    private String fullName;
+    private String dob;
 
 }
