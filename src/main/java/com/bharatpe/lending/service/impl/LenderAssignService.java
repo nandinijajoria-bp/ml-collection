@@ -216,7 +216,6 @@ public class LenderAssignService implements ILenderAssignService {
             } catch (Exception exception) {
                 log.info("exception while logging the lender assignment details under rules based lenders", exception);
             }
-            LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
             if(!ObjectUtils.isEmpty(ruleList)) {
                 lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage);
                 try {
@@ -241,11 +240,6 @@ public class LenderAssignService implements ILenderAssignService {
                                     continue;
                                 }
                             }
-//                            if(!ObjectUtils.isEmpty(fallbackLender) && fallbackLender.equals(lender)){
-//                                log.info("skipping {} as it is a default lender for {}", lender, application.getId());
-//                                iterator.remove();
-//                                continue;
-//                            }
                             if (!baseChecksPassedForLenders(application, lender)) {
                                 log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
                                 iterator.remove();
@@ -883,7 +877,6 @@ public class LenderAssignService implements ILenderAssignService {
         if(ObjectUtils.isEmpty(fallbackLender)){
             return "NONE";
         }
-
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel());
         }

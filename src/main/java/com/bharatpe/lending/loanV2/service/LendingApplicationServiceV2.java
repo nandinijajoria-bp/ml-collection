@@ -767,8 +767,8 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
-        if(lendingApplication.getLender()=="NONE"){
-            handleNullFallbackLender(lendingApplication);
+        if(Objects.equals(lendingApplication.getLender(), "NONE")){
+            rejectingUnknownFallbackLender(lendingApplication);
         }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
@@ -3834,8 +3834,8 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
-    private void handleNullFallbackLender(LendingApplication lendingApplication) {
-        log.info("Default lender is none for the applicationId: {}",lendingApplication.getId());
+    private void rejectingUnknownFallbackLender(LendingApplication lendingApplication) {
+        log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
         lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
                 "APP_STATUS");
