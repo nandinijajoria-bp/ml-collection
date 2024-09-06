@@ -3835,6 +3835,7 @@ public class LendingApplicationServiceV2 {
     }
 
     private void handleNullFallbackLender(LendingApplication lendingApplication) {
+        log.info("Default lender is none for the applicationId: {}",lendingApplication.getId());
         lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
                 "APP_STATUS");
