@@ -17,6 +17,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.KycDocStatus;
@@ -222,6 +223,23 @@ public class LoanUtilV3 {
             log.info("nsdl verified pan not available for {}", merchantId);
         }catch (Exception e) {
             log.error("error while fetching pan nsdl validity for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+        }
+        return false;
+    }
+
+    public boolean isPanNsdlVerified(String token, String panNumber, Long merchantId) {
+        log.info("Checking if pan is nsdl verified for merchantId: {}", merchantId);
+        try {
+            PanFetchKYCResponseDto responseDto = kycHandler.panFetch(token, panNumber, merchantId);
+            if (responseDto != null && responseDto.getStatus())  {
+                PanFetchKYCResponseDto.Data data = responseDto.getData();
+                if (data != null && data.getIsPanNsdlVerified() != null) {
+                    log.info("Pan nsdl verified status: {}",data.getIsPanNsdlVerified());
+                    return data.getIsPanNsdlVerified();
+                }
+            }
+        }catch (Exception e) {
+            log.info("Error while checking if pan is nsdl verified for merchantId: {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return false;
     }
