@@ -767,6 +767,9 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
+        if(lendingApplication.getLender()=="NONE"){
+            handleNullFallbackLender(lendingApplication);
+        }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
 //        lendingApplication = lendingApplicationDao.save(lendingApplication);
@@ -3831,4 +3834,12 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
+    private void handleNullFallbackLender(LendingApplication lendingApplication) {
+        lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS");
+        lendingApplication.setStatus("rejected");
+        lendingApplicationDao.save(lendingApplication);
+        evictCache(lendingApplication.getMerchantId());
+    }
 }
