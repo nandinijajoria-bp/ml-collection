@@ -167,7 +167,7 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
-    @Value("${max.eligible.lenders.for.modify:3}")
+    @Value("${max.eligible.lenders.for.modify:2}")
     Integer maxEligibleLendersCountForModify;
 
     @Override
@@ -440,7 +440,8 @@ public class LenderAssignService implements ILenderAssignService {
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
-                    updateOfferDetailsInApplication(application,LenderOffDays.valueOf(application.getLender()).getEdiModel(), oldLender);
+                    EdiModel updatedEdiModel= "NONE".equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+                    updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
                     lendingApplicationDao.save(application);
                     return application;
                 }
@@ -488,7 +489,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         String oldLender = application.getLender();
         application.setLender(decidedLender);
-        updateOfferDetailsInApplication(application,LenderOffDays.valueOf(decidedLender).getEdiModel(), oldLender);
+        EdiModel updatedEdiModel= "NONE".equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+        updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
         return lendingApplicationDao.save(application);
     }
 
@@ -927,6 +929,10 @@ public class LenderAssignService implements ILenderAssignService {
 
     public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {
         try {
+            if("NONE".equalsIgnoreCase(lendingApplication.getLender())){
+                log.info("skipping updated offer for {} lender of {}",lendingApplication.getLender(), lendingApplication.getId());
+                return;
+            }
             Long currentPayableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), ediModel);
             if (currentPayableDays == lendingApplication.getPayableDays()) {
                 log.info("skipping updated offer as offer remains same for {}", lendingApplication.getId());

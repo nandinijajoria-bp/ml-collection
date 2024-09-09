@@ -768,7 +768,7 @@ public class LendingApplicationServiceV2 {
         }
 
         if(Objects.equals(lendingApplication.getLender(), "NONE")){
-            rejectingUnknownFallbackLender(lendingApplication);
+            rejectApplicationForIncorrectLender(lendingApplication);
         }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
@@ -3834,7 +3834,7 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
-    private void rejectingUnknownFallbackLender(LendingApplication lendingApplication) {
+    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
         log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
         lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
