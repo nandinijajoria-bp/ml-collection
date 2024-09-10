@@ -53,6 +53,15 @@ public class LendingPancardDetails extends BaseEntity {
         this.dob = dob;
     }
 
+    public LendingPancardDetails(Long merchantId, String pancardNumber, String name, String response, String version, String dob) {
+        this.merchantId = merchantId;
+        this.pancardNumber = pancardNumber;
+        this.name = name;
+        this.response = response;
+        this.version = version;
+        this.dob = dob;
+    }
+
     public LendingPancardDetails(Long merchantId, String pancardNumber, String name) {
         this.merchantId = merchantId;
         this.pancardNumber = pancardNumber;
