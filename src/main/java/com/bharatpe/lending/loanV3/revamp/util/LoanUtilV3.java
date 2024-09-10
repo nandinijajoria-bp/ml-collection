@@ -194,39 +194,6 @@ public class LoanUtilV3 {
         return false;
     }
 
-    public boolean isPanNsdlVerified(Long merchantId){
-        try{
-            LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
-                log.info("PAN previously verifies for merchant:{}", merchantId);
-                return true;
-            }
-            else {
-                List<KycDoc> kycDocs = kycHandler.getPan(merchantId);
-                log.info("pancard fetched from kyc : {}", kycDocs);
-                if (!CollectionUtils.isEmpty(kycDocs)) {
-                    if (kycDocs.size() < 1) {
-                        log.info("unable to fetch PAN_NO for {}", merchantId);
-                        return false;
-                    }
-                    for (KycDoc kycDoc : kycDocs) {
-                        if(KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())){
-                            if(!ObjectUtils.isEmpty((kycDoc.getDob())) && !ObjectUtils.isEmpty(kycDoc.getAadhaarSeedingStatus())){
-                                log.info("pan is nsdl verified for {}", merchantId);
-                                saveLendingPancardData(lendingPancardDetails, kycDoc, merchantId);
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            log.info("nsdl verified pan not available for {}", merchantId);
-        }catch (Exception e) {
-            log.error("error while fetching pan nsdl validity for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
-        }
-        return false;
-    }
-
     public boolean isPanNsdlVerified(String token, String panNumber, Long merchantId) {
         log.info("Checking if pan is nsdl verified for merchantId: {}", merchantId);
         try {
