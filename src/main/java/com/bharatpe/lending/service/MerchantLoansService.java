@@ -407,7 +407,7 @@ public class MerchantLoansService {
         return diffMinutes;
     }
 
-    public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
+    public LendingMerchantLoansResponseDTO getMerchantLoans(String token, Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentScheduleSlave> merchantLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndCreditLoan(merchantId, false);
@@ -613,7 +613,10 @@ public class MerchantLoansService {
                         responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
-//                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(merchantId));
+                        Experian experian = experianDao.getByMerchantId(merchantId);
+                        if(!ObjectUtils.isEmpty(experian) && !ObjectUtils.isEmpty(experian.getPancardNumber())) {
+                            responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(token, experian.getPancardNumber(), merchantId));
+                        }
                         funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
                     if("ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {

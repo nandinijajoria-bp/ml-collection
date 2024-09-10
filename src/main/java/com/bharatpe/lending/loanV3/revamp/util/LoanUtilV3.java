@@ -17,6 +17,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.KycDocStatus;
@@ -193,37 +194,39 @@ public class LoanUtilV3 {
         return false;
     }
 
-    public boolean isPanNsdlVerified(Long merchantId){
-        try{
+    public boolean isPanNsdlVerified(String token, String panNumber, Long merchantId) {
+        log.info("Checking if pan is nsdl verified for merchantId: {}", merchantId);
+        try {
             LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
                 log.info("PAN previously verifies for merchant:{}", merchantId);
                 return true;
             }
-            else {
-                List<KycDoc> kycDocs = kycHandler.getPan(merchantId);
-                log.info("pancard fetched from kyc : {}", kycDocs);
-                if (!CollectionUtils.isEmpty(kycDocs)) {
-                    if (kycDocs.size() < 1) {
-                        log.info("unable to fetch PAN_NO for {}", merchantId);
-                        return false;
-                    }
-                    for (KycDoc kycDoc : kycDocs) {
-                        if(KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())){
-                            if(!ObjectUtils.isEmpty((kycDoc.getDob())) && !ObjectUtils.isEmpty(kycDoc.getAadhaarSeedingStatus())){
-                                log.info("pan is nsdl verified for {}", merchantId);
-                                saveLendingPancardData(lendingPancardDetails, kycDoc, merchantId);
-                                return true;
-                            }
-                        }
-                    }
+            PanFetchKYCResponseDto responseDto = kycHandler.panFetch(token, panNumber, merchantId);
+            if (responseDto != null && responseDto.getStatus())  {
+                PanFetchKYCResponseDto.Data data = responseDto.getData();
+                if (data != null && data.getIsPanNsdlVerified() != null && data.getIsPanNsdlVerified()) {
+                    log.info("Pan is nsdl verified for {}",merchantId);
+                    saveLendingPancardData(data, lendingPancardDetails, merchantId);
+                    return true;
                 }
             }
-            log.info("nsdl verified pan not available for {}", merchantId);
         }catch (Exception e) {
-            log.error("error while fetching pan nsdl validity for {} {}", merchantId, Arrays.asList(e.getStackTrace()));
+            log.info("Error while checking if pan is nsdl verified for merchantId: {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return false;
+    }
+
+    private void saveLendingPancardData(PanFetchKYCResponseDto.Data panFetchResponseData, LendingPancardDetails lendingPancard, Long merchantId){
+        if (!ObjectUtils.isEmpty(lendingPancard)) {
+            lendingPancard.setName(panFetchResponseData.getName());
+            lendingPancard.setPancardNumber(panFetchResponseData.getPanNumber());
+            lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
+            lendingPancard.setDob(panFetchResponseData.getDateOfBirth());
+            lendingPancardDetailsDao.save(lendingPancard);
+        } else {
+            lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, panFetchResponseData.getPanNumber(), panFetchResponseData.getName(), null, LendingConstants.PAN_VERIFICATION_VERSION, panFetchResponseData.getDateOfBirth()));
+        }
     }
 
     private void saveLendingPancardData(LendingPancardDetails lendingPancard, KycDoc kycPan, Long merchantId){
