@@ -634,6 +634,10 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
             }
 
+            if(Objects.equals(lendingApplication.getStatus(), "rejected")){
+                return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
+            }
+
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
@@ -769,6 +773,7 @@ public class LendingApplicationServiceV2 {
 
         if(Objects.equals(lendingApplication.getLender(), "NONE")){
             rejectApplicationForIncorrectLender(lendingApplication);
+            return lendingApplication;
         }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
@@ -3836,9 +3841,9 @@ public class LendingApplicationServiceV2 {
 
     private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
         log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
-        lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
+        lenderAssignService.saveNullDefaultOrMasterLenderAudit(lendingApplication, "rejected",
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
-                "APP_STATUS");
+                "APP_STATUS", "rejected due to nullable default lender");
         lendingApplication.setStatus("rejected");
         lendingApplicationDao.save(lendingApplication);
         evictCache(lendingApplication.getMerchantId());
