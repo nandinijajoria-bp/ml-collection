@@ -87,6 +87,8 @@ public class LoanDetailsV3Response {
     private Double previousFinalOffer;
 
     private Boolean lenderKycPipe;
+    private String fullName;
+    private String dob;
 
     @Data
     @ToString
@@ -325,6 +327,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
         loanDetailsV3Response.setMaxCountReached(eligibilityStateDTO.getMaxCountReached());
         loanDetailsV3Response.setDummyMerchant(eligibilityStateDTO.getDummyMerchant());
+        loanDetailsV3Response.setFullName(eligibilityStateDTO.getFullName());
+        loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
