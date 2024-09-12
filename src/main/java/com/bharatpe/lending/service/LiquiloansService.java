@@ -851,13 +851,11 @@ public class LiquiloansService {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
         }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
             Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if(lendingPaymentScheduleLendingCommon.isPresent()){
+            if(lendingPaymentScheduleLendingCommon.isPresent()&& !isAutoPayUpiEnabled(lendingApplication.getId())){
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
                 lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
                 createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
-
-                checkAndExecuteAutoPayUpiPresentment(lendingPaymentSchedule);
             }
         }
 
@@ -2214,25 +2212,23 @@ public class LiquiloansService {
         }
     }
 
-    public void checkAndExecuteAutoPayUpiPresentment(LendingPaymentSchedule lendingPaymentSchedule){
+    public boolean isAutoPayUpiEnabled(Long applicationId){
         try{
-            AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingPaymentSchedule.getApplicationId());
+            AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
             if (autoPayUpi == null) {
-                logger.info("AUTOPAY : No autopay request exist for applicationId : {}, lender : {}", lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
-                return;
+                logger.info("AUTOPAY : No autopay request exist for applicationId : {}", applicationId);
+                return false;
             }
 
             logger.info("AUTOPAY : Starting Autopay for entity : {}", autoPayUpi);
             if (autoPayUpi.getMandateId() != null && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
                 logger.info("AUTOPAY :Processing autoPay pull loans batch starting at entity {}", autoPayUpi.getApplicationId());
-                autoPayUPIService.executeAutoPayUPI(lendingPaymentSchedule, autoPayUpi);
-            } else {
-                logger.info("AUTOPAY :Processing AutoPay is not possible for this active loan, " +
-                        "since registration is not completed {}", lendingPaymentSchedule.getId());
+                return true;
             }
         }
         catch(Exception e){
-            logger.error("autopay upi presentment failed for {}, {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), e.getStackTrace());
+            logger.error("autopay upi presentment failed for {}, {}, {}", applicationId, e.getMessage(), e.getStackTrace());
         }
+        return false;
     }
 }
