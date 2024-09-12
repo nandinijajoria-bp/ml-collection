@@ -851,7 +851,7 @@ public class LiquiloansService {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
         }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
             Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if(lendingPaymentScheduleLendingCommon.isPresent()&& !isAutoPayUpiEnabled(lendingApplication.getId())){
+            if(lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())){
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
                 lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
