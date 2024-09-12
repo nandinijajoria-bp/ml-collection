@@ -63,8 +63,7 @@ public class TLKycService {
                 TLKycCallbackResponseDto kycCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLKycCallbackResponseDto.class);
                 log.info("KYC callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), kycCallbackResponseDto);
                 if (!ObjectUtils.isEmpty(kycCallbackResponseDto)) {
-                    if (kycCallbackResponseDto.getAadhaarxmlnamematchStatus().equalsIgnoreCase("VERIFIED") && kycCallbackResponseDto.getAadhaarxmlfacematchStatus().equalsIgnoreCase("VERIFIED")
-                            && kycCallbackResponseDto.getAadhaarxmlvaliditystatus().equalsIgnoreCase("VERIFIED")) {
+                    if (kycCallbackResponseDto.getKycStatus().equalsIgnoreCase("VERIFIED")) {
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.AADHAR_UPLOAD_SUCCESS.name());
                         commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                         return true;

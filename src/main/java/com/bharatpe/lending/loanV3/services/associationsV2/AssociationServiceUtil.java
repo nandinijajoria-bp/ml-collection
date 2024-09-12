@@ -294,6 +294,8 @@ public class AssociationServiceUtil {
                 return mfBreService.processMFBreCallback(nbfcResponseDTO);
             case "CAPRI":
                 return capriBreService.processBreCallback(nbfcResponseDTO);
+            case "TRILLIONLOANS":
+                return tlBreService.processBreCallback(nbfcResponseDTO);
             case "PAYU":
                 return payUBreService.processBreCallback(nbfcResponseDTO);
             default:
