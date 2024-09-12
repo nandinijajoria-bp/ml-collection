@@ -42,6 +42,7 @@ public class LendingMerchantLoansResponseDTO {
     private HalfLoan halfLoan;
     private IOLoan ioLoan;
     private Boolean ediStarted;
+    private Boolean perpetualDpdRestrictPgPayment;
     private List<RepaymentDetails> repaymentDetails;
     private String topupLender;
     private BankAccountDetails accountDetails;
