@@ -28,6 +28,8 @@ public class CommonService {
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
             lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetailsDao.save(lenderAssociationDetailsDto.getLendingApplicationLenderDetails()));
+            log.info("LALD DAO - {}", lenderAssociationDetailsDto.getLendingApplicationLenderDetails());
+
         }
     }
 
