@@ -22,6 +22,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.*;
+import com.bharatpe.lending.loanV3.dto.request.muthoot.MFUpdateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -199,6 +200,7 @@ public class AbflDataUploadServiceUtil {
                                             .signedTimestamp(lendingApplicationOptional.get().getAgreementAt())
                                             .smsData(null)
                                             .contactReferences(constructReferencesData(lendingMerchantReferences))
+                                            .consents(getConsents(lendingApplicationOptional.get()))
                                             .build()
                             )))
                             .build())
@@ -209,6 +211,60 @@ public class AbflDataUploadServiceUtil {
             log.info("error occurred while processing regulatory data {}", lendingApplicationOptional.get().getId(), e);
         }
         return null;
+    }
+
+    private List<RegulatoryDataDto.Consent> getConsents(LendingApplication lendingApplication) {
+        List<RegulatoryDataDto.Consent> consents = new ArrayList<>();
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .header("Bureau")
+                .text("I authorize Resilient Digi Services Private Limited (acting as an authorized agent) (“BharatPe Money”) and its Lending Partners (Trillion Loans Fintech Private Limited, Aditya Birla Finance Ltd., Piramal Capital and Housing Finance Limited, Muthoot FinCorp Limited, Capri Global Capital Limited and NDX P2P Private) Limited to collect, store and verify the Credit Information / Credit Report from the Credit Information Company for processing my loan application")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
+                .build()
+        );
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .header("MFI consent")
+                .text("I declare and certify that my  annual household income is more than Rs 3,00,000 per annum")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
+                .build()
+        );
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .header("Tnc & privacy policy")
+                .text("I agree to BharatPe Money T&C, Privacy Policy, Consent T&C and the respective Lending Partner’s (hyperlink to lenders page of BharatPe money) T&C and Privacy Policy")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
+                .build()
+        );
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .header("KYC and penny drop consent")
+                .text("I authorize BharatPe Money and/or its Lending Partner to perform KYC checks (from C-KYC/UIDAI/NSDL/Digilocker or any other modes) for processing my loan application. I further authorize the above to conduct my bank account verification through penny drop/reverse penny drop or any other modes available.\n")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
+                .build()
+        );
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .header("Contact")
+                .text("(In the form of a consent)\n" +
+                        "You confirm that you have taken an explicit \n" +
+                        "consent from your references and agree that \n" +
+                        "Resilient Digi Services Private Limited (RDSPL) may get in touch with your references in case you are unreachable. By providing/selecting your references below, RDSPL shall deem that you have obtained consent from such person after disclosing the purpose for which their reference is provided. Your references will help us get back in touch with you in case you are \n" +
+                        "unreachable\n")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
+                .build()
+        );
+        consents.add(RegulatoryDataDto.Consent.builder()
+                .header("Agreement")
+                .text("By clicking on “I Agree”, I accept the Key Fact Statement, \n" +
+                        "Sanction and loan agreement, Terms & Conditions and \n" +
+                        "Privacy Policy of LSP and Privacy Policy and Terms & \n" +
+                        "Conditions of the specific lender assigned.")
+                .ip(lendingApplication.getIp())
+                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
+                .build()
+        );
+        return consents;
     }
 
     private String getFailedDocMapping(String docType) {

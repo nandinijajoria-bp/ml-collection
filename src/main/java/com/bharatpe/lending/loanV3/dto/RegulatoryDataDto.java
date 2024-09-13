@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.ToString;
 
 import java.util.Date;
+import java.util.List;
 
 @Data
 @ToString
@@ -27,7 +28,18 @@ public class RegulatoryDataDto {
     Boolean customerConsent;
     Date nsdlTimestamp;
     String nsdlLog;
+    List<Consent> consents;
 
+    @Data
+    @ToString
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Builder
+    public static class Consent {
+        String header;
+        String text;
+        String ip;
+        String timestamp;
+    }
 }
 
 // Declaration of Self emp/salaried
