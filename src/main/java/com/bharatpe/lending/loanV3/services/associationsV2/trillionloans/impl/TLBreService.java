@@ -94,6 +94,7 @@ public class TLBreService {
                 if (breResponseDTO.getStatus().equalsIgnoreCase("INITIATED")) {
                     lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
                     commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                    log.info("LALD DAO - {}", lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails());
                     return true;
                 }
             }
@@ -107,6 +108,7 @@ public class TLBreService {
 
     public Boolean processBreCallback(NBFCResponseDTO nbfcResponseDTO) {
         try {
+            Thread.sleep(1000); // adding 1 second wait due to issue
             LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("No application found for applicationId : {}", nbfcResponseDTO.getApplicationId());
@@ -134,6 +136,7 @@ public class TLBreService {
                 if (!ObjectUtils.isEmpty(breCallbackResponseDto) && breCallbackResponseDto.getSuccess() && breCallbackResponseDto.getAction().equalsIgnoreCase("Eligible")) {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
+                    log.info("LALD DAO - {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
                     return true;
                 }
             }
