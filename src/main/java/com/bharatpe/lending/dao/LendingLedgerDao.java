@@ -63,7 +63,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
     @Query(value = "SELECT * FROM lending_ledger WHERE merchant_id = :merchantId AND amount > 0 ORDER BY id DESC limit 1", nativeQuery = true)
     LendingLedger findByMerchantIdOrderByIdDesc(Long merchantId);
 
-    @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND date > :date AND amount < 0 ORDER BY id DESC limit 1", nativeQuery = true)
+    @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND date > :date AND amount < 0 AND adjustment_mode is null ORDER BY id DESC limit 1", nativeQuery = true)
     LendingLedger findAdvanceEdiDueOfPerpetualDpdLoan(Long lpsId, Date date);
 
 }
