@@ -2393,7 +2393,7 @@ public class LoanUtil {
 			logger.info("checking for collection of extra interest for perpetual dpd loan id : {}", lendingPaymentScheduleLendingCommon.get().getId());
 			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, new Date());
 			if(!ObjectUtils.isEmpty(lendingLedger)){
-				return lendingLedger.getInterest();
+				return Math.abs(lendingLedger.getInterest());
 			}
 		}
 		return 0d;
