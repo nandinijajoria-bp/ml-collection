@@ -286,6 +286,9 @@ public class LenderAssignService implements ILenderAssignService {
             }
             if (ObjectUtils.isEmpty(lenders)) {
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                if(ObjectUtils.isEmpty(lendingLenderQuota)){
+                    return "NONE";
+                }
                 if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
                             lendingLenderQuota.getLender() , application.getId(), lenders);

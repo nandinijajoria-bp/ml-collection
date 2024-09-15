@@ -771,7 +771,7 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
-        if(Objects.equals(lendingApplication.getLender(), "NONE")){
+        if("NONE".equalsIgnoreCase(lendingApplication.getLender())){
             rejectApplicationForIncorrectLender(lendingApplication);
             return lendingApplication;
         }
