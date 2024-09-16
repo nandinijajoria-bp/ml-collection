@@ -3847,7 +3847,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setStatus("rejected");
         lendingApplication.setManualCibil("rejected");
         lendingApplication.setManualKyc("rejected");
-        lendingApplication.setManualCibilReason("Application rejected as no lender found");
+        lendingApplication.setManualCibilReason("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);
         evictCache(lendingApplication.getMerchantId());
     }
