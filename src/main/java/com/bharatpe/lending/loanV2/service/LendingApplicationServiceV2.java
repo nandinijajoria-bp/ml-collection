@@ -635,7 +635,7 @@ public class LendingApplicationServiceV2 {
             }
 
             if(Objects.equals(lendingApplication.getStatus(), "rejected")){
-                return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
+                return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
 
             createStatusAuditTrail(lendingApplication);
@@ -3843,8 +3843,11 @@ public class LendingApplicationServiceV2 {
         log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
         lenderAssignService.saveNullDefaultOrMasterLenderAudit(lendingApplication, "rejected",
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
-                "APP_STATUS", "rejected due to nullable default lender");
+                "APP_STATUS", "rejected due to nullable lender");
         lendingApplication.setStatus("rejected");
+        lendingApplication.setManualCibil("rejected");
+        lendingApplication.setManualKyc("rejected");
+        lendingApplication.setManualCibilReason("Application rejected as no lender found");
         lendingApplicationDao.save(lendingApplication);
         evictCache(lendingApplication.getMerchantId());
     }
