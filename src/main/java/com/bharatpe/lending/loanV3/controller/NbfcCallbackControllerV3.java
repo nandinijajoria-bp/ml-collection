@@ -186,4 +186,11 @@ public class NbfcCallbackControllerV3 {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc event consumed successfully !"));
     }
 
+    @PostMapping("eKyc-decision")
+    public ResponseEntity<ApiResponse<?>> eKycCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) {
+        log.info("eKyc callback received via controller {}", nbfcResponseDTO);
+        kycCallbackWrapperService.lenderEKycCallback(nbfcResponseDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc callback consumed successfully !"));
+    }
+
 }

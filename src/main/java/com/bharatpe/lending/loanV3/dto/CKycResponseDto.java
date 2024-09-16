@@ -31,4 +31,5 @@ public class CKycResponseDto {
     String selfieString;
     String panDob;
     String panName;
+    String careOf;
 }
