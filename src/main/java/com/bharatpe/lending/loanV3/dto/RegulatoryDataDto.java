@@ -35,8 +35,8 @@ public class RegulatoryDataDto {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @Builder
     public static class Consent {
-        String header;
-        String text;
+        String type;
+        String content;
         String ip;
         String timestamp;
     }
