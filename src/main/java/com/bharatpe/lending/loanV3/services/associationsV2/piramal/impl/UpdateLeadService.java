@@ -3,17 +3,14 @@ package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
-import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingBBS;
-import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
@@ -49,9 +46,6 @@ public class UpdateLeadService {
     ILenderGateway iLenderGateway;
 
     @Autowired
-    LendingApplicationDao lendingApplicationDao;
-
-    @Autowired
     LendingGstDao lendingGstDao;
 
     @Autowired
@@ -61,13 +55,7 @@ public class UpdateLeadService {
     KycUtils kycUtils;
 
     @Autowired
-    CreateLeadService createLeadService;
-
-    @Autowired
     ConverterUtils converterUtils;
-
-    @Autowired
-    LendingMerchantDetailsDao lendingMerchantDetailsDao;
 
     @Autowired
     UpdateLeadValidationLayer updateLeadValidationLayer;
@@ -90,7 +78,6 @@ public class UpdateLeadService {
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStages.PiramalAssociationStages.UPDATE_LEAD.name());
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.UPDATE_LEAD_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-            // check this once and add validation layer
             lenderAssociationDetailsRequestDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsRequestDto.getMerchantId()));
             NbfcRequestDto updateLeadRequestDto = getPayload(lenderAssociationDetailsRequestDto);
             if (Objects.isNull(updateLeadRequestDto) || updateLeadValidationLayer.isInvalidPayload(updateLeadRequestDto, lenderAssociationDetailsRequestDto.getApplicationId())) {
@@ -118,10 +105,11 @@ public class UpdateLeadService {
 
         LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
         LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchantId());
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
         List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-        applicant.add(getApplicantDetails(lendingApplication, lendingBBS, lendingGstDetail, lenderAssociationDetailsRequestDto));
+        applicant.add(getApplicantDetails(lendingApplication, lendingBBS, lendingGstDetail, lenderAssociationDetailsRequestDto, lendingApplicationKycDetails));
         int vintage = (int)Math.ceil(Optional.ofNullable(lendingRiskVariablesSnapshot.getVintage()).orElse(0L)/30.0);
         if (defaultVintageAssignment && loanUtil.isInternalMerchant(lenderAssociationDetailsRequestDto.getMerchantId())){
             vintage = internalMerchantVinatge;
@@ -131,7 +119,6 @@ public class UpdateLeadService {
                 .partnerApplicationId((lendingApplication.getExternalLoanId()))
                 .applicantsDetail(applicant)
                 .additionalInformation(CreateLeadRequestDTO.AdditionalInformation.builder()
-                        // TODO: 27/03/23 change this later as we dont have this data
                         .applicantProfile("VENDOR")
                         .loanSegment(lendingRiskVariablesSnapshot.getRiskSegment().name())
                         .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
@@ -140,7 +127,7 @@ public class UpdateLeadService {
                         .monthlyNFI(lendingRiskVariablesSnapshot.getMonthlyNfi().intValue())
                         .bharatpeVintage(vintage)
                         .build())
-                .auditTrailInformation(createAuditTrailList(lendingApplication, lenderAssociationDetailsRequestDto))
+                .auditTrailInformation(createAuditTrailList(lendingApplication, lendingApplicationKycDetails))
                 .build();
         return NbfcRequestDto.builder()
                 .applicationId(lenderAssociationDetailsRequestDto.getApplicationId())
@@ -150,11 +137,10 @@ public class UpdateLeadService {
                 .build();
     }
 
-    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(LendingApplication lendingApplication, LendingBBS lendingBBS,
-                                                                      LendingGstDetail lendingGstDetail, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(LendingApplication lendingApplication, LendingBBS lendingBBS, LendingGstDetail lendingGstDetail,
+                                                                      LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto, LendingApplicationKycDetails lendingApplicationKycDetails) {
 
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
-//        LendingMerchantDetails lendingMerchantDetails = lendingMerchantDetailsDao.findTop1ByMerchantIdOrderByIdDesc(lendingApplication.getMerchantId());
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .customerId(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getCccId())
                 .businessInformation(CreateLeadRequestDTO.ApplicantsDetail.BusinessInformation.builder()
@@ -172,10 +158,17 @@ public class UpdateLeadService {
                         .monthlyNFI(Objects.nonNull(lendingBBS) ? lendingBBS.getNetFreeIncome() : 0d)
                         .build())
                 .build();
+        if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
+            applicantsDetail.setApplicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
+                            .currentAddress(getKycAddress(lendingApplicationKycDetails, "CURRENT"))
+                            .permanentAddress(getKycAddress(lendingApplicationKycDetails, "PERMANENT"))
+                            .kycAddress(getKycAddress(lendingApplicationKycDetails, "KYC"))
+                    .build());
+        }
         return applicantsDetail;
     }
 
-    private CreateLeadRequestDTO.AuditTrailInformation createAuditTrailList(LendingApplication lendingApplication, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+    private CreateLeadRequestDTO.AuditTrailInformation createAuditTrailList(LendingApplication lendingApplication, LendingApplicationKycDetails lendingApplicationKycDetails) {
         List<CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList> auditTrailLists = new ArrayList<>();
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList cibilAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
                 .auditCode("BRTPE_BUREAU_CONSENT")
@@ -184,7 +177,6 @@ public class UpdateLeadService {
                 .timeStamp(DateTimeUtil.getDateInFormat(lendingApplication.getCreatedAt(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                 .build();
         auditTrailLists.add(cibilAuditTrail);
-        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList kycAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
                 .auditCode("BRTPE_OKYC_CONSENT")
                 .auditName(" I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners")
@@ -241,6 +233,39 @@ public class UpdateLeadService {
                 .postalCode(String.valueOf(lendingApplication.getPincode()))
                 .build();
         return currentAddress;
+    }
+
+    public CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address getKycAddress(LendingApplicationKycDetails lendingApplicationKycDetails, String addressType) {
+        if(!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            String address = converterUtils.parseData(lendingApplicationKycDetails.getAadharAddress());
+            int addressSize = address.length();
+            String address1 = "", address2 = "", address3 = "";
+            if (addressSize <= 40) {
+                address1 = address;
+            } else if (addressSize <= 80) {
+                address1 = address.substring(0, 40);
+                address2 = address.substring(40, addressSize);
+            } else {
+                address1 = address.substring(0, 40);
+                address2 = address.substring(40, 80);
+                address3 = address.substring(80, addressSize);
+            }
+            CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address currentAddress = CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address
+                    .builder()
+                    .addressType(addressType)
+                    .addressLine1(address1)
+                    .addressLine2(address2)
+                    .addressLine3(address3)
+                    .city(lendingApplicationKycDetails.getAadharCity())
+                    .street(".")
+                    .buildingNumber(".")
+                    .stateCode(Objects.nonNull(StateMapping.getStateEnum(lendingApplicationKycDetails.getAadharState())) ? StateMapping.getStateEnum(lendingApplicationKycDetails.getAadharState()).name() : null)
+                    .country("INDIA")
+                    .postalCode(lendingApplicationKycDetails.getAadharPinCode())
+                    .build();
+            return currentAddress;
+        }
+        return null;
     }
 
 }
