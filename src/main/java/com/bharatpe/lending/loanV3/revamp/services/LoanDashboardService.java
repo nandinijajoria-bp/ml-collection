@@ -353,7 +353,7 @@ public class LoanDashboardService {
                 LoanApplicationDetailsV3 topUpApplicationDetails = setApplicationDetails(topupApplication,merchantDetails);
                 loanDashboardResponse.setTopupLoanApplication(topUpApplicationDetails);
 
-                loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(topupApplication));
+                loanDashboardResponse.getTopupLoanApplication().setAnnualRoi(getAnnualROI(topupApplication));
             }
             loanDashboardResponse.setActiveLoan(true);
             excessNachService.setExcessCollectionDetails(merchantDetails.getId(), loanDashboardResponse);
