@@ -636,7 +636,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
             }
 
-            if(Objects.equals(lendingApplication.getStatus(), "rejected")){
+            if("rejected".equalsIgnoreCase(lendingApplication.getStatus())){
                 return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
 
@@ -3843,12 +3843,10 @@ public class LendingApplicationServiceV2 {
 
     private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
         log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
-        lenderAssignService.saveNullDefaultOrMasterLenderAudit(lendingApplication, "rejected",
+        commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
                 "APP_STATUS", "rejected due to nullable lender");
         lendingApplication.setStatus("rejected");
-        //lendingApplication.setManualCibil("rejected");
-        //lendingApplication.setManualCibilReason("NONE_ELIGIBLE_LENDER");
         lendingApplication.setManualKyc("rejected");
         lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);

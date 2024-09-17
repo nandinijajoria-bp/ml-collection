@@ -1,7 +1,10 @@
 package com.bharatpe.lending.util;
 
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -15,6 +18,9 @@ public class CommonUtil {
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
 
     public String fetchLoanPurposeByApplicatioId(Long applicationId){
         if(Objects.isNull(applicationId)){
@@ -50,4 +56,16 @@ public class CommonUtil {
         }
     }
 
+    public void saveApplicationRejectionAudit(LendingApplication lendingApplication, String newStatus, String oldStatus, String type, String remarks){
+        LendingAuditTrial auditLender = new LendingAuditTrial();
+        auditLender.setApplicationId(lendingApplication.getId());
+        auditLender.setMerchantId(lendingApplication.getMerchantId());
+        auditLender.setType(type);
+        auditLender.setLoanId("BPL"+lendingApplication.getId());
+        auditLender.setOldStatus(oldStatus);
+        auditLender.setNewStatus(newStatus);
+        auditLender.setRemarks(remarks);
+        log.info("Audit Trail: {}", auditLender);
+        lendingAuditTrialDao.save(auditLender);
+    }
 }

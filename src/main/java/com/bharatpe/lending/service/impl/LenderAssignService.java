@@ -523,19 +523,6 @@ public class LenderAssignService implements ILenderAssignService {
         lendingAuditTrialDao.save(auditLender);
     }
 
-    public void saveNullDefaultOrMasterLenderAudit(LendingApplication lendingApplication, String newStatus, String oldStatus, String type, String remarks){
-        LendingAuditTrial auditLender = new LendingAuditTrial();
-        auditLender.setApplicationId(lendingApplication.getId());
-        auditLender.setMerchantId(lendingApplication.getMerchantId());
-        auditLender.setType(type);
-        auditLender.setLoanId("BPL"+lendingApplication.getId());
-        auditLender.setOldStatus(oldStatus);
-        auditLender.setNewStatus(newStatus);
-        auditLender.setRemarks(remarks);
-        log.info("Audit Trail: {}", auditLender);
-        lendingAuditTrialDao.save(auditLender);
-    }
-
     public String getLender(LendingApplication lendingApplication, List<String> lenders, EdiModel ediModel, Boolean isGstOffer, String riskSegment){
         boolean flag = false;
         log.info("Implementing logic for lender assignment.");
