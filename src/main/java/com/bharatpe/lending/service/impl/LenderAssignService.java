@@ -170,6 +170,8 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.eligible.lenders.for.modify:2}")
     Integer maxEligibleLendersCountForModify;
 
+    private static final String noneLender = "NONE";
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -287,7 +289,7 @@ public class LenderAssignService implements ILenderAssignService {
             if (ObjectUtils.isEmpty(lenders)) {
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
                 if(ObjectUtils.isEmpty(lendingLenderQuota)){
-                    return "NONE";
+                    return noneLender;
                 }
                 if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
@@ -443,7 +445,7 @@ public class LenderAssignService implements ILenderAssignService {
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
-                    EdiModel updatedEdiModel= "NONE".equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+                    EdiModel updatedEdiModel= noneLender.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
                     updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
                     lendingApplicationDao.save(application);
                     return application;
@@ -492,7 +494,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         String oldLender = application.getLender();
         application.setLender(decidedLender);
-        EdiModel updatedEdiModel= "NONE".equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+        EdiModel updatedEdiModel= noneLender.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
         updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
         return lendingApplicationDao.save(application);
     }
@@ -893,7 +895,7 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Assigning fallback lender");
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(ObjectUtils.isEmpty(fallbackLender)){
-            return "NONE";
+            return noneLender;
         }
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel());
@@ -945,7 +947,7 @@ public class LenderAssignService implements ILenderAssignService {
 
     public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {
         try {
-            if("NONE".equalsIgnoreCase(lendingApplication.getLender())){
+            if(noneLender.equalsIgnoreCase(lendingApplication.getLender())){
                 log.info("skipping updated offer for {} lender of {}",lendingApplication.getLender(), lendingApplication.getId());
                 return;
             }

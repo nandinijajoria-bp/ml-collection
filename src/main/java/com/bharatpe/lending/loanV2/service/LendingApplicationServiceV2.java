@@ -321,6 +321,8 @@ public class LendingApplicationServiceV2 {
     @Value("${lender.doc.generate.topup.enabled.lenders:}")
     String lenderDocGenerateTopUpEnabledLenders;
 
+    private static final String noneLender = "NONE";
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -771,7 +773,7 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
-        if("NONE".equalsIgnoreCase(lendingApplication.getLender())){
+        if(noneLender.equalsIgnoreCase(lendingApplication.getLender())){
             rejectApplicationForIncorrectLender(lendingApplication);
             return lendingApplication;
         }
