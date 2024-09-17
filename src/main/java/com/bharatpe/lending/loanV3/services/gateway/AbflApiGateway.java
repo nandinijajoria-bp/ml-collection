@@ -59,8 +59,14 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
     String nbfcPennyDropUrl;
 
-    @Value("${nbfc.kyc.api:api/v3/lender/eKyc}")
+    @Value("${nbfc.eKyc.api:api/v3/lender/eKyc}")
     String nbfcEKycUrl;
+
+    @Value("${nbfc.eKyc.status.api:api/v3/lender/eKyc-status-check}")
+    String nbfcEKycStatusUrl;
+
+    @Value("${nbfc.kyc.validity.api:api/v3/lender/kyc-validity}")
+    String nbfcKycValidityUrl;
 
     @Value("${nbfc.pennydrop.read.timeout:30000}")
     int nbfcPennyDropReadTimeout;
@@ -168,6 +174,24 @@ public class AbflApiGateway extends INbfcLenderGateway {
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(eKycRequestApiDto), EKycApiResponseDto.class,nbfcBaseUrl+nbfcEKycUrl);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while processing eKyc api call to nbfc svc for {}",eKycRequestApiDto, e);
+        }
+        return null;
+    }
+
+    public EKycCallbackResponseDto invokeEKycStatusCheck(EKycStatusCheckRequestApiDto eKycStatusCheckRequest) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(eKycStatusCheckRequest), EKycCallbackResponseDto.class,nbfcBaseUrl+nbfcEKycStatusUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while processing eKyc status check api call to nbfc svc for {}",eKycStatusCheckRequest, e);
+        }
+        return null;
+    }
+
+    public KycValidityApiResponseDto invokeKycValidity(KycValidityRequestApiDto kycValidityRequest) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(kycValidityRequest), KycValidityApiResponseDto.class,nbfcBaseUrl+nbfcKycValidityUrl);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while processing eKyc status check api call to nbfc svc for {}",kycValidityRequest, e);
         }
         return null;
     }

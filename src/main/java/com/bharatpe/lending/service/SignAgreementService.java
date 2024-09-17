@@ -41,11 +41,13 @@ import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -158,7 +160,9 @@ public class SignAgreementService {
 
 	ExecutorService executorService = Executors.newFixedThreadPool(10);
 
-
+    @Lazy
+	@Autowired
+	KycUtils kycUtils;
 
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
@@ -229,7 +233,8 @@ public class SignAgreementService {
 			}
 		}
 		if (!StringUtils.isEmpty(lendingApplication.getCkycId())) {
-			KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchantId());
+
+			KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()) ? kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
 			logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
 			if (kycStatus.getKycStatus().equals(KycStatus.NEW) || kycStatus.getKycStatus().equals(KycStatus.DRAFT)) {
 				logger.info("kyc not done for application:{}", applicationId);

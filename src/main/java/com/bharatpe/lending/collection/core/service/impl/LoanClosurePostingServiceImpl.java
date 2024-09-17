@@ -89,6 +89,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     String nbfcForeClosureChargePosting;
     @Value("${nbfc.liquiloans.foreclosure.charges.topic:penalty_fee_on_nbfc}")
     String nbfcLiquiLoansForeclosureTopic;
+    @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
+    String nbfcPayuForeclosureTopic;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
@@ -316,6 +318,38 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         loanForeClosureCharges.setChargePostingStatus(postingStatus);
         loanForeClosureChargesDao.save(loanForeClosureCharges);
     }
+
+    @Override
+    public void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId) {
+        String postingStatus = "FAILURE";
+        String status="SUCCESS";
+        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        if (loanForeClosureCharges == null) {
+            logger.info("Payu : No foreclosure charges exist for the orderId {}", orderId);
+            return;
+        }
+        try {
+            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(Lender.PAYU.name(), applicationId, lendingLedger);
+            logger.info("Payu :  foreclosure charges event Sending {}", nbfcRequestDTO);
+            Object metadata = confluentKafkaTemplate.send(nbfcPayuForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequestDTO), new TypeReference<Map<String, Object>>() {}));
+            logger.info("Payu : foreclosure charges event sent {}", objectMapper.writeValueAsString(nbfcRequestDTO));
+            postingStatus = "POSTED";
+        } catch (Exception e) {
+            logger.error("Payu : error occurred while sending foreclosure event {}", e.getMessage());
+            status="FAILED";
+        }
+        logger.info("Payu : updating LCA for foreclosed event for application id : {}  and status is {}", applicationId, status);
+        LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+        if (lendingCollectionAudit != null) {
+            lendingCollectionAudit.setStatus(status);
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            logger.info("Payu: updated LCA for foreclosed event for application id : {} and status :{} ", applicationId, status);
+        }
+
+        loanForeClosureCharges.setChargePostingStatus(postingStatus);
+        loanForeClosureChargesDao.save(loanForeClosureCharges);
+    }
+
     private String getLenderForeclsoureReceiptTopic(String lender) {
         switch (lender) {
             case "USFB":

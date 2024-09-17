@@ -36,6 +36,7 @@ public class KycStageAssociationSvcFactory extends LenderAssociationServiceFacto
             case "TRILLIONLOANS":
             case "MUTHOOT":
             case "CAPRI":
+            case "PAYU":
                 return createLeadAndDocUploadService;
             default:
                 return oldModelService;

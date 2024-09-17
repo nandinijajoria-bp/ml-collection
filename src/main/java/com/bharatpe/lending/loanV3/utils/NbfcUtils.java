@@ -101,7 +101,7 @@ public class NbfcUtils {
         }
         lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
         if (enableLenderChange) {
-            if(!Arrays.asList(LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
+            if(!Arrays.asList(LendingViewStates.SHOP_DETAILS_PAGE.name(), LendingViewStates.SHOP_PICTURES_PAGE.name(), LendingViewStates.KYC_PAGE.name(), LendingViewStates.LENDER_EVALUATION_PAGE.name()).contains(lendingApplicationDetails.getApplicationViewState())
                     || !ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                 log.info("skipping lender change and rejecting application as agreement already done / lendingViewState {} for application is not correct for applicationId {}", lendingApplicationDetails.getApplicationViewState(), lendingApplication.getId());
                 lendingApplication.setStatus("rejected");
@@ -133,6 +133,7 @@ public class NbfcUtils {
     }
 
     public void pushApplicationToNextStage(Long applicationId, String lender, String lenderAssociationStage, Boolean autoInvoke) {
+        log.info("push application to next stage from current {} stage for applicationId {}", lenderAssociationStage, applicationId);
         if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(lenderAssociationStage)) {
             log.info("status completed for this application {}",applicationId);
             return;
@@ -150,7 +151,7 @@ public class NbfcUtils {
         lendingApplicationDetails.setStage(nextStage.name());
         lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        log.info("stage updated in app details for application {}", applicationId);
+        log.info("stage {} updated in app details for application {}", lendingApplicationDetails.getStage(), applicationId);
         if (autoInvoke) {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(nextStage.name()).getLenderAssociationService(lender);
@@ -163,12 +164,8 @@ public class NbfcUtils {
     }
 
     public void retryApplicationStage(Long applicationId, String lender, String lenderAssociationStage) {
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-        if(!ObjectUtils.isEmpty(lendingApplicationDetails)) {
-            lendingApplicationDetails.setStage(lenderAssociationStage);
-            lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
-            lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            log.info("stage updated in app details for application {}", applicationId);
+        try {
+            log.info("retrying stage {} for {}", lenderAssociationStage, applicationId);
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(lenderAssociationStage).getLenderAssociationService(lender);
             Map<String, Object> args = new HashMap<String, Object>() {{
@@ -176,6 +173,8 @@ public class NbfcUtils {
             }};
             iLenderAssociationService.invoke(applicationId, args);
             log.info("application {} successfully pushed to retry for stage {}", applicationId, lenderAssociationStage);
+        } catch (Exception e) {
+            log.error("Exception in retrying stage {} for applicationId {} {}", lenderAssociationStage, applicationId, Arrays.asList(e.getStackTrace()));
         }
     }
 
@@ -185,6 +184,7 @@ public class NbfcUtils {
             case TRILLIONLOANS:
             case MUTHOOT:
             case CAPRI:
+            case PAYU:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:
@@ -197,6 +197,10 @@ public class NbfcUtils {
         switch (stage) {
             case "GENERATE_DOCUMENT":
                 return associationServiceUtil.invokeDocsGenerateService(lender, lenderAssociationDetailsDto.getLendingApplication(), DocType.LOAN_AGREEMENT, true);
+            case "EKYC_STATUS":
+                return associationServiceUtil.invokeEkycStatusCheck(lender, lenderAssociationDetailsDto.getLendingApplication());
+            case "EKYC":
+                return associationServiceUtil.invokeEKyc(lender, lenderAssociationDetailsDto);
             default:
                 return false;
         }

@@ -47,4 +47,9 @@ public abstract class INbfcLenderGateway {
 
     public abstract EKycApiResponseDto invokeEKyc(EKycRequestApiDto eKycRequestApiDto);
 
-}
+    public abstract EKycCallbackResponseDto invokeEKycStatusCheck(EKycStatusCheckRequestApiDto eKycStatusCheckRequest);
+
+    public abstract KycValidityApiResponseDto invokeKycValidity(KycValidityRequestApiDto kycValidityRequest);
+
+
+    }

@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -156,33 +155,9 @@ public class MileStoneHelperServicev3 {
                 }
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
-
+            log.info("rte response --> {}", responseDto);
             if(!ObjectUtils.isEmpty(responseDto.getProgramType())) {
-                String program_type = RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2";
-                HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
-                    put("program_type", program_type);
-                }};
-
-                if(responseDto.getMilStoneEligibility()
-                        && (ObjectUtils.isEmpty(entity)
-                        || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus()))) {
-                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
-                    funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, responseDto.getProgramType());
-                }
-
-                if(!responseDto.getMilStoneEligibility()) {
-                    String experianRejectionReason;
-                    LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
-                    if(ObjectUtils.isEmpty(lendingRiskVariables)) {
-                        experianRejectionReason = "LRV not found";
-                    }else{
-                        experianRejectionReason = ObjectUtils.isEmpty(responseDto.getExperianRejectionReason()) ? "Experian Rejection reason not found" : responseDto.getExperianRejectionReason();
-                    }
-                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
-                    funnelService.submitEvent(merchant.getId(), null, null,
-                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, responseDto.getProgramType() + "_" + experianRejectionReason);
-                }
+                cleverTapFunnelEventHandler(merchant, entity, responseDto);
             }
         }
         catch (Exception e) {
@@ -195,6 +170,42 @@ public class MileStoneHelperServicev3 {
         }
         return responseDto;
 
+    }
+
+    private void cleverTapFunnelEventHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
+        String program_type = RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2";
+        HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+            put("program_type", program_type);
+        }};
+
+        String experianRejectionReason;
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
+        if(ObjectUtils.isEmpty(lendingRiskVariables)) {
+            experianRejectionReason = "LRV not found";
+        }else{
+            experianRejectionReason = ObjectUtils.isEmpty(responseDto.getExperianRejectionReason())
+                    ? "Experian Rejection reason not found"
+                    : responseDto.getExperianRejectionReason();
+        }
+
+        String eventValue = RTEProgramType.NEW_MERCHANT.name().equals(responseDto.getProgramType())
+                ? responseDto.getProgramType() + "_" + experianRejectionReason
+                : responseDto.getProgramType();
+
+
+        if(responseDto.getMilStoneEligibility()
+                && (ObjectUtils.isEmpty(entity)
+                || !ObjectUtils.isEmpty(entity) && !RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus()))) {
+            executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
+            funnelService.submitEvent(merchant.getId(), null, null,
+                    FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ELIGIBLE, eventValue);
+        }
+
+        if(!responseDto.getMilStoneEligibility()) {
+            executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), cleverTapEvtData, merchant.getMid()));
+            funnelService.submitEvent(merchant.getId(), null, null,
+                    FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, eventValue);
+        }
     }
 
     private MileStoneEligibilityResponseDto rteDetailsCacheValue(MileStoneEligibilityResponseDto responseDto, BasicDetailsDto merchant, Object mileStoneCacheResponse) {
@@ -671,10 +682,9 @@ public class MileStoneHelperServicev3 {
     private MileStoneEligibilityResponseDto experianNotFound(BasicDetailsDto merchant, Experian experian,String kycPancard, int pincode, MileStoneEligibilityResponseDto responseDto) {
         log.info("experian is {} for merchantId:{} ", experian, merchant.getId());
         responseDto.setEnrollState(false);
-        responseDto.setMilStoneEligibility(true);
+        responseDto.setMilStoneEligibility(false);
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
-        responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
         responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
         responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
         responseDto.setIsMileStoneExpiry(false);
@@ -768,10 +778,9 @@ public class MileStoneHelperServicev3 {
     private MileStoneEligibilityResponseDto panCardNotFound(BasicDetailsDto merchant, int pincode, MileStoneEligibilityResponseDto responseDto) {
         log.info("panCard is empty for merchant", merchant.getId());
         responseDto.setEnrollState(false);
-        responseDto.setMilStoneEligibility(true);
+        responseDto.setMilStoneEligibility(false);
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
-        responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
         responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
         responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
         responseDto.setIsMileStoneExpiry(false);

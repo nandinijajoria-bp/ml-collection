@@ -52,6 +52,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeAdditionalDocUploadWrapperService;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
@@ -228,6 +229,10 @@ public class VerifyOTPService {
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
+
     @Value("${skip.update.lead.verify.otp.downgrade}")
     boolean skipUpdateLeadVerifyOtpDowngrade;
 
@@ -394,6 +399,13 @@ public class VerifyOTPService {
         if (merchant.getMobile().length() == 12) {
             Boolean isOTPVerified = bharatPeOtpHandler.verifyOtp(merchant, otp, uuid);
             if (isOTPVerified) {
+
+                //Specific requirement for payu
+                if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                    lendingApplicationLenderDetails.setAgreementOtp(otp);
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                }
 
                 finalResponse = updateApplicationStatusAndSuccessSms(merchant, lendingApplication, meta);
                 //createPrebookTarget(lendingApplication, merchant);
@@ -618,7 +630,7 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
-            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())) {
+            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name()).contains(lendingApplication.getLender())) {
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
@@ -710,7 +722,8 @@ public class VerifyOTPService {
 
     private void updateKycStatus(LendingApplication lendingApplication) {
         try {
-            KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchantId());
+            KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()) ?
+                    kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
             logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
             lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());
             lendingApplication.setCkycDate(new Date());

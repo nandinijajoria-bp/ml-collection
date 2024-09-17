@@ -2,17 +2,21 @@ package com.bharatpe.lending.loanV3.services.associationsV2;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.DisbursalCallbackCommonDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -125,6 +129,37 @@ public class AssociationServiceUtil {
     @Autowired
     AbflDocGenerateService abflDocGenerateService;
 
+    @Lazy
+    @Autowired
+    KycRequestKafka kycRequestKafka;
+
+    @Autowired
+    PayULeadService payULeadService;
+
+    @Autowired
+    PayUDocUploadService payUDocUploadService;
+
+    @Autowired
+    PayUBreService payUBreService;
+
+    @Autowired
+    PayUNachMandateService payUNachMandateService;
+
+    @Autowired
+    PayUDisbursalCallbackService payUDisbursalCallbackService;
+
+    @Autowired
+    PayUKycService payUKycService;
+
+    @Autowired
+    PayURepaymentScheduleService payURepaymentScheduleService;
+
+    @Autowired
+    PayUForeclosureService payUForeclosureService;
+
+    @Autowired
+    EKycService eKycService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -135,6 +170,8 @@ public class AssociationServiceUtil {
                 return mfLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             case "CAPRI":
                 return capriLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
+            case "PAYU":
+                return payULeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -144,6 +181,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "MUTHOOT":
                 return mfKycService.invokeKyc(lenderAssociationDetailsRequest);
+            case "PAYU":
+                return payUKycService.invokeKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -159,6 +198,8 @@ public class AssociationServiceUtil {
                 return mfDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "CAPRI":
                 return capriDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
+            case "PAYU":
+                return payUDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             default:
                 return false;
         }
@@ -174,6 +215,8 @@ public class AssociationServiceUtil {
                 return mfLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
             case "CAPRI":
                 return capriLeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
+            case "PAYU":
+                return payULeadService.invokeUpdateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -189,6 +232,8 @@ public class AssociationServiceUtil {
                 return mfBreService.invokeBre(lenderAssociationDetailsRequest);
             case "CAPRI":
                 return capriBreService.invokeBre(lenderAssociationDetailsRequest);
+            case "PAYU":
+                return payUBreService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -204,12 +249,14 @@ public class AssociationServiceUtil {
                 return mfDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "CAPRI":
                 return capriDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+            case "PAYU":
+                return payUDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(),  lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             default:
                 return false;
         }
     }
 
-    public LenderEdIScheduleResponseDTO invokeRepaymentScheduleService(String lender, Long applicationId) {
+    public LenderEdIScheduleResponseDTO invokeRepaymentScheduleService(String lender, Long applicationId, Boolean isPreview) {
         switch (lender) {
             case "USFB":
                 return repaymentService.invokeRpsGenerate(applicationId);
@@ -219,6 +266,8 @@ public class AssociationServiceUtil {
                 return mfRepaymentScheduleService.invokeRpsGenerate(applicationId);
             case "CAPRI":
                 return capriRepaymentScheduleService.invokeRpsGenerate(applicationId);
+            case "PAYU":
+                return payURepaymentScheduleService.invokeRpsGenerate(applicationId, isPreview);
             default:
                 return null;
         }
@@ -234,6 +283,8 @@ public class AssociationServiceUtil {
                 return mfDisbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
             case "CAPRI":
                 return capriDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
+            case "PAYU":
+                return payUDisbursalCallbackService.handleDisbursalCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -247,6 +298,10 @@ public class AssociationServiceUtil {
                 return mfBreService.processMFBreCallback(nbfcResponseDTO);
             case "CAPRI":
                 return capriBreService.processBreCallback(nbfcResponseDTO);
+            case "TRILLIONLOANS":
+                return tlBreService.processBreCallback(nbfcResponseDTO);
+            case "PAYU":
+                return payUBreService.processBreCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -262,6 +317,8 @@ public class AssociationServiceUtil {
                 return null;
             case "CAPRI":
                 return capriForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
+            case "PAYU":
+                return payUForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger);
             default:
                 return null;
         }
@@ -275,6 +332,8 @@ public class AssociationServiceUtil {
                 return mfForeclosureService.getForeclosureDetails(applicationId);
             case "CAPRI":
                 return capriForeclosureService.getForeclosureDetails(applicationId);
+            case "PAYU":
+                return payUForeclosureService.getForeclosureDetails(applicationId);
             default:
                 return 0D;
         }
@@ -339,6 +398,8 @@ public class AssociationServiceUtil {
                 return tlNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             case "CAPRI":
                 return capriNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
+            case "PAYU":
+                return payUNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             default:
                 return false;
         }
@@ -350,6 +411,35 @@ public class AssociationServiceUtil {
                 return capriFetchSignedDocService.invokeFetchSignedDocs(lendingApplication);
             case "ABFL":
                 return abflDocGenerateService.invokeDocGenerate(lendingApplication, docType, preSigned, true);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeEkycStatusCheck(String lender, LendingApplication lendingApplication) {
+        switch (lender) {
+            case "ABFL":
+                return kycRequestKafka.eKycStatusCheck(lendingApplication);
+            case "PIRAMAL":
+                return eKycService.eKycStatusCheck(lendingApplication);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean handleEKycCallback(String lender, NBFCResponseDTO nbfcResponseDTO) {
+        switch (lender) {
+            case "PIRAMAL":
+                return eKycService.processEKycCallback(nbfcResponseDTO);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeEKyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "PIRAMAL":
+                return eKycService.invokeEKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }

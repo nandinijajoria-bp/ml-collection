@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class EKycCallbackResponseDto {
     Boolean success;
     String applicationId;
@@ -21,6 +23,7 @@ public class EKycCallbackResponseDto {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @NoArgsConstructor
     @AllArgsConstructor
+    @Builder
     public static class Response {
         String responseStatus;
         Long status;

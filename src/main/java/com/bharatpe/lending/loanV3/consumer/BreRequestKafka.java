@@ -52,12 +52,6 @@ public class BreRequestKafka {
     LenderGatewayFactory lenderGatewayFactory;
 
     @Autowired
-    ILenderAssignment iLenderAssignment;
-
-    @Autowired
-    LenderAssociationStageFactory lenderAssociationStageFactory;
-
-    @Autowired
     NbfcUtils nbfcUtils;
 
     @Autowired
@@ -105,7 +99,6 @@ public class BreRequestKafka {
                 lendingApplicationLenderDetails.setStage(LenderAssociationStages.BRE.name());
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
-                lendingApplicationLenderDetails.setKycRetryCount(0);
                 DecimalFormat df = new DecimalFormat("#.##");
                 df.setRoundingMode(RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
@@ -204,21 +197,24 @@ public class BreRequestKafka {
             existingLendingApplicationLenderDetails.setStage(nextStage.name());
             existingLendingApplicationLenderDetails.setBreCompletionTimestamp(new Date());
             existingLendingApplicationLenderDetails.setNbfcBreAsyncId(data.getAsyncId());
-//            existingLendingApplicationLenderDetails.setNbfcId(data.getAbflApplicationId());
             existingLendingApplicationLenderDetails.setCccId(data.getCccId());
             existingLendingApplicationLenderDetails.setNbfcApprovedLoanOfferAmt(data.getLoanAmount());
             existingLendingApplicationLenderDetails.setRoi(Double.valueOf(data.getRoi()));
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-//            lendingApplication.get().setNbfcId(data.getAbflApplicationId());
             lendingApplicationDao.save(lendingApplication.get());
+            log.info("bre completed for {}", data.getAccountId());
+            if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId())
+                    && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
+                lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                return;
+            }
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
                     lendingApplication.get().getLender(), LenderAssociationStages.BRE.name(),
                     LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.BRE));
-            log.info("bre completed for ", data.getAccountId());
         } catch (Exception ex) {
             log.error("exception occurred while processing bre callback request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-//            throw new RuntimeException("unable to ack bre callback event" + request);
             nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_CALLBACK_CLIENT_FAILURE);
         }
     }
@@ -260,7 +256,7 @@ public class BreRequestKafka {
                                                                     .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(lendingApplication.get().getPincode())
-                                                                    .state(lendingApplication.get().getState())
+                                                                    .state(converterUtils.parseStateData(lendingApplication.get().getState()))
                                                                     .build()
                                                     )
                                                     .loanApplicationRequest(BreApiRequestDto.LoanApplicationRequest.builder()
@@ -276,7 +272,7 @@ public class BreRequestKafka {
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
                                     .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
-                                    .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : String.valueOf(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
+                                    .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : new DecimalFormat("#").format(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
                                     .shopPincode(lendingApplication.get().getPincode())
                                     .build())
                     .build();

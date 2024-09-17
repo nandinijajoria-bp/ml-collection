@@ -160,6 +160,7 @@ public class LendingMerchantLoansResponseDTO {
         private double duePenalty;
         private long ediDays;
         private double nachBounceAmount;
+        private Double annualRoi;
 
         public Loan() {
         }
@@ -446,6 +447,13 @@ public class LendingMerchantLoansResponseDTO {
             return this;
         }
 
+        public Double getAnnualRoi() {
+            return annualRoi;
+        }
+
+        public void setAnnualRoi(Double annualRoi) {
+            this.annualRoi = annualRoi;
+        }
 
         @Override
         public String toString() {
