@@ -3847,9 +3847,10 @@ public class LendingApplicationServiceV2 {
                 !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
                 "APP_STATUS", "rejected due to nullable lender");
         lendingApplication.setStatus("rejected");
-        lendingApplication.setManualCibil("rejected");
-        //lendingApplication.setManualKyc("rejected");
-        lendingApplication.setManualCibilReason("NONE_ELIGIBLE_LENDER");
+        //lendingApplication.setManualCibil("rejected");
+        //lendingApplication.setManualCibilReason("NONE_ELIGIBLE_LENDER");
+        lendingApplication.setManualKyc("rejected");
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
         lendingApplicationDao.save(lendingApplication);
         evictCache(lendingApplication.getMerchantId());
     }
