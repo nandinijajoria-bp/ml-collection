@@ -65,29 +65,6 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustme
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.util.LoanUtil;
-
-
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.TimeZone;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.bharatpe.lending.util.PaymentLinkUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -111,6 +88,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 import static com.bharatpe.lending.constant.CommonConstants.AUTO_PAY_SETTLEMENT;
@@ -778,6 +756,9 @@ public class PaymentService {
                 log.info("inside settlement of amount of autopay upi presentment");
                 try {
                     log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
+                    if (request.getOrderId().startsWith("LENDING")) {
+                        request.setOrderId( request.getOrderId().replaceFirst("LENDING", ""));
+                    }
                     Optional<LendingPullPayment> optionalLendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId()));
                     if (!optionalLendingPullPayment.isPresent()) {
                         logger.error("Order not found in mandate settlement transaction for orderId {}",request.getOrderId());
