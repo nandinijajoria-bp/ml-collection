@@ -219,7 +219,7 @@ public class LenderAssignService implements ILenderAssignService {
                 log.info("exception while logging the lender assignment details under rules based lenders", exception);
             }
             if(!ObjectUtils.isEmpty(ruleList)) {
-                lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage);
+                //lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage);
                 try {
                     if (!CollectionUtils.isEmpty(lenders)) {
                         ListIterator<String> iterator = lenders.listIterator();
