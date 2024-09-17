@@ -636,7 +636,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
             }
 
-            if("rejected".equalsIgnoreCase(lendingApplication.getStatus())){
+            if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && noneLender.equalsIgnoreCase(lendingApplication.getLender())){
                 return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
 
