@@ -507,7 +507,8 @@ public class KycRequestKafka {
                 log.info("Kyc Status is not correct in lender details for eKyc status check for application {}", lendingApplication.getId());
                 return false;
             }
-            if(existingLendingApplicationLenderDetails.getKycRetryCount() >= abflEKycRetryCount) {
+            Integer currentEKycRetryCount = ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getKycRetryCount()) ? 0 : existingLendingApplicationLenderDetails.getKycRetryCount();
+            if(currentEKycRetryCount >= abflEKycRetryCount) {
                 log.info("skipping status check for last retry of eKyc of {} for {}", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
