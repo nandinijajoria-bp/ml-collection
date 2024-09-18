@@ -219,10 +219,6 @@ public class AbflDataUploadServiceUtil {
     private List<RegulatoryDataDto.Consent> getConsents(LendingApplication lendingApplication) {
         LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(),lendingApplication.getLender());
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),Status.ACTIVE.name());
-        Long agreementAt = lendingApplicationLenderDetails.getCreatedAt().getTime();
-        if(!ObjectUtils.isEmpty(lendingApplication) && lendingApplication.getAgreementAt()!=null){
-            agreementAt = lendingApplication.getAgreementAt().getTime();
-        }
         List<RegulatoryDataDto.Consent> consents = new ArrayList<>();
         consents.add(RegulatoryDataDto.Consent.builder()
                 .type("Bureau consent")
@@ -267,7 +263,7 @@ public class AbflDataUploadServiceUtil {
                         "Resilient Digi Services Private Limited (RDSPL) may get in touch with your references in case you are unreachable. By providing/selecting your references below, RDSPL shall deem that you have obtained consent from such person after disclosing the purpose for which their reference is provided. Your references will help us get back in touch with you in case you are \n" +
                         "unreachable.")
                 .ip(lendingApplication.getIp())
-                .timestamp(String.valueOf(agreementAt))
+                .timestamp(String.valueOf(lendingApplication.getAgreementAt().getTime()))
                 .build()
         );
         consents.add(RegulatoryDataDto.Consent.builder()
@@ -277,7 +273,7 @@ public class AbflDataUploadServiceUtil {
                         "Privacy Policy of LSP and Privacy Policy and Terms & \n" +
                         "Conditions of Aditya Birla Finance Limited.")
                 .ip(lendingApplication.getIp())
-                .timestamp(String.valueOf(agreementAt))
+                .timestamp(String.valueOf(lendingApplication.getAgreementAt().getTime()))
                 .build()
         );
         return consents;
