@@ -29,6 +29,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -44,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpEntity;
@@ -172,6 +174,9 @@ public class LoanEligibleService {
     EasyLoanUtil easyLoanUtil;
 
     @Autowired
+    @Lazy
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+    @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
@@ -237,6 +242,8 @@ public class LoanEligibleService {
         tenureDetails.setRepaymentAmount(eligibleLoan.getRepayment());
         tenureDetails.setEdiCount(eligibleLoan.getEdiCount());
         tenureDetails.setTenureInMonths(eligibleLoan.getTenureInMonths());
+        tenureDetails.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId()));
+        tenureDetails.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount()-eligibleLoan.getProcessingFee(), eligibleLoan.getMerchantId()));
         return tenureDetails;
     }
 

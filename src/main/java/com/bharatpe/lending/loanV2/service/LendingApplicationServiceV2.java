@@ -2735,6 +2735,48 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
+    public Double getApr(Integer ediCount,Double edi, Double amountToCalculateAprOn, Long merchantId){
+        try{
+            Double guess = 0.01;
+            ArrayList<Double> values = new ArrayList<>();
+//        CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId);
+//        List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
+//        if(ObjectUtils.isEmpty(ediSchedule)){
+//            log.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
+//            return null;
+//        }
+            values.add(0-amountToCalculateAprOn);
+            for(int i = 0; i < ediCount; i++){
+//            if(ediSchedule.get(i).getSerialNumber() == 0)continue;
+                values.add(new Double(edi));
+//            if((i+1) < ediSchedule.size()){
+//                long diff = Math.abs(dateTimeUtil.getDateDiffInDays(ediSchedule.get(i).getDate(), ediSchedule.get(i+1).getDate()));
+//                if(diff == 2){
+//                    values.add(0.0);
+//                }
+//            }
+            }
+//            values.add(0.0);
+//        int tenureInDays = values.size() - 1;
+            Double apr = 0.0;
+            double[] valuesDouble = new double[values.size()];
+            for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
+            log.info("valuesDouble Size : {}", valuesDouble.length);
+            int daysInYear=360;
+            apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
+            if(apr.isNaN()){
+                log.info("APR : {}", apr);
+                return null;
+            }
+            log.info("APR : {}", apr);
+            return apr * 100;
+        }
+        catch(Exception e){
+            log.error("Unable to calculate APR for merchant:{}",merchantId);
+        }
+        return null;
+    }
+
     public void generateKfsDocument(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
         boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
                 lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
