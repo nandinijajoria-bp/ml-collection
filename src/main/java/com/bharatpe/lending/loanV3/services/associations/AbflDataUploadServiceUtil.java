@@ -218,7 +218,7 @@ public class AbflDataUploadServiceUtil {
 
     private List<RegulatoryDataDto.Consent> getConsents(LendingApplication lendingApplication) {
         LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(),lendingApplication.getLender());
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(),lendingApplication.getLender());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),Status.ACTIVE.name());
         Long agreementAt = lendingApplicationLenderDetails.getCreatedAt().getTime();
         if(!ObjectUtils.isEmpty(lendingApplication) && lendingApplication.getAgreementAt()!=null){
             agreementAt = lendingApplication.getAgreementAt().getTime();
