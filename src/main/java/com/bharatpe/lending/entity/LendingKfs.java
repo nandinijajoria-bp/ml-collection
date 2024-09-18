@@ -85,4 +85,28 @@ public class LendingKfs extends BaseEntity {
     @Column(name = "authorization_letter_signed_at")
     private Date authorizationLetterSignedAt;
 
+    @Column(name = "mitc_doc")
+    private String mitcDocFile;
+
+    @Column(name = "gtc_doc")
+    private String gtcDocFile;
+
+    @Column(name = "loa_doc")
+    private String loaDocFile;
+
+    @Column(name = "application_form_doc")
+    private String applicationFormDocFile;
+
+    @Column(name = "mitc_doc_url")
+    private String mitcDocUrl;
+
+    @Column(name = "gtc_doc_url")
+    private String gtcDocUrl;
+
+    @Column(name = "loa_doc_url")
+    private String loaDocUrl;
+
+    @Column(name = "application_form_doc_url")
+    private String applicationFormDocUrl;
+
 }

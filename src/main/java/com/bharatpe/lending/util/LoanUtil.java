@@ -87,6 +87,7 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*
 public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
 	public static final int NO_OF_DAYS_IN_A_MONTH = 30;
+	public static final int COOL_OFF_PERIOD_DAYS = 3;
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -120,7 +121,7 @@ public class LoanUtil {
 	@Value("${is.fore.closure.charges.allowed:true}")
 	boolean isForeClosureChargesAllowed;
 
-	@Value("${whitelisted.fore.closure.charges.lenders:LIQUILOANS_P2P,LIQUILOANS_P2P_OF,TRILLIONLOANS,LIQUILOANS_NBFC}")
+	@Value("${whitelisted.fore.closure.charges.lenders:LIQUILOANS_P2P,LIQUILOANS_P2P_OF,TRILLIONLOANS,LIQUILOANS_NBFC,PAYU}")
 	String foreClosureChargesWhitelistedLenders;
 
 	@Autowired
@@ -293,6 +294,8 @@ public class LoanUtil {
 	@Value("${fore.closure.charges.rollout.date.LIQUILOANS_NBFC:2024-04-10 00:00}")
 	String liquiloansnbfcForeClosureChargesRolloutDate;
 
+	@Value("${fore.closure.charges.rollout.date.PAYU:2024-09-10 00:00}")
+	String payuForeClosureChargesRolloutDate;
 
 	@Value("${autopay.upi.lenders:}")
 	String autoPayUpiLenders;
@@ -1686,6 +1689,9 @@ public class LoanUtil {
 		if("CAPRI".equalsIgnoreCase(lender)) {
 			finalLender = Lender.CAPRI.name();
 		}
+		if("PAYU".equalsIgnoreCase(lender)) {
+			finalLender = Lender.PAYU.name();
+		}
 		return finalLender;
 	}
 
@@ -2265,6 +2271,9 @@ public class LoanUtil {
 				case "TRILLIONLOANS":
 					date = trillionloansForeClosureChargesRolloutDate;
 					break;
+				case "PAYU":
+					date = payuForeClosureChargesRolloutDate;
+					break;
 				default:
 					break;
 			}
@@ -2277,6 +2286,11 @@ public class LoanUtil {
 		logger.info("going to hit foreclosure config db with lender {} and tenure {}",activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
 		List<ForeClosureConfig> foreClosureConfigList = foreClosureDao.findByLenderAndTenure(activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
         double duration = calculateDurationInMonths(activeLoan.getStartDate());
+
+		if(Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
+			return null;
+		}
+
 		if(!CollectionUtils.isEmpty(foreClosureConfigList)) {
 			ForeClosureConfig foreClosureConfig = getApplicableForeclosureConfig(foreClosureConfigList, duration);
 			if(foreClosureConfig != null) {
@@ -2296,7 +2310,8 @@ public class LoanUtil {
 
 	private  ForeClosureConfig getApplicableForeclosureConfig(List<ForeClosureConfig> foreClosureConfigList, double duration) {
 		for (ForeClosureConfig foreClosureConfig : foreClosureConfigList) {
-			if(foreClosureConfig.getDurationFrom() < duration && foreClosureConfig.getDurationTo() >= duration) {
+			if ((foreClosureConfig.getDurationFrom() < duration && foreClosureConfig.getDurationTo() >= duration) ||
+					(foreClosureConfig.getDurationTo() >= duration && foreClosureConfig.getDurationFrom() == 0 && duration == 0)) {
 				return foreClosureConfig;
 			}
 		}
@@ -2345,6 +2360,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(ABFL.name(), "ABFL");
 		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
+		rejectedLenderMapping.put(PAYU.name(), "PAYU");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
@@ -2398,5 +2414,12 @@ public class LoanUtil {
 		}
 		return 0d;
 	}
+
+	private boolean checkLoanCoolOffPeriod(Date createdAt) {
+		double	durationInDays = calculateDurationInDays(createdAt);
+		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
+		return false;
+	}
+	
 }
 

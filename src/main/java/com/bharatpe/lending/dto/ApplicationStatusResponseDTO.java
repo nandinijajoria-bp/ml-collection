@@ -81,6 +81,8 @@ public class ApplicationStatusResponseDTO {
         @JsonProperty(value = "arranger_fee")
         private Integer arrangerFee;
 
+        private Double annualRoi;
+
         public String getModalType() {
             return modalType;
         }
@@ -175,6 +177,14 @@ public class ApplicationStatusResponseDTO {
 
         public void setArrangerFee(Integer arrangerFee) {
             this.arrangerFee = arrangerFee;
+        }
+
+        public Double getAnnualRoi() {
+            return annualRoi;
+        }
+
+        public void setAnnualRoi(Double annualRoi) {
+            this.annualRoi = annualRoi;
         }
     }
 

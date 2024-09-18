@@ -1,29 +1,27 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.dao.BankStatementSessionDetailsDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.util.DateTimeUtil;
-import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.dao.MerchantAggregateDataDao;
+import com.bharatpe.lending.entity.MerchantAggregateData;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLBreRequestDto;
+import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLBreCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLBreResponseDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
-import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,7 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Objects;
@@ -55,22 +53,25 @@ public class TLBreService {
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
-    ConverterUtils converterUtils;
+    MerchantAggregateDataDao merchantAggregateDataDao;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
 
     @Autowired
     KycUtils kycUtils;
 
     @Autowired
-    LendingGstDao lendingGstDao;
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
-    LendingRiskVariablesDao lendingRiskVariablesDao;
-
-    @Autowired
     ILenderAPIGateway lenderAPIGateway;
+
+    @Value("${lender.change.enabled:false}")
+    Boolean enableLenderChange;
 
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -87,13 +88,13 @@ public class TLBreService {
             NBFCRequestDTO breRequest = getPayload(lenderAssociationDetailsRequestDto);
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE);
             log.info("Bre response of TrillionLoans from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
-            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
 
             if (nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
                 TLBreResponseDto breResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLBreResponseDto.class);
-                if (breResponseDTO.getSuccess()) {
-                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
-                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
+                if (breResponseDTO.getStatus().equalsIgnoreCase("INITIATED")) {
+                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                    log.info("LALD DAO - {}", lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails());
                     return true;
                 }
             }
@@ -105,6 +106,48 @@ public class TLBreService {
         return false;
     }
 
+    public Boolean processBreCallback(NBFCResponseDTO nbfcResponseDTO) {
+        try {
+            Thread.sleep(1000); // adding 1 second wait due to issue
+            LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("No application found for applicationId : {}", nbfcResponseDTO.getApplicationId());
+                return false;
+            }
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !nbfcResponseDTO.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+                log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+                return false;
+            }
+            if (!LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage()) || !LenderAssociationStatus.RISK_IN_PROGRESS.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
+                log.info("Application not in correct state for BRE callback for applicationId {}", lendingApplication.getId());
+                return false;
+            }
+            LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
+                    .applicationId(lendingApplication.getId())
+                    .lendingApplication(lendingApplication)
+                    .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
+                    .modifyLender(enableLenderChange)
+                    .manageState(true)
+                    .build();
+            if (Objects.nonNull(nbfcResponseDTO.getData()) && nbfcResponseDTO.getSuccess()) {
+                TLBreCallbackResponseDto breCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLBreCallbackResponseDto.class);
+                log.info("BRE callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), breCallbackResponseDto);
+                if (!ObjectUtils.isEmpty(breCallbackResponseDto) && breCallbackResponseDto.getSuccess() && breCallbackResponseDto.getAction().equalsIgnoreCase("Eligible")) {
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
+                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
+                    log.info("LALD DAO - {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
+                    return true;
+                }
+            }
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.RISK_FAILED);
+        } catch (Exception e) {
+            log.error("exception while processing BRE callback of TrillionLoans for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return false;
+    }
+
     private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
@@ -112,11 +155,15 @@ public class TLBreService {
 
         try {
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
-
-            if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot) && ObjectUtils.isEmpty(lendingGstDetail)) {
-                throw new RuntimeException("Lending Risk variable snapshot/Lending GST details not found for application id: " + lendingApplication.getId());
+            if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
+                throw new RuntimeException("Lending Risk variable snapshot not found for application id: " + lendingApplication.getId());
             }
+
+            MerchantAggregateData merchantAggregateData = merchantAggregateDataDao.findByMerchantIdAndAggregateId(lendingApplication.getMerchantId(), lendingRiskVariablesSnapshot.getAggregateId());
+            if (ObjectUtils.isEmpty(merchantAggregateData)) {
+                throw new RuntimeException("Merchant Aggregate Data not found for merchant id: " + lendingApplication.getId() + ", aggregate id : " + lendingRiskVariablesSnapshot.getAggregateId());
+            }
+
 
             LinkedHashMap<String, Object> identifierMap = new LinkedHashMap<>();
             identifierMap.put("leadId", lendingApplicationLenderDetails.getLeadId());
@@ -126,12 +173,7 @@ public class TLBreService {
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
                     .payload(TLBreRequestDto.builder()
-                            .accountId(lendingApplication.getExternalLoanId())
-                            .productCode("BharatPe")
-                            .source("BharatPe")
-                            .customerReport(getCustomerReport(cKycResponseDto))
-                            .loanApplicationRequest(getLoanApplicationRequest(lendingApplication, lendingApplicationLenderDetails))
-                            .values(getValues(lendingRiskVariablesSnapshot, lendingApplication, lendingGstDetail, cKycResponseDto))
+                            .values(getValues(lendingRiskVariablesSnapshot, lendingApplication, merchantAggregateData, cKycResponseDto))
                             .build())
                     .identifier(identifierMap)
                     .build();
@@ -141,7 +183,7 @@ public class TLBreService {
         return null;
     }
 
-    private TLBreRequestDto.Values getValues(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, LendingApplication lendingApplication, LendingGstDetail lendingGstDetail, CKycResponseDto cKycResponseDto) {
+    private TLBreRequestDto.Values getValues(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, LendingApplication lendingApplication, MerchantAggregateData merchantAggregateData, CKycResponseDto cKycResponseDto) throws IOException {
 
 
         LendingPaymentSchedule lastLoan = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusAndCreditLoanOrderByIdDesc(lendingApplication.getMerchantId(), "CLOSED", false);
@@ -152,6 +194,9 @@ public class TLBreService {
 
         return TLBreRequestDto.Values.builder()
                 .input(TLBreRequestDto.Values.Input.builder()
+                        .applicationType(merchantAggregateData.getApplicationType())
+                        .merchantId(lendingApplication.getMerchantId())
+                        .pancard(cKycResponseDto.getPanNumber())
                         .loanSegment(lendingRiskVariablesSnapshot.getLoanSegment())
                         .riskSegment(lendingRiskVariablesSnapshot.getRiskSegment().name())
                         .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
@@ -183,48 +228,10 @@ public class TLBreService {
                         .loanCapping(lendingApplication.getLoanAmount())
                         .age(kycUtils.getAgeFromDob(cKycResponseDto.getDob()))
                         .pilots(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getPilotIdentifier()) ? "" : lendingRiskVariablesSnapshot.getPilotIdentifier())
+                        .sources(objectMapper.readTree(merchantAggregateData.getSources()))
+                        .scienapticProperties(objectMapper.readTree(merchantAggregateData.getScienapticProperties()))
+                        .aggregateId(merchantAggregateData.getAggregateId())
                         .build())
                 .build();
-    }
-
-    private TLBreRequestDto.LoanApplicationRequest getLoanApplicationRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
-        return TLBreRequestDto.LoanApplicationRequest.builder()
-                .requestedLoanAmount(lendingApplication.getLoanAmount())
-                .roi(lendingApplicationLenderDetails.getAnnualRoi().toString())
-                .tenure(lendingApplication.getTenureInMonths().toString())
-                .build();
-    }
-
-    private TLBreRequestDto.CustomerReport getCustomerReport(CKycResponseDto cKycResponseDto) {
-        String address = converterUtils.parseData(cKycResponseDto.getAddress());
-        int addressSize = address.length();
-        String address1 = "", address2 = "", address3 = "";
-        if (addressSize <= 40) {
-            address1 = address;
-        } else if (addressSize <= 80) {
-            address1 = address.substring(0, 40);
-            address2 = address.substring(40, addressSize);
-        } else {
-            address1 = address.substring(0, 40);
-            address2 = address.substring(40, 80);
-            address3 = address.substring(80, addressSize);
-        }
-
-        return TLBreRequestDto.CustomerReport.builder()
-                .kycInfo(TLBreRequestDto.CustomerReport.KycInfo.builder()
-                        .city(cKycResponseDto.getCity())
-                        .gender(kycUtils.getGender(cKycResponseDto.getGender()))
-                        .firstName(kycUtils.getFirstName(cKycResponseDto))
-                        .middleName(kycUtils.getMiddleName(cKycResponseDto))
-                        .lastName(kycUtils.getLastName(cKycResponseDto))
-                        .panNumber(cKycResponseDto.getPanNumber())
-                        .pincode(cKycResponseDto.getPincode())
-                        .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
-                        .state(cKycResponseDto.getState())
-                        .addressLine1(address1)
-                        .addressLine2(address2)
-                        .addressLine3(address3)
-                        .dob(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd"))
-                        .build()).build();
     }
 }

@@ -51,6 +51,12 @@ public class PiramalApiGateway extends ILenderGateway {
     @Value("${nbfc.insurance.api:api/v3/lender/insurance-premiums}")
     String insurancePremiumUrl;
 
+    @Value("${nbfc.eKyc.api:api/v3/lender/eKyc}")
+    String nbfcEKycUrl;
+
+    @Value("${nbfc.eKyc.status.api:api/v3/lender/eKyc-status-check}")
+    String nbfcEKycStatusUrl;
+
     @Override
     public NbfcResponseDto invokeStage(NbfcRequestDto nbfcRequestDto, LenderAssociationStages.PiramalAssociationStages piramalAssociationStages) {
         try {
@@ -88,6 +94,10 @@ public class PiramalApiGateway extends ILenderGateway {
                 return nbfcBaseUrl+getLoanUrl;
             case "INSURANCE_PREMIUM":
                 return nbfcBaseUrl + insurancePremiumUrl;
+            case "EKYC":
+                return nbfcBaseUrl + nbfcEKycUrl;
+            case "EKYC_STATUS":
+                return nbfcBaseUrl + nbfcEKycStatusUrl;
             default:
                 return null;
         }

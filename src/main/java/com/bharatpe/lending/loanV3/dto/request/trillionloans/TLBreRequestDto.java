@@ -1,51 +1,12 @@
 package com.bharatpe.lending.loanV3.dto.request.trillionloans;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 @Data
 @Builder
 public class TLBreRequestDto {
-    private String accountId;
-    private String productCode;
-    private String source;
-    private CustomerReport customerReport;
-    private LoanApplicationRequest loanApplicationRequest;
     private Values values;
-
-    @Data
-    @Builder
-    public static class CustomerReport {
-        private KycInfo kycInfo;
-
-        @Data
-        @Builder
-        public static class KycInfo {
-            private String city;
-            private String gender;
-            private String firstName;
-            private String middleName;
-            private String lastName;
-            private String panNumber;
-            private String pincode;
-            private String mobile;
-            private String state;
-            private String addressLine1;
-            private String addressLine2;
-            private String addressLine3;
-            private String dob;
-        }
-    }
-
-    @Data
-    @Builder
-    public static class LoanApplicationRequest {
-        private Double requestedLoanAmount;
-        private String roi;
-        private String tenure;
-    }
 
     @Data
     @Builder
@@ -55,6 +16,13 @@ public class TLBreRequestDto {
         @Data
         @Builder
         public static class Input {
+            @JsonProperty("application_type")
+            public String applicationType;
+            @JsonProperty("merchant_id")
+            public long merchantId;
+            @JsonProperty("logger_id")
+            public String loggerId;
+            public String pancard;
             private String loanSegment;
             private String riskSegment;
             private String riskGroup;
@@ -87,6 +55,11 @@ public class TLBreRequestDto {
             private Double loanCapping;
             private Integer age;
             private String pilots;
+            private Object sources;
+            @JsonProperty("scienaptic_properties")
+            private Object scienapticProperties;
+            @JsonProperty("aggregate_id")
+            private String aggregateId;
         }
     }
 }

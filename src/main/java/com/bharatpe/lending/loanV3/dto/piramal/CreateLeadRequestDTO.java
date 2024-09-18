@@ -106,6 +106,7 @@ public class CreateLeadRequestDTO {
                  }
                  Address permanentAddress;
                  Address kycAddress;
+                 Address mailingAddress;
 
              }
 

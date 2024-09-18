@@ -155,6 +155,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case "AADHAR_UPLOAD":
             case "SELFIE_UPLOAD":
             case "SHOP_PHOTO_UPLOAD":
+            case "SHOP_STOCK_PHOTO_UPLOAD":
                 return associationServiceUtil.invokeDocUploadService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage);
             case "CREATE_CLIENT" :
                 return associationServiceUtil.invokeCreateClientService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
@@ -198,6 +199,9 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case CAPRI:
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name(),
                         LenderAssociationStages.SELFIE_UPLOAD.name());
+            case PAYU:
+                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name(),
+                        LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.KYC.name());
             default:
                 throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }

@@ -27,6 +27,7 @@ public class SanctionWrapperStageAssociationSvcFactory  extends LenderAssociatio
             case "TRILLIONLOANS":
             case "MUTHOOT":
             case "CAPRI":
+            case "PAYU":
                 return sanctionWrapperService;
             default:
                 return oldModelService;

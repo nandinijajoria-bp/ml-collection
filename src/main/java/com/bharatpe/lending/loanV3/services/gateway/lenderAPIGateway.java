@@ -66,6 +66,9 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.getLoan.api:api/v3/lender/download-document}")
     String downloadDocumentUrl;
 
+    @Value("${nbfc.loanPreview.api:api/v3/lender/loan-preview}")
+    String loanPreviewUrl;
+
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
@@ -85,6 +88,7 @@ public class lenderAPIGateway implements ILenderAPIGateway{
             case "AADHAR_UPLOAD":
             case "SELFIE_UPLOAD":
             case "SHOP_PHOTO_UPLOAD":
+            case "SHOP_STOCK_PHOTO_UPLOAD":
             case "DOC_UPLOAD":
                 return nbfcBaseUrl+nbfcDocUploadUrl;
             case "UPDATE_LEAD":
@@ -111,6 +115,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+acceptOfferUrl;
             case "DOWNLOAD_DOCUMENT":
                 return nbfcBaseUrl+downloadDocumentUrl;
+            case "LOAN_PREVIEW":
+                return nbfcBaseUrl+loanPreviewUrl;
             default:
                 return null;
         }
