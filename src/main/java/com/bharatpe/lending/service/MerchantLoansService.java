@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.PerpetualDpdAdjusted;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
@@ -547,6 +548,9 @@ public class MerchantLoansService {
                 if (date.after(lendingPaymentSchedule.getStartDate())) {
                     responseDTO.setEdiStarted(Boolean.TRUE);
                 } else {
+                    if(PerpetualDpdAdjusted.Y.name().equalsIgnoreCase(lendingPaymentSchedule.getPerpetualDpdAdjusted())){
+                        responseDTO.setPerpetualDpdRestrictPgPayment(Boolean.TRUE);
+                    }
                     responseDTO.setEdiStarted(Boolean.FALSE);
                 }
                 List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
