@@ -27,10 +27,13 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -274,6 +277,23 @@ public class LiquiloansService {
 
     @Autowired
     LendingConsentDao lendingConsentDao;
+
+    @Autowired
+    EasyLoanUtil easyLoanUtil;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
+    @Autowired
+    AutoPayUPIService autoPayUPIService;
+
+    @Value("${sameDayEdiAdjusment.rollout.percent:0}")
+    Integer sameDayEdiAdjustmentRolloutPercent;
+
+    @Value("${sameDayEdiAdjusment.eligible.lenders:}")
+    String sameDayEdiAdjustmentEligibleLenders;
+    @Autowired
+    private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     public void publishForDisbursal(Long lendingAppId) {
 
@@ -829,6 +849,14 @@ public class LiquiloansService {
         if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
             createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
+        }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
+            Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
+            if(lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())){
+                logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
+                lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
+                lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
+                createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
+            }
         }
 
         postPayoutResponseDto.setLoanStartDate(lendingPaymentSchedule.getStartDate());
@@ -1029,6 +1057,39 @@ public class LiquiloansService {
         lendingLedger.setDescription(description);
         return lendingLedger;
     }
+
+    private void createFirstDueForSameDayEdiAdjustment(LendingPaymentSchedule lendingPaymentSchedule) {
+        try{
+            List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLoanIdAndInstallmentNumber(lendingPaymentSchedule.getId(), 1);
+            if(ObjectUtils.isEmpty(lendingEDISchedules)){
+                logger.error("unable to fetch first edi schedule for loan : {}, application : {}", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getApplicationId());
+                return;
+            }
+            LendingEDISchedule firstEdiSchedule = lendingEDISchedules.get(0);
+            LendingLedger lendingLedger =  createLendingLedger(lendingPaymentSchedule, firstEdiSchedule.getDate(),
+                    Status.LendingTransactionType.EDI.name(),
+                    -firstEdiSchedule.getTotalEdi().doubleValue(), -firstEdiSchedule.getPrinciple(),
+                    -firstEdiSchedule.getInterest(), 0D,
+                    0D, null);
+
+            Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
+            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+
+            lendingPaymentSchedule.setDueAmount((double)firstEdiSchedule.getTotalEdi());
+            lendingPaymentSchedule.setDueInterest(firstEdiSchedule.getInterest());
+            lendingPaymentSchedule.setDuePrinciple(firstEdiSchedule.getPrinciple());
+            lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  1);
+            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
+            lendingLedgerDao.save(lendingLedger);
+            lendingPaymentScheduleDao.save(lendingPaymentSchedule);
+        }
+        catch(Exception e){
+            logger.error("Exception while creating first due for perpetual dpd loan for loan : {}, {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+
+    }
+
 
 
     public void pushKafkaAudit(KafkaAudit kafkaAudit) {
@@ -2149,5 +2210,25 @@ public class LiquiloansService {
             logger.error("Exception while saving signed docs of {} for applicationId {}, Exception is {} {}", lendingApplication.getLender(), lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return false;
         }
+    }
+
+    public boolean isAutoPayUpiEnabled(Long applicationId){
+        try{
+            AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if (autoPayUpi == null) {
+                logger.info("AUTOPAY : No autopay request exist for applicationId : {}", applicationId);
+                return false;
+            }
+
+            logger.info("AUTOPAY : Starting Autopay for entity : {}", autoPayUpi);
+            if (autoPayUpi.getMandateId() != null && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
+                logger.info("AUTOPAY :Processing autoPay pull loans batch starting at entity {}", autoPayUpi.getApplicationId());
+                return true;
+            }
+        }
+        catch(Exception e){
+            logger.error("autopay upi presentment failed for {}, {}, {}", applicationId, e.getMessage(), e.getStackTrace());
+        }
+        return false;
     }
 }

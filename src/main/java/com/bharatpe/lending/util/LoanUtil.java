@@ -76,6 +76,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.ABFL;
 import static com.bharatpe.lending.enums.Lender.*;
@@ -277,6 +278,9 @@ public class LoanUtil {
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
+
+	@Autowired
+	LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
 	@Value("${fore.closure.charges.rollout.date:2024-04-10 00:00}")
 	String foreClosureChargesRolloutDate;
@@ -1402,11 +1406,12 @@ public class LoanUtil {
 		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 
+		Double extraInterestofPerpetualDpdLoan = fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
 
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
 		- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
 		+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
-		- advanceEdiAmount - excessCollectionBalance);
+		- advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
 	}
 
 	public int getForeclosureAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
@@ -1417,8 +1422,12 @@ public class LoanUtil {
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 
 		Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		Double extraInterestofPerpetualDpdLoan = fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
 
-		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount - excessCollectionBalance);
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount()
+				- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
+				+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
+				- advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
 	}
 
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
@@ -2394,11 +2403,23 @@ public class LoanUtil {
 				.collect(Collectors.toList());
 	}
 
+	public double fetchExtraEdiInterestCollectionForPerpetualDpdLoan(Long lpsId){
+		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
+		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
+			logger.info("checking for collection of extra interest for perpetual dpd loan id : {}", lendingPaymentScheduleLendingCommon.get().getId());
+			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, new Date());
+			if(!ObjectUtils.isEmpty(lendingLedger)){
+				return Math.abs(lendingLedger.getInterest());
+			}
+		}
+		return 0d;
+	}
+
 	private boolean checkLoanCoolOffPeriod(Date createdAt) {
 		double	durationInDays = calculateDurationInDays(createdAt);
 		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
 		return false;
 	}
-
+	
 }
 
