@@ -372,6 +372,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                             String dob = KycUtils.getDOB(kycDoc);
                             log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchantId);
                             lendingApplicationKycDetails.setDob(dob);
+                            lendingApplicationKycDetails.setFatherName(KycUtils.getFatherName(kycDoc.getAddress()));
                             aadharDigilocker = true;
                             log.info("Aadhaar digilocker doc valid for merchantId:{}", merchantId);
                         }

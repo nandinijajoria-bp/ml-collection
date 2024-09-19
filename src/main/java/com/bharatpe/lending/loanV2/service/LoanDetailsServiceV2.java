@@ -2797,4 +2797,78 @@ public class LoanDetailsServiceV2 {
 
         }
     }
+
+    public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("lending application not found for {}", applicationId);
+                return new ApiResponse<>(false, "lending application not found for " + applicationId);
+            }
+
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                log.info("lending application kyc details not found for {}", applicationId);
+                return new ApiResponse<>(false, "lending application kyc details not found for " + applicationId);
+            }
+            AdditionalLoanDetailsDTO additionalLoanDetails = AdditionalLoanDetailsDTO.builder()
+                    .applicationId(lendingApplication.getId())
+                    .build();
+            List<AdditionalLoanDetailsDTO.Input> inputs = new ArrayList<>();
+            if(ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName()) && Arrays.asList("IIFL").contains(lendingApplication.getLender())) {
+                inputs.add(AdditionalLoanDetailsDTO.Input.builder()
+                        .inputType("FATHER_NAME")
+                        .value(lendingApplicationKycDetails.getFatherName())
+                        .editable(true)
+                        .build()
+
+                );
+            }
+            additionalLoanDetails.setInputs(inputs);
+            additionalLoanDetails.setShowModal(!ObjectUtils.isEmpty(inputs));
+            return new ApiResponse<>(additionalLoanDetails);
+        } catch (Exception e) {
+            log.error("exception in getting additional loan details for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "something went wrong while getting additional loan details");
+    }
+
+    public ApiResponse<?> saveAdditionalLoanDetails(BasicDetailsDto merchant, AdditionalLoanDetailsDTO loanDetails) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(loanDetails.getApplicationId(), merchant.getId());
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("lending application not found for {}", loanDetails.getApplicationId());
+                return new ApiResponse<>(false, "lending application not found for " + loanDetails.getApplicationId());
+            }
+            LendingApplicationKycDetails lendingApplicationKycDetails = null;
+            for(AdditionalLoanDetailsDTO.Input input : loanDetails.getInputs()) {
+                switch(input.getInputType()) {
+                    case "FATHER_NAME" :
+                        lendingApplicationKycDetails = saveAdditionalKycDetails(lendingApplication.getId(), lendingApplicationKycDetails, input);
+                        break;
+                }
+            }
+            return new ApiResponse<>("Successfully saved additional loan details for applicationId " + lendingApplication.getId());
+        } catch (Exception e) {
+            log.error("exception in getting additional loan details for applicationId {} {}", loanDetails.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "something went wrong while getting additional loan details");
+    }
+
+    private LendingApplicationKycDetails saveAdditionalKycDetails(Long applicationId, LendingApplicationKycDetails lendingApplicationKycDetails, AdditionalLoanDetailsDTO.Input input) {
+        if(ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                log.info("lending application kyc details not found for {}", applicationId);
+                throw new RuntimeException("lending application kyc details not found for " + applicationId);
+            }
+        }
+        switch(input.getInputType()) {
+            case "FATHER_NAME" :
+                lendingApplicationKycDetails.setFatherName(ObjectUtils.isEmpty(input.getValue()) ? lendingApplicationKycDetails.getFatherName() : input.getValue());
+                break;
+        }
+        return lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+    }
+
 }
