@@ -90,5 +90,9 @@ public interface SupportConstants {
     String ACTIVE_LOAN_COMM = "You currently have an active loan with BharatPe. Please go through loan details on the app";
     String CLOSED_LOAN = "closed loan";
     String IN_PROCESS = "Application is approved and the disbursal is in process.";
+    String INTERNAL_POLICY = "BharatPe will not be able to provide loan to you as per our internal Policy. Please check again after <<reapply>> days.\n";
+    String INTERNAL_POLICY_JOURNEY = "We are not able to validate the Information provided during the journey. Please re-apply with correct details,\n";
+    String INTERNAL_POLICY_LMS = "We were not able to connect with your for final stage of validation. Please re-apply after <<reapply>> days and be available for our agents to verify your application.\n";
+    String RETRY = "We could not generate an offer due to some internal issue. Please retry for loan application after <<reapply>> days\n";
 
 }

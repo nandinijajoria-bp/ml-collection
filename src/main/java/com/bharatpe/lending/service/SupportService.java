@@ -659,6 +659,18 @@ public class SupportService {
             if ("PERMANENT".equals(supportApiResponseDto.getIneligibleType())) {
                 return SupportConstants.PERMANENT;
             }
+            if ("INTERNAL_POLICY".equals(supportApiResponseDto.getIneligibleType())) {
+                return SupportConstants.INTERNAL_POLICY;
+            }
+            if ("INTERNAL_POLICY_JOURNEY".equals(supportApiResponseDto.getIneligibleType())) {
+                return SupportConstants.INTERNAL_POLICY_JOURNEY;
+            }
+            if ("INTERNAL_POLICY_LMS".equals(supportApiResponseDto.getIneligibleType())) {
+                return SupportConstants.INTERNAL_POLICY_LMS;
+            }
+            if ("RETRY".equals(supportApiResponseDto.getIneligibleType())) {
+                return SupportConstants.RETRY;
+            }
         }
         if(ApplicationStage.NOT_STARTED.getStage().equals(supportApiResponseDto.getApplicationStage())){
             return SupportConstants.NOT_STARTED;
