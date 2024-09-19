@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -86,6 +87,8 @@ public class LoanDetailsV3Response {
     private Double previousFinalOffer;
 
     private Boolean lenderKycPipe;
+    private String fullName;
+    private String dob;
 
     @Data
     @ToString
@@ -324,6 +327,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycMessage(eligibilityStateDTO.getKycMessage());
         loanDetailsV3Response.setMaxCountReached(eligibilityStateDTO.getMaxCountReached());
         loanDetailsV3Response.setDummyMerchant(eligibilityStateDTO.getDummyMerchant());
+        loanDetailsV3Response.setFullName(eligibilityStateDTO.getFullName());
+        loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
@@ -335,7 +340,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLender(enachStateDTO.getLender());
         applicationDetails.setEnachDeeplink(enachStateDTO.getEnachDeeplink());
         applicationDetails.setEnachDone(enachStateDTO.getEnachDone());
-        applicationDetails.setEnachMode(enachStateDTO.getEnachMode());
+        applicationDetails.setEnachModes(enachStateDTO.getEnachModes());
         applicationDetails.setNachStartedAt(enachStateDTO.getNachStartedAt());
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());

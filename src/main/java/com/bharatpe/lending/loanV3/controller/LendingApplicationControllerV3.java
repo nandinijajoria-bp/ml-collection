@@ -92,4 +92,12 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.status(status).body(response);
     }
 
+    @PostMapping("/lender/eKyc")
+    public ResponseEntity<?> lenderEkyc(@RequestBody InvokeStageRequestDTO invokeStageRequest) {
+        log.info("initiated lender eKyc request {}", invokeStageRequest);
+        ApiResponse<?> response = lendingApplicationServiceV3.initiateLenderEKyc(invokeStageRequest);
+        HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(response);
+    }
+
 }

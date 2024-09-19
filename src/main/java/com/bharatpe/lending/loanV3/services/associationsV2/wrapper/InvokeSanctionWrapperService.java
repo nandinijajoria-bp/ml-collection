@@ -123,6 +123,7 @@ public class InvokeSanctionWrapperService {
         switch (lendingApplication.get().getLender()) {
             case "TRILLIONLOANS":
             case "CAPRI":
+            case "PAYU":
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
             case "MUTHOOT":
                 return Collections.singletonList(LenderAssociationStages.UPDATE_LEAD.name());

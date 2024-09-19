@@ -42,6 +42,7 @@ public class LendingMerchantLoansResponseDTO {
     private HalfLoan halfLoan;
     private IOLoan ioLoan;
     private Boolean ediStarted;
+    private Boolean perpetualDpdRestrictPgPayment;
     private List<RepaymentDetails> repaymentDetails;
     private String topupLender;
     private BankAccountDetails accountDetails;
@@ -160,6 +161,7 @@ public class LendingMerchantLoansResponseDTO {
         private double duePenalty;
         private long ediDays;
         private double nachBounceAmount;
+        private Double annualRoi;
 
         public Loan() {
         }
@@ -446,6 +448,13 @@ public class LendingMerchantLoansResponseDTO {
             return this;
         }
 
+        public Double getAnnualRoi() {
+            return annualRoi;
+        }
+
+        public void setAnnualRoi(Double annualRoi) {
+            this.annualRoi = annualRoi;
+        }
 
         @Override
         public String toString() {

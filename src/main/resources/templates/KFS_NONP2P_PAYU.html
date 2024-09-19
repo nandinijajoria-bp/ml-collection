@@ -1,0 +1,3191 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <title>
+        P-kfs
+    </title>
+    <style>
+        ::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        body {
+            font-size: 14px;
+        }
+
+        table td {
+            border: 1px solid #000;
+        }
+
+        .Heading9 {
+            margin-bottom: 0pt;
+            page-break-inside: avoid;
+            page-break-after: avoid;
+            line-height: 108%;
+            font-family: Aptos;
+            font-size: 11pt;
+            font-weight: normal;
+            font-style: normal;
+            color: #272727
+        }
+
+        .BodyText {
+            margin-bottom: 0pt;
+            line-height: normal;
+            widows: 0;
+            orphans: 0;
+            font-size: 12px;
+            font-weight: bold
+        }
+
+        .Default {
+            font-size: 14px;
+            color: #000000;
+        }
+
+        .Footer {
+            margin-bottom: 0pt;
+            line-height: normal;
+            widows: 0;
+            orphans: 0;
+            font-family: Arial;
+            font-size: 11pt
+        }
+
+        .Header {
+            margin-bottom: 0pt;
+            line-height: normal;
+            font-size: 11pt
+        }
+
+        .IntenseQuote {
+            margin: 18pt 43.2pt;
+            text-align: center;
+            line-height: 108%;
+            border-top: 0.75pt solid #0f4761;
+            border-bottom: 0.75pt solid #0f4761;
+            padding-top: 10pt;
+            padding-bottom: 10pt;
+            font-size: 11pt;
+            font-style: italic;
+            color: #0f4761
+        }
+
+        .ListNumbers {
+            margin-left: 44.45pt;
+            margin-bottom: 7pt;
+            text-indent: -36pt;
+            text-align: justify;
+            line-height: 121%;
+            widows: 0;
+            orphans: 0;
+            font-family: Arial;
+            font-size: 11pt
+        }
+
+        .ListParagraph,
+        .Annexure,
+        .Bullet05,
+        .ColorfulList-Accent12,
+        .Heading91,
+        .Heading911,
+        .Heading9111,
+        .Heading91111,
+        .Heading92,
+        .ListParagraph1,
+        .ListParagraph11,
+        .ListParagraph2,
+        .MediumGrid1-Accent21,
+        .ReportPara,
+        .WinDForce-Letter,
+        .heading90,
+        .shikha-bulleted {
+            margin-left: 34pt;
+            margin-bottom: 8pt;
+            /* line-height: 108%; */
+            font-size: 11pt
+        }
+
+        .Quote {
+            margin-top: 8pt;
+            margin-bottom: 8pt;
+            text-align: center;
+            line-height: 108%;
+            font-size: 11pt;
+            font-style: italic;
+            color: #404040
+        }
+
+        .Revision {
+            margin-bottom: 0pt;
+            line-height: normal;
+            font-size: 11pt
+        }
+
+        .Subtitle {
+            margin-bottom: 8pt;
+            line-height: 108%;
+            font-size: 14pt;
+            letter-spacing: 0.75pt;
+            color: #595959
+        }
+
+        .TableParagraph {
+            margin-bottom: 0pt;
+            line-height: normal;
+            widows: 0;
+            orphans: 0;
+            font-family: Arial;
+            font-size: 11pt
+        }
+
+        .Title {
+            margin-bottom: 4pt;
+            line-height: normal;
+            font-family: 'Aptos Display';
+            font-size: 28pt;
+            letter-spacing: -0.5pt
+        }
+
+        .bullet3 {
+            margin-left: 44.45pt;
+            margin-bottom: 7pt;
+            text-indent: -36pt;
+            text-align: justify;
+            line-height: 121%;
+            widows: 0;
+            orphans: 0;
+            font-family: Arial;
+            font-size: 11pt
+        }
+
+        .bullet5 {
+            margin-left: 62.35pt;
+            margin-bottom: 7pt;
+            text-indent: -34pt;
+            text-align: justify;
+            line-height: 121%;
+            widows: 0;
+            orphans: 0;
+            font-family: Arial;
+            font-size: 11pt
+        }
+
+        .roman2 {
+            margin-left: 62.35pt;
+            margin-bottom: 7pt;
+            text-indent: -34pt;
+            text-align: justify;
+            line-height: 121%;
+            widows: 0;
+            orphans: 0;
+            font-family: Arial;
+            font-size: 11pt
+        }
+
+        span.BodyTextChar {
+            font-family: Arial;
+            font-size: 6.5pt;
+            font-weight: bold
+        }
+
+        span.CommentReference {
+            font-size: 8pt
+        }
+
+        span.CommentSubjectChar {
+            font-size: 10pt;
+            font-weight: bold
+        }
+
+        span.CommentTextChar {
+            font-size: 10pt
+        }
+
+        span.DeltaViewInsertion {
+            text-decoration: underline;
+            color: #0000ff
+        }
+
+        span.FooterChar {
+            font-family: Arial
+        }
+
+        span.Heading1Char {
+            font-family: 'Aptos Display';
+            font-size: 20pt;
+            color: #0f4761
+        }
+
+        span.Heading2Char {
+            font-family: 'Aptos Display';
+            font-size: 16pt;
+            color: #0f4761
+        }
+
+        span.Heading3Char {
+            font-size: 14pt;
+            color: #0f4761
+        }
+
+        span.Heading4Char {
+            font-style: italic;
+            color: #0f4761
+        }
+
+        span.Heading5Char {
+            color: #0f4761
+        }
+
+        span.Heading6Char {
+            font-style: italic;
+            color: #595959
+        }
+
+        span.Heading7Char {
+            color: #595959
+        }
+
+        span.Heading8Char {
+            font-style: italic;
+            color: #272727
+        }
+
+        span.Heading9Char {
+            color: #272727
+        }
+
+        span.Hyperlink {
+            text-decoration: underline;
+            color: #467886
+        }
+
+        span.IntenseEmphasis {
+            font-style: italic;
+            color: #0f4761
+        }
+
+        span.IntenseQuoteChar {
+            font-style: italic;
+            color: #0f4761
+        }
+
+        span.IntenseReference {
+            font-weight: bold;
+            font-variant: small-caps;
+            letter-spacing: 0.25pt;
+            color: #0f4761
+        }
+
+        span.QuoteChar {
+            font-style: italic;
+            color: #404040
+        }
+
+        span.SubtitleChar {
+            font-size: 14pt;
+            letter-spacing: 0.75pt;
+            color: #595959
+        }
+
+        span.TitleChar {
+            font-family: 'Aptos Display';
+            font-size: 28pt;
+            letter-spacing: -0.5pt
+        }
+
+        span.UnresolvedMention {
+            color: #605e5c;
+            background-color: #e1dfdd
+        }
+
+        .awlist1 {
+            list-style: none;
+            counter-reset: awlistcounter1_0
+        }
+
+        .awlist1>li:before {
+            content: '(' counter(awlistcounter1_0, lower-roman) ')';
+            counter-increment: awlistcounter1_0
+        }
+
+        .awlist2 {
+            list-style: none;
+            counter-reset: awlistcounter29_0
+        }
+
+        .awlist2>li:before {
+            content: '(' counter(awlistcounter29_0, lower-latin) ')';
+            counter-increment: awlistcounter29_0
+        }
+
+        .awlist3 {
+            list-style: none;
+            counter-reset: awlistcounter29_0 1
+        }
+
+        .awlist3>li:before {
+            content: '(' counter(awlistcounter29_0, lower-latin) ')';
+            counter-increment: awlistcounter29_0
+        }
+
+        .awlist4 {
+            list-style: none;
+            counter-reset: awlistcounter2_0
+        }
+
+        .awlist4>li:before {
+            content: '(' counter(awlistcounter2_0, lower-roman) ')';
+            counter-increment: awlistcounter2_0
+        }
+
+        .awlist5 {
+            list-style: none;
+            counter-reset: awlistcounter2_0 1
+        }
+
+        .awlist5>li:before {
+            content: '(' counter(awlistcounter2_0, lower-roman) ')';
+            counter-increment: awlistcounter2_0
+        }
+
+        .awlist6 {
+            list-style: none;
+            counter-reset: awlistcounter30_0
+        }
+
+        .awlist6>li:before {
+            content: '(' counter(awlistcounter30_0, lower-roman) ')';
+            counter-increment: awlistcounter30_0
+        }
+
+        .awlist7 {
+            list-style: none;
+            counter-reset: awlistcounter31_0
+        }
+
+        .awlist7>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist8 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 1
+        }
+
+        .awlist8>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist9 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 2
+        }
+
+        .awlist9>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist10 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 3
+        }
+
+        .awlist10>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist11 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 4
+        }
+
+        .awlist11>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist12 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 5
+        }
+
+        .awlist12>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist13 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 6
+        }
+
+        .awlist13>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .awlist14 {
+            list-style: none;
+            counter-reset: awlistcounter31_0 7
+        }
+
+        .awlist14>li:before {
+            content: '(' counter(awlistcounter31_0, lower-latin) ')';
+            counter-increment: awlistcounter31_0
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        @media (max-width: 900px) {
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            td,
+            th {
+                padding: 8px;
+                text-align: left;
+                border: 1px solid #000;
+            }
+
+            .ListParagraph {
+                margin: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div style="padding: 30px; margin-top: 50px">
+    <p class="Default" style="text-align:center">
+        {{lender_logo}}
+    </p>
+    <p class="Default" style="text-align:center;">
+        <strong><span>Key Facts Statement</span></strong>
+    </p>
+    <p class="Default" style="text-align:center;">
+        <strong><span>(KFS)</span></strong>
+    </p>
+    <p class="BodyText" style="margin-top:4.2pt; margin-left:6.1pt">
+        <span>Date: {{date}}</span>
+    </p>
+    <p class="BodyText" style="margin-top:0.15pt">
+        <span>&#xa0;</span>
+    </p>
+    <p class="BodyText" style="text-align:justify; line-height:119%">
+            <span>This is with reference to the Application Form submitted by the
+                Borrower for availing the term loan facility (Facility) from PayU Finance India Private Limited (as the
+                Lender). </span><span style="background-color:#ffffff">The Borrower by
+                clicking the Confirm and Accept button below</span><span>,
+                hereby</span><span style="background-color:#ffffff"> confirms that he/she
+                has applied for the Facility and irrevocably and unconditionally accepts and confirms the
+                following:</span>
+    </p>
+    <p class="BodyText" style="margin-left:6.1pt; text-align:justify">
+        <span style="font-weight:normal">&#xa0;</span>
+    </p>
+    <p class="BodyText" style="margin-left:6.1pt; text-align:justify; line-height:119%">
+        <span style="font-weight:normal">&#xa0;</span>
+    </p>
+    <table border="1"
+           style="width:100%; margin-bottom:0pt; border: 1px solid #000000; border-collapse:collapse; table-layout: fixed;  word-wrap: break-word;">
+        <tr>
+            <td style="width:8.06%; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <a id="_DV_C2"><span class="DeltaViewInsertion"
+                                         style="font-weight:bold; text-decoration:none; color:#000000">Sr.No.</span></a>
+                </p>
+            </td>
+            <td style="width:35.92%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <a id="_DV_C3"><span class="DeltaViewInsertion"
+                                         style="font-weight:bold; text-decoration:none; color:#000000">Particulars</span></a>
+                </p>
+            </td>
+            <td style="width:56%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <a id="_DV_C4"><span class="DeltaViewInsertion"
+                                         style="font-weight:bold; text-decoration:none; color:#000000">Details</span></a>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:8.06%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C5"><span class="DeltaViewInsertion"
+                                         style="text-decoration:none; color:#000000">(i)</span></a>
+                </p>
+            </td>
+            <td style="width:35.92%; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C6"><span class="DeltaViewInsertion"
+                                         style="text-decoration:none; color:#000000">Borrower
+                                identification number</span></a>
+                </p>
+            </td>
+            <td style="width:56%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{smb_user_id}}
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:8.06%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C7"><span class="DeltaViewInsertion"
+                                         style="text-decoration:none; color:#000000">(ii)</span></a>
+                </p>
+            </td>
+            <td
+                    style="width:35.92%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C8"><span class="DeltaViewInsertion" style="text-decoration:none; color:#000000">Name
+                                of the
+                                Borrower</span></a>
+                </p>
+            </td>
+            <td style="width:56%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{borrower_name}}
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:8.06%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C9"><span class="DeltaViewInsertion"
+                                         style="text-decoration:none; color:#000000">(iii)</span></a>
+                </p>
+            </td>
+            <td
+                    style="width:35.92%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C10"><span class="DeltaViewInsertion"
+                                          style="text-decoration:none; color:#000000">Address of
+                                the Borrower</span></a>
+                </p>
+            </td>
+            <td style="width:56%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{address_of_borrower}}</p>
+            </td>
+        </tr>
+        <tr style="height:2.5pt">
+            <td style="width:8.06%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C11"><span class="DeltaViewInsertion"
+                                          style="text-decoration:none; color:#000000">(iv)</span></a>
+                </p>
+            </td>
+            <td
+                    style="width:35.92%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C12"><span class="DeltaViewInsertion"
+                                          style="text-decoration:none; color:#000000">PAN</span></a><span
+                        class="DeltaViewInsertion" style="text-decoration:none; color:#000000"> of
+                            Borrower</span>
+                </p>
+            </td>
+            <td style="width:56%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{pan_of_borrower}}
+                </p>
+            </td>
+        </tr>
+        <tr style="height:2.5pt">
+            <td
+                    style="width:8.06%;  border-right:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span class="DeltaViewInsertion" style="text-decoration:none; color:#000000">(</span><span
+                        class="DeltaViewInsertion" style="color:#000000">v)</span>
+                </p>
+            </td>
+            <td
+                    style="width:35.92%;  border-right:0.75pt solid #000000; border-left:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span class="DeltaViewInsertion" style="text-decoration:none; color:#000000">GST No. (if
+                            applicable)</span>
+                </p>
+            </td>
+            <td
+                    style="width:56%;  border-left:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>NA</span>
+                </p>
+            </td>
+        </tr>
+    </table>
+    <br />
+    <br />
+    <!-- <p class="BodyText" style="margin-left:6.1pt; text-align:justify">
+<span style="font-weight:normal">&#xa0;</span>
+</p>
+<p style="text-align:center; line-height:108%;">
+<strong><span>&#xa0;</span></strong>
+</p> -->
+    <p style="text-align:center; line-height:108%;">
+        <strong><span>Part 1</span></strong>
+    </p>
+    <p style="text-align:center; line-height:108%;">
+        <strong><span>(Interest rate and fees/charges)</span></strong>
+    </p>
+    <table
+            style="width:100%; margin-bottom:0pt; border-collapse:collapse; table-layout: fixed; word-wrap: break-word;">
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>1</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Loan/Facility proposal/account
+                                No</span></strong><span>.</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{lead_id}}
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Type of Loan/ Facility</span></strong>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Personal loan</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>2</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Sanctioned Loan/Facility amount (in
+                                Rupees)</span></strong>
+                </p>
+            </td>
+            <td colspan="5"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>INR.
+                            </span>{{loan_amount_in_figure}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>3.</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Disbursal schedule</span></strong>
+                </p>
+                <ol class="awlist1" style="margin:0pt; padding-left:0pt">
+                    <li class="ListParagraph" style="margin-bottom:1px; text-align:justify; line-height:normal;">
+                            <span>
+                            </span>Disbursement in stages or 100% upfront
+                    </li>
+                    <li class="ListParagraph"
+                        style="margin-bottom:0pt; text-align:justify; line-height:normal;; flex-wrap: wrap;">
+                        If it is stage wise, mention the clause of loan agreement/Most Important Terms and
+                        Conditions (<strong>MITCs</strong>) having relevant details
+                    </li>
+                </ol>
+            </td>
+            <td colspan="5"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>100% upfront in accordance with the remittance
+                            mechanism specified in Serial No. 2 of Part 3 of this KFS. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>4</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Loan/Facility term
+                                (year/month/days)</span></strong>
+                </p>
+            </td>
+            <td colspan="5"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>The overall tenure of the Facility is
+                            <strong>{{tenure_of_loan_in_months}}</strong><span>
+                                months from the date of disbursement under the Facility.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    The overall tenure of the Facility will be calculated on the basis of a year of 360 days and a
+                    month of 30 days.
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>5</span>
+                </p>
+            </td>
+            <td colspan="6"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong>Instalment details: <span>
+                            </span></strong><span>The Facility shall be repayable
+                            in <strong>{{no_of_edis}}</strong> number
+                            of Instalments payable daily in accordance with repayment schedule specified below.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Type of Instalments</span></strong>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Number of EPIs</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>EPI (in INR)</span></strong>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Commencement of repayment, post
+                                sanction</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <span>Daily</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{no_of_edis}}
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    {{edi_amount}}
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    Immediately next day from the disbursement date.
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>6</span>
+                </p>
+            </td>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Interest rate (%) and type (fixed or
+                                floating or hybrid)</span></strong>
+                </p>
+            </td>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:7pt; text-align:justify; line-height:115%;">
+                    The applicable Interest Rate will be reducing rate <strong>{{annual_roi}} %</strong> per annum
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Fixed</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>7</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Additional Information in case of Floating
+                                rate of interest </span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="5"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>8</span>
+                </p>
+            </td>
+            <td colspan="6"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Fee/Charges</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" rowspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:17.94%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Payable to the Lender (A)</span></strong>
+                </p>
+            </td>
+            <td colspan="4"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Payable to third party/lending service
+                                provider through the Lender (B)</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>One-time/Recurring</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Amount (in INR) or Percentage (%) as
+                                applicable</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:25.58%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>One-time/Recurring</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:18.26%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Amount (in INR) or Percentage (%) as
+                                applicable</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(i)</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Processing fees </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>The Borrower shall pay a onetime processing fee
+                            which will be deducted from the principal amount disbursed under the Facility.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong>INR. {{processing_fee_includes_tax}} (inclusive of GST of INR.
+                        {{gst_amount_of_processing_fee}}).</strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <strong><span>The processing fees is
+                                {{processing_percentage_without_gst}} % of the Facility amount sanctioned plus
+                                GST.</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:25.58%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:18.26%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(ii)</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Insurance charges </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:25.58%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:18.26%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(iii)</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Valuation fees </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:25.58%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:18.26%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(iv)</span>
+                </p>
+            </td>
+            <td
+                    style="width:19.08%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Any other (please specify)
+                            </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol class="awlist2" style="margin:0pt; padding-left:0pt">
+                    <li class="ListParagraph" style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        Documentation Fees: The Borrower shall pay a one-time documentation charge which will
+                        be deducted from the principal amount disbursed under the Facility.
+                    </li>
+                </ol>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="2" class="awlist3" style="margin:0pt; padding-left:0pt">
+                    <li class="ListParagraph" style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                            <span style="width:10.42pt; font:7pt 'Times New Roman'; display:inline-block">
+                            </span>Payment Instructions registration charges
+                    </li>
+                </ol>
+                <!-- <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+            <span>&#xa0;</span>
+        </p> -->
+            </td>
+            <td
+                    style="width:14.44%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>NIL</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>NIL</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:25.58%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:18.26%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>9</span>
+                </p>
+            </td>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Annual Percentage Rate (APR) (in
+                                percentage)</span></strong>
+                </p>
+            </td>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong>{{apr}} % </strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>The detailed breakup of APR is more
+                                particularly detailed under Part 2 of the KFS.</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>10</span>
+                </p>
+            </td>
+            <td colspan="6"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Details of Contingent Charges (in INR or
+                                percentage as applicable)</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(i)</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Penal charges, if any, in case of delayed
+                                payment </span></strong>
+                </p>
+            </td>
+            <td colspan="4"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>36 % (thirty-six percent) per annum plus
+                                GST (as applicable) </span></strong><span>may be
+                            charged per day on principal overdue amount for the Instalment that remains unpaid for a
+                            period of 07 (seven) days from the respective Due Date, in addition to the applicable
+                            Interest Rate. </span><strong><em><span>&#xa0;</span></em></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>If the Instalment remains unpaid, then penal charges
+                            as mentioned above shall continue to be levied upto 180 (one hundred and eighty) days from
+                            the respective Due Date. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>It is being clarified that no penal charges shall be
+                            levied upon expiry of 180 (one hundred and eighty) days from the Due Date, even if the
+                            Instalment continues to remain unpaid beyond such period of 180 (one hundred and eighty)
+                            days.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(ii)</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Other penal charges if any </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="4"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(iii)</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Foreclosure charges/Early Repayment
+                                Charges, if applicable </span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="4"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>If the Borrower intends to prepay the Outstanding
+                            under the Facility in full anytime during the term of the Facility, for any reason
+                            whatsoever, then the Lender may additionally levy Early Repayment Charges at
+                        </span><strong><span>3% (three
+                                percent)</span></strong><span> on the principal
+                            amount outstanding under the Facility plus applicable GST.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>The Borrower agrees and acknowledges that the
+                            charges as specified above are subject to change from time to time at the discretion of the
+                            Lender. Any such change in these charges shall be intimated to the Borrower at least 15 days
+                            prior to implementing such change. The Borrower shall have an option to foreclose the
+                            sanctioned Facility (by paying the existing foreclosure charges in addition to Outstanding
+                            under the sanctioned Facility) within a period of 30 days from the end of 15 days (as
+                            mentioned above) in case such change is not acceptable to the Borrower. However, the
+                            Borrower shall be required to communicate his/her/its decision to the Lender in this regard
+                            at any time prior to such change taking effect. Any foreclosure of the sanctioned Facility
+                            thereafter shall be subject to the applicable changed/revised foreclosure charges.</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(iv)</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Charges for switching of loans from floating to
+                            fixed rate and vice versa. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="4"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:4.32%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(v)</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Any other charges (please
+                                specify)</span></strong><span>. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="4"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong>Not exceeding INR 500+ applicable GST for each
+                        dishonour of NACH/e-mandate. To be levied only once across a 30-day period.</strong>
+                </p>
+            </td>
+        </tr>
+    </table>
+    <p style="text-align:justify; line-height:108%;">
+        <span>&#xa0;</span>
+    </p>
+    <p style="text-align:justify; line-height:108%;">
+        <strong><span>Explanation of some key terms</span></strong><span>:</span><span
+            style="width:20.61pt; display:inline-block">&#xa0;</span><span
+            style="width:36pt; display:inline-block">&#xa0;</span>
+    </p>
+    <p class="Default" style="text-align:justify;">
+        <strong><span>Annual Percentage Rate (APR) as specified in the above
+                    table,</span></strong><span> is the annual cost of credit to
+                the borrower which includes interest rate and all other charges associated with the credit
+                facility.</span>
+    </p>
+    <p class="Default" style="text-align:justify;">
+        <strong><span>&#xa0;</span></strong>
+    </p>
+    <p class="Default" style="text-align:justify;">
+        <strong><span>Equated Periodic Instalment (EPI) as specified in the
+                    above table, is</span></strong><span> an equated or fixed
+                amount of repayments, consisting of both the principal and interest components, to be paid by a borrower
+                towards repayment of a loan at periodic intervals for a fixed number of such intervals; and which result
+                in complete amortisation of the loan. EPIs at: (a) monthly intervals are called
+            </span><strong><span>EMIs</span></strong><span> and (b) daily intervals are called
+            </span><strong><span>EDIs</span></strong><span>.</span>
+    </p>
+    <p style="text-align:center; line-height:108%;">
+        <strong><span>&#xa0;</span></strong>
+    </p>
+    <p style="text-align:center; line-height:108%;">
+        <strong><span>Part 2</span></strong>
+    </p>
+    <p style="text-align:center; line-height:108%;">
+        <strong><span>(Other qualitative information)</span></strong>
+    </p>
+    <table
+            style="width:100%; margin-bottom:0pt; border-collapse:collapse; table-layout: fixed; word-wrap: break-word;">
+        <tr>
+            <td
+                    style="width:3.12%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>1</span>
+                </p>
+            </td>
+            <td
+                    style="width:44.84%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Clause of MITCs relating to engagement of recovery
+                            agents. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Serial No. 25 of MITCs </span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:3.12%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>2</span>
+                </p>
+            </td>
+            <td
+                    style="width:44.84%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Clause of. MITCs which details grievance redressal
+                            mechanism. </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Serial No. 27 of MITCs</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:3.12%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>3</span>
+                </p>
+            </td>
+            <td
+                    style="width:44.84%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Phone number and email id of the nodal/ grievance
+                            redressal officer.</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Serial No. 26 of MITCs</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:3.12%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>4</span>
+                </p>
+            </td>
+            <td
+                    style="width:44.84%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Whether the loan/ Facility is, or in future maybe,
+                            subject to transfer to other regulated entities
+                            (</span><strong><span>REs</span></strong><span>) or securitisation (Yes/ No). </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Yes</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:3.12%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>5</span>
+                </p>
+            </td>
+            <td
+                    style="width:44.84%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>In case of lending under collaborative lending
+                            arrangements (e.g., co-lending/ outsourcing), following additional details may be furnished:
+                        </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span><span>Name of the originating RE, along with its funding
+                            proportion </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td
+                    style="width:16.88%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Name of the partner RE along with its </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>proportion of funding</span>
+                </p>
+            </td>
+            <td
+                    style="width:35.18%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Blended rate of interest </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>PayU Finance India Private Limited shall be 100%
+                            funding the Sanctioned Facility</span>
+                </p>
+            </td>
+            <td
+                    style="width:16.88%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+            <td
+                    style="width:35.18%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Not Applicable</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:3.12%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>6</span>
+                </p>
+            </td>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>In case of digital loans, following specific
+                            disclosures may be furnished. </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol class="awlist4" style="margin:0pt; padding-left:0pt">
+                    <li class="Default" style="margin-left:54pt; text-indent:-36pt; text-align:justify;">
+                            <span
+                                    style="width:29.86pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>Cooling off/look-up period, in terms of Lender’s board approved policy, during which
+                        Borrower shall not be charged any penalty on prepayment of loan.
+                    </li>
+                </ol>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td
+                    style="width:35.18%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>3 (three) days from the date of the disbursement of
+                            the Facility.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>During the aforesaid Cooling Off Period, the
+                            Borrower may decide not to continue with the Facility, without being liable to pay any Early
+                            Repayment Charges. However, the Borrower shall be liable to pay the outstanding principal
+                            amount under the Facility and the proportionate Annual Percentage Rate. Upon such payment by
+                            the Borrower, the Facility shall cease to be available, and the Facility Documents shall
+                            stand terminated. It is clarified that the Processing Fees shall be retained by the Lender
+                            in case the Borrower forecloses the Facility during the Cooling-Off Period.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3"
+                style="border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="2" class="awlist5" style="margin:0pt; padding-left:0pt">
+                    <li class="Default" style="margin-left:54pt; text-indent:-36pt; text-align:justify;">
+                            <span style="width:28.06pt; font:7pt 'Times New Roman'; display:inline-block">
+                            </span>Details of lending service provider (LSP) acting as recovery agent and authorized to
+                        approach the Borrower.
+                    </li>
+                </ol>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td
+                    style="width:35.18%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify">
+                        <span>In case the Borrower defaults on
+                            repayment of the Facility (including Outstanding), the Lender may, either on its own or
+                            through other service providers (including its/their agents), undertake collection or
+                            recovery from the Borrower. For details of service providers and/or its/their agents. please
+                            refer to</span><span>&#xa0; </span><a href="https://www.payufin.in/"
+                                                                  style="text-decoration:none"><span
+                        class="Hyperlink">https://www.payufin.in/</span></a><span> .</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Recovery Partner</span></strong><span>:</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                        <span>Name: Resilient Digi Services Private Limited
+                        </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Registered office address: 3rd Floor, Ramnath House,
+                            18, Community Centre, Opp. Jet Airways, Yusuf Sarai, New Delhi 110049.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Corporate office address: Building No 8, Tower C,
+                            7th &amp; 12th Floor, Cyber City, Gurgaon, Haryana, India, 122002.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Website: www.bharatpemoney.com</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span style="background-color:#ffffff">Email:
+                            customersupport@bharatpemoney.com</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal">
+                        <span style="background-color:#ffffff">Privacy
+                            policy: Available at: </span><a
+                        href="https://bharatpemoney.com/documents/privacy-policy.pdf"
+                        style="text-decoration:none"><span class="Hyperlink" style="background-color:#ffffff">
+                                https://bharatpemoney.com/documents/privacy-policy.pdf</span></a><span
+                        style="background-color:#ffffff"> </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal">
+                        <span style="background-color:#ffffff">Terms and
+                            conditions for loan services available at: </span><a
+                        href="https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf"
+                        style="text-decoration:none"><span class="Hyperlink" style="background-color:#ffffff">
+                                https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf</span></a><span
+                        style="background-color:#ffffff"> </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span style="background-color:#ffffff">Digital Lending
+                            Application/Service Platform: </span><strong><span style="background-color:#ffffff">BharatPe
+                                for Business</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span style="background-color:#ffffff">GRO
+                                details:</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Name:</span><span>&#xa0; </span><span>Ankit Parnami</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Designation:</span><span>&#xa0; </span><span>Nodal Officer</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Email: nodal.officer@bharatpemoney.com</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal">
+                    <span>Phone Number: </span>&#xa0;<a href=" tel:+917289000552" style="text-decoration:none"><span
+                        class="Hyperlink">+91 7289000552</span></a>
+                </p>
+                <p class=" Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal; widows:0; orphans:0;">
+                        <span>Please note that the LSP has been authorized by the
+                            Lender to contact the Borrower in case the Borrower defaults in his/her repayment
+                            obligations towards the Lender. The Borrower is advised to ensure that there is no default
+                            in his/her repayment obligations towards the Lender.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal; widows:0; orphans:0;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal; widows:0; orphans:0;">
+                        <span>The LSP and/or the Lender or other service providers
+                            of the Lender shall be contacting the Borrower through phone, SMS, WhatsApp, email, digital
+                            mediums and/or by way of physical visits, either itself and/or through a third party for the
+                            purpose of collection of any overdue amount.</span>
+                </p>
+                <p
+                        style="margin-bottom:0pt; text-align:justify; line-height:normal; widows:0; orphans:0; font-size:8pt">
+                    <span>&#xa0;</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                        <span>The Lender shall also be reporting defaults of the
+                            Borrower with credit information companies. Further, the Lender shall have the right to
+                            replace the Recovery Partner and other collection agents from time to time at their sole
+                            discretion. In case of change of the Recovery Partner or any other collection agent, the
+                            Lender shall duly inform the Borrower the details of new collection agent/recovery
+                            partner.</span>
+                </p>
+            </td>
+        </tr>
+    </table>
+    <br />
+    <br />
+    <p style="text-align:justify; line-height:108%;">
+        <strong><span>Computation of APR </span></strong>
+    </p>
+    <table
+            style="width:100%; margin-bottom:0pt; border: 1px solid #000000; border-collapse:collapse; table-layout: fixed; word-wrap: break-word;">
+        <tr style="border: 1px solid #000;">
+            <td style="width:11.9%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Sr. No.</span></strong>
+                </p>
+            </td>
+            <td style="width:62.72%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Parameter </span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Details</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>1</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Sanctioned loan/ Facility amount (in Rupees) </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong>{{loan_amount_in_figure}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>2</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Loan/Sanctioned Facility Term (in years/ months/
+                            days) </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong>{{tenure_of_loan_in_months}}</strong> months
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(a)</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>No. of instalments for payment of principal, in case
+                            of non-equated periodic loans </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong><span>NA</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(b)</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Type of EPI (</span><strong><span>on a daily basis</span></strong><span>)</span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>Amount of each EPI (in Rupees) and </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                        <span>nos. of EPIs (e.g., no. of EMIs in case of monthly
+                            instalments) </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                        <span>INR. <strong>{{edi_amount}}</strong> per
+                            EPI</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                        <span>Number of EPIs:
+                        </span><strong>{{no_of_edis}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(c)</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>No. of instalments for payment of capitalised
+                            interest, if any </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong><span>NIL</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>(d)</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Commencement of repayments, post sanction </span>
+                </p>
+                <!-- <p class="Default" style="text-align:justify;">
+            <span>&#xa0;</span>
+        </p> -->
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <span>1 day after disbursal</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>3</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Interest rate type (fixed or floating or
+                                hybrid) </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong><span>Fixed</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>4.</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Rate of Interest </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong>{{annual_roi}} %</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>5</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Total Interest Amount to be charged during
+                                the entire tenor of the loan/Sanctioned Facility as per the rate prevailing on sanction
+                                date (in Rupees) </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong>{{interest_charged_to_borrower}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>6</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Fee/ Charges payable (in Rupees)
+                            </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong>{{processing_fee_includes_tax}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>A</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Processing Fees payable to the Lender
+                            </span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong>{{processing_fee_includes_tax}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>A1</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Documentation Charges</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong><span>NIL</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>A2</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Payment Instructions registration
+                                charges</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong><span>NIL</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>B</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Payable to third-party routed through RE
+                            </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong><span>Not Applicable</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>7</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Net disbursed amount (1-6) (in Rupees) </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong>{{loan_amount_disbursed}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>8</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Total amount to be paid by the Borrower
+                                (sum of 1 and 5) (in Rupees) </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong>{{repayment_amount}}</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>9</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>Annual Percentage Rate- Effective
+                                annualized interest rate (in percentage) </span></strong>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <strong><span>&#xa0;</span></strong>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <strong>{{apr}} %</strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.9%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>10</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Schedule of disbursement as per terms and conditions
+                        </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:25.38%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:center;">
+                    <span>100%</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:11.9%;  border-right:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>11</span>
+                </p>
+            </td>
+            <td
+                    style="width:62.72%;  border-right:0.75pt solid #000000; border-left:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                        <span>Due date of payment of instalment and interest
+                        </span>
+                </p>
+                <p class="Default" style="text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td
+                    style="width:25.38%;  border-left:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default" style="text-align:justify;">
+                    <span>Each day during the tenure of the Facility</span>
+                </p>
+            </td>
+        </tr>
+    </table>
+    <p style="text-align:justify; line-height:108%;">
+        <span>&#xa0;</span>
+    </p>
+    <p style="text-align:justify; line-height:108%;">
+        <strong><span>Repayment schedule under Equated Periodic
+                    Instalment:</span></strong>
+    </p>
+    <table
+            style="width:100%; border:0.75pt solid #000000; border-collapse:collapse; table-layout: fixed; word-wrap: break-word;">
+        <tbody>
+        <tr style="height:22.35pt">
+            <td style="width:10.5%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default">
+                    <strong><span>Instalment No. </span></strong>
+                </p>
+            </td>
+            <td style=" width:27.36%; border-right:0.75pt solid #000000; border-left:0.75pt solid #000000;
+                            border-bottom:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt;
+                            vertical-align:top">
+                <p class="Default">
+                    <strong><span>Outstanding Principal (in Rupees)
+                                </span></strong>
+                </p>
+            </td>
+            <td style=" width:18.94%; border-right:0.75pt solid #000000; border-left:0.75pt solid #000000;
+                            border-bottom:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt;
+                            vertical-align:top">
+                <p class="Default">
+                    <strong><span>Principal (in Rupees) </span></strong>
+                </p>
+            </td>
+            <td style=" width:18.94%; border-right:0.75pt solid #000000; border-left:0.75pt solid #000000;
+                            border-bottom:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt;
+                            vertical-align:top">
+                <p class="Default">
+                    <strong><span>Interest (in Rupees) </span></strong>
+                </p>
+            </td>
+            <td style=" width:24.28%;
+                            padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p class="Default">
+                    <strong><span>Instalment (in Rupees)
+                                </span></strong>
+                </p>
+            </td>
+        </tr>
+        {{repayment_schedule}}
+        </tbody>
+    </table>
+    <p style=" line-height:108%;">
+        <br style="page-break-before:always; clear:both" />
+    </p>
+    <p style="text-align:center; line-height:108%;">
+        <strong><span>Part 3</span></strong>
+    </p>
+    <p class="BodyText" style="margin-left:6.1pt; text-align:center; line-height:119%">
+        <u><span style="background-color:#ffffff">Important terms and conditions
+                    applicable to the Facility</span></u>
+    </p>
+    <p class="BodyText" style="margin-left:6.1pt; text-align:center; line-height:119%">
+        <span>&#xa0;</span>
+    </p>
+    <table
+            style="width:100%; margin-bottom:0pt; border:0.75pt solid #000000; border-collapse:collapse; table-layout: fixed; word-wrap: break-word;">
+        <tr>
+            <td style="width:11.08%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong><span>Sr No </span></strong>
+                </p>
+            </td>
+            <td style="width:22.7%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong><span>Parameter</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;  padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:center; line-height:normal;">
+                    <strong><span>Details</span></strong>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol style="margin:0pt; padding-left:0pt">
+                    <li
+                            style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;; font-weight:bold">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; line-height:normal;">
+                    <strong><span>Purpose</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span class="DeltaViewInsertion" style="text-decoration:none; color:#000000">To
+                            utilize the
+                            amount drawdown under the Facility as a personal loan.</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="2" style="margin:0pt; padding-left:0pt">
+                    <li
+                            style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;; font-weight:bold">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; line-height:normal;">
+                    <strong><span>Remittance of the Sanctioned Facility by
+                                the Lender</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>The Lender shall directly remit the amounts under
+                            the Sanctioned Facility by transferring the same to the Borrower' Bank
+                            Account (details of
+                            which are provided by the Borrower during the Facility application journey
+                        </span><span class="DeltaViewInsertion" style="text-decoration:none; color:#000000">or to the
+                            Referral Partner for and on behalf of the Lender</span><span>) in lump sum
+                            as per the agreed proportion as
+                            specified in Serial No. 2 of Part 1 of this KFS.</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="3" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Taxes and Levies</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:7pt; text-align:justify; line-height:115%; widows:0; orphans:0;">
+                        <span>All the charges indicated in the Facility Documents
+                            shall be exclusive of all taxes and statutory levies as may be applicable on
+                            the same
+                            including, without limitation, </span><strong><span>GST at the rate of 18%
+                                (or any other rate that
+                                may be specified by the relevant Governmental Authority in this regard
+                                from time to
+                                time)</span></strong><span> together with any cess
+                            and such taxes and statutory levies shall be payable by the Borrower as
+                            specified in the
+                            Facility Documents.</span><span>&#xa0; </span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="4" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Repayment frequency by the
+                                Borrower</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>The Borrower agree that the repayment frequency
+                            permitted by the Lender shall be a daily repayment basis
+                            (</span><strong><span>Due Date</span></strong><span>) during the tenure of
+                            the Facility in accordance with
+                            the repayment schedule specified in this KFS.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Where the Borrower makes a payment which is more
+                            than the Instalment amount which is due on the respective Due Date(s), in
+                            such cases any
+                            excess amount paid by the Borrower to the Lender shall be adjusted against
+                            subsequent
+                            Instalments of the Borrower on the succeeding Due Dates. In case the tenure
+                            for the Facility
+                            has ended, the Lender shall refund/transfer any excess amount paid by the
+                            Borrower to the
+                            Lender into the Borrower’s Bank Account(s) within 5 Business Days of receipt
+                            of such excess
+                            amount by the Lender.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Notwithstanding the foregoing, the Borrower shall be
+                            entitled to pay the Facility in whole at any time prior to the applicable
+                            Due Date subject
+                            to payment of applicable Charges.</span>
+                </p>
+                <p style="margin-bottom:7pt; text-align:justify; line-height:115%; widows:0; orphans:0;">
+                        <span>Any changes to the Due Date(s) in relation to the
+                            disbursement under this Facility will be at the sole discretion of the
+                            Lender and may be
+                            notified to the Borrower by way of a notification sent either on the
+                            registered mobile
+                            number of the Borrower or the registered email address of the Borrower or on
+                            the Online
+                            Account of the Borrower at any time during the tenure of the Facility or on
+                            the
+                            communication address details, which are provided by the Borrower to the
+                            Lender in the
+                            Application Form.</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="5" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Minimum Prior Notice for Early Repayment
+                                /Foreclosure</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>After the Cooling Off Period, a prior notice of 05
+                            (five) days from the Borrower to the Lender will be required. </span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="6" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Details of Lender</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C153"><span>Name: PayU Finance India Private
+                                Limited</span></a><span> </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C154"><span>&#xa0;</span></a>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Registered office address: </span><span style="background-color:#ffffff">Wallace Towers,
+                            Fourth
+                            Floor, Crossing of Sahar Road, Vile Parle East, Mumbai, Maharashtra, 400
+                            057, India </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C155"><span>&#xa0;</span></a>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Corporate office address: 9</span><span
+                        style="font-size:4.33pt; "><sup>th</sup></span><span> Floor, Bestech
+                            Business Tower, Sector 48, Sohna Road,
+                            Gurugram, Haryana – 122002, India.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C156"><span>Branch office address:</span><span>&#xa0;
+                            </span><span>Unit bearing no. 214, 1</span><span
+                            style="font-size:4.33pt; "><sup>st</sup></span><span> Floor, DLF South
+                                Court Mall, Saket, New Delhi
+                                110017.</span></a>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C157"><span>&#xa0;</span></a>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>Website: </span><a id="_DV_C158"></a><a href="http://www.payufin.in/"
+                                                                   style="text-decoration:none"><span class="Hyperlink">www.payufin.in/</span></a><a
+                        id="_DV_C159"><span>&#xa0; </span></a>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C162"><span>Privacy policy: Available at
+                            </span></a><span></span><a href="https://www.payufin.in/privacy-policy"
+                                                        target="_blank">https://www.payufin.in/privacy-policy</a>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="7" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <a id="_DV_C168"><strong><span>Referral Partner /Digital
+                                    lending platform details</span></strong></a><strong><span>
+                            </span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <a id="_DV_C169"><span>Resilient Digi Services Private
+                                Limited </span></a>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Registered office address: 3rd Floor, Ramnath House,
+                            18, Community Centre, Opp. Jet Airways, Yusuf Sarai, New Delhi
+                            110049.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Corporate office address: Building No 8, Tower C,
+                            7th &amp; 12th Floor, Cyber City, Gurgaon, Haryana, India, 122002.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>Website: www.bharatpemoney.com</span><span>&#xa0; </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>Email: </span><span
+                        style="background-color:#ffffff">customersupport@bharatpemoney.com</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal">
+                        <span>Privacy policy: available at
+                        </span><a href=" https://bharatpemoney.com/documents/privacy-policy.pdf"
+                                  style="text-decoration:none"><span class="Hyperlink" style="background-color:#ffffff">
+                                https://bharatpemoney.com/documents/privacy-policy.pdf</span></a><span
+                        style="background-color:#ffffff"> </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal">
+                        <span>Terms and conditions for loan
+                            services available at: </span><a
+                        href=" https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf"
+                        style="text-decoration:none"><span class="Hyperlink" style="background-color:#ffffff">
+                                https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf</span></a>
+                </p>
+                <p style=" margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Digital Lending Application/Service Platform:
+                        </span><strong><span style="background-color:#ffffff">BharatPe for Business</span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>In case the Lender in its sole discretion decides to
+                            introduce a new lending service provider and/or a digital lending
+                            application in future, the
+                            Lender shall notify the Borrower in this regard, either by way of issuing an
+                            updated KFS
+                            which will be sent on the Borrower(s)’ Specified E-mail Address or a
+                            communication which
+                            will be sent on the Borrower(s)’ Specified E-mail Address, and such updated
+                            KFS or the
+                            communication shall include name and other relevant details of the new
+                            lending service
+                            provider and/or digital lending application. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="8" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Interest Rate Policy</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal; widows:0; orphans:0">
+                        <span>The interest rate policy of the
+                            Lender is available on the website </span><a href=" https://www.payufin.in"
+                                                                         style="text-decoration:none"><u><span style="color:#0563c1">
+                                    https://www.payufin.in</span></u></a><span>. The Lender shall declare and
+                            display the rate of interest (including any revisions in the rate of interest) on its
+                            website and the same shall be deemed to be a notice to the Borrower. The Borrower hereby
+                            agree that it shall be the duty of the Borrower to keep himself or herself updated of any
+                            such changes or variations in the rate of interest by visiting the website of the Lender as
+                            specified above. The Lender may also, but shall not be obligation to, notify the Borrower of
+                            any change in the rate of interest. Such revised rate of interest shall be applicable
+                            prospectively. </span>
+                </p>
+                <p style=" margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="9" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:27.87pt; margin-bottom:0pt; line-height:normal; padding-left:8.13pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Terms and Conditions of Recovery
+                                Mechanism</span></strong><strong><span>&#xa0;
+                            </span></strong>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>The Borrower shall be required to pay the
+                            Outstanding under the Facility in full, together with the accrued amount of
+                            interest and all
+                            other applicable fees/charges etc. by no later than the Due
+                            Date.</span><span>&#xa0; </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>If the Borrower fails to pay the Outstanding under
+                            the Facility by the applicable Due Date, then the Lender may, at its sole
+                            discretion, (i)
+                            utilize the Payment Instructions available with the Lender for recovering
+                            the Outstanding;
+                            and (ii) declare an Event of Default under the Facility Documents, in which
+                            case the Lender
+                            may choose to exercise any or all of the rights available to it under the
+                            Facility Documents
+                            including, but not limited to, the rights and remedies mentioned in the
+                            clause providing
+                            for consequences of Events of Default in the General Terms and
+                            Conditions.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:115%;">
+                        <span>Further, The Lender shall be classifying and/or
+                            reporting the Borrower's loan account as a stressed loan account in
+                            accordance with
+                            Applicable Laws. In this regard, the Borrower must note the following
+                            illustrations:</span>
+                </p>
+                <ol class="awlist6" style="margin:0pt; padding-left:0pt">
+                    <li
+                            style="margin:4.8pt 4.05pt 0pt 44.45pt; text-indent:-36pt; text-align:justify; line-height:115%;">
+                            <span
+                                    style="width:29.86pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>if the Due Date for payment of any portion of the Outstanding amount
+                        is March 31<span style="line-height:115%; font-size:4.33pt; "><sup>st</sup></span> and
+                        the Borrower fails
+                        to pay the relevant portion of the Outstanding amount on such date in full
+                        before the
+                        closure of the day-end process, the loan account of the Borrower shall be
+                        classified and
+                        reported as overdue with effect from March 31<span
+                            style="line-height:115%; font-size:4.33pt; "><sup>st</sup></span>;
+                    </li>
+                    <li
+                            style="margin:4.8pt 4.05pt 0pt 44.45pt; text-indent:-36pt; text-align:justify; line-height:115%;">
+                            <span
+                                    style="width:28.06pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>if the aforesaid portion of the Outstanding amount continues to
+                        remain overdue for a
+                        period of 30 days from the Due Date, that is, the Borrower fails to pay the
+                        relevant portion
+                        of the Outstanding amount in full before the closure of the day-end process
+                        on the 30<span style="line-height:115%; font-size:4.33pt; "><sup>th</sup></span> day
+                        from the Due Date,
+                        the loan account of the Borrower shall be classified and reported as a
+                        special mention
+                        account-1 (<strong>SMA-1</strong>) on April 30<span
+                            style="line-height:115%; font-size:4.33pt; "><sup>th</sup></span>;
+                    </li>
+                    <li
+                            style="margin:4.8pt 4.05pt 0pt 44.45pt; text-indent:-36pt; text-align:justify; line-height:115%;">
+                            <span
+                                    style="width:26.25pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>if the aforesaid portion of the Outstanding amount continues to
+                        remain overdue for a
+                        period of 60 days from the Due Date, that is, the Borrower fails to pay the
+                        relevant portion
+                        of the Outstanding amount in full before the closure of the day-end process
+                        on the 60<span style="line-height:115%; font-size:4.33pt; "><sup>th</sup></span> day
+                        from the Due Date,
+                        the loan account of the Borrower shall be classified and reported as a
+                        special mention
+                        account-2 (<strong>SMA-2</strong>) on May 30<span
+                            style="line-height:115%; font-size:4.33pt; "><sup>th</sup></span>; and
+                    </li>
+                    <li
+                            style="margin:4.8pt 4.05pt 0pt 44.45pt; text-indent:-36pt; text-align:justify; line-height:115%;">
+                            <span
+                                    style="width:26.61pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>if the aforesaid portion of the Outstanding amount continues to
+                        remain overdue for a
+                        period of 90 days from the Due Date, that is, the Borrower fails to pay the
+                        relevant portion
+                        of the Outstanding amount in full before the closure of the day-end process
+                        on the 90<span style="line-height:115%; font-size:4.33pt; "><sup>th</sup></span> day
+                        from the Due Date,
+                        the loan account of the Borrower shall be classified and reported as a
+                        non-performing asset
+                        (<strong>NPA</strong>) on June 29<span
+                            style="line-height:115%; font-size:4.33pt; "><sup>th</sup></span>.
+                    </li>
+                </ol>
+                <p style="margin-top:4.8pt; margin-bottom:0pt; text-align:justify; line-height:115%;">
+                    <strong><span>Note: Illustrations provided above are
+                                only indicative of the classification and reporting practices that will
+                                be followed by
+                                the Lender and do not dilute the liability of the Borrower to pay the
+                                entire Outstanding
+                                amount.</span></strong>
+                </p>
+                <p style="margin-top:4.8pt; margin-bottom:0pt; text-align:justify; line-height:115%">
+                        <span style="line-height:115%;">For undertaking
+                            collection and recovery, the Lender may, either on its own or through the
+                            Referral Partner
+                            or other service providers (including its/their agents), undertake
+                            collection or recovery
+                            from the Borrower. For details of Referral Partner and/or service providers
+                            and/or its/their
+                            agents. please refer to</span><span style="line-height:115%;">&#xa0;
+                        </span><a href="https://www.payufin.in" style="text-decoration:none"><span class="Hyperlink"
+                                                                                                   style="line-height:115%;">https://www.payufin.in</span></a><span
+                        style="line-height:115%;">. </span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>The Lender shall also be reporting defaults of the
+                            Borrower with credit information companies and RBI.</span>
+                </p>
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td style="width:11.08%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="10" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:31.12pt; margin-bottom:0pt; line-height:normal; padding-left:4.88pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%; border:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Payment Instruction(s) for repayment of
+                                Outstanding under the Facility</span></strong>
+                </p>
+            </td>
+            <td style="width:66.22%;   padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol class="awlist7" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.79pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>The Borrower irrevocably and unconditionally provides his/her express
+                        consent to the
+                        Resilient Innovations Private Limited (offline payment aggregator of the
+                        Borrower) being one
+                        of the “<strong>Mandated Third Party</strong>” to deduct the applicable
+                        Instalments daily in
+                        accordance with the repayment schedule specified in this KFS and/or any
+                        other dues in
+                        accordance with the Facility documents. The Mandated Third Party, upon
+                        receipt of such
+                        instructions from the Borrower, shall deduct the Instalment amounts and/or
+                        any other dues in
+                        accordance with the Facility documents, from the daily settlement amount
+                        (received by the
+                        Mandated Third Party on behalf of the Borrower) and transfer such Instalment
+                        amounts and/or
+                        any other dues as per the Facility Documents to the Lender’s bank account
+                        against repayment
+                        of the Facility. .
+                    </li>
+                </ol>
+                <p class="TableParagraph" style="margin-right:0.95pt; margin-left:36pt; text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="2" class="awlist8" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.42pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>The Borrower hereby irrevocably and unconditionally confirms and
+                        undertakes that the
+                        aforesaid instructions issued in favor of the Mandated Third Party shall not
+                        be revoked
+                        until the entire Outstanding under the Facility have been repaid in full to
+                        the satisfaction
+                        of the Lender.
+                    </li>
+                </ol>
+                <p class="ListParagraph" style="margin-bottom:0pt; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="3" class="awlist9" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.79pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>In the event, the deduction of Instalment amount and/or any other
+                        dues as per the
+                        Facility Documents from the settlement amount (as mentioned in point (a)
+                        above) is not
+                        available or sufficient to meet the entire Outstanding dues under the
+                        Facility on the
+                        respective Due Date, the Borrower shall make payment of the Outstanding
+                        through any other
+                        mode such as Electronic Clearing Mandate/ECS/National Automated Clearing
+                        House (NACH)/UPI
+                        Autopay/standing instructions and/or any other electronic or other clearing
+                        mandate or
+                        instructions available through the Lender and/or the Referral Partner or the
+                        Lender, at its
+                        sole discretion, may also present any Payment Instruction(s) granted in its
+                        favor for
+                        repayment of the Facility.
+                    </li>
+                </ol>
+                <p class="ListParagraph" style="margin-bottom:0pt; line-height:normal;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="4" class="awlist10" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.42pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>Save and except with the prior written consent of the Lender, the
+                        Borrower shall not,
+                        under any circumstances, revoke, cancel or alter the Payment Instruction(s)
+                        or cancel or
+                        issue stop-payment instructions with respect to these Payment Instruction(s)
+                        or do or omit
+                        to do anything which may result in the Borrower's bank(s) and/or Mandated
+                        Third Party not
+                        transferring the amounts equal to the Instalments amounts and/or any other
+                        dues as per the
+                        Facility Documents due under the Facility Documents, to the bank account of
+                        the Lender on
+                        the relevant Due Date. Any attempt to do so shall be considered as an Event
+                        of Default.
+                    </li>
+                </ol>
+                <p class="TableParagraph" style="margin-right:0.95pt; margin-left:36pt; text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="5" class="awlist11" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.79pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>If any amounts (not being the principal amount of the Facility or
+                        Interest thereon)
+                        are outstanding for payment/repayment by the Borrower in terms of the
+                        Facility Documents by
+                        the Borrower to the Lender, under this Facility, the Lender shall be
+                        entitled to
+                        present/invoke the Payment Instruction(s) for the satisfaction of such
+                        outstanding amounts,
+                        notwithstanding that Payment Instruction(s) have been issued for repayment
+                        of the principal
+                        amount of the Facility and/ or Interest thereon, and the Borrower shall
+                        continue to be
+                        indebted to the Lender for the Facility and/or Interest, as the case may be.
+                    </li>
+                </ol>
+                <p class="TableParagraph" style="margin-right:0.95pt; margin-left:36pt; text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="6" class="awlist12" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:11.51pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>All Payment Instruction(s) issued by the Borrower in favor of the
+                        Lender are for the
+                        purpose of discharge of the Outstandings that may be due to the Lender by
+                        the Borrower under
+                        the Facility Documents in relation to the Facility and the same are not
+                        proposed to be
+                        issued as and by way of a security for any purpose whatsoever. The Payment
+                        Instruction(s) is
+                        intended to be used at any time by the Lender as the Lender may consider fit
+                        and proper, to
+                        recover the Outstandings owed by the Borrower to the Lender, and the
+                        Borrower, by accepting
+                        and executing the Facility Documents, has unconditionally and irrevocably
+                        authorized the
+                        Lender for the same.
+                    </li>
+                </ol>
+                <p class="TableParagraph" style="margin-right:0.95pt; margin-left:36pt; text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="7" class="awlist13" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.42pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>The Borrower further irrevocably and unconditionally confirms and
+                        authorizes the
+                        Lender to invoke Lender’s right under the instructions issued by the
+                        Borrower to Mandated
+                        Third Party or Borrower’s bank, in the event Borrower has failed to make
+                        payment of the
+                        Outstanding Amount on the respective Due Date.
+                    </li>
+                </ol>
+                <p class="TableParagraph" style="margin-right:0.95pt; margin-left:36pt; text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+                <ol start="8" class="awlist14" style="margin:0pt; padding-left:0pt">
+                    <li class="TableParagraph"
+                        style="margin-right:0.95pt; margin-left:36pt; text-indent:-18pt; text-align:justify;">
+                            <span
+                                    style="width:10.42pt; font:7pt 'Times New Roman'; display:inline-block">&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;&#xa0;
+                            </span>The Borrower shall: (i) not close or issue any instructions for the
+                        closure of the
+                        Borrower’s Bank Account(s) or for any modification or cancellation of
+                        instructions to any
+                        Mandated Third Party&#xa0; without the prior written consent of the Lender;
+                        (ii) not commit
+                        or omit to do any act, agreement or thing which may entitle its bank to
+                        close or suspend the
+                        Borrower’s Bank Account or entitle any Mandated Third Party to close or
+                        suspend payment to
+                        the Lender; (iii) not claim that any Payment Instruction(s) is invalid; (iv)
+                        ensure
+                        availability of funds in the Borrower’s Bank Account , in respect of which
+                        the Payment
+                        Instruction(s), if any, have been made; and (v) not issue any notice
+                        instructing the Lender
+                        not to present any such Payment Instruction(s), if any, towards payment of
+                        any Instalment or
+                        other Outstanding.
+                    </li>
+                </ol>
+                <p class="TableParagraph" style="margin-right:0.95pt; margin-left:36pt; text-align:justify;">
+                    <span>&#xa0;</span>
+                </p>
+            </td>
+        </tr>
+        <tr>
+            <td
+                    style="width:11.08%;  border-right:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <ol start="11" style="margin:0pt; padding-left:0pt">
+                    <li style="margin-left:31.12pt; margin-bottom:0pt; line-height:normal; padding-left:4.88pt;">
+                        &#xa0;
+                    </li>
+                </ol>
+            </td>
+            <td
+                    style="width:22.7%;  border-right:0.75pt solid #000000; border-left:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                    <strong><span>Validity of KFS</span></strong>
+                </p>
+            </td>
+            <td
+                    style="width:66.22%;  border-left:0.75pt solid #000000; padding-right:5.03pt; padding-left:5.03pt; vertical-align:top">
+                <p style="margin-bottom:0pt; text-align:justify; line-height:normal;">
+                        <span>This KFS shall be valid for a period of 30 (thirty)
+                            days from the date of issuance of this KSF.</span>
+                </p>
+            </td>
+        </tr>
+    </table>
+    <p style="text-align:center; line-height:108%;">
+        <span>&#xa0;</span>
+    </p>
+    <p style="text-align:justify; line-height:108%;">
+            <span>All capitalized terms used but not specifically defined in this
+                Key Facts Statement shall have the respective meanings ascribed to them in the Facility
+                Documents.</span>
+    </p>
+
+    <table style="width: fit-content; margin: auto;" class="mb30">
+        <tr>
+            <td colspan="1" rowspan="1">
+                <p style="text-align: center; margin: 0">Confirm and Accept</p>
+            </td>
+        </tr>
+    </table>
+    <br />
+    <br />
+
+    <div class="mt30">
+        <table id="repayment" border="1" cellspacing="0" class="mb60" style="page-break-inside: avoid !important; margin: auto;">
+            <tbody>
+<!--            <tr class="width-100">-->
+<!--                <td colspan="2" style="padding: 0px 5px; text-align: center" class="width-auto"> Table </td>-->
+<!--            </tr>-->
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> Mobile Number </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{mobile_number_for_otp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{ip_address}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{time_stamp}}
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+</div>
+</body>
+
+</html>

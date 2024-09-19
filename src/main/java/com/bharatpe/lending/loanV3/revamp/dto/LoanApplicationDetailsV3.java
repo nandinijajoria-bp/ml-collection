@@ -43,7 +43,7 @@ public class LoanApplicationDetailsV3 {
     private Long reapplyTimeEpoch;
     private Boolean lenderAssc;
     private Boolean enachDone;
-    private String enachMode;
+    private List<EnachModeDTO> enachModes;
     private String lender;
     private String tenure;
     private Double interestRate;
@@ -58,5 +58,7 @@ public class LoanApplicationDetailsV3 {
     private Boolean isInsured;
     private List<LoanInsuranceDTO> loanInsurances;
     private Double apr;
+
+    private Double annualRoi;
 }
 

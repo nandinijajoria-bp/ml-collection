@@ -579,7 +579,7 @@ public class MileStoneProgramService {
         }
     }
 
-    private void checkEligibility(RTEProgramDetailsDto rteProgramDetailsDto, BasicDetailsDto merchant) {
+    public void checkEligibility(RTEProgramDetailsDto rteProgramDetailsDto, BasicDetailsDto merchant) {
         log.info("checking eligibility for  RTE program{}", merchant.getId());
         MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
         if (ObjectUtils.isEmpty(merchantResponseDTO)) {

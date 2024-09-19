@@ -31,6 +31,7 @@ import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.PaymentService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -111,6 +112,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Autowired
+    LoanUtil loanUtil;
 
     @Override
     @Transactional
@@ -473,11 +477,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 
         Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+        Double extraInterestofPerpetualDpdLoan = loanUtil.fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
 
         return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
                 - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
                 + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
                 + (lendingPaymentSchedule.getDueOtherCharges() != null ? lendingPaymentSchedule.getDueOtherCharges() : 0)
-                - advanceEdiAmount - excessCollectionBalance);
+                - advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
     }
 }

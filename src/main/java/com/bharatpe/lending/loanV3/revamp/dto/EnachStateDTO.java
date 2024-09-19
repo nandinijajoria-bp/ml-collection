@@ -2,8 +2,9 @@ package com.bharatpe.lending.loanV3.revamp.dto;
 
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
+
+import java.util.List;
 
 
 @Data
@@ -18,7 +19,7 @@ public class EnachStateDTO {
     private String applicationId;
 
     private String enachDeeplink;
-    private String enachMode;
+    private List<EnachModeDTO> enachModes;
     private Boolean enachDone;
     private EnachErrorMessageDTO enachErrorResponse;
 

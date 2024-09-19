@@ -8,6 +8,12 @@ public interface KfsConstants {
     String DISBURSEMENT_REQUEST_LETTER_S3_KEY_PREFIX = "DISBURSEMENT_REQUEST_LETTER_";
     String PLATFORM_PREFIX = "BHARATPE APP ";
     String INSURANCE_POLICY_DOC_PREFIX = "Loan_Insurance_Policy_Doc_";
+    String MITC_S3_KEY_PREFIX = "MITC_";
+    String GTC_S3_KEY_PREFIX = "GTC_";
+    String LOA_S3_KEY_PREFIX = "LOA_";
+    String AF_S3_KEY_PREFIX = "APPLICATION_FORM_";
+    String SANCTION_LETTER_S3_KEY_PREFIX = "SANCTION_LETTER_";
+    String KFS_LETTER_S3_KEY_PREFIX = "KFS_LETTER_";
 
     String LENDER_CORPORATE_NAME_LIQUILOANS = "NDX P2P Private Limited";
     String LENDER_BUSINESS_ADDRESS_LIQUILOANS = "B 104, The Qube, Hasan Pada Rd, Mittal Industrial Estate, Marol, Andheri East, Mumbai, Maharashtra 400059";
@@ -79,4 +85,10 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_CAPRI = "Mr. Satish Tryambak Shimpi";
     String LENDER_CONTACT_EMAIL_CAPRI = "nodalofficer@capriglobal.in";
     String LENDER_CONTACT_NUMBER_CAPRI = "022-40888161";
+    String LENDER_CORPORATE_NAME_PAYU = "PayU Finance India Private Limited";
+    String LENDER_BUSINESS_ADDRESS_PAYU = "Wallace Towers, Fourth Floor, Crossing of Sahar Road, Vile Parle East, Mumbai, Maharashtra, 400057";
+    String LENDER_CONTACT_NAME_PAYU = "Mr. Suraj Sapte";
+    String LENDER_CONTACT_EMAIL_PAYU = "grievance.smbbharatpe@payufin.com";
+    String LENDER_CONTACT_NUMBER_PAYU = "+91 2269821144";
+
 }

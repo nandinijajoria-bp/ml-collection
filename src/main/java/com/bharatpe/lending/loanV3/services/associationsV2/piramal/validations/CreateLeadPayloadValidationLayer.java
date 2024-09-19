@@ -1,6 +1,5 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.validations;
 
-import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -23,10 +22,11 @@ public class CreateLeadPayloadValidationLayer {
     @Autowired
     APIGatewayService apiGatewayService;
 
-    public boolean isInValidPayload(CKycResponseDto cKycResponseDto, Long merchantId) {
-        NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, merchantId);
-        return ( ObjectUtils.isEmpty(nameAndDobDetailsDto.getFirstName()) ||
-                ObjectUtils.isEmpty(nameAndDobDetailsDto.getLastName()) ||
+    public boolean isInValidPayload(CKycResponseDto cKycResponseDto, Boolean isEligibleForLenderKyc) {
+        if(isEligibleForLenderKyc) {
+            return isInvalidPayloadForLenderKyc(cKycResponseDto);
+        }
+        return (ObjectUtils.isEmpty(cKycResponseDto.getName()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getDob()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getCity()) ||
@@ -36,6 +36,15 @@ public class CreateLeadPayloadValidationLayer {
                 ObjectUtils.isEmpty(cKycResponseDto.getState()) ||
                 ObjectUtils.isEmpty(cKycResponseDto.getPanNumber()) ||
                 isInValidAge(cKycResponseDto.getDob())
+        );
+    }
+
+    public boolean isInvalidPayloadForLenderKyc(CKycResponseDto cKycResponseDto) {
+        return (ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ||
+                ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
+                ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ||
+                ObjectUtils.isEmpty(cKycResponseDto.getPanNumber()) ||
+                isInValidAge(cKycResponseDto.getPanDob())
         );
     }
 

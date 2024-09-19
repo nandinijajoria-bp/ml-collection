@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.PerpetualDpdAdjusted;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
@@ -234,6 +235,9 @@ public class MerchantLoansService {
     @Autowired
     LoanUtilV3 loanUtilV3;
 
+    @Autowired
+    LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
+
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
     static List<String> allowedRiskGroupsStp = Arrays.asList("R1", "R2");
@@ -404,7 +408,7 @@ public class MerchantLoansService {
         return diffMinutes;
     }
 
-    public LendingMerchantLoansResponseDTO getMerchantLoans(Long merchantId) {
+    public LendingMerchantLoansResponseDTO getMerchantLoans(String token, Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentScheduleSlave> merchantLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndCreditLoan(merchantId, false);
@@ -515,6 +519,11 @@ public class MerchantLoansService {
 
                     responseDTO.setShowRenachBanner(showRenachBanner(merchantId, loan.getLender(), responseDTO.getShowChangeBankAccountBanner()));
                 }
+
+                LendingApplicationLenderDetailsSlave lendingApplicationLenderDetailsSlave = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(loan.getApplicationId(),"ACTIVE",loan.getLender());
+                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave)){
+                    loan.setAnnualRoi(lendingApplicationLenderDetailsSlave.getAnnualRoi());
+                }
             }
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
@@ -539,6 +548,9 @@ public class MerchantLoansService {
                 if (date.after(lendingPaymentSchedule.getStartDate())) {
                     responseDTO.setEdiStarted(Boolean.TRUE);
                 } else {
+                    if(PerpetualDpdAdjusted.Y.name().equalsIgnoreCase(lendingPaymentSchedule.getPerpetualDpdAdjusted())){
+                        responseDTO.setPerpetualDpdRestrictPgPayment(Boolean.TRUE);
+                    }
                     responseDTO.setEdiStarted(Boolean.FALSE);
                 }
                 List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
@@ -605,7 +617,10 @@ public class MerchantLoansService {
                         responseDTO.setTopup(Boolean.TRUE);
 //                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
-//                        responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(merchantId));
+                        Experian experian = experianDao.getByMerchantId(merchantId);
+                        if(!ObjectUtils.isEmpty(experian) && !ObjectUtils.isEmpty(experian.getPancardNumber())) {
+                            responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(token, experian.getPancardNumber(), merchantId));
+                        }
                         funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
                     if("ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
@@ -636,6 +651,7 @@ public class MerchantLoansService {
             responseDTO.setMessage("Successfully fetched merchant loans");
             responseDTO.setSuccess(true);
         }
+
         return responseDTO;
     }
 

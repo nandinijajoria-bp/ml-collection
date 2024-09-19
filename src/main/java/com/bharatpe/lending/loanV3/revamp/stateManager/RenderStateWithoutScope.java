@@ -171,14 +171,15 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
             return lendingStateDTO;
         }
+        if(experian != null && !ObjectUtils.isEmpty(experian.getPancardNumber())
+                && !loanUtilV3.isPanNsdlVerified(scopeDataArgs.getToken(), experian.getPancardNumber(), scopeDataArgs.getMerchant().getId())) {
+            lendingStateDTO = new LendingStateDTO<>();
+            lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
+        }
         if (experian == null) {
             lendingStateDTO = new LendingStateDTO<>();
             lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         }
-//        if(!loanUtilV3.isPanNsdlVerified(scopeDataArgs.getMerchant().getId())){
-//            lendingStateDTO = new LendingStateDTO<>();
-//            lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
-//        }
         return lendingStateDTO;
     }
 
