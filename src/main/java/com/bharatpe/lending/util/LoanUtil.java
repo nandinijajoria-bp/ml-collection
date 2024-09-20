@@ -1113,6 +1113,8 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setMinTvrCount(lendingRiskVariables.getMinTvrCount());
 				lendingRiskVariablesSnapshot.setNewContactReferenceLogic(lendingRiskVariables.getNewContactReferenceLogic());
 				lendingRiskVariablesSnapshot.setStpFlag(lendingRiskVariables.getStpFlag());
+				lendingRiskVariablesSnapshot.setLoanCategory(lendingRiskVariables.getLoanCategory());
+				lendingRiskVariablesSnapshot.setMetaData(lendingRiskVariables.getMetaData());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
