@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.EnachMode;
@@ -294,6 +295,9 @@ public class LenderAssignService implements ILenderAssignService {
             }
             if (ObjectUtils.isEmpty(lenders)) {
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                if(ObjectUtils.isEmpty(lendingLenderQuota)){
+                    return LendingConstants.NONE_LENDER;
+                }
                 if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
                             lendingLenderQuota.getLender() , application.getId(), lenders);
@@ -448,7 +452,8 @@ public class LenderAssignService implements ILenderAssignService {
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
-                    updateOfferDetailsInApplication(application,LenderOffDays.valueOf(application.getLender()).getEdiModel(), oldLender);
+                    EdiModel updatedEdiModel= LendingConstants.NONE_LENDER.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+                    updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
                     lendingApplicationDao.save(application);
                     return application;
                 }
@@ -496,7 +501,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         String oldLender = application.getLender();
         application.setLender(decidedLender);
-        updateOfferDetailsInApplication(application,LenderOffDays.valueOf(decidedLender).getEdiModel(), oldLender);
+        EdiModel updatedEdiModel= LendingConstants.NONE_LENDER.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+        updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
         return lendingApplicationDao.save(application);
     }
 
@@ -886,8 +892,7 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Assigning fallback lender");
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(ObjectUtils.isEmpty(fallbackLender)){
-            modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
-            return Lender.LIQUILOANS_P2P.name();
+            return LendingConstants.NONE_LENDER;
         }
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel());
@@ -939,6 +944,10 @@ public class LenderAssignService implements ILenderAssignService {
 
     public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {
         try {
+            if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+                log.info("skipping updated offer for {} lender of {}",lendingApplication.getLender(), lendingApplication.getId());
+                return;
+            }
             Long currentPayableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), ediModel);
             if (currentPayableDays == lendingApplication.getPayableDays()) {
                 log.info("skipping updated offer as offer remains same for {}", lendingApplication.getId());

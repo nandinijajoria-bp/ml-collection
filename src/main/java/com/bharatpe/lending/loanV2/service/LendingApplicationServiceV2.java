@@ -640,6 +640,10 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
             }
 
+            if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+                return new ApiResponse<>(true, "No lender assigned, application rejected");
+            }
+
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
@@ -773,6 +777,10 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
+        if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+            rejectApplicationForIncorrectLender(lendingApplication);
+            return lendingApplication;
+        }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
 //        lendingApplication = lendingApplicationDao.save(lendingApplication);
@@ -4027,6 +4035,17 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
+    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
+        log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
+        commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS", "rejected due to nullable lender");
+        lendingApplication.setStatus("rejected");
+        lendingApplication.setManualKyc("rejected");
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+        evictCache(lendingApplication.getMerchantId());
+    }
     public void generateMITCDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
 
         String fileName = "";
