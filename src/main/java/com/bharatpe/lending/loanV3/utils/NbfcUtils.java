@@ -128,6 +128,9 @@ public class NbfcUtils {
                     lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
                     return;
                 }
+                log.info("Rejecting application for the applicationId: {}",lendingApplication.getId());
+                lendingApplication.setManualKyc("rejected");
+                lendingApplication.setStatus("rejected");
                 lendingApplicationDao.save(lendingApplication);
                 lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
                 return;
