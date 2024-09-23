@@ -548,13 +548,13 @@ public class LenderAssignService implements ILenderAssignService {
         //new flow
         for(LendingLenderQuota lender: toBeAssignedLenders){
             log.info("Lender:{}", lender.getLender());
-            if(isGstOffer){
-                log.info("Offer increased due to gst for merchant:{}", lendingApplication.getMerchantId());
-                if(!LenderOffDays.valueOf(gstOfferLender).getEdiModel().equals(ediModel)){
-                    modifyEdiModel(lendingApplication, LenderOffDays.valueOf(gstOfferLender).getEdiModel());
-                }
-                return gstOfferLender;
-            }
+//            if(isGstOffer){
+//                log.info("Offer increased due to gst for merchant:{}", lendingApplication.getMerchantId());
+//                if(!LenderOffDays.valueOf(gstOfferLender).getEdiModel().equals(ediModel)){
+//                    modifyEdiModel(lendingApplication, LenderOffDays.valueOf(gstOfferLender).getEdiModel());
+//                }
+//                return gstOfferLender;
+//            }
 
             // START remove giving preference to already kyc done lender
 //            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
