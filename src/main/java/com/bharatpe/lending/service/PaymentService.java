@@ -789,6 +789,7 @@ public class PaymentService {
                                 return "OK";
                             }
                         } else {
+                            lendingPullPayment.setErrorDescription(request.getErrorDescription());
                             lendingPullPayment.setStatus(request.getPaymentStatus());
                             lendingPullPaymentDao.save(lendingPullPayment);
                             return "OK";
