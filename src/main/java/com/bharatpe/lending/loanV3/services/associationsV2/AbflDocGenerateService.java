@@ -106,6 +106,7 @@ public class AbflDocGenerateService {
                     .lender("ABFL")
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()))
                     .payload(AbflFetchDocRequestDto.builder().applicationId(lendingApplication.getExternalLoanId()).build()).build();
             log.info("starting fetch docs from ABFL for application id {} with request {}", lendingApplication.getId(), nbfcRequest);
             NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequest, LenderAssociationStages.DOWNLOAD_DOCUMENT);
