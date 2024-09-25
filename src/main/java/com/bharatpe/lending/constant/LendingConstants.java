@@ -58,6 +58,7 @@ public interface LendingConstants {
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String PAN_NAME = "/api/v1/internal/pan-verify";
+	String PAN_VERIFY_V3_INTERNAL = "/api/v3/internal/pan-verify";
 	String PAN_VERIFY = "/api/v3/pan-verify";
 	String PAN_FETCH = "/api/v3/pan-fetch";
 	String PAN_FETCH_INTERNAL = "/api/v3/internal/pan-fetch";
