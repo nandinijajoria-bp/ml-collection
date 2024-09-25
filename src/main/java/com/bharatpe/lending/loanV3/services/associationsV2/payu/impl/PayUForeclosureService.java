@@ -61,7 +61,7 @@ public class PayUForeclosureService {
                 PayUForeclosureDetailsResponseDTO foreclosureResponse =  objectMapper.convertValue(commonResponseDTO.getApiResponse(), PayUForeclosureDetailsResponseDTO.class);
 
                 if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus())) {
-                    return (double) foreclosureResponse.getOutstandingLoanBalance();
+                    return foreclosureResponse.getAmount().doubleValue() - foreclosureResponse.getFeeChargesPortion().doubleValue();
                 }
 
             }

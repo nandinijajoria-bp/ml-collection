@@ -20,6 +20,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.CreateLeadService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalDocumentUploadService;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -39,8 +40,6 @@ import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class InvokeCreateLeadAndDocUploadWraperService {
-    @Autowired
-    private LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Autowired
     CreateLeadService createLeadService;
@@ -72,13 +71,16 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     @Autowired
     DsHandler dsHandler;
 
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
+
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
 
     @Async("piramalPoolTaskExecutor")
     public void invokeCreateLeadAndDocUpload(Map<String, String> request, Map<String, Object> args) {
-        List<String> stagesToBeInvokedInOrder = Arrays.asList(LenderAssociationStages.PiramalAssociationStages.LEAD_CREATION.name(),
-                LenderAssociationStages.PiramalAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD.name());
+        List<String> stagesToBeInvokedInOrder = new ArrayList<>(Arrays.asList(LenderAssociationStages.PiramalAssociationStages.LEAD_CREATION.name()));
         if (null != args) {
             if (args.containsKey("stages")) {
                 stagesToBeInvokedInOrder = Arrays.stream(((String) args.get("stages"))
@@ -100,6 +102,10 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         }
         log.info("base checks ran for {}", applicationId);
         lenderAssociationDetailsRequestDto.setManageState(true);
+        if(!kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto.getLendingApplication().getMerchantId())) {
+            stagesToBeInvokedInOrder.add(LenderAssociationStages.PiramalAssociationStages.AADHAR_UPLOAD.name());
+            stagesToBeInvokedInOrder.add(LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD.name());
+        }
         Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !invokeStage(lenderAssociationDetailsRequestDto, stage)).findFirst();
         if (failureStage.isPresent()) {
             log.info("lender assc failed at {} stage for  {}", failureStage.get(), applicationId);
@@ -113,8 +119,12 @@ public class InvokeCreateLeadAndDocUploadWraperService {
 
     public void checkForGSTDetailsAndInvokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         log.info("entered for check gst and update lead bre flow: {} {}",lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lenderAssociationDetailsDto.getApplicationId());
-        if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId())) {
+         if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId())) {
+            if(kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId())) {
+               lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
+               commonService.manageApplicationState(lenderAssociationDetailsDto);
+               return;
+            }
             // push application to next stage
             //update lendingApplicationLenderDetails
             String currStage =  lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getStage();
@@ -129,10 +139,6 @@ public class InvokeCreateLeadAndDocUploadWraperService {
                     Boolean.TRUE
             );
         }
-//        else) {
-//            log.info("modifying lender as permanent address is different that current address {}", lenderAssociationDetailsDto.getApplicationId());
-//            nbfcUtils.modifyLender(lenderAssociationDetailsDto.getLendingApplication(), lenderAssociationDetailsDto.getLendingApplicationLenderDetails(), LenderAssociationStatus.BRE_HARD_FAILED);
-//        }
     }
 
     private boolean checkForGSTDetails(Long applicationId) {

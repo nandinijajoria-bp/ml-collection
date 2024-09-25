@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
@@ -19,6 +20,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.impl.LenderAssignService;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -74,6 +76,9 @@ public class NbfcUtils {
     @Autowired
     KycUtils kycUtils;
 
+    @Autowired
+    CommonUtil commonUtil;
+
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
         if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -111,7 +116,20 @@ public class NbfcUtils {
             }
             Lender modifiedLender = lenderAssignService.modifyLender(lendingApplication.getId());
             if(ObjectUtils.isEmpty(modifiedLender)) {
-                log.info("modifiedLender is null, rejecting application for applicationId {}", lendingApplication.getId());
+                if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+                    log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
+                    commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
+                            !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                            "APP_STATUS", "rejected due to nullable lender");
+                    lendingApplication.setStatus("rejected");
+                    lendingApplication.setManualKyc("rejected");
+                    lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+                    lendingApplicationDao.save(lendingApplication);
+                    lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
+                    return;
+                }
+                log.info("Rejecting application for the applicationId: {}",lendingApplication.getId());
+                lendingApplication.setManualKyc("rejected");
                 lendingApplication.setStatus("rejected");
                 lendingApplicationDao.save(lendingApplication);
                 lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
@@ -133,6 +151,7 @@ public class NbfcUtils {
     }
 
     public void pushApplicationToNextStage(Long applicationId, String lender, String lenderAssociationStage, Boolean autoInvoke) {
+        log.info("push application to next stage from current {} stage for applicationId {}", lenderAssociationStage, applicationId);
         if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(lenderAssociationStage)) {
             log.info("status completed for this application {}",applicationId);
             return;
@@ -150,7 +169,7 @@ public class NbfcUtils {
         lendingApplicationDetails.setStage(nextStage.name());
         lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        log.info("stage updated in app details for application {}", applicationId);
+        log.info("stage {} updated in app details for application {}", lendingApplicationDetails.getStage(), applicationId);
         if (autoInvoke) {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(nextStage.name()).getLenderAssociationService(lender);
@@ -196,8 +215,10 @@ public class NbfcUtils {
         switch (stage) {
             case "GENERATE_DOCUMENT":
                 return associationServiceUtil.invokeDocsGenerateService(lender, lenderAssociationDetailsDto.getLendingApplication(), DocType.LOAN_AGREEMENT, true);
-            case "EKYC_STATUS_CHECK":
+            case "EKYC_STATUS":
                 return associationServiceUtil.invokeEkycStatusCheck(lender, lenderAssociationDetailsDto.getLendingApplication());
+            case "EKYC":
+                return associationServiceUtil.invokeEKyc(lender, lenderAssociationDetailsDto);
             default:
                 return false;
         }

@@ -10,6 +10,7 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
@@ -156,6 +157,9 @@ public class AssociationServiceUtil {
     @Autowired
     PayUForeclosureService payUForeclosureService;
 
+    @Autowired
+    EKycService eKycService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -294,6 +298,8 @@ public class AssociationServiceUtil {
                 return mfBreService.processMFBreCallback(nbfcResponseDTO);
             case "CAPRI":
                 return capriBreService.processBreCallback(nbfcResponseDTO);
+            case "TRILLIONLOANS":
+                return tlBreService.processBreCallback(nbfcResponseDTO);
             case "PAYU":
                 return payUBreService.processBreCallback(nbfcResponseDTO);
             default:
@@ -414,6 +420,26 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "ABFL":
                 return kycRequestKafka.eKycStatusCheck(lendingApplication);
+            case "PIRAMAL":
+                return eKycService.eKycStatusCheck(lendingApplication);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean handleEKycCallback(String lender, NBFCResponseDTO nbfcResponseDTO) {
+        switch (lender) {
+            case "PIRAMAL":
+                return eKycService.processEKycCallback(nbfcResponseDTO);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeEKyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "PIRAMAL":
+                return eKycService.invokeEKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }

@@ -4,14 +4,8 @@ import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentService;
-import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
-import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
-import com.bharatpe.lending.common.dao.PenalChargesDao;
-import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
-import com.bharatpe.lending.common.entity.LendingCollectionExcess;
-import com.bharatpe.lending.common.entity.LendingPrepayment;
-import com.bharatpe.lending.common.entity.PenalCharges;
-import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -23,10 +17,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
+
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 
 
 @Service
@@ -57,6 +50,9 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
     @Autowired
     PenalChargesDao penalChargesDao;
+
+    @Autowired
+    LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -96,7 +92,15 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     public LendingLedger createLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjusted, String description, String source, String transferType, String terminalOrderId) {
         if(Objects.isNull(paymentAdjusted)) return null;
 
-        return createLendingLedger(loan, paymentAdjusted.getUsed(), paymentAdjusted.getPrincipleSettled(),
+        Date ledgerDate;
+        Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId());
+        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())){
+            ledgerDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), 1);
+        }
+        else{
+            ledgerDate = DateTimeUtil.getCurrentDayStartTime();
+        }
+        return createLendingLedger(loan, ledgerDate, paymentAdjusted.getUsed(), paymentAdjusted.getPrincipleSettled(),
                 paymentAdjusted.getInterestSettled(), description, source, transferType, terminalOrderId, paymentAdjusted.getPenaltySettled(), paymentAdjusted.getChargesSettled());
     }
 
@@ -110,6 +114,30 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
         lendingLedger.setLendingPaymentSchedule(loan);
         lendingLedger.setDate(DateTimeUtil.getCurrentDayStartTime());
+        lendingLedger.setTxnType("EDI");
+        lendingLedger.setAmount(amount);
+        lendingLedger.setInterest(interest);
+        lendingLedger.setPrinciple(principle);
+        lendingLedger.setOtherCharges(charges);
+        lendingLedger.setPenalty(penaltyFee);
+        lendingLedger.setAdjustmentMode(source);
+        lendingLedger.setDescription(description);
+        lendingLedger.setTransferType(transferType);
+        lendingLedger.setTerminalOrderId(terminalOrderId);
+        lendingLedgerDao.save(lendingLedger);
+        return lendingLedger;
+    }
+
+    @Override
+    public LendingLedger createLendingLedger(LendingPaymentSchedule loan, Date ledgerDate, Double amount, Double principle,
+                                             Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges) {
+        if(amount == 0) return null;
+
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchantId(loan.getMerchantId());
+        if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
+        lendingLedger.setLendingPaymentSchedule(loan);
+        lendingLedger.setDate(ledgerDate);
         lendingLedger.setTxnType("EDI");
         lendingLedger.setAmount(amount);
         lendingLedger.setInterest(interest);

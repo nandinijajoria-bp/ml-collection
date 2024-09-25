@@ -19,7 +19,7 @@ public class PayUForeclosureDetailsResponseDTO {
 
     private Double loanId;
 
-    private Integer amount;
+    private Number amount;
 
     private Integer principalPortion;
 

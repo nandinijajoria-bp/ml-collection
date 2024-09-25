@@ -476,7 +476,7 @@ public class LendingApplicationServiceV2 {
                     .panNumber(experian.getPancardNumber())
                     .callBackUrl(callBackURL)
                     .merchantId(String.valueOf(merchant.getId())).build();
-            Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes, validAfterDate);
+            Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes, validAfterDate, false);
             if (ckycResponseObj.containsKey("ckycId")) {
                 if (initiateKycRequest.getApplicationId() != null) {
                     lendingApplicationDao.updateKycId(initiateKycRequest.getApplicationId(), ckycResponseObj.get("ckycId"), merchant.getId());
@@ -640,6 +640,10 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
             }
 
+            if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+                return new ApiResponse<>(true, "No lender assigned, application rejected");
+            }
+
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
@@ -773,6 +777,10 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
+        if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+            rejectApplicationForIncorrectLender(lendingApplication);
+            return lendingApplication;
+        }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
 //        lendingApplication = lendingApplicationDao.save(lendingApplication);
@@ -3703,18 +3711,15 @@ public class LendingApplicationServiceV2 {
                     }
                 }
                 if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
-                    LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+                    LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
                     if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
-                        CKycResponseDto cKycResponseDto = kycUtils.parsePoaXML(lendingApplicationKycDetails.getAadharXml(), merchant.getId(), new CKycResponseDto(), applicationId, false);
-                        if(!ObjectUtils.isEmpty(cKycResponseDto.getAddress())) {
-                            lendingGstDetail.setAddress1(cKycResponseDto.getAddress());
-                            lendingGstDetail.setCity(cKycResponseDto.getCity());
-                            lendingGstDetail.setPincode(cKycResponseDto.getPincode());
-                            lendingGstDetail.setState(cKycResponseDto.getState());
-                            lendingGstDetail.setAddress2(null);
-                            lendingGstDetail.setLandmark(null);
-                            lendingGstDetail.setAddressType("Same");
-                        }
+                        lendingGstDetail.setAddress1(lendingApplicationKycDetails.getAadharAddress());
+                        lendingGstDetail.setCity(lendingApplicationKycDetails.getAadharCity());
+                        lendingGstDetail.setPincode(lendingApplicationKycDetails.getAadharPinCode());
+                        lendingGstDetail.setState(lendingApplicationKycDetails.getAadharState());
+                        lendingGstDetail.setAddress2(null);
+                        lendingGstDetail.setLandmark(null);
+                        lendingGstDetail.setAddressType("Same");
                     }
                 }
                 log.info("Updating current address details as aadhaar address of applicationId {} and merchantId {}", applicationId, merchant.getId());
@@ -3733,16 +3738,6 @@ public class LendingApplicationServiceV2 {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(sameAsAdhaar);
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            /*
-            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-                LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = new LenderAssociationDetailsRequestDto();
-                lenderAssociationDetailsRequestDto.setApplicationId(lendingApplication.getId());
-                invokeCreateLeadAndDocUploadWraperService.runBaseChecksAndCreateRecord(lenderAssociationDetailsRequestDto);
-                log.info("base checks ran for {}", lendingApplication.getId());
-                lenderAssociationDetailsRequestDto.setManageState(true);
-                invokeCreateLeadAndDocUploadWraperService.checkForGSTDetailsAndInvokeBREWorkflow(lenderAssociationDetailsRequestDto);
-            }
-             */
             funnelService.submitEvent(merchant.getId(), null, applicationId,
                     FunnelEnums.StageId.ADDITIONAL_DETAILS, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             return new ApiResponse<>(true, "Current Address updated successfully!");
@@ -3774,21 +3769,18 @@ public class LendingApplicationServiceV2 {
                 }
             }
             if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
-                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
                 if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
-                    CKycResponseDto cKycResponseDto = kycUtils.parsePoaXML(lendingApplicationKycDetails.getAadharXml(), merchant.getId(), new CKycResponseDto(), applicationId, false);
-                    if(!ObjectUtils.isEmpty(cKycResponseDto.getAddress())) {
-                        AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();
-                        dto.setAddress(cKycResponseDto.getAddress());
-                        dto.setCity(cKycResponseDto.getCity());
-                        dto.setPincode(cKycResponseDto.getPincode());
-                        dto.setState(cKycResponseDto.getState());
-                        dto.setName(cKycResponseDto.getName());
-                        dto.setDob(cKycResponseDto.getDob());
-                        dto.setGender(cKycResponseDto.getGender());
-                        dto.setAadharNumber(cKycResponseDto.getAadharNumber());
-                        return new ApiResponse<>(dto);
-                    }
+                    AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();
+                    dto.setAddress(lendingApplicationKycDetails.getAadharAddress());
+                    dto.setGender(lendingApplicationKycDetails.getGender());
+                    dto.setName(lendingApplicationKycDetails.getAadharName());
+                    dto.setDob(lendingApplicationKycDetails.getDob());
+                    dto.setAadharNumber(lendingApplicationKycDetails.getAadharIdentifier());
+                    dto.setState(lendingApplicationKycDetails.getAadharState());
+                    dto.setCity(lendingApplicationKycDetails.getAadharCity());
+                    dto.setPincode(lendingApplicationKycDetails.getAadharPinCode());
+                    return new ApiResponse<>(dto);
                 }
             }
         } catch (Exception e) {
@@ -4043,6 +4035,17 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
+    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
+        log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
+        commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS", "rejected due to nullable lender");
+        lendingApplication.setStatus("rejected");
+        lendingApplication.setManualKyc("rejected");
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+        evictCache(lendingApplication.getMerchantId());
+    }
     public void generateMITCDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
 
         String fileName = "";

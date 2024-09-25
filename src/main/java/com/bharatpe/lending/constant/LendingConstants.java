@@ -110,6 +110,8 @@ public interface LendingConstants {
 		put("SHOP_ADDRESS_INCORRECT", Collections.singletonList("SHOP_ADDRESS_INCORRECT"));
 		put("INCORRECT_SELFIE", Collections.singletonList("INCORRECT_SELFIE"));
 	}};
+
+	String NONE_LENDER = "NONE";
 }
 
 

@@ -88,18 +88,23 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
             }else{
                 PanFetchKYCResponseDto response = null;
                 try {
-                    LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
-                    if(!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())){
-                        eligibilityStateDTO.setIsPanNsdlVerified(true);
-                    }
-                    else{
-                        response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
-                        if (response != null && response.getStatus()) {
-                            PanFetchKYCResponseDto.Data data = response.getData();
-                            if (data != null) {
+                    response = kycHandler.panFetch(scopeDataArgs.getToken(), eligibilityStateDTO.getPancard(), scopeDataArgs.getMerchant().getId());
+                    if (response != null && response.getStatus()) {
+                        PanFetchKYCResponseDto.Data data = response.getData();
+                        if (data != null) {
+                            LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
+                            if (!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())) {
+                                eligibilityStateDTO.setIsPanNsdlVerified(true);
+                                eligibilityStateDTO.setFullName(data.getName());
+                                eligibilityStateDTO.setDob(data.getDateOfBirth());
+                            } else {
                                 if (data.getIsPanNsdlVerified() != null) {
                                     eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
+                                    eligibilityStateDTO.setDob(data.getDateOfBirth());
+                                    eligibilityStateDTO.setFullName(data.getName());
                                     if(data.getIsPanNsdlVerified()){
+                                        eligibilityStateDTO.setDob(data.getVerifiedName());
+                                        eligibilityStateDTO.setFullName(data.getVerifiedDob());
                                         if (!ObjectUtils.isEmpty(lendingPancardDetails)) {
                                             lendingPancardDetails.setName(data.getVerifiedName());
                                             lendingPancardDetails.setPancardNumber(data.getPanNumber());
@@ -111,9 +116,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                                     }
                                 }
                             }
-                        } else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
-                            eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                         }
+                    }else if (response != null && response.getData() != null && !response.getStatus() && response.getData().getMessage() != null) {
+                        eligibilityStateDTO.setKycMessage(response.getData().getMessage());
                     }
                 }catch (HttpClientErrorException.TooManyRequests e) {
                     log.error("Too Many requests error");

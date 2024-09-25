@@ -254,11 +254,22 @@ public class KycHandler {
             if (!CollectionUtils.isEmpty(kycDocs)) {
                 if (kycDocs.size() < lenderKycPipeMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
                 for (KycDoc kycDoc : kycDocs) {
-                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
-                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
-                    }
-                    if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.APPROVED) && !(kycDoc.getDocType().equals(KycDocType.SELFIE) && kycDoc.getStatus().equals(KycDocStatus.DRAFT))) {
-                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
+                    if (kycDoc.getStatus() != null && lenderKycPipeMandatoryDocs.contains(kycDoc.getDocType())) {
+                        if (kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                            return KycStatusDTO.builder()
+                                    .kycDocType(kycDoc.getDocType())
+                                    .kycStatus(KycStatus.REJECTED)
+                                    .remarks(kycDoc.getRemarks())
+                                    .build();
+                        }
+                        if (!kycDoc.getStatus().equals(KycDocStatus.APPROVED)
+                                && !(kycDoc.getDocType().equals(KycDocType.SELFIE)
+                                && kycDoc.getStatus().equals(KycDocStatus.DRAFT))) {
+                            return KycStatusDTO.builder()
+                                    .kycDocType(kycDoc.getDocType())
+                                    .kycStatus(KycStatus.valueOf(kycDoc.getStatus().name()))
+                                    .build();
+                        }
                     }
                 }
 
@@ -374,7 +385,7 @@ public class KycHandler {
         return responseObj;
     }
 
-    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate) {
+    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate, Boolean onlySelfieLivelinessRequired) {
         log.info("Initiate kyc for merchant:{}", merchantId);
         Map<String, String> responseObj = new HashMap<>();
         try {
@@ -397,6 +408,7 @@ public class KycHandler {
                 put("merchantId", initiateKycDTO.getMerchantId());
                 put("documents", documents);
                 put("validAfter", finaValidAfter);
+                put("onlySelfieLivelinessRequired", onlySelfieLivelinessRequired);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
