@@ -73,4 +73,10 @@ public class ENachController {
 		executorService.execute(()->eNachService.uploadBulkEnach(enachUploadRequestDTO));
 		return new ResponseEntity<>("Bulk Nach Upload Successfully!",HttpStatus.OK);
 	}
+
+	@RequestMapping(value = "/mandate_revoke_request", method = RequestMethod.POST)
+	public ResponseEntity<CommonResponse> mandateRevokeRequest(@RequestAttribute BasicDetailsDto merchant){
+		return new ResponseEntity<>(eNachService.captureMandateRevokeRequest(merchant), HttpStatus.OK);
+
+	}
 }
