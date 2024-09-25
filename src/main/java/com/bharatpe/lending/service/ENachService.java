@@ -564,6 +564,12 @@ public class ENachService {
                 logger.info("merchant details not found");
                 return new CommonResponse(false, "merchant not found");
             }
+
+            List<NachMandateRevokeRequest> nachMandateRevokeRequestList  = nachMandateRevokeRequestDao.findByMerchantIdAndStatus(merchantDetails.getId(), "PENDING");
+            if (!ObjectUtils.isEmpty(nachMandateRevokeRequestList)){
+                logger.info("Request already exists in pending state for merchant:{}", merchantDetails.getId());
+                return new CommonResponse(false, "Request already exists in pending state");
+            }
             NachMandateRevokeRequest nachMandateRevokeRequest = new NachMandateRevokeRequest(merchantDetails.getId(), merchantDetails.getMobile(), merchantDetails.getBeneficiaryName(), "PENDING");
             if (!ObjectUtils.isEmpty(nachMandateRevokeRequestDao.save(nachMandateRevokeRequest))){
                 return new CommonResponse(true, "data captured successfully");
