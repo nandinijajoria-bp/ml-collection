@@ -19,7 +19,7 @@ import java.util.UUID;
 
 @Service
 @Slf4j
-public class ABFLDigiSignService implements ILenderAssociationService {
+public class ABFLDigiSignService implements ILenderAssociationService{
     @Autowired
     AbflDigiSignService abflDigiSignService;
 
