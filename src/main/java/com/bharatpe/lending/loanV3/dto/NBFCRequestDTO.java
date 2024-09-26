@@ -19,4 +19,5 @@ public class NBFCRequestDTO<T> {
     Long applicationId;
     LinkedHashMap<String, Object> identifier;
     T payload;
+    boolean topup;
 }

@@ -83,8 +83,8 @@
         </h2>
 
         <p style="margin: 6px 16px" class="fw400">
-            This Key Fact Sheet (“KFS”) is applicable on the limit-based loan
-            facility applied by the Borrower through “BharatPe” app:
+            This Key Fact Sheet (“KFS”) is applicable on the term loan facility applied by the Borrower through
+            “BharatPe” app:
         </p>
 
         <table border="1" cellspacing="0" class="width-100 mb20">
@@ -214,11 +214,6 @@
                         <p style="margin: 6px 16px" class="fw400 text-left">
                             The Processing Fees is a one-time fee.
                         </p>
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            *In the event that the loan is foreclosed by the Borrower during the Cooling Off Period,
-                            {{processing_fee_refund_percentage}} of the Processing Fees shall be refunded back to the
-                            Borrower
-                        </p>
                     </td>
                 </tr>
                 <tr class="width-100">
@@ -270,12 +265,12 @@
                 <tr class="width-100">
                     <td style="padding: 0px 5px" class="width-33">
                         <p style="margin: 6px 16px" class="fw-bold text-left">
-                            Interest Rate (annually applied on reducing balance)
+                            Interest Rate (applied on a simple interest basis)
                         </p>
                     </td>
                     <td style="padding: 0px 5px" class="width-66">
                         <p style="margin: 6px 16px" class="fw400 text-left">
-                            <span>{{annual_roi}} % per annum</span>
+                            <span>{{rate_of_interest}} % per month</span>
                         </p>
                     </td>
                 </tr>
@@ -330,7 +325,8 @@
                         <p style="margin: 6px 16px" class="fw400 text-left">
                             • Deduction of amount Instalment Amount or any other dues as per the Loan Documents from the
                             daily Settlement Amount** as per the instructions of the Borrower to Resilient Innovations
-                            Private Limited (offline payment aggregator of the Borrower) <span class="fw-bold">(“Offline PA”).</span>
+                            Private Limited (offline payment aggregator of the Borrower) <span class="fw-bold">(“Offline
+                                PA”).</span>
                         </p>
                         <p style="margin: 6px 16px" class="fw400 text-left">
                             *Borrower hereby expressly, unconditionally and irrevocably authorizes the Offline PA to
@@ -390,7 +386,7 @@
                         </p>
                     </td>
                 </tr>
-                
+
                 <tr class="width-100">
                     <td style="padding: 0px 5px" class="width-100 text-center fw-bold" colspan=2>
                         Details about Contingent Charges
@@ -550,7 +546,206 @@
                     </td>
                     <td style="padding: 0px 5px" class="width-66">
                         <p style="margin: 6px 16px" class="fw400 text-left">
-                            <span>NA</span>
+                            <!-- Foreclosure -->
+                        <table border="1" cellspacing="0" class="m-auto mt30 mb20 width-100 fw-bold"
+                            style="page-break-inside: avoid !important">
+                            <tbody>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> Tenure <br /> (Months) </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> Closure in <br /> (Months) </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6"> Rate on Principle Outstanding at the time of
+                                            Foreclosure </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_1}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_1}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_2}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_2}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_2}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_3}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_3}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_3}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_4}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_4}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_4}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_5}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_5}} to {{closure_max_5}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_5}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_6}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_6}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_6}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_7}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_7}} to {{closure_max_7}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_7}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_8}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_8}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_8}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_9}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_9}} to {{closure_max_9}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_9}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_10}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_10}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_10}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_11}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_11}} to {{closure_max_11}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_11}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p style="margin: 6px 16px" class="fw400 text-left"> These foreclosure charges* will be
+                            applicable as per the grid or Rs. {{min_charge}}/-, whichever is higher. </p>
+                        <p style="margin: 6px 16px" class="fw400 text-left">*GST of {{gst_rate}}% will be applicable on
+                            Foreclosure charges </p>
+                        </p>
+                        <!-- Foreclosure -->
                         </p>
                     </td>
                 </tr>
@@ -560,12 +755,11 @@
                             <span>Cheque/NACH Bounce Charges</span>
                         </p>
                     </td>
-                    <td>
-                        <p style="margin: 6px 16px" class="fw-bold text-left">
-                            <span>Rs. 500 /-</span><br>
-                        </p>
+                    <td style="padding: 0px 5px" class="width-66">
                         <p style="margin: 6px 16px" class="fw400 text-left">
-                            <span>The aforesaid charges will be applicable for one or more bounce during the month</span>
+                            <span>Rs. 500/-</span><br>
+                            <span>The aforesaid charges will be applicable for one or more bounce during the month
+                            </span>
                         </p>
                     </td>
                 </tr>
