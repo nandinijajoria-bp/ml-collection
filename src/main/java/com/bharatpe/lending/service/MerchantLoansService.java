@@ -34,6 +34,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -528,8 +529,16 @@ public class MerchantLoansService {
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             if (Objects.nonNull(lendingPaymentSchedule)) {
-                List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
-                        (2D, true, lendingPaymentSchedule.getNbfc());
+                List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves;
+
+                if(Lender.TRILLIONLOANS.toString().equals(lendingPaymentSchedule.getNbfc())){
+                    penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
+                            (1D, true, lendingPaymentSchedule.getNbfc());
+                }
+                else{
+                    penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
+                            (2D, true, lendingPaymentSchedule.getNbfc());
+                }
 
                 List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
 

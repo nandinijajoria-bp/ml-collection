@@ -280,6 +280,8 @@ public class LendingApplicationServiceV2 {
 
     @Value("${penalty.rollout.date.trillion:}")
     String penalDateTrillion;
+    @Value("${penalty.rollout.date.trillionloans:}")
+    String penalDateTrillionloans;
 
     @Lazy
     @Autowired
@@ -2874,6 +2876,7 @@ public class LendingApplicationServiceV2 {
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
             Date penaltyDateLiquiloans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateLiquiloans);
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
             String html = "";
             String filePath = "";
             String language = "";
@@ -2902,7 +2905,7 @@ public class LendingApplicationServiceV2 {
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath = (kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html"  ;
+                filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
             } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + ".html";
             } else if(lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -2925,6 +2928,27 @@ public class LendingApplicationServiceV2 {
             log.error("Exception while generating KFS html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Unable to generate KFS");
         }
+    }
+
+    private String getFilePathTrillionLoans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateTrillionLoans, ApplicationDocType type, boolean foreclousureChargeApplicable, String language) {
+       log.info("Generating KFS/Sanction Letter for Trillionloans for application: {}", lendingApplication);
+        if (ApplicationDocType.KEY_FACTS_STATEMENT_DOC.equals(type)) {
+            log.info("Generating KFS for Trillionloans for application: {}", lendingApplication);
+            log.info("Trillionloans Penalty Release Date: {} and Lending Application Created At: {}", penaltyDateTrillionLoans, lendingApplication.getCreatedAt());
+            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
+                log.info("Generating KFS for Trillionloans for application: {} before Penalty", lendingApplication);
+                return (foreclousureChargeApplicable) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html";
+            }
+            log.info("Generating KFS for Trillionloans for application: {} after Penalty", lendingApplication);
+            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/KFS_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/KFS_TRILLION_PC_PENALTY_v2" + language + ".html";
+
+        } else if (ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.equals(type)) {
+            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
+                return (foreclousureChargeApplicable) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
+            }
+            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_v2" + language + ".html";
+        }
+        return null;
     }
 
     private String getFilePathLiquiloans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateLiquiloans, ApplicationDocType type, boolean foreclousureChargeApplicable) {
@@ -2993,6 +3017,7 @@ public class LendingApplicationServiceV2 {
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
             Date penaltyDateLiquiloans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateLiquiloans);
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             String html = "";
@@ -3025,7 +3050,7 @@ public class LendingApplicationServiceV2 {
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath =(kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
+                filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
             } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT.html";
             } else if (lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -3217,6 +3242,10 @@ public class LendingApplicationServiceV2 {
             dateTime  = dateTimeUtil.getCurrentDate();
         }
         double version = 2;
+
+        if(Lender.TRILLIONLOANS.toString().equals(kfsDto.getLender())){
+            version = 1;
+        }
 
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
