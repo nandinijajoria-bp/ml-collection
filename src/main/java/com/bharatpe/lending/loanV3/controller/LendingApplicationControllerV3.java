@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.ModifyStageService;
+import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AbflDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -115,7 +116,7 @@ public class LendingApplicationControllerV3 {
     @Autowired
     AbflDigiSignService abflDigiSignService;
 
-    @PostMapping
+    @PostMapping("/merge-docs")
     public String mergedKFSAndSanctionLetterUrl(Long applicationId,
                                                 String docKfsName, String docSanctionName) throws DocumentException, IOException {
         log.info("merging ABFL docs for: ",applicationId);
