@@ -21,11 +21,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.Map;
 
-import java.util.Map;
-
-import static jdk.internal.org.jline.utils.Log.info;
 
 @RestController
 @RequestMapping("lending/v3/")
