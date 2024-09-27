@@ -193,16 +193,4 @@ public class NbfcCallbackControllerV3 {
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc callback consumed successfully !"));
     }
 
-
-
-    private static String convertToJson(Object object){
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.writeValueAsString(object);
-        } catch (Exception e){
-            log.info("unable to parse");
-            return null;
-        }
-    }
-
 }
