@@ -166,7 +166,7 @@ public class AbflDigiSignService {
         return false;
     }
 
-    private String mergedKFSAndSanctionLetterUrl(Long applicationId,
+    public String mergedKFSAndSanctionLetterUrl(Long applicationId,
                                             String docKfsName, String docSanctionName) throws IOException, DocumentException {
 
         String mergedFileName = "KFS_SANCTION_AGREEMENT_MERGED_FOR_DIGISIGN_"+ applicationId + ".pdf";
