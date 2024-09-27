@@ -113,8 +113,8 @@ public class LendingApplicationControllerV3 {
     AbflDigiSignService abflDigiSignService;
 
     @PostMapping("/merge-docs")
-    public String mergedKFSAndSanctionLetterUrl(Long applicationId,
-                                                String docKfsName, String docSanctionName) throws DocumentException, IOException {
+    public String mergedKFSAndSanctionLetterUrl(@RequestParam Long applicationId,
+                                                @RequestParam String docKfsName, @RequestParam String docSanctionName) throws DocumentException, IOException {
         log.info("merging ABFL docs for: ",applicationId);
        return abflDigiSignService.mergedKFSAndSanctionLetterUrl(applicationId,docKfsName,docSanctionName);
 
