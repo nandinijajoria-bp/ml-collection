@@ -579,9 +579,9 @@
                             delayed payment </p>
                     </td>
                     <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <div id="hidePenalTable" class="fw400 text-left" style="margin: 6px 16px;">NA
+                        <div class="fw400 text-left" style="display: {{penalty_charges_na_clause_display_prop}}; margin: 6px 16px;">NA
                         </div>
-                        <table id="penalTable" border="1" cellspacing="0" style="display: none; margin: 6px 16px;">
+                        <table border="1" cellspacing="0" style="display: {{penalty_charges_clause_display_prop}}; margin: 6px 16px;">
                             <tbody>
                                 <tr class="width-100">
                                     <td class="width-50 bold" style="padding: 8px;">
@@ -647,9 +647,9 @@
                             applicable </p>
                     </td>
                     <td colspan="5" style="padding: 6px;" class="width-70 word-wrap">
-                        <div id="hideForeclosureTable" class="fw400 text-left" style="margin: 6px 16px;">
+                        <div class="fw400 text-left" style="display: {{foreclosure_charges_na_clause_display_prop}}; margin: 6px 16px;">
                             NA</div>
-                        <table id="foreclosureTable" border="1" cellspacing="0" class="width-100" style="display: none;">
+                        <table border="1" cellspacing="0" class="width-100" style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
                                     <td class="width-33 bold text-center" style="padding: 8px;">
@@ -1450,9 +1450,9 @@
                             delayed payment </p>
                     </td>
                     <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <div id="hidePenalTable" class="fw400 text-left" style="margin: 6px 16px;">NA
+                        <div class="fw400 text-left" style="display: {{penalty_charges_na_clause_display_prop}}; margin: 6px 16px;">NA
                         </div>
-                        <table id="penalTable" border="1" cellspacing="0" style="display: none; margin: 6px 16px;">
+                        <table border="1" cellspacing="0" style="display: {{penalty_charges_clause_display_prop}}; margin: 6px 16px;">
                             <tbody>
                                 <tr class="width-100">
                                     <td class="width-50 bold" style="padding: 8px;">
@@ -1518,9 +1518,9 @@
                             applicable </p>
                     </td>
                     <td colspan="6" style="padding: 6px;" class="width-70 word-wrap">
-                        <div id="hideForeclosureTable" class="fw400 text-left" style="margin: 6px 16px;">
+                        <div id="hideForeclosureTable" class="fw400 text-left" style="display: {{foreclosure_charges_na_clause_display_prop}}; margin: 6px 16px;">
                             NA</div>
-                        <table id="foreclosureTable" border="1" cellspacing="0" class="width-100" style="display: none;">
+                        <table id="foreclosureTable" border="1" cellspacing="0" class="width-100" style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
                                     <td class="width-33 bold text-center" style="padding: 8px;">
@@ -2813,18 +2813,4 @@
     </div>
 
 </body>
-
-<script>
-    if (penalty_charges_clause_display_prop) {
-        document.getElementById('penalTable').style.display = 'block';
-        document.getElementById('hidePenalTable').style.display = 'none';
-    }
-
-
-    if (foreclosure_charges_clause_display_prop) {
-        document.getElementById('foreclosureTable').style.display = 'block';
-        document.getElementById('hideForeclosureTable').style.display = 'none';
-    }
-</script>
-
 </html>
