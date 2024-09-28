@@ -2476,6 +2476,8 @@ public class LendingApplicationServiceV2 {
 
             Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (lendingApplication.getLoanAmount()) * 100));
 
+            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (lendingApplication.getLoanAmount() * processingFeePercentageWithoutGst) / 100D ));
+
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
             }
@@ -2497,6 +2499,7 @@ public class LendingApplicationServiceV2 {
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
                     .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
@@ -3257,6 +3260,7 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
         data.put("processing_percentage", kfsDto.getProcessingFeePercentage());
         data.put("processing_percentage_without_gst", kfsDto.getProcessingFeePercentageWithoutGst());
+        data.put("processing_fee_without_gst", kfsDto.getProcessingFeeWithoutGst());
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
@@ -3464,7 +3468,7 @@ public class LendingApplicationServiceV2 {
         }
         else if(lender.equalsIgnoreCase(Lender.PIRAMAL.toString()) && applicationDocType.equals(ApplicationDocType.PIRAMAL_LETTERHEAD_FOOTER)){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_letter_footer.jpg";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_footer.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/piramal_footer-1727528554654.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.WELCOME_LETTER_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-welcome.png";
