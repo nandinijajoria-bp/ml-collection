@@ -12,8 +12,7 @@ public enum DocumentLanguageMap {
     MALAYALAM(Collections.singletonList("KERALA")),
     TAMIL(Collections.singletonList("TAMIL NADU")),
     HINDI(Collections.singletonList("")),
-    TELUGU(Arrays.asList("TELANGANA","ANDHRA PRADESH")),
-    ENGLISH(Collections.singletonList(""));
+    TELUGU(Arrays.asList("TELANGANA","ANDHRA PRADESH"));
 
     private final List<String> languageMap;
 
@@ -31,6 +30,6 @@ public enum DocumentLanguageMap {
                 return stateName;
             }
         }
-        return ENGLISH;
+        return HINDI;
     }
 }
