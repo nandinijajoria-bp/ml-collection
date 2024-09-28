@@ -3448,10 +3448,23 @@ public class LendingApplicationServiceV2 {
                 log.error("LendingApplication is not present for applicationId : {}", kfsDto.getApplicationId());
                 throw new RuntimeException();
             }
-
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
-            data.put("penalty_charges_clause_display_prop", !lendingApplication.get().getCreatedAt().before(penaltyDate));
-            data.put("foreclosure_charges_clause_display_prop", kfsDto.isForeclosureChargesRequired());
+
+            if (lendingApplication.get().getCreatedAt().before(penaltyDate)) {
+                data.put("penalty_charges_clause_display_prop", "none");
+                data.put("penalty_charges_na_clause_display_prop", "block");
+            } else {
+                data.put("penalty_charges_clause_display_prop", "block");
+                data.put("penalty_charges_na_clause_display_prop", "none");
+            }
+
+            if (kfsDto.isForeclosureChargesRequired()) {
+                data.put("foreclosure_charges_clause_display_prop", "block");
+                data.put("foreclosure_charges_na_clause_display_prop", "none");
+            } else {
+                data.put("foreclosure_charges_clause_display_prop", "none");
+                data.put("foreclosure_charges_na_clause_display_prop", "block");
+            }
         }
 
         data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
