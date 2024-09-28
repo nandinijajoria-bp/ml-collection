@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .width-6 {
+            width: 6%;
+        }
+
+        .width-24 {
+            width: 24%;
+        }
+
+        .width-33 {
+            width: 33%;
+        }
+
+        .width-50 {
+            width: 50%;
+        }
+
+        .width-70 {
+            width: 70%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mb30 {
+            margin-bottom: 20px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .mr10 {
+            margin-right: 10px;
+        }
+
+        .ml10 {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="padding: 20px 30px; margin-top: 50px">
+        <div style="display: flex; justify-content: center;" class="width-100">
+            {{lender_logo}}
+        </div>
+        <h2 class="text-center">
+            <span class="underline">KEY FACT SHEET/STATEMENT</span>
+        </h2>
+        <p class="fw400 mb30"> This Key Fact Sheet <span class="bold">(“KFS”)</span> is applicable
+            on the term loan facility applied by the Borrower through the Digital Lending Application: </p>
+
+        <div class="text-left bold mb10">Date: {{date}}</div>
+        <div class="text-left width-auto mb10" style="display: flex;">
+            <div class="bold" style="width: 30%;">Lender’s Name: </div>
+            <div class="width-auto">Trillionloans Fintech Private Limited
+                7th Floor, Unit No. B2, 705, in Building Kanakia Boomerang situated at Yadav Nagar,
+                Chandivali, Powai, Mumbai - 400072, Maharashtra
+            </div>
+        </div>
+        <div class="text-left bold mb10">Applicant Name: {{borrower_name}}</div>
+        <div class="text-left bold mb40">PAN Number: {{pan_of_borrower}}</div>
+
+        <div class="mb20 bold text-center underline">Part 1 (Interest rate and fees/charges)</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">Sr. No.</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold"> Parameter </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Details</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">1</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold"> Loan Proposal/Account No. </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{loan_id}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">2</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Type of Loan</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Personal Loan
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">3</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Sanctioned Loan Amount (in Rupees)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{loan_amount_in_figure}}/- (Rupees
+                            {{loan_amount_in_words}} Only)</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">4</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Disbursement Schedule</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">100 % upfront subject to deduction of
+                            fees/charges in
+                            Sr. No. 10 of Part 1- KFS</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            *In case of top up-loan, the Parent Loan Amount will
+                            be closed. From the Sanctioned Loan Amount, an
+                            amount equivalent to Parent Loan Outstanding will be
+                            disbursed towards closure of the Parent Loan
+                            Amount. The amount utilized towards closure of
+                            Parent Loan shall be treated as disbursal to the
+                            Borrower.
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">5</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Loan term/Tenure</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">(years/months/days)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 10px 16px;" class="fw400 text-left">
+                            {{tenure_of_loan_in_months}} months
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">6</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">Instalment Details (For details, please refer to
+                            detailed Repayment Schedule)</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6"></td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;">Type of Instalment</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;">No. of Instalment</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;">Instalment Amount (Rs)*</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;">Commencement of repayment, post sanction</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center"></td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Equal daily
+                            instalment</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{edi_amount}}</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">*The instalment has
+                            been rounded off to
+                            nearest rupee value.
+                            Excess money (if
+                            collected) will be
+                            adjusted with last
+                            instalment or refunded to
+                            the Borrower (as per
+                            Lender’s discretion)</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Immediately next day from
+                            the disbursement date</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td rowspan="3" class="bold text-center width-6">7</td>
+                    <td colspan="8" rowspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left">In case of Top Up Loan:</p>
+
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            In case of top up-loan, the Parent Loan
+                            Account will be closed.
+                            From the Sanctioned Loan Amount, an amount equivalent to Parent Loan Outstanding will be
+                            disbursed towards closure of the Parent Loan Account. The amount utilized towards closure of
+                            Parent Loan Account shall be treated as disbursal to the Borrower.
+                        </p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Parent Loan Account</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Parent LAN No.</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Parent Loan Outstanding</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">8</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Rate of Interest (%) and type</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">(fixed/floating/hybrid)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} % per annum</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">Type - Fixed
+                        </p>
+                    </td>
+                </tr>
+                <!-- <tr class="width-100">
+                    <td class="bold text-center width-6">9</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">Additional Information in case of Floating rate of interest</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="text-left bold">Reference
+                            Benchmark</p>
+                    </td>
+                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Benchmark
+                            rate (%) (B)</p>
+                    </td>
+                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Spread (%)
+                            (S)</p>
+                    </td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Final
+                            rate
+                            (%)
+                            R =
+                            (B)
+                            + (S)</p>
+                    </td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Reset
+                            Periodicity(Months)</p>
+                    </td>
+                    <td colspan="3" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Impact of change in the
+                            reference benchmark
+                            (for 25 bps change in
+                            ‘R’, change in:3)</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24"></td>
+
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">B</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">S</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">EPI</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">No. of EPI</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">NA</td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">NA</td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">NA</td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">NA</td>
+
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr> -->
+
+                <tr class="width-100">
+                    <td class="bold text-center width-6">9</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Repayment Mode </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Deduction of Instalment Amount or any other dues as
+                            per the Loan Documents from the daily Settlement
+                            Amount** as per the instructions of the Borrower to
+                            Resilient Innovations Private Limited (offline payment
+                            aggregator of the Borrower) (“<span class="bold">Offline
+                                PA</span>”).
+                        </p>
+                        <p style="margin: 10px 16px;" class="fw400 text-center">AND/OR</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">Deduction of the Instalment Amount or any
+                            dues as per
+                            the Loan Documents through E-Mandate such as UPI
+                            Autopay/NACH or such other electronic mode from the
+                            Borrower’s bank account</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">The Lender reserves right to give
+                            appropriate
+                            instruction for deduction of Instalment Amount and
+                            other dues as per the Loan Documents from any of the
+                            modes or through a combination of the modes specified
+                            above.</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">*Borrower hereby expressly,
+                            unconditionally and
+                            irrevocably authorizes the Offline PA to make such
+                            deduction of Instalment Amount and other dues as per
+                            the Loan Documents & make payment
+                            directly to the Lender.</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">**Settlement Amount shall have the meaning
+                            defined
+                            under the Sanction Letter and Loan Agreement.</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">10</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">Fees / Charges </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6"></td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            Charges
+                        </p>
+                    </td>
+                    <td colspan="6" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Payable to the Lender (A)</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Payable to a third party through Lender (B)
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6"></td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Onetime/Recurring</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Amount (Rs) or percentage % (as applicable)
+                        </p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Onetime/Recurring</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Amount (Rs) or percentage % (as applicable)
+                        </p>
+                    </td>
+                </tr>
+
+
+                <tr class="width-100">
+                    <td class="text-center width-6">(i)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Processing Fees</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">One time*</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">The Processing Fees
+                            is a one-time fee and
+                            shall be deducted
+                            from disbursement
+                            amount.</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            * In the event that the
+                            loan is foreclosed by
+                            the Borrower during
+                            the Cooling Off
+                            Period, 3 of the
+                            Processing Fees shall
+                            be refunded back to
+                            the Borrower
+                        </p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_without_gst}} + GST =
+                            {{processing_fee_includes_tax}}</p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(ii)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Insurance</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Charges/premium</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iii)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Valuation fees</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iv)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Any other charges (if any)</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">11</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Annual Percentage Rate </p>
+                    </td>
+                    <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left">{{apr}} % p.a.</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">12</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">Details of Contingent Charges (in Rupees or %, as applicable)</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">(i)</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">Penal charges, if any, in case of
+                            delayed payment </p>
+                    </td>
+                    <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <div id="hidePenalTable" class="fw400 text-left" style="margin: 6px 16px;">NA</div>
+                        <table id="penalTable" border="1" cellspacing="0" style="display: none; margin: 6px 16px;">
+                            <tbody>
+                                <tr class="width-100">
+                                    <td class="width-50 bold" style="padding: 8px;">
+                                        Outstanding Amount
+                                    </td>
+                                    <td class="width-50 bold" style="padding: 8px;">
+                                        Penal Charges (In Rs.)
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">
+                                        Upto Rs. {{outstanding_amount_1}}
+                                    </td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_1}}</td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">Rs. {{outstanding_amount_min_2}} -
+                                        {{outstanding_amount_max_2}}</td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_2}}</td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">Rs. {{outstanding_amount_min_3}} -
+                                        {{outstanding_amount_max_3}}</td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_3}}</td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">Rs. {{outstanding_amount_min_4}} -
+                                        {{outstanding_amount_max_4}}</td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_4}}</td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">Rs. {{outstanding_amount_min_5}} -
+                                        {{outstanding_amount_max_5}}</td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_5}}</td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">Rs. {{outstanding_amount_min_6}} -
+                                        {{outstanding_amount_max_6}}</td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_6}}</td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td class="width-50 bold" style="padding: 8px;">Rs. {{outstanding_amount_min_7}} -
+                                        {{outstanding_amount_max_7}}</td>
+                                    <td class="width-50 bold" style="padding: 8px;">{{penal_charges_7}}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(ii)</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Other penal charges, if any </p>
+                    </td>
+                    <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iii)</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Foreclosure/Prepayment charges, if
+                            applicable </p>
+                    </td>
+                    <td colspan="5" style="padding: 6px;" class="width-70 word-wrap">
+                        <div id="hideForeclosureTable" class="fw400 text-left" style="margin: 6px 16px;">NA</div>
+                        <table id="foreclosureTable" border="1" cellspacing="0" class="width-100" style="display: none;">
+                            <tbody>
+                                <tr class="width-100">
+                                    <td class="width-33 bold text-center" style="padding: 8px;">
+                                        Tenure (Months)
+                                    </td>
+                                    <td class="width-33 bold" style="padding: 8px;">
+                                        Closure in (Months)
+                                    </td>
+                                    <td class="width-33 bold" style="padding: 8px;">Rate on Principle Outstanding at the time of Foreclosure</td>
+                                </tr>
+
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_1}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_1}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_2}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_2}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_2}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_3}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_3}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_3}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_4}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_4}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_4}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_5}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_5}} to {{closure_max_5}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_5}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_6}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_6}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_6}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_7}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_7}} to {{closure_max_7}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_7}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_8}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_8}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_8}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_9}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_9}} to {{closure_max_9}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_9}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_10}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Before {{closure_max_10}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_10}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr class="width-100 ">
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_11}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-33">
+                                        <p class="fw-bold text-center m6">
+                                            Between {{closure_min_11}} to {{closure_max_11}}
+                                        </p>
+                                    </td>
+                                    <td style="padding: 0px 5px" class="width-auto">
+                                        <p class="fw-bold text-center m6">
+                                            {{rate_of_principle_11}}%
+                                        </p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td class="text-center width-6">(iv)</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Part-Payment Charges </p>
+                    </td>
+                    <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class=" text-center width-6">(v)</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left ">E-Mandate (such as NACH/UPI
+                            Autopay/Mandate bounce charges </p>
+                    </td>
+                    <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(vi)</td>
+                    <td colspan="7" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Any other charges (please specify)</p>
+                    </td>
+                    <td colspan="5" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="mb20 bold text-center underline">PART 2- (Other qualitative information)</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+                <tr class="width-100">
+                    <td class="text-center width-6">1</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Validity Period </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">3 days from the date of this Key Fact
+                            Statement
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">2</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Clause of the Loan agreement relating to
+                            engagement of recovery agents</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Clause <span class="bold">2.11</span> of
+                            the Loan Agreement
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">3</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Clause of the Loan agreement which details
+                            grievance redressal mechanism</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Clause <span class="bold">2.12</span> of
+                            the Loan Agreement</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">4</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Phone No. & Email Id of the nodal grievance
+                            redressal officer </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">For Lender</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Name & Designation of the Nodal Officer-
+                            Hardik Nandani, Head-Operations</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">E-mail: nodalofficer@trillionloans.com</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Phone No- +91-8851682895 from 09:30 am to
+                            7:00 pm on all working days (Mon to Fri)
+                        </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Address- 7th Floor, Unit No. B2, 705, in
+                            Building - Kanakia Boomerang, situated at Yadav Nagar, Chandivali, Powai, Mumbai -400072,
+                            Maharashtra</p>
+
+
+                        <p style="margin: 20px 16px 6px 16px" class="fw400 text-left bold">For LSP</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Name: Ankit Parnami</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Email- nodalofficer@bharatpe.com </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Contact number: +91 7289000552</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Working Hours: Monday to Friday from 10:00
+                            a.m. to 7:00 pm</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Website: <a href="bharatpemoney.com"
+                                target="_blank">bharatpemoney.com </a></p>
+                        <p style="margin: 16px;" class="fw400 text-left">If compliant remains unresolved for 30
+                            days, the Borrower may escalate to RBI Complaints portal at <a
+                                href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a> </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">5</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Whether the loan in future may be, subject
+                            to transfer to other regulated entity or securitization </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Yes</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">6</td>
+                    <td colspan="2" class="text-center">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">In case of digital loan, following specific
+                            disclosures may be furnished</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(i)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Cooling off/look-up period (as per the
+                            board approved policy of the Lender) during which borrower shall not be charged any penalty
+                            on foreclosure/prepayment of the loan </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">3 days from the disbursal of the Loan
+                        </p>
+                        <p style="margin: 16px 16px 6px;" class="fw400 text-left">*Please note proportionate interest &
+                            other charges (other than pre-payment/foreclosure charges) will be levied during the Cooling
+                            Off period.</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td class="text-center width-6">(ii)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Lending Service Provider </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Resilient Digi Services Private Limited</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iii)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Digital Lending Application </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Mobile application “<span
+                                class="bold">BharatPe for Business</span>”</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iv)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Details of LSP acting as recovery agent
+                            and authorized to approach the borrower </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Resilient Digi Services Private Limited
+                        </p>
+                        <br>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">*Please note that Recovery Agent has been
+                            authorized by the Lender to contact for default in repayments. Kindly make payment on or
+                            before Due Date
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">7</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Recovery Mechanism</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">In case of non-payment of the loan amount,
+                            interest, and other charges as per the terms of the loan documents, the Lender or its
+                            authorized service provider(s) or recovery agent may approach the Borrower, co borrower, and
+                            guarantor (as the case may be) for the payment of the outstanding amount, by way of call(s),
+                            SMS(s), email(s), WhatsApp or similar electronic communication modes and/or in person
+                            visit(s). Notwithstanding anything mentioned hereinabove, in the event of non-receipt of the
+                            loan amount and other charges, the Lender may resort to legal recourse.</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin: 6px 16px" class="fw400 mb20"> *For more detailed information, please refer to the Sanction
+            Letter & Loan Agreement for the loan facility. This Key Fact Statement needs to be read along with the
+            Sanction Letter & Loan Agreement.</p>
+        <br />
+        <br />
+        <br />
+        <div class="mb20 bold text-center underline">Computation of Annualized Percentage Rate</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+                <tr class="width-100">
+                    <td class="text-center bold width-6">Sr. No.</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left"> Parameter </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left">Details</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">1</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Sanctioned Loan amount (in Rupees) (Sr no.
+                            3 of the KFS template – Part 1)</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">2</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Loan Term (in years/ months/ days) (Sr
+                            No.5 of the KFS template – Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{tenure_of_loan_in_months}} months</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">a)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> No. of instalments for payment of
+                            principal, in case of non- equated periodic loans </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">-</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td rowspan="3" class="text-center width-6">b)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Type of EPI </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Daily</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Amount of each EPI (in Rupees) and </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{edi_amount}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> nos. of EPIs (e.g., no. of EMIs in case of
+                            monthly instalments) (Sr No. 6 of the KFS template – Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">c)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">No. of instalments for payment of
+                            capitalised interest, if any </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">d)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Commencement of repayments, post sanction
+                            (Sr No. 6 of the KFS template – Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">1 days</p>
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">3</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Interest rate type (fixed or floating or
+                            hybrid) (Sr No. 7 of the KFS template – Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Fixed</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">4</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Rate of Interest (Sr No. 7 of the KFS
+                            template – Part 1)</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} %</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">5</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Total Interest Amount to be charged during
+                            the entire tenor of the loan as per the rate prevailing on sanction date (in Rupees) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">6</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Fee/ Charges payable (in Rupees) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">A</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Payable to the RE (Sr No.8A of the KFS
+                            template-Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">B</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Payable to third-party routed through RE
+                            (Sr No.8B of the KFS template – Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> NA </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">7</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Net disbursed amount (1-6) (in Rupees) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_disbursed}} </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">8</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Total amount to be paid by the borrower
+                            (sum of 1 and 5) (in Rupees) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹
+                            {{total_amount_including_interest_paid_by_borrower_entire_tenure}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">9</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Annual Percentage rate- Effective
+                            annualized interest rate (in percentage)10 (Sr No.10 of the KFS template-Part 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{apr}} %</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">10</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Schedule of disbursement as per terms and
+                            conditions </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Detailed schedule to be provided</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">11</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> Due date of payment of instalment and
+                            interest </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">1st edi date</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin: 6px 16px" class="fw400 mb20">*In case of top up-loan, the Parent Loan Amount will be closed.
+            From the Sanctioned Loan Amount, an amount equivalent to Parent Loan Outstanding will be disbursed towards
+            closure of the Parent Loan Amount. The amount utilized towards closure of Parent Loan shall be treated as
+            disbursal to the Borrower. </p>
+
+        <br />
+        <br />
+        <div style="page-break-inside: avoid !important">
+            <h3 class="text-center">
+                <span class="underline bold">Detailed Repayment Schedule</span>
+            </h3>
+            <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
+                <tbody>
+                    <tr class="width-100">
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>Instalment No.</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>Outstanding Principal (in INR)</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>Principal (in INR)</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>Interest (in INR)</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>Instalment (in INR)</strong>
+                            </p>
+                        </td>
+                    </tr>
+                    {{repayment_schedule}}
+                </tbody>
+            </table>
+        </div>
+        <br />
+        <br />
+        <br />
+
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+            style="page-break-inside: avoid !important">
+            <tbody>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left"> Borrower Name </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{borrower_name}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left"> Mobile No. for OTP </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{mobile_number_for_otp}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            BharatPe for Business
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{ip_address}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{time_stamp}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">Loan ID</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{loan_id}}
+                        </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+
+<script>
+    if (penalty_charges_clause_display_prop) {
+        document.getElementById('penalTable').style.display = 'block';
+        document.getElementById('hidePenalTable').style.display = 'none';
+    }
+
+    if (foreclosure_charges_clause_display_prop) {
+        document.getElementById('foreclosureTable').style.display = 'block';
+        document.getElementById('hideForeclosureTable').style.display = 'none';
+    }
+</script>
+
+</html>

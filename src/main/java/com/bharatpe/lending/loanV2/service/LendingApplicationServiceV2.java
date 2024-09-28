@@ -2480,6 +2480,7 @@ public class LendingApplicationServiceV2 {
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
             }
 
+            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (lendingApplication.getLoanAmount() * processingFeePercentageWithoutGst) / 100D));
 
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -2497,6 +2498,7 @@ public class LendingApplicationServiceV2 {
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
                     .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
@@ -2931,10 +2933,16 @@ public class LendingApplicationServiceV2 {
     }
 
     private String getFilePathTrillionLoans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateTrillionLoans, ApplicationDocType type, boolean foreclousureChargeApplicable, String language) {
-       log.info("Generating KFS/Sanction Letter for Trillionloans for application: {}", lendingApplication);
+       log.info("Generating KFS/Sanction Letter for Trillionloans for application: {}, language: {}", lendingApplication, language);
         if (ApplicationDocType.KEY_FACTS_STATEMENT_DOC.equals(type)) {
             log.info("Generating KFS for Trillionloans for application: {}", lendingApplication);
             log.info("Trillionloans Penalty Release Date: {} and Lending Application Created At: {}", penaltyDateTrillionLoans, lendingApplication.getCreatedAt());
+
+            // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
+            if (ObjectUtils.isEmpty(language)) {
+                return "/templates/TRILLIONLOANS_NEW/KFS_TRILLION_PC_v2.html";
+            }
+
             if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
                 log.info("Generating KFS for Trillionloans for application: {} before Penalty", lendingApplication);
                 return (foreclousureChargeApplicable) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html";
@@ -2943,6 +2951,12 @@ public class LendingApplicationServiceV2 {
             return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/KFS_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/KFS_TRILLION_PC_PENALTY_v2" + language + ".html";
 
         } else if (ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.equals(type)) {
+
+            // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
+            if (ObjectUtils.isEmpty(language)) {
+                return "/templates/TRILLIONLOANS_NEW/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+            }
+
             if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
                 return (foreclousureChargeApplicable) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
             }
@@ -3257,6 +3271,7 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
         data.put("processing_percentage", kfsDto.getProcessingFeePercentage());
         data.put("processing_percentage_without_gst", kfsDto.getProcessingFeePercentageWithoutGst());
+        data.put("processing_fee_without_gst", kfsDto.getProcessingFeeWithoutGst());
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
@@ -3424,6 +3439,19 @@ public class LendingApplicationServiceV2 {
                 data.put("foreclosure_amount_display_prop", "none");
                 data.put("topup_loan_clause_display_prop", "none");
             }
+        }
+
+        if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender())) {
+
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(kfsDto.getApplicationId());
+            if (!lendingApplication.isPresent()) {
+                log.error("LendingApplication is not present for applicationId : {}", kfsDto.getApplicationId());
+                throw new RuntimeException();
+            }
+
+            Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
+            data.put("penalty_charges_clause_display_prop", !lendingApplication.get().getCreatedAt().before(penaltyDate));
+            data.put("foreclosure_charges_clause_display_prop", kfsDto.isForeclosureChargesRequired());
         }
 
         data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
