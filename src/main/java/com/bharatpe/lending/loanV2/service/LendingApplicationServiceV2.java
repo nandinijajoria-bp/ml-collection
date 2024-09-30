@@ -2482,7 +2482,6 @@ public class LendingApplicationServiceV2 {
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
             }
 
-
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2934,10 +2933,16 @@ public class LendingApplicationServiceV2 {
     }
 
     private String getFilePathTrillionLoans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateTrillionLoans, ApplicationDocType type, boolean foreclousureChargeApplicable, String language) {
-       log.info("Generating KFS/Sanction Letter for Trillionloans for application: {}", lendingApplication);
+       log.info("Generating KFS/Sanction Letter for Trillionloans for application: {}, language: {}", lendingApplication, language);
         if (ApplicationDocType.KEY_FACTS_STATEMENT_DOC.equals(type)) {
             log.info("Generating KFS for Trillionloans for application: {}", lendingApplication);
             log.info("Trillionloans Penalty Release Date: {} and Lending Application Created At: {}", penaltyDateTrillionLoans, lendingApplication.getCreatedAt());
+
+            // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
+            if (ObjectUtils.isEmpty(language)) {
+                return "/templates/TRILLIONLOANS_NEW/KFS_TRILLION_PC_v2.html";
+            }
+
             if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
                 log.info("Generating KFS for Trillionloans for application: {} before Penalty", lendingApplication);
                 return (foreclousureChargeApplicable) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html";
@@ -2946,6 +2951,12 @@ public class LendingApplicationServiceV2 {
             return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/KFS_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/KFS_TRILLION_PC_PENALTY_v2" + language + ".html";
 
         } else if (ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.equals(type)) {
+
+            // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
+            if (ObjectUtils.isEmpty(language)) {
+                return "/templates/TRILLIONLOANS_NEW/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+            }
+
             if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
                 return (foreclousureChargeApplicable) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
             }
@@ -3427,6 +3438,31 @@ public class LendingApplicationServiceV2 {
             } else{
                 data.put("foreclosure_amount_display_prop", "none");
                 data.put("topup_loan_clause_display_prop", "none");
+            }
+        }
+
+        if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender())) {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(kfsDto.getApplicationId());
+            if (!lendingApplication.isPresent()) {
+                log.error("LendingApplication is not present for applicationId : {}", kfsDto.getApplicationId());
+                throw new RuntimeException();
+            }
+
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
+            if (lendingApplication.get().getCreatedAt().before(penaltyDateTrillionLoans)) {
+                data.put("penalty_charges_clause_display_prop", "none");
+                data.put("penalty_charges_na_clause_display_prop", "block");
+            } else {
+                data.put("penalty_charges_clause_display_prop", "block");
+                data.put("penalty_charges_na_clause_display_prop", "none");
+            }
+
+            if (kfsDto.isForeclosureChargesRequired()) {
+                data.put("foreclosure_charges_clause_display_prop", "block");
+                data.put("foreclosure_charges_na_clause_display_prop", "none");
+            } else {
+                data.put("foreclosure_charges_clause_display_prop", "none");
+                data.put("foreclosure_charges_na_clause_display_prop", "block");
             }
         }
 
