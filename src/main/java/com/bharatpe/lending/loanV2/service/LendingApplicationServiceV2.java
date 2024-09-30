@@ -3441,16 +3441,15 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender())) {
-
+        if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender())) {
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(kfsDto.getApplicationId());
             if (!lendingApplication.isPresent()) {
                 log.error("LendingApplication is not present for applicationId : {}", kfsDto.getApplicationId());
                 throw new RuntimeException();
             }
-            Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
 
-            if (lendingApplication.get().getCreatedAt().before(penaltyDate)) {
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
+            if (lendingApplication.get().getCreatedAt().before(penaltyDateTrillionLoans)) {
                 data.put("penalty_charges_clause_display_prop", "none");
                 data.put("penalty_charges_na_clause_display_prop", "block");
             } else {
