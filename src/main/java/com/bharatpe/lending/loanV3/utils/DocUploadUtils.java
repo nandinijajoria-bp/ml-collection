@@ -102,10 +102,13 @@ public class DocUploadUtils {
             log.info("saving signed docs for applicationId : {} signedKFSUrl: {} signedSanctionUrl: {}", applicationId,signedKFSUrl,signedSanctionUrl);
 
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+
+            log.info("lendingKfs: {}",lendingKfs);
+
             if (ObjectUtils.isEmpty(lendingKfs)) {
                 throw new Exception("Unable to retrieve LendingKFS details for applicationId : " + applicationId);
             }
-
+            log.info("lendingKfs is non empty");
             if (!ObjectUtils.isEmpty(signedSanctionUrl)) {
                 String sanctionLoanAgreementFileName = ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
                 InputStream inputStream = URI.create(signedSanctionUrl).toURL().openConnection().getInputStream();
