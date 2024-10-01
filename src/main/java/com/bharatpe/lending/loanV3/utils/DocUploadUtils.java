@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import javax.net.ssl.HttpsURLConnection;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -111,7 +112,14 @@ public class DocUploadUtils {
             log.info("lendingKfs is non empty");
             if (!ObjectUtils.isEmpty(signedSanctionUrl)) {
                 String sanctionLoanAgreementFileName = ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId;
-                InputStream inputStream = URI.create(signedSanctionUrl).toURL().openConnection().getInputStream();
+
+                URL url = new URL(signedSanctionUrl);
+                HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+                connection.setConnectTimeout(20000); // 10 seconds
+                connection.setReadTimeout(30000);    // 20 seconds
+                InputStream inputStream = connection.getInputStream();
+
+              //  InputStream inputStream = URI.create(signedSanctionUrl).toURL().openConnection().getInputStream();
                 log.info("inputStream: {}",inputStream);
                 s3BucketHandler.uploadToS3PdfBucket(inputStream, sanctionLoanAgreementFileName, bucket);
                 String sanctionUrl = s3BucketHandler.getPreSignedPublicURL(sanctionLoanAgreementFileName, bucket);
@@ -131,7 +139,14 @@ public class DocUploadUtils {
 
             if (!ObjectUtils.isEmpty(signedKFSUrl)) {
                 String kfsLetterFileName = ESIGNED_KFS_S3_KEY_PREFIX + applicationId;
-                InputStream inputStream = URI.create(signedKFSUrl).toURL().openConnection().getInputStream();
+
+                URL url = new URL(signedSanctionUrl);
+                HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+                connection.setConnectTimeout(20000); // 10 seconds
+                connection.setReadTimeout(30000);    // 20 seconds
+                InputStream inputStream = connection.getInputStream();
+
+                //InputStream inputStream = URI.create(signedKFSUrl).toURL().openConnection().getInputStream();
                 log.info("inputStream: {}",inputStream);
                 s3BucketHandler.uploadToS3PdfBucket(inputStream, kfsLetterFileName, bucket);
                 String kfsUrl = s3BucketHandler.getPreSignedPublicURL(kfsLetterFileName, bucket);
