@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -117,6 +118,8 @@ public class DocUploadUtils {
                 HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
                 connection.setConnectTimeout(20000); // 10 seconds
                 connection.setReadTimeout(30000);    // 20 seconds
+                connection.setSSLSocketFactory(SSLContext.getInstance("TLSv1.2").getSocketFactory());
+                connection.setHostnameVerifier((hostname, session) -> true);
                 InputStream inputStream = connection.getInputStream();
 
               //  InputStream inputStream = URI.create(signedSanctionUrl).toURL().openConnection().getInputStream();
@@ -140,10 +143,11 @@ public class DocUploadUtils {
             if (!ObjectUtils.isEmpty(signedKFSUrl)) {
                 String kfsLetterFileName = ESIGNED_KFS_S3_KEY_PREFIX + applicationId;
 
-                URL url = new URL(signedSanctionUrl);
+                URL url = new URL(signedKFSUrl);
                 HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
                 connection.setConnectTimeout(20000); // 10 seconds
                 connection.setReadTimeout(30000);    // 20 seconds
+                connection.setHostnameVerifier((hostname, session) -> true);
                 InputStream inputStream = connection.getInputStream();
 
                 //InputStream inputStream = URI.create(signedKFSUrl).toURL().openConnection().getInputStream();
