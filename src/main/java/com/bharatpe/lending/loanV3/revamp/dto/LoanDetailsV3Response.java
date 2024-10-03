@@ -6,6 +6,7 @@ import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -89,6 +90,7 @@ public class LoanDetailsV3Response {
     private Boolean lenderKycPipe;
     private String fullName;
     private String dob;
+    private Long refreshCountDownMinutes;
 
     @Data
     @ToString
@@ -316,6 +318,9 @@ public class LoanDetailsV3Response {
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO.getRefreshCountDownMinutes())){
+            loanDetailsV3Response.setRefreshCountDownMinutes(eligibilityStateDTO.getRefreshCountDownMinutes());
+        }
     }
 
     private static void setPanPinResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -331,6 +336,9 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
+        }
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO.getRefreshCountDownMinutes())){
+            loanDetailsV3Response.setRefreshCountDownMinutes(eligibilityStateDTO.getRefreshCountDownMinutes());
         }
     }
 

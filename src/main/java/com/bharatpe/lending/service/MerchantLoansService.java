@@ -1069,6 +1069,12 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
+                BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
+                if (maxDpd.intValue() > 30) {
+                    logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
                 double paidRatio = 0d;
                 if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
