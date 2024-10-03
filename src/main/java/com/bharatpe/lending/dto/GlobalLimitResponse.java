@@ -47,6 +47,7 @@ public class GlobalLimitResponse {
         private Boolean preApprovedLoan;
         private Double previousFinalOffer;
         private String offerIncreased;
+        private Long refreshCountDownMinutes;
 
     }
 

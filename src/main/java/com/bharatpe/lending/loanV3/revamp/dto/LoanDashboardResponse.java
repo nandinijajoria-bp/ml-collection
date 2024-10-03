@@ -47,6 +47,7 @@ public class LoanDashboardResponse {
     private Boolean eligibilityExceptionFlag;
     private Double previousFinalOffer;
     private String offerIncreased;
+    private Long refreshCountDownMinutes;
 
 }
 

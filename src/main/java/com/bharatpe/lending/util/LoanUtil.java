@@ -2342,6 +2342,13 @@ public class LoanUtil {
 		return false;
 	}
 
+	public Long getRefreshCountDownMinutes(GlobalLimitResponse globalLimitResponse){
+		return (!ObjectUtils.isEmpty(globalLimitResponse)
+				&& !ObjectUtils.isEmpty(globalLimitResponse.getData())
+				&& !ObjectUtils.isEmpty(globalLimitResponse.getData().getRefreshCountDownMinutes()))
+				? globalLimitResponse.getData().getRefreshCountDownMinutes() : null;
+	}
+
 	private List<String> getExcludedErrorCode() {
 		List<String> excludedCodes = new ArrayList<>();
 		if (StringUtils.hasLength(excludedErrorCodes)) {

@@ -1764,6 +1764,7 @@ public class APIGatewayService {
                 globalLimitResponse.setSuccess(scenapticResponseDTO.getSuccess());
                 globalLimitResponse.setMessage(scenapticResponseDTO.getMessage());
                 globalLimitResponse.setErrorCode(scenapticResponseDTO.getErrorCode());
+                globalLimitResponse.setData(scenapticResponseDTO.getData());
                 return globalLimitResponse;
             } catch (IOException | IllegalArgumentException e) {
                 logger.error("Exception in parsing responseBody string : {} {} ", e.getMessage(), e);
