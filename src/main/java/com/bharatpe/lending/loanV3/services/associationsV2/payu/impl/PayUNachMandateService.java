@@ -103,7 +103,7 @@ public class PayUNachMandateService {
                 }
            }
 
-            if (!Arrays.asList(LenderAssociationStatus.BANK_UPDATION_SUCCESS.name(), LenderAssociationStatus.NACH_MANDATE_FAILED.name()).contains(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus())) {
+            if (!Arrays.asList(LenderAssociationStatus.BANK_UPDATION_SUCCESS.name(), LenderAssociationStatus.NACH_MANDATE_FAILED.name(), "NACH_MANDATE_HARD_FAILED").contains(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus())) {
                 log.info("Payu: Incorrect lead status");
                 return Boolean.FALSE;
             }
@@ -148,8 +148,9 @@ public class PayUNachMandateService {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             PayUMandateRequestDTO mandateDetails = null;
-            if (lendingApplicationDetails.getIsNachSkip()) {
-                MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), lendingApplication.getLender());
+
+            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
+                MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, lendingApplication.getLender());
                 if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                     mandateDetails = PayUMandateRequestDTO.builder()
                             .applicationId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
@@ -161,24 +162,7 @@ public class PayUNachMandateService {
                             .authAmount(merchantNachDetailsResponseDTO.getNachAmount())
                             .build();
                 }
-            } else {
-                BharatPeEnachResponseDTO bharatPeEnachResponseDTO = enachHandler.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
-                final MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId(), Arrays.asList(
-                        Constants.MerchantUtil.Scope.BANK_DETAIL,
-                        Constants.MerchantUtil.Scope.MERCHANT_USER
-                ));
-                if (!ObjectUtils.isEmpty(bharatPeEnachResponseDTO) && !ObjectUtils.isEmpty(merchantDetailsDto)) {
-                    mandateDetails = PayUMandateRequestDTO.builder()
-                            .applicationId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
-                            .mandateState("SUCCESS")
-                            .mandateId(bharatPeEnachResponseDTO.getMandateId())
-                            .umrn(bharatPeEnachResponseDTO.getProviderUmrn())
-                            .mandateAccountDetails(PayUMandateRequestDTO.MandateAccountDetails.builder().ifsc(merchantDetailsDto.getBankDetail().getIfsc()).maskedAccountNumber(merchantDetailsDto.getBankDetail().getAccountNumber()).build())
-                            .authMode("UPI")
-                            .authAmount(bharatPeEnachResponseDTO.getAmount())
-                            .build();
-                }
-            }
+
             if (ObjectUtils.isEmpty(mandateDetails)) {
                 log.info("error in getting mandate Details for merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return null;
