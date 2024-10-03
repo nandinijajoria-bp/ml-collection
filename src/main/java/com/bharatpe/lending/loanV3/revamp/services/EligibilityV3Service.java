@@ -303,6 +303,7 @@ public class EligibilityV3Service {
         eligibilityStateDTO.setIneligible(loanDetailsServiceV2.getIneligibleReason(eligibilityStateDTO.getMerchant().getId(), isDerog, eligibilityStateDTO.getExperian().getPincode(), globalLimitResponse));
         eligibilityStateDTO.setChangeBankAccount(!loanUtil.isEnachBank(eligibilityStateDTO.getMerchant().getId()));
         eligibilityStateDTO.setEligibilityExceptionFlag(loanUtil.isEligibilityErrorResponse(globalLimitResponse));
+        eligibilityStateDTO.setRefreshCountDownMinutes(loanUtil.getRefreshCountDownMinutes(globalLimitResponse));
     }
 
     public GlobalLimitResponse requestForEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) throws BureauCallMaskedApiException {

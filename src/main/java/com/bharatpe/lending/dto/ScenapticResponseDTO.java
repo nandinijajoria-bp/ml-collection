@@ -17,5 +17,6 @@ public class ScenapticResponseDTO {
     private String requestId;
 
     private String debugMessage;
+    private GlobalLimitResponse.Data data;
 
 }
