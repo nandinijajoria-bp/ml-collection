@@ -49,6 +49,24 @@ public class EligibleLendingOffersResponseDTO {
         private Integer financeCharge;
         private Integer ediCount;
 
+        private Double irr;
+        private Double apr;
+        public Double getIrr() {
+            return irr;
+        }
+
+        public Double getApr() {
+            return apr;
+        }
+
+        public void setApr(Double apr) {
+            this.apr = apr;
+        }
+
+        public void setIrr(Double irr) {
+            this.irr = irr;
+        }
+
         public TenureDetails() {
         }
 
