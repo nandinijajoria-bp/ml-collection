@@ -239,6 +239,12 @@ public class MerchantLoansService {
     @Autowired
     LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
 
+    @Value("${toup.min.qrpaidRatio.12MonthsTenure:80}")
+    Double topupMinQrPaidRatioFor12MonthsTenure;
+
+    @Value("${toup.min.qrpaidRatio.moreThan12MonthsTenure:54}")
+    Double topupMinQrPaidRatioForMoreThan12MonthsTenure;
+
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
     static List<String> allowedRiskGroupsStp = Arrays.asList("R1", "R2");
@@ -1063,29 +1069,17 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
-                if (dpd > 3D) {
-                    logger.info("DPD is greater than 3 for merchant ID {}", lendingPaymentSchedule.getMerchantId());
-                    return eligiblity;
-                }
-
-                BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
-                if (maxDpd.intValue() > 30) {
-                    logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
-                    return eligiblity;
-                }
-
                 double paidRatio = 0d;
                 if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
                 }
 
-                if (paidRatio >= 0.6D && paidRatio <= 0.95D) {
-                    logger.info("paid ratio is between 60 to 95 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                if (lendingApplication.getTenureInMonths() < 12 && paidRatio > 0.5D) {
+                    logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
-                if (paidRatio >= 0.5D && paidRatio < 0.60D && (!ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()))) {
-                    logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                if (lendingApplication.getTenureInMonths() >= 12 && paidRatio > 0.75D) {
+                    logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
             }
@@ -1100,8 +1094,8 @@ public class MerchantLoansService {
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (qrPaidRatio < 80) {
-                logger.info("QR payment less than 80% for merchant: {}", lendingPaymentSchedule.getMerchantId());
+            if (qrPaidRatio < topupMinQrPaidRatioForMoreThan12MonthsTenure) {
+                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
@@ -1246,8 +1240,8 @@ public class MerchantLoansService {
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (qrPaidRatio < 70) {
-                logger.info("QR payment less than 70% for merchant:{}", lendingPaymentSchedule.getMerchantId());
+            if (qrPaidRatio < topupMinQrPaidRatioFor12MonthsTenure) {
+                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
