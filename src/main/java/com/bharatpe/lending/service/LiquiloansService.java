@@ -870,7 +870,7 @@ public class LiquiloansService {
         final BasicDetailsDto finalBasicDetailDto = basicDetailsDto;
 
 
-        if("ABFL".equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+        if("ABFL".equalsIgnoreCase(lendingApplication.getLender()) ) {
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.DIGI_SIGN.name()).getLenderAssociationService(finalLendingApplication.getLender());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
