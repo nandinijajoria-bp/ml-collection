@@ -115,7 +115,7 @@ public class AbflDigiSignService {
                 .applicationId(lendingApplication.getId())
                 .lender("ABFL")
                 .productName("LENDING")
-                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
+                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())?true:false)
                 .payload(AbflDigiSignRequestDTO.Payload.builder()
                         .accountId(lendingApplication.getExternalLoanId())
                         .unsigned_merged_pdf(mergedURL)
