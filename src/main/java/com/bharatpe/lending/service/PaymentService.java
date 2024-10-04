@@ -846,15 +846,6 @@ public class PaymentService {
         return "OK";
     }
 
-    private PaymentCallbackRequestDTO convertToPgPaymentCallbackDTO(LoanPaymentOrder order) {
-        PaymentCallbackRequestDTO paymentCallbackRequestDTO = new PaymentCallbackRequestDTO();
-        paymentCallbackRequestDTO.setAmount(order.getAmount());
-        paymentCallbackRequestDTO.setBankReferenceNumber(order.getBankRefNo());
-        paymentCallbackRequestDTO.setTerminalOrderId(order.getTerminalOrderId());
-        paymentCallbackRequestDTO.setStatus("SUCCESS");
-        paymentCallbackRequestDTO.setOrderId(order.getOrderId());
-        return paymentCallbackRequestDTO;
-    }
     private void sendSMS(LendingPaymentSchedule loan, Double amount, boolean isLoanClosed) {
         try {
             Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(loan.getMerchantId());
@@ -1110,10 +1101,6 @@ public class PaymentService {
             log.info("NewSettlement# started the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             if("BHARATPE_NACH".equals(source) && !loanUtil.isNachToBeRefunded(activeLoan.getLoanApplication())) {
                     transferType = "EXTERNAL";
-            }
-            if("UPI_AUTOPAY".equals(source))
-            {
-                transferType="EXTERNAL";
             }
 
             if (source == null) {
