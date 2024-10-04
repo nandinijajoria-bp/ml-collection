@@ -290,12 +290,6 @@ public class PaymentService {
 
     @Autowired
     LoanClosureService loanClosureService;
-
-    @Autowired
-    LendingCache lendingCache;
-  
-    @Value("${autopay.upi.lock.timeout}")
-    int autoPayUpiLockTimeout;
   
     @Autowired
     LendingApplicationDao lendingApplicationDao;
@@ -752,53 +746,9 @@ public class PaymentService {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request);
-            } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
-                log.info("inside settlement of amount of autopay upi presentment");
-                try {
-                    log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
-                    if (request.getOrderId().startsWith("LENDING")) {
-                        request.setOrderId( request.getOrderId().replaceFirst("LENDING", ""));
-                    }
-                    Optional<LendingPullPayment> optionalLendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId()));
-                    if (!optionalLendingPullPayment.isPresent()) {
-                        logger.error("Order not found in mandate settlement transaction for orderId {}",request.getOrderId());
-                        return "OK";
-                    }
-                    LendingPullPayment lendingPullPayment = optionalLendingPullPayment.get();
-                    if("SUCCESS".equalsIgnoreCase( lendingPullPayment.getStatus())){
-                        logger.info("lendingPullPayment status is success for id {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
-                        return "OK";
-                    }
-                    Optional<LendingPaymentSchedule> optionalLendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
-                    if(!optionalLendingPaymentSchedule.isPresent()){
-                        logger.error("LPS not found in mandate settlement transaction for request {}",request);
-                        return "OK";
-                    }
-                    LendingPaymentSchedule lendingPaymentSchedule = optionalLendingPaymentSchedule.get();
-                    if (lendingPullPayment != null && !"LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
-                        if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
-                            Long loanId = lendingPullPayment.getLoanId();
-                            String lockKey = AUTO_PAY_SETTLEMENT + loanId;
-                            if (lendingCache.acquireLock(lockKey, autoPayUpiLockTimeout)) {
-                                log.info("Acquired lock on lockKey {} , loanId {}",lockKey,loanId);
-                                handleUpiAutoPaySucessOrder(request, lendingPullPayment);
-                                lendingPullPayment.setStatus(request.getPaymentStatus());
-                                lendingPullPaymentDao.save(lendingPullPayment);
-                            } else {
-                                log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
-                                return "OK";
-                            }
-                        } else {
-                            lendingPullPayment.setErrorDescription(request.getErrorDescription());
-                            lendingPullPayment.setStatus(request.getPaymentStatus());
-                            lendingPullPaymentDao.save(lendingPullPayment);
-                            return "OK";
-                        }
-                    }
-                    return "OK";
-                } catch (Exception e){
-                    logger.error("Exception occurred while progressing autopay callback {} {}",e.getMessage(), Arrays.asList(e.getStackTrace()));
-                }
+            } else if ("transaction".equalsIgnoreCase(request.getEvent())) {
+                log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
+                return "OK";
             }
         }
 
@@ -894,96 +844,6 @@ public class PaymentService {
             }
         }
         return "OK";
-    }
-
-    private void handleUpiAutoPaySucessOrder(PgPaymentCallbackDTO request, LendingPullPayment lendingPullPayment) {
-        try{
-        Optional<LendingPaymentSchedule> optionalLPS =
-                lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
-        if (!optionalLPS.isPresent()) {
-            log.error("loan does not exist with id:{}", lendingPullPayment.getLoanId());
-            return;
-        }
-            List<PgPaymentCallbackDTO.Payments> list =
-                    request.getPayments().stream().
-                            filter(payments -> payments.getBreakupType().equals("PG_AMOUNT")).
-                            collect(Collectors.toList());
-            log.info("payment list is {}", list);
-        LendingPaymentSchedule lendingPaymentSchedule = optionalLPS.get();
-        Double orderAmount = lendingPullPayment.getDeductedAmount();
-        Double adjustedAmount = 0d;
-        Double refundAmount = 0d;
-        if (lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-            log.info("Refund for Excess AutoPay has been pulled for closed loanId:{}, " +
-                    "initiating full UPI refund", lendingPaymentSchedule.getId());
-            refundAmount = orderAmount;
-            LendingRefundAudit  lendingRefundAudit = new LendingRefundAudit();
-            lendingRefundAudit.setLoanId(lendingPaymentSchedule.getId());
-            lendingRefundAudit.setMerchantId(lendingPaymentSchedule.getMerchantId());
-            lendingRefundAudit.setRefundAmount(refundAmount);
-            lendingRefundAudit.setOrderAmount(refundAmount);
-            lendingRefundAudit.setBankRefNo(request.getPaymentRefId());
-            lendingRefundAudit.setMode(UPI_AUTO_PAY);
-
-            log.info("creating refund entry in lending refund audit  for lending pull payment {}",lendingPullPayment.getId());
-            log.info("going to save the refund audit for loanId {} and status {}",lendingPaymentSchedule.getId(),lendingPaymentSchedule.getStatus());
-            lendingRefundAuditDao.save(lendingRefundAudit);
-            lendingPullPayment.setStatus("SUCCESS");
-            lendingPullPaymentDao.save(lendingPullPayment);
-            return;
-        }
-        double dueAmount = lendingPaymentSchedule.getDueAmount();
-        double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
-        double netDueAmount = dueAmount + penaltyFee;
-        double adjustedPenalty = 0;
-        if (orderAmount > netDueAmount) {
-            log.info("Settlement entry for order Amount is {} for loanId {}", orderAmount, lendingPaymentSchedule.getId());
-            adjustedAmount = lendingPaymentSchedule.getDueAmount();
-            adjustedPenalty = Math.min(orderAmount - adjustedAmount, penaltyFee);
-            refundAmount = orderAmount - adjustedAmount - adjustedPenalty;
-            log.info("adjusted amount: {}, penaltyFee: {}, refund AMount: {} for loanId: {}", adjustedAmount, adjustedPenalty, refundAmount, lendingPaymentSchedule.getId());
-        }else {
-            adjustedAmount = orderAmount;
-        }
-        if (adjustedAmount + adjustedPenalty > 0) {
-            log.info("adjusted or order amount for loanPayment order entity is {} for loanId {}", adjustedAmount,lendingPaymentSchedule.getId());
-            if (request.getPaymentRefId() != null) {
-                LoanPaymentOrder order = createOrder(lendingPaymentSchedule, adjustedAmount + adjustedPenalty, request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
-
-
-                if (!list.isEmpty()) {
-                    order.setTerminalOrderId(list.get(0).getTerminalOrderId());
-                    order.setFinalGateway(list.get(0).getFinalGateway());
-                }
-                order.setCheckoutType(request.getCheckoutType());
-                loanPaymentOrderDao.save(order);
-                // TODO : call handle callback method
-                log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
-                handleCallback(convertToPgPaymentCallbackDTO(order));
-
-            }
-        }
-        if (refundAmount > 0) {
-            log.info("AutoPay UPI amount {} is more than due amount {} for loanId {}", orderAmount, lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
-           // TODO: add this amount to lending collection excess with proper description
-            if (!list.isEmpty()) {
-                LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
-                lendingCollectionExcess.setMerchantId(lendingPaymentSchedule.getMerchantId());
-                lendingCollectionExcess.setLoanId(lendingPaymentSchedule.getId());
-                lendingCollectionExcess.setExcessNachCreditAmount(orderAmount);
-                lendingCollectionExcess.setAmount(refundAmount);
-                lendingCollectionExcess.setDeductedAmount(0.0);
-                lendingCollectionExcess.setDeductionCount(0);
-                lendingCollectionExcess.setTerminalOrderId(list.get(0).getTerminalOrderId());
-                lendingCollectionExcess.setStatus("ACTIVE");
-                lendingCollectionExcess.setMode(UPI_AUTO_PAY);
-                lendingCollectionExcessDao.save(lendingCollectionExcess);
-
-            }
-        }
-        } catch (Exception ex) {
-            log.error("Exception Occur while handling callback loanId {} ex {},", lendingPullPayment.getLoanId(), ex.getMessage());
-        }
     }
 
     private PaymentCallbackRequestDTO convertToPgPaymentCallbackDTO(LoanPaymentOrder order) {
@@ -2103,20 +1963,6 @@ public class PaymentService {
         order.setAmount(foreclosureAmount.doubleValue());
         order.setStatus("PENDING");
         order.setSource(source);
-        order = loanPaymentOrderDao.save(order);
-        String orderId = "LOAN" + (10000000L + order.getId());
-        order.setOrderId(orderId);
-        return loanPaymentOrderDao.save(order);
-    }
-    private LoanPaymentOrder createOrder(LendingPaymentSchedule lendingPaymentSchedule, Double amount, String bankRefNo, String source) {
-        LoanPaymentOrder order = new LoanPaymentOrder();
-        order.setMerchantId(lendingPaymentSchedule.getMerchantId());
-        order.setOwner("lending_payment_schedule");
-        order.setOwnerId(lendingPaymentSchedule.getId());
-        order.setAmount(amount);
-        order.setStatus("PENDING");
-        order.setSource(source);
-        order.setBankRefNo(bankRefNo);
         order = loanPaymentOrderDao.save(order);
         String orderId = "LOAN" + (10000000L + order.getId());
         order.setOrderId(orderId);
