@@ -3,15 +3,10 @@ package com.bharatpe.lending.loanV3.controller;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.*;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
-import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.services.ModifyStageService;
-import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
-import com.bharatpe.lending.loanV3.services.associationsV2.AbflDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.itextpdf.text.DocumentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -19,9 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
-
-import java.io.IOException;
-
 
 @RestController
 @RequestMapping("lending/v3/")
@@ -108,15 +100,4 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.status(status).body(response);
     }
 
-//ToDO : Remove post testing
-    @Autowired
-    AbflDigiSignService abflDigiSignService;
-
-    @PostMapping("/merge-docs")
-    public String mergedKFSAndSanctionLetterUrl(@RequestParam Long applicationId,
-                                                @RequestParam String docKfsName, @RequestParam String docSanctionName) throws DocumentException, IOException {
-        log.info("merging ABFL docs for: ",applicationId);
-       return abflDigiSignService.mergedKFSAndSanctionLetterUrl(applicationId,docKfsName,docSanctionName);
-
-    }
 }
