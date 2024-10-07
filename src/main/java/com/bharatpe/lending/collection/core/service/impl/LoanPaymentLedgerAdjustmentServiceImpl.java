@@ -28,8 +28,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
-import static com.bharatpe.lending.service.PaymentService.UPI_AUTO_PAY;
-
 
 @Service
 @Slf4j
@@ -159,8 +157,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                     .used(lendingCollectionExcess.getAmount())
                     .principleSettled(lendingCollectionExcess.getAmount())
                     .build();
-            String source = UPI_AUTO_PAY.equalsIgnoreCase(lendingCollectionExcess.getMode()) ? "AUTO_PAY_UPI_EXCESS_ADJUSTED" : "EXCESS_NACH_ADJUSTED";
-            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,source, CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), desc);
+            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,"EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), desc);
             if (Objects.nonNull(excessCollectionLedger)) lendingCollectionAuditService.sendCollectionAudit(excessCollectionLedger);
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }
