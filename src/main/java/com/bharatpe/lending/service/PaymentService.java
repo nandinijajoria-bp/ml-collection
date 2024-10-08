@@ -87,6 +87,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
@@ -95,6 +96,7 @@ import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINA
 @Service
 @Slf4j
 public class PaymentService {
+
 
     Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
@@ -285,14 +287,16 @@ public class PaymentService {
 
     @Autowired
     LoanClosureService loanClosureService;
-
+  
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
 
     @Autowired
     LoanClosurePostingService loanClosurePostingService;
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
+
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
@@ -734,6 +738,7 @@ public class PaymentService {
 
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
+        log.info("Pg callback reciverd from pg {}",request);
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
@@ -2560,12 +2565,13 @@ public class PaymentService {
         if(ObjectUtils.isEmpty(lendingCollectionExcessList))return;
         List<LendingLedger> lendingLedgersListExcessCollection = new ArrayList<>();
         for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+
             String desc = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + (lendingCollectionExcess.getDeductionCount() + 1);
             LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
                     lendingCollectionExcess.getAmount(), 0d,  desc,
-                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc, 0D
-            );
-            lendingLedgersListExcessCollection.add(excessCollectionLedger);
+                    "EXCESS_NACH_ADJUSTED","EXTERNAL", desc, 0D);
+                lendingLedgersListExcessCollection.add(excessCollectionLedger);
+
         }
     }
 
