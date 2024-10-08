@@ -734,6 +734,7 @@ public class PaymentService {
 
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
+        log.info("Pg callback reciverd from pg {}",request);
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
