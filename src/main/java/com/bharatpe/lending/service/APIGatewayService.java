@@ -54,6 +54,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1763,6 +1764,7 @@ public class APIGatewayService {
                 globalLimitResponse.setSuccess(scenapticResponseDTO.getSuccess());
                 globalLimitResponse.setMessage(scenapticResponseDTO.getMessage());
                 globalLimitResponse.setErrorCode(scenapticResponseDTO.getErrorCode());
+                globalLimitResponse.setData(scenapticResponseDTO.getData());
                 return globalLimitResponse;
             } catch (IOException | IllegalArgumentException e) {
                 logger.error("Exception in parsing responseBody string : {} {} ", e.getMessage(), e);

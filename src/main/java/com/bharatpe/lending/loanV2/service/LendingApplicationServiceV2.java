@@ -280,6 +280,8 @@ public class LendingApplicationServiceV2 {
 
     @Value("${penalty.rollout.date.trillion:}")
     String penalDateTrillion;
+    @Value("${penalty.rollout.date.trillionloans:}")
+    String penalDateTrillionloans;
 
     @Lazy
     @Autowired
@@ -640,6 +642,10 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Ineligible ! Please try again in sometime");
             }
 
+            if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+                return new ApiResponse<>(true, "No lender assigned, application rejected");
+            }
+
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
                 loanUtil.callingDeForReferences(merchant.getId(),lendingApplication);
@@ -773,6 +779,10 @@ public class LendingApplicationServiceV2 {
                 EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
         }
 
+        if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+            rejectApplicationForIncorrectLender(lendingApplication);
+            return lendingApplication;
+        }
 //        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
 //        lendingApplication.setLender("ABFL");
 //        lendingApplication = lendingApplicationDao.save(lendingApplication);
@@ -2466,10 +2476,11 @@ public class LendingApplicationServiceV2 {
 
             Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (lendingApplication.getLoanAmount()) * 100));
 
+            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (lendingApplication.getLoanAmount() * processingFeePercentageWithoutGst) / 100D ));
+
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
             }
-
 
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -2487,6 +2498,7 @@ public class LendingApplicationServiceV2 {
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
                     .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
                     .disbursalAmount(lendingApplication.getDisbursalAmount())
@@ -2723,6 +2735,48 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
+    public Double getApr(Integer ediCount,Double edi, Double amountToCalculateAprOn, Long merchantId){
+        try{
+            Double guess = 0.01;
+            ArrayList<Double> values = new ArrayList<>();
+//        CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId);
+//        List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
+//        if(ObjectUtils.isEmpty(ediSchedule)){
+//            log.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
+//            return null;
+//        }
+            values.add(0-amountToCalculateAprOn);
+            for(int i = 0; i < ediCount; i++){
+//            if(ediSchedule.get(i).getSerialNumber() == 0)continue;
+                values.add(new Double(edi));
+//            if((i+1) < ediSchedule.size()){
+//                long diff = Math.abs(dateTimeUtil.getDateDiffInDays(ediSchedule.get(i).getDate(), ediSchedule.get(i+1).getDate()));
+//                if(diff == 2){
+//                    values.add(0.0);
+//                }
+//            }
+            }
+//            values.add(0.0);
+//        int tenureInDays = values.size() - 1;
+            Double apr = 0.0;
+            double[] valuesDouble = new double[values.size()];
+            for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
+            log.info("valuesDouble Size : {}", valuesDouble.length);
+            int daysInYear=360;
+            apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
+            if(apr.isNaN()){
+                log.info("APR : {}", apr);
+                return null;
+            }
+            log.info("APR : {}", apr);
+            return apr * 100;
+        }
+        catch(Exception e){
+            log.error("Unable to calculate APR for merchant:{}",merchantId);
+        }
+        return null;
+    }
+
     public void generateKfsDocument(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
         boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
                 lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
@@ -2866,6 +2920,7 @@ public class LendingApplicationServiceV2 {
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
             Date penaltyDateLiquiloans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateLiquiloans);
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
             String html = "";
             String filePath = "";
             String language = "";
@@ -2894,7 +2949,7 @@ public class LendingApplicationServiceV2 {
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath = (kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html"  ;
+                filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
             } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + ".html";
             } else if(lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -2917,6 +2972,39 @@ public class LendingApplicationServiceV2 {
             log.error("Exception while generating KFS html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Unable to generate KFS");
         }
+    }
+
+    private String getFilePathTrillionLoans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateTrillionLoans, ApplicationDocType type, boolean foreclousureChargeApplicable, String language) {
+       log.info("Generating KFS/Sanction Letter for Trillionloans for application: {}, language: {}", lendingApplication, language);
+        if (ApplicationDocType.KEY_FACTS_STATEMENT_DOC.equals(type)) {
+            log.info("Generating KFS for Trillionloans for application: {}", lendingApplication);
+            log.info("Trillionloans Penalty Release Date: {} and Lending Application Created At: {}", penaltyDateTrillionLoans, lendingApplication.getCreatedAt());
+
+            // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
+            if (ObjectUtils.isEmpty(language)) {
+                return "/templates/TRILLIONLOANS_NEW/KFS_TRILLION_PC_v2.html";
+            }
+
+            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
+                log.info("Generating KFS for Trillionloans for application: {} before Penalty", lendingApplication);
+                return (foreclousureChargeApplicable) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html";
+            }
+            log.info("Generating KFS for Trillionloans for application: {} after Penalty", lendingApplication);
+            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/KFS_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/KFS_TRILLION_PC_PENALTY_v2" + language + ".html";
+
+        } else if (ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.equals(type)) {
+
+            // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
+            if (ObjectUtils.isEmpty(language)) {
+                return "/templates/TRILLIONLOANS_NEW/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+            }
+
+            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
+                return (foreclousureChargeApplicable) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
+            }
+            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_v2" + language + ".html";
+        }
+        return null;
     }
 
     private String getFilePathLiquiloans(LendingApplication lendingApplication, Date penaltyDate, Date penaltyDateLiquiloans, ApplicationDocType type, boolean foreclousureChargeApplicable) {
@@ -2985,6 +3073,7 @@ public class LendingApplicationServiceV2 {
             Date penaltyDate = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDate);
             Date penaltyDateLiquiloans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateLiquiloans);
             Date penaltyDateTrillion = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillion);
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
             data = getApplicationDocData(applicationId, kfsDto, merchant, timeStamp, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, dateTime, lendingApplication.getIp());
             String lender = kfsDto.getLender();
             String html = "";
@@ -3017,7 +3106,7 @@ public class LendingApplicationServiceV2 {
             } else if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDateTrillion) && lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name())) {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
-                filePath =(kfsDto.isForeclosureChargesRequired()) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
+                filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
             } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT.html";
             } else if (lender.equalsIgnoreCase(Lender.PAYU.name())) {
@@ -3210,6 +3299,10 @@ public class LendingApplicationServiceV2 {
         }
         double version = 2;
 
+        if(Lender.TRILLIONLOANS.toString().equals(kfsDto.getLender())){
+            version = 1;
+        }
+
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
         BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
@@ -3220,6 +3313,7 @@ public class LendingApplicationServiceV2 {
         data.put("loan_amount_in_words", getAmountInWords(kfsDto.getLoanAmount().toString()));
         data.put("processing_percentage", kfsDto.getProcessingFeePercentage());
         data.put("processing_percentage_without_gst", kfsDto.getProcessingFeePercentageWithoutGst());
+        data.put("processing_fee_without_gst", kfsDto.getProcessingFeeWithoutGst());
         data.put("processing_fee_includes_tax", kfsDto.getProcessingFee());
         data.put("processing_fee_in_words_includes_tax", getAmountInWords(kfsDto.getProcessingFee().toString()));
         data.put("rate_of_interest", kfsDto.getInterestRate());
@@ -3389,6 +3483,31 @@ public class LendingApplicationServiceV2 {
             }
         }
 
+        if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender())) {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(kfsDto.getApplicationId());
+            if (!lendingApplication.isPresent()) {
+                log.error("LendingApplication is not present for applicationId : {}", kfsDto.getApplicationId());
+                throw new RuntimeException();
+            }
+
+            Date penaltyDateTrillionLoans = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss").parse(penalDateTrillionloans);
+            if (lendingApplication.get().getCreatedAt().before(penaltyDateTrillionLoans)) {
+                data.put("penalty_charges_clause_display_prop", "none");
+                data.put("penalty_charges_na_clause_display_prop", "block");
+            } else {
+                data.put("penalty_charges_clause_display_prop", "block");
+                data.put("penalty_charges_na_clause_display_prop", "none");
+            }
+
+            if (kfsDto.isForeclosureChargesRequired()) {
+                data.put("foreclosure_charges_clause_display_prop", "block");
+                data.put("foreclosure_charges_na_clause_display_prop", "none");
+            } else {
+                data.put("foreclosure_charges_clause_display_prop", "none");
+                data.put("foreclosure_charges_na_clause_display_prop", "block");
+            }
+        }
+
         data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
         data.put("personal_loan_amount_in_words", getAmountInWords(String.valueOf(kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee())));
         LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
@@ -3427,7 +3546,7 @@ public class LendingApplicationServiceV2 {
         }
         else if(lender.equalsIgnoreCase(Lender.PIRAMAL.toString()) && applicationDocType.equals(ApplicationDocType.PIRAMAL_LETTERHEAD_FOOTER)){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_letter_footer.jpg";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_footer.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/piramal_footer-1727528554654.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.WELCOME_LETTER_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-welcome.png";
@@ -4027,6 +4146,17 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
 
+    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
+        log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
+        commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS", "rejected due to nullable lender");
+        lendingApplication.setStatus("rejected");
+        lendingApplication.setManualKyc("rejected");
+        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
+        lendingApplicationDao.save(lendingApplication);
+        evictCache(lendingApplication.getMerchantId());
+    }
     public void generateMITCDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
 
         String fileName = "";

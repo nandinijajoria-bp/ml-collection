@@ -353,7 +353,7 @@ public class LoanDashboardService {
                 LoanApplicationDetailsV3 topUpApplicationDetails = setApplicationDetails(topupApplication,merchantDetails);
                 loanDashboardResponse.setTopupLoanApplication(topUpApplicationDetails);
 
-                loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(topupApplication));
+                loanDashboardResponse.getTopupLoanApplication().setAnnualRoi(getAnnualROI(topupApplication));
             }
             loanDashboardResponse.setActiveLoan(true);
             excessNachService.setExcessCollectionDetails(merchantDetails.getId(), loanDashboardResponse);
@@ -872,6 +872,7 @@ public class LoanDashboardService {
             }
 
             loanDashboardResponse.setEligibilityExceptionFlag(eligibilityErrorFlag);
+            loanDashboardResponse.setRefreshCountDownMinutes(loanUtil.getRefreshCountDownMinutes(globalLimitResponse));
         }
 
     private Date parseDate(String stringDate) {
@@ -885,6 +886,11 @@ public class LoanDashboardService {
     }
 
     private void cacheLoanDetailsData(LoanDashboardResponse loanDashboardResponse) {
+        //Response should not be cached in case of countdown minutes, so merchant can see updated timer on app restart
+        if(!ObjectUtils.isEmpty(loanDashboardResponse) && !ObjectUtils.isEmpty(loanDashboardResponse.getRefreshCountDownMinutes())){
+            log.info("Skipping cache for merchant_id: {}", loanDashboardResponse.getMerchantId());
+            return;
+        }
         try {
             AddCacheDto addCacheDto = new AddCacheDto();
             addCacheDto.setKey(LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX+loanDashboardResponse.getMerchantId());

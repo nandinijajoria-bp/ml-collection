@@ -20,5 +20,7 @@ public class AbflGenerateDocRequestDto {
     private String tenure;
     private String processingFee;
     private String roi;
+    private String parentLanNo;
+    private Double parentLoanOutstandingAmount;
 }
 

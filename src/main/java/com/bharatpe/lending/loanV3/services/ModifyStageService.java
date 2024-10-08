@@ -41,7 +41,7 @@ public class ModifyStageService {
         }
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
                 .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name());
-        if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) || !Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(existingLendingApplicationLenderDetails.getLender())) {
+        if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) || !Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name()).contains(existingLendingApplicationLenderDetails.getLender())) {
             log.info("no existingLendingApplicationLenderDetails exists for {}", modifyLenderDto.getId());
             return;
         }

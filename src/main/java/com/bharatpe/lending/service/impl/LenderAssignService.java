@@ -11,10 +11,14 @@ import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
+import com.bharatpe.lending.dto.VerifyPanCardResponseDto;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -143,6 +147,16 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${lending.wildcard.lender.name:TRILLIONLOANS}")
     String lendingWildcardLenderName;
 
+
+    @Value("${aadhaar.seeding.status.check.lenders:}")
+    String aadhaarSeedingStatusCheckLenders;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
+
+    @Autowired
+    KycHandler kycHandler;
+
     @Value("${muthoot.rollout.percent:1}")
     Integer muthootRolloutPercentage;
 
@@ -219,6 +233,10 @@ public class LenderAssignService implements ILenderAssignService {
             } catch (Exception exception) {
                 log.info("exception while logging the lender assignment details under rules based lenders", exception);
             }
+
+            boolean isPanAadhaarLinked = false;
+            boolean isPanAadhaarLinkedStatusChecked = false;
+
             if(!ObjectUtils.isEmpty(ruleList)) {
                 lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage);
                 try {
@@ -253,6 +271,25 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
+
+                            if(!aadhaarSeedingStatusCheckLenders.isEmpty() && aadhaarSeedingStatusCheckLenders.contains(lender)) {
+
+                                // check if pan aadhaar linked status already checked so that we don't call the api again to re check it
+                                if (!isPanAadhaarLinkedStatusChecked) {
+                                    isPanAadhaarLinked = isPanAndAadhaarLinked(application.getMerchantId());
+                                    isPanAadhaarLinkedStatusChecked = true;
+                                }
+
+                                log.info("isPanAadhaarLinkedStatusChecked {} isPanAadhaarLinked {} applicationId {}", isPanAadhaarLinkedStatusChecked, isPanAadhaarLinked, application.getId());
+
+                                if (!isPanAadhaarLinked) {
+                                    log.info("removing {} from eligible lenders since panAndAdhaar is not linked for applicationId: {} and merchantId : {}", lender, application.getId(), application.getMerchantId());
+                                    iterator.remove();
+                                    continue;
+                                }
+                            }
+
+
                             if (Lender.CAPRI.name().equalsIgnoreCase(lender) && summaryTpv < application.getEdi()) {
                                 log.info("skipping capri {} due to merchant edi is greater than summaryTpv {}", lender, application.getId());
                                 iterator.remove();
@@ -294,6 +331,9 @@ public class LenderAssignService implements ILenderAssignService {
             }
             if (ObjectUtils.isEmpty(lenders)) {
                 LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByClassification(LendingLenderQuota.Classification.WILDCARD.name());
+                if(ObjectUtils.isEmpty(lendingLenderQuota)){
+                    return LendingConstants.NONE_LENDER;
+                }
                 if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
                             lendingLenderQuota.getLender() , application.getId(), lenders);
@@ -317,6 +357,27 @@ public class LenderAssignService implements ILenderAssignService {
             log.error("Exception occurred while assigning lender : {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
             return null;
         }
+    }
+
+    private boolean isPanAndAadhaarLinked(Long merchantId) {
+        LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+        if (!ObjectUtils.isEmpty(lendingPancardDetails) && !ObjectUtils.isEmpty(lendingPancardDetails.getName()) && !ObjectUtils.isEmpty(lendingPancardDetails.getPancardNumber()) && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())) {
+
+            PanVerifyKYCResponseDto responseDto = kycHandler.verifyPanDetailsInternal(lendingPancardDetails.getPancardNumber(), lendingPancardDetails.getName(), lendingPancardDetails.getDob(), merchantId);
+
+            if (!ObjectUtils.isEmpty(responseDto)) {
+
+                String aadhaarSeedingStatus = !ObjectUtils.isEmpty(responseDto.getData())
+                        && !ObjectUtils.isEmpty(responseDto.getData().getAadhaarSeedingStatus()) ? responseDto.getData().getAadhaarSeedingStatus() : null;
+
+                if ("Y".equalsIgnoreCase(aadhaarSeedingStatus)) {
+                    return true;
+                }
+
+            }
+
+        }
+        return false;
     }
 
     private boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender) {
@@ -448,7 +509,8 @@ public class LenderAssignService implements ILenderAssignService {
                     saveLenderChangeAudit(application, decidedLender);
                     String oldLender = application.getLender();
                     application.setLender(decidedLender);
-                    updateOfferDetailsInApplication(application,LenderOffDays.valueOf(application.getLender()).getEdiModel(), oldLender);
+                    EdiModel updatedEdiModel= LendingConstants.NONE_LENDER.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+                    updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
                     lendingApplicationDao.save(application);
                     return application;
                 }
@@ -496,7 +558,8 @@ public class LenderAssignService implements ILenderAssignService {
 
         String oldLender = application.getLender();
         application.setLender(decidedLender);
-        updateOfferDetailsInApplication(application,LenderOffDays.valueOf(decidedLender).getEdiModel(), oldLender);
+        EdiModel updatedEdiModel= LendingConstants.NONE_LENDER.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
+        updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
         return lendingApplicationDao.save(application);
     }
 
@@ -542,13 +605,13 @@ public class LenderAssignService implements ILenderAssignService {
         //new flow
         for(LendingLenderQuota lender: toBeAssignedLenders){
             log.info("Lender:{}", lender.getLender());
-            if(isGstOffer){
-                log.info("Offer increased due to gst for merchant:{}", lendingApplication.getMerchantId());
-                if(!LenderOffDays.valueOf(gstOfferLender).getEdiModel().equals(ediModel)){
-                    modifyEdiModel(lendingApplication, LenderOffDays.valueOf(gstOfferLender).getEdiModel());
-                }
-                return gstOfferLender;
-            }
+//            if(isGstOffer){
+//                log.info("Offer increased due to gst for merchant:{}", lendingApplication.getMerchantId());
+//                if(!LenderOffDays.valueOf(gstOfferLender).getEdiModel().equals(ediModel)){
+//                    modifyEdiModel(lendingApplication, LenderOffDays.valueOf(gstOfferLender).getEdiModel());
+//                }
+//                return gstOfferLender;
+//            }
 
             // START remove giving preference to already kyc done lender
 //            LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findSuccessKycDetails(lendingApplication.getMerchantId(), lender.getLender());
@@ -886,8 +949,7 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Assigning fallback lender");
         LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(ObjectUtils.isEmpty(fallbackLender)){
-            modifyEdiModel(lendingApplication, LenderOffDays.valueOf(Lender.LIQUILOANS_P2P.name()).getEdiModel());
-            return Lender.LIQUILOANS_P2P.name();
+            return LendingConstants.NONE_LENDER;
         }
         if(!LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel().equals(ediModel)){
             modifyEdiModel(lendingApplication, LenderOffDays.valueOf(fallbackLender.getLender()).getEdiModel());
@@ -939,6 +1001,10 @@ public class LenderAssignService implements ILenderAssignService {
 
     public void updateOfferDetailsInApplication(LendingApplication lendingApplication, EdiModel ediModel, String oldLender) {
         try {
+            if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
+                log.info("skipping updated offer for {} lender of {}",lendingApplication.getLender(), lendingApplication.getId());
+                return;
+            }
             Long currentPayableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), ediModel);
             if (currentPayableDays == lendingApplication.getPayableDays()) {
                 log.info("skipping updated offer as offer remains same for {}", lendingApplication.getId());

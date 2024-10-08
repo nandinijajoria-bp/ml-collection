@@ -563,6 +563,43 @@ public class KycHandler {
         return null;
     }
 
+    public PanVerifyKYCResponseDto verifyPanDetailsInternal(String panNumber, String name, String dob, Long merchantId) {
+        if (ObjectUtils.isEmpty(panNumber) || ObjectUtils.isEmpty(name) || ObjectUtils.isEmpty(dob)) {
+            log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
+            return null;
+        }
+        try {
+            String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_VERIFY_V3_INTERNAL;
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("panNumber", panNumber);
+            payload.put("dob", dob);
+            payload.put("name", name);
+            payload.put("userType", "MERCHANT");
+            payload.put("merchantId", merchantId);
+            payload.put("source", "LOAN");
+
+            HttpHeaders headers = getApiHeaders(payload);
+            headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            log.info("Pan Verify Internal request for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            ResponseEntity<PanVerifyKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanVerifyKYCResponseDto.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+            log.info("Pan Verify Internal Response {} for merchantId: {}", mapper.writeValueAsString(responseEntity.getBody()),merchantId);
+            if(responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException.TooManyRequests exception) {
+            log.error("Too Many Requests error while verifying pan details for merchantId:{} {}",merchantId, Arrays.asList(exception.getStackTrace()));
+        }catch (Exception e) {
+            log.error("Error occurred while verifying pan details for merchantId {} {}", merchantId,Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
     public List<KycDoc> getPan(Long merchantId) {
         log.info("Getting PAN for merchant:{}", merchantId);
         try {

@@ -131,6 +131,15 @@ public class AbflDataUploadServiceUtil {
     @Value("${abfl.lender.doc.rollout.datetime:}")
     String lenderDocRolloutDateTime;
 
+    @Value("${abfl.topup.lender.doc.rollout.datetime:}")
+    String lenderTopupDocRolloutDateTime;
+
+    @Value("${lender.doc.generate.enabled.lenders:}")
+    String lenderDocGenerateEnabledLenders;
+
+    @Value("${lender.doc.generate.topup.enabled.lenders:}")
+    String lenderDocGenerateTopUpEnabledLenders;
+
     private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public void uploadRegulatoryData(Long applicationId) {
@@ -364,13 +373,18 @@ public class AbflDataUploadServiceUtil {
                             lendingKfs = lendingKfsDao.save(lendingKfs);
                         }
 
-                        Date lenderDocRolloutDate = DateTimeUtil.parseDate(lenderDocRolloutDateTime, "yyyy-MM-dd hh:mm:ss");
-                        if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && lendingApplication.getAgreementAt().after(lenderDocRolloutDate)) {
-                            log.info("skipping merging of docs for application {}, lenderDocRolloutDateTime: {}", lendingApplication, lenderDocRolloutDate);
-                            payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName, bucket)));
-                            docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
-                            log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
-                            continue;
+                        boolean generateLenderDocEnabled = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                                lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+                        if (generateLenderDocEnabled) {
+                            String lenderDocRolloutDateString = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? lenderTopupDocRolloutDateTime : lenderDocRolloutDateTime;
+                            Date lenderDocRolloutDate = DateTimeUtil.parseDate(lenderDocRolloutDateString, "yyyy-MM-dd hh:mm:ss");
+                            if (lendingApplication.getAgreementAt().after(lenderDocRolloutDate)) {
+                                log.info("skipping merging of docs for application {}, lenderDocRolloutDateTime: {}", lendingApplication, lenderDocRolloutDate);
+                                payload.setFileUpload(ConverterUtils.convertPreSignedUrlToBase64String(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName, bucket)));
+                                docUploadPayloadList.add(DocUploadPayload.builder().docType(docType).docUploadApiRequestDto(docUploadApiRequestDto).build());
+                                log.info("payload size {} {}", docUploadPayloadList.size(), applicationId);
+                                continue;
+                            }
                         }
 
                         String docSanctionName = Optional.ofNullable(lendingKfs.getSanctionLoanAgreementDocFile()).orElse(KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId());
