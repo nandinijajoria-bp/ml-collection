@@ -7,9 +7,6 @@ import org.springframework.util.ObjectUtils;
 @Component
 public class DocUploadValidationLayer {
     public boolean isInValidPayload(CKycResponseDto cKycResponseDto) {
-        return (
-                ObjectUtils.isEmpty(cKycResponseDto.getPoaString()) ||
-                ObjectUtils.isEmpty(cKycResponseDto.getSelfieString())
-        );
+        return ObjectUtils.isEmpty(cKycResponseDto.getSelfieString());
     }
 }
