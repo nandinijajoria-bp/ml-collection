@@ -11,6 +11,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ public class InvokeSanctionWrapperService {
 
     @Autowired
     CommonService commonService;
+
+    @Autowired
+    NbfcUtils nbfcUtils;
 
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
@@ -67,15 +71,17 @@ public class InvokeSanctionWrapperService {
                 MDC.clear();
                 return;
             }
-            Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !invokeStage(lenderAssociationDetailsDto, stage)).findFirst();
+
+            Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage)).findFirst();
             if (failureStage.isPresent()) {
                 log.info("lender association failed at {} stage for applicationId {} with lender {}", failureStage.get(), applicationId, lenderAssociationDetailsDto.getLendingApplication().getLender());
                 MDC.clear();
                 return;
             }
-            if(Lender.MUTHOOT.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
+            if(Arrays.asList(Lender.MUTHOOT.name(), Lender.CREDITSAISON.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
             }
+
             MDC.clear();
         } catch (Exception e) {
             log.info("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
@@ -103,18 +109,6 @@ public class InvokeSanctionWrapperService {
         lenderAssociationDetailsDto.setModifyLender(enableLenderChange);
     }
 
-
-    private boolean invokeStage(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String stage) {
-        switch (stage) {
-            case "NACH_MANDATE":
-                return associationServiceUtil.invokeNachMandateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
-            case "UPDATE_LEAD":
-                return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
-            default:
-                return true;
-        }
-    }
-
     public List<String> getStageToBeInvokedInOrder(Long applicationId) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if(ObjectUtils.isEmpty(lendingApplication.get())) {
@@ -127,6 +121,8 @@ public class InvokeSanctionWrapperService {
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
             case "MUTHOOT":
                 return Collections.singletonList(LenderAssociationStages.UPDATE_LEAD.name());
+            case "CREDITSAISON":
+                return Collections.singletonList(LenderAssociationStages.PENNY_DROP.name());
             default:
                 return new ArrayList<>();
         }

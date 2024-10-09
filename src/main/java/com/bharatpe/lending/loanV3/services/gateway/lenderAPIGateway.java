@@ -69,6 +69,9 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.loanPreview.api:api/v3/lender/loan-preview}")
     String loanPreviewUrl;
 
+    @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
+    String nbfcPennyDropUrl;
+
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
@@ -117,6 +120,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+downloadDocumentUrl;
             case "LOAN_PREVIEW":
                 return nbfcBaseUrl+loanPreviewUrl;
+            case "PENNY_DROP":
+                return nbfcBaseUrl+nbfcPennyDropUrl;
             default:
                 return null;
         }

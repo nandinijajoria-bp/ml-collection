@@ -114,6 +114,7 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
             case "MUTHOOT":
             case "CAPRI":
             case "PAYU":
+            case "CREDITSAISON":
                 return true;    // Skipped update lead as its only taking same payload as createLead
             default:
                 return false;
