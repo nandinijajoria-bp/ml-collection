@@ -73,6 +73,7 @@ public class InvokeAdditionalDocUploadWrapperService {
                     List<DocType> docs = isRetry ? getFailedDocList(lendingApplicationLenderDetails) : getDocList(lendingApplication.getLender());
                     lendingApplicationLenderDetails.setFailedUpload(null);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
                     for (DocType docType : docs) {
                         try {
                             log.info("processing doc {} {}", lendingApplication.getId(), docType);
@@ -122,6 +123,7 @@ public class InvokeAdditionalDocUploadWrapperService {
             case "MUTHOOT":
                 return Collections.singletonList(DocType.KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED);
             case "CAPRI":
+            case "CREDITSAISON":
                 return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
             case "PAYU":
                 return Collections.singletonList(DocType.LOAN_DOCS);

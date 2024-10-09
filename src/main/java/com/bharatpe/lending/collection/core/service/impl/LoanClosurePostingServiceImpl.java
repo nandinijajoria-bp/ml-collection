@@ -33,12 +33,14 @@ import com.bharatpe.lending.service.PaymentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -72,6 +74,10 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Lazy
+    @Autowired
+    CreditSaisonConfig csConfig;
 
     @Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
     String nbfcBaseUrl;
@@ -356,6 +362,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return nbfcUsfbForeclosureTopic;
             case "CAPRI":
                 return nbfcCapriForeclosureTopic;
+            case "CREDITSAISON":
+                return csConfig.getNbfcCreditsaisonForeclosureTopic();
             default:
                 return null;
         }

@@ -203,6 +203,7 @@ public class NbfcUtils {
             case MUTHOOT:
             case CAPRI:
             case PAYU:
+            case CREDITSAISON:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:
@@ -219,6 +220,24 @@ public class NbfcUtils {
                 return associationServiceUtil.invokeEkycStatusCheck(lender, lenderAssociationDetailsDto.getLendingApplication());
             case "EKYC":
                 return associationServiceUtil.invokeEKyc(lender, lenderAssociationDetailsDto);
+            case "CREATE_LEAD":
+                return associationServiceUtil.invokeCreateLeadService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "AADHAR_UPLOAD":
+            case "SELFIE_UPLOAD":
+            case "SHOP_PHOTO_UPLOAD":
+            case "SHOP_STOCK_PHOTO_UPLOAD":
+            case "BUSINESS_DOC_UPLOAD":
+                return associationServiceUtil.invokeDocUploadService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage);
+            case "CREATE_CLIENT" :
+                return associationServiceUtil.invokeCreateClientService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "KYC":
+                return associationServiceUtil.invokeKycService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "UPDATE_LEAD":
+                return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "NACH_MANDATE":
+                return associationServiceUtil.invokeNachMandateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "PENNY_DROP":
+                return associationServiceUtil.invokePennyDropService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }

@@ -44,6 +44,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -74,6 +75,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -277,6 +279,10 @@ public class PaymentService {
 
     @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
     String nbfcPayuForeclosureTopic;
+
+    @Lazy
+    @Autowired
+    CreditSaisonConfig csConfig;
 
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
@@ -1422,7 +1428,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 postForeclosureReceiptPiramal(activeLoan, lendingLedger);
             }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
@@ -1580,6 +1586,8 @@ public class PaymentService {
                 return nbfcCapriForeclosureTopic;
             case "PAYU":
                 return nbfcPayuForeclosureTopic;
+            case "CREDITSAISON":
+                return csConfig.getNbfcCreditsaisonForeclosureTopic();
             default:
                 return null;
         }
@@ -2294,7 +2302,7 @@ public class PaymentService {
             else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())) {
                 loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId);
             }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
                     || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())

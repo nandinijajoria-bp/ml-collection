@@ -90,5 +90,9 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_PAYU = "Mr. Suraj Sapte";
     String LENDER_CONTACT_EMAIL_PAYU = "grievance.smbbharatpe@payufin.com";
     String LENDER_CONTACT_NUMBER_PAYU = "+91 2269821144";
-
+    String LENDER_CORPORATE_NAME_CREDITSAISON = "KISETSU SAISON FINANCE INDIA PRIVATE LIMITED";
+    String LENDER_BUSINESS_ADDRESS_CREDITSAISON = "IndiQube Lexington Tower, First Floor, Tavarekere Main Rd, Tavarekere, S.G. Palya, Bengaluru, Karnataka 560029";
+    String LENDER_CONTACT_NAME_CREDITSAISON = "Emaad Khan";
+    String LENDER_CONTACT_EMAIL_CREDITSAISON = "emaad.khan@creditsaison-in.com";
+    String LENDER_CONTACT_NUMBER_CREDITSAISON = "+91-7289000552";
 }
