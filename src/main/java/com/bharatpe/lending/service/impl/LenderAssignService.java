@@ -21,6 +21,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
+import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
@@ -28,6 +29,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -165,6 +167,10 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${payu.rollout.percent:1}")
     Integer payuRolloutPercent;
+
+    @Lazy
+    @Autowired
+    CreditSaisonConfig csConfig;
 
     @Autowired
     BankStatementSessionDetailsDao bankStatementSessionDetailsDao;
@@ -861,6 +867,9 @@ public class LenderAssignService implements ILenderAssignService {
                 break;
             case "PAYU":
                 rolloutPercent = payuRolloutPercent;
+                break;
+            case "CREDITSAISON":
+                rolloutPercent = csConfig.getRolloutPercent();
                 break;
             default:
                 rolloutPercent = 0;
