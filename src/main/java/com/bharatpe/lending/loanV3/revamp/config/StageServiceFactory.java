@@ -51,6 +51,9 @@ public class StageServiceFactory {
     @Autowired
     KYCRouteToEligibilityService kycRouteToEligibilityService;
 
+    @Autowired
+    ModifiedOfferStageService modifiedOfferStageService;
+
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
@@ -81,6 +84,8 @@ public class StageServiceFactory {
                 return kycRouteToEligibilityService;
             case RTE_PIN_PAGE:
                 return rtePinService;
+            case MODIFIED_OFFER:
+                return modifiedOfferStageService;
             default:
                 return null;
         }

@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Component
 @Slf4j
@@ -78,6 +79,9 @@ public class NbfcUtils {
 
     @Autowired
     CommonUtil commonUtil;
+
+//    @Value("${offer.modified.eligible.lender}")
+//    String offerModifiedEligibleLenders;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
