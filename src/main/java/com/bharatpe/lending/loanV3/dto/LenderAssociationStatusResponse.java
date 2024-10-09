@@ -20,4 +20,5 @@ public class LenderAssociationStatusResponse {
     String lenderKycRedirectionUrl;
     Boolean lenderKycRetry;
     String prevLender;
+    Boolean isOfferModified;
 }
