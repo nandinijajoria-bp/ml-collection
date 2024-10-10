@@ -196,7 +196,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private void adjustExtraAmountIfAny(LendingPaymentSchedule loan, double balance, LoanPaymentDetailDTO payment, boolean refund) {
-        if (balance > 0) {
+        if (balance >= 1) {
             refund = refund || "CLOSED".equalsIgnoreCase(loan.getStatus());
 
             // LC-565
