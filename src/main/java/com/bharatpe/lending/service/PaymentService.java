@@ -331,7 +331,7 @@ public class PaymentService {
         Double netForeclosureAtLender = 0d;
         double finalForeclosureAtLender = 0d;
         PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount());
-
+        data.setExcessBalance(excessCollectionBalance);
         if(Boolean.TRUE.equals(showForeClosureDetails)) {
             //show foreclosure details --
             Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
@@ -2570,9 +2570,11 @@ public class PaymentService {
         List<LendingLedger> lendingLedgersListExcessCollection = new ArrayList<>();
         for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
             String desc = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + (lendingCollectionExcess.getDeductionCount() + 1);
+            String transferType = (CollectionTransferTypeEnum.TRANSFER_BY_BP.name().equalsIgnoreCase(lendingCollectionExcess.getTransferType())) ?  CollectionTransferTypeEnum.TRANSFER_BY_BP.name() : "EXTERNAL";
+            String adjustmentMode = LoanPaymentUtil.getExcessAdjustedModeDesc(lendingCollectionExcess.getMode());
             LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
                     lendingCollectionExcess.getAmount(), 0d,  desc,
-                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc, 0D
+                    adjustmentMode, transferType, desc, 0D
             );
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }

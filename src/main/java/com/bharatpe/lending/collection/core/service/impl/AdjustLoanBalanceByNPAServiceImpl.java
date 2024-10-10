@@ -45,6 +45,11 @@ public class AdjustLoanBalanceByNPAServiceImpl implements AdjustLoanBalanceServi
         PaymentCalculation charges = adjustOtherCharges(activeLoan, balance);
         balance = charges.getBalance();
 
+        // switch back to IPC if all due is paid
+        if (activeLoan.getDueAmount() <= 0) {
+            activeLoan.setSettleAllPrinciple(false);
+        }
+
         return  PaymentCalculation.builder()
                 .received(amount)
                 .used(amount - balance)

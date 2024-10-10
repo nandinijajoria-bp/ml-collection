@@ -47,6 +47,7 @@ import java.util.concurrent.Executors;
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
+import static com.bharatpe.lending.common.enums.TransferTypeModes.TRANSFER_BY_BP;
 
 
 @Service
@@ -197,6 +198,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void adjustExtraAmountIfAny(LendingPaymentSchedule loan, double balance, LoanPaymentDetailDTO payment, boolean refund) {
         if (balance > 0) {
             refund = refund || "CLOSED".equalsIgnoreCase(loan.getStatus());
+
+            // LC-565
+            // note - terminal payment also in that loan will be there in active state as loan is closed marked by the
+            // edi scheduler (in non foreclosure cases) and there is separate job to create refund entry from active excess balance of closed loans
+            if ("ACTIVE".equalsIgnoreCase(loan.getStatus())) refund = false;
+
             if (refund) {
                 createLoanRefund(loan, balance, payment);
             } else {
@@ -206,24 +213,33 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private void createLoanExcess(LendingPaymentSchedule loan, double amount, LoanPaymentDetailDTO payment) {
-        log.info("Creating Excess Nach Ledger for merchant:{}", loan.getMerchantId());
+        log.info("Creating Excess balance for merchant:{} amount:{} source:{}", loan.getMerchantId(), amount, payment.getSource());
         LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
         lendingCollectionExcess.setLoanId(loan.getId());
         lendingCollectionExcess.setMerchantId(loan.getMerchantId());
         lendingCollectionExcess.setStatus("ACTIVE");
         lendingCollectionExcess.setAmount(amount);
         lendingCollectionExcess.setExcessNachCreditAmount(amount);
-        lendingCollectionExcess.setTerminalOrderId(payment.getTerminalOrderId());
+        lendingCollectionExcess.setMode(payment.getSource());
+        lendingCollectionExcess.setTerminalOrderId(StringUtils.hasLength(payment.getTerminalOrderId()) ? payment.getTerminalOrderId() : payment.getBankRefNo());
         lendingCollectionExcess.setDeductionCount(0);
         lendingCollectionExcess.setCreditDate(new Date());
+        lendingCollectionExcess.setTransferType(payment.getTransferType());
         lendingCollectionExcess.setDeductedAmount(0D);
         lendingCollectionExcessDao.save(lendingCollectionExcess);
-        log.info("Creating Excess Nach Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
-        sendExcessNachCollectionSMS(loan.getMerchantId(), loan.getId());
-        createLendingCollectionAuditForExcessNachCredit(loan, payment.getTerminalOrderId(), amount, lendingCollectionExcess.getId());
+        log.info("created Excess balance Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
+        // As we already inform user when NACH excess was created from bank
+        // As per product - do not send it for other source
+        //if (loanPaymentUtil.excessCollectionCommunicationSmsRequired(payment.getSource())) sendExcessNachCollectionSMS(loan.getMerchantId(), loan.getId());
+        createLendingCollectionAuditForExcessNachCredit(loan, payment.getTerminalOrderId(), payment.getSource(), amount, lendingCollectionExcess.getId(), payment.getTransferType());
     }
 
-    private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, Double amount, Long refId){
+    private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, String source, Double amount, Long refId, String transferType){
+        if (TRANSFER_BY_BP.name().equalsIgnoreCase(transferType)) {
+            log.info("its transfer by bp no lca entry is required {} {} {}", lendingPaymentSchedule.getId(), txnId, source);
+            return;
+        }
+
         LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
                 .merchantId(lendingPaymentSchedule.getMerchantId())
                 .merchantStoreId(lendingPaymentSchedule.getMerchantStoreId())
@@ -231,14 +247,14 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 .applicationId(lendingPaymentSchedule.getLoanApplication().getId())
                 .bpLoanId(lendingPaymentSchedule.getLoanApplication().getExternalLoanId())
                 .nbfcId(lendingPaymentSchedule.getLoanApplication().getNbfcId())
-                .txnType("EXCESS_NACH_CREDIT")
+                .txnType(String.format("EXCESS_%s_CREDIT", StringUtils.hasLength(source) ? source : ""))
                 .transferType(DIRECT_TRANSFER_LENDER.name())
                 .status("PENDING")
                 .amount(amount)
                 .otherCharges(0D)
                 .penalty(0D)
-                .adjustmentMode("EXCESS_NACH_CREDIT")
-                .transferDate(DateTimeUtil.getCurrentDayStartTime())
+                .adjustmentMode(String.format("EXCESS_%s_CREDIT", StringUtils.hasLength(source) ? source : ""))
+                .transferDate(DateTimeUtil.getCurrentDayStartTime())  // todo: check for other mode
                 .terminalOrderId(txnId)
                 .lender(lendingPaymentSchedule.getNbfc())
                 .loanStatus(lendingPaymentSchedule.getStatus())
@@ -272,7 +288,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingRefundAudit.setMode(payment.getSource());
         lendingRefundAudit.setBankRefNo(payment.getBankRefNo());
         lendingRefundAudit.setRefundAmount(amount);
-        lendingRefundAudit.setOrderAmount(0d);
+        lendingRefundAudit.setOrderAmount(payment.getOtherAmount());
         lendingRefundAuditDao.save(lendingRefundAudit);
     }
 
@@ -304,9 +320,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             String status = (deductionAmount == nachAdjustment.getUsed()) ? "OK" : "MISMATCH";
             log.info("adjustExcessNachBalanceAndLedger :  order vs ledger status: {} order: {} and nachAdjustment: {}", status, order, nachAdjustment);
 
+            String transferType = (StringUtils.hasLength(lendingCollectionExcess.getTransferType())) ? lendingCollectionExcess.getTransferType() : CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name();
+            String adjustmentMode = LoanPaymentUtil.getExcessAdjustedModeDesc(lendingCollectionExcess.getMode());
+
             ledgerAdjustmentService.adjustNachLedger(lendingCollectionExcess, nachAdjustment);
             String terminalOrderId = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + lendingCollectionExcess.getDeductionCount().toString();
-            ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, "EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), terminalOrderId);
+            ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, adjustmentMode, transferType, terminalOrderId);
             ledgerAdjustmentService.adjustPenaltyLedger(loan, nachAdjustment.getPenaltySettled(), source, false);
         }
     }
@@ -327,6 +346,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private boolean checkForLoanForeClosure(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism) {
+        if ("CLOSED".equalsIgnoreCase(loan.getStatus())) {
+            log.info("loan already closed. {}", loan);
+            return false;
+        }
         Integer principalDueAmount = getForeclosureAmount(loan);
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(loan);
         double amount = payment.getOtherAmount();
