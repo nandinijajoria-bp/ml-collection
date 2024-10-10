@@ -23,6 +23,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -44,11 +45,18 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Autowired
     LendingApplicationServiceV3 lendingApplicationServiceV3;
 
+    @Value("${offer.modified.eligible.lender:}")
+    String offerModifiedEligibleLenders;
+
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         if(lendingStateDTO.getData().isTopup() && Lender.ABFL.name().equalsIgnoreCase(lendingStateDTO.getData().getLender())){
             //next page for ABFL topup is set in fetchScopeData call
+            return lendingStateDTO;
+        }
+        if(offerModifiedEligibleLenders.contains(lendingStateDTO.getData().getLender())
+           && LendingViewStates.MODIFIED_OFFER.equals(lendingStateDTO.getLendingViewStates())) {
             return lendingStateDTO;
         }
         if(loanUtilV3.isPreapprovedRepeatLoan(scopeDataArgs.getApplicationId())){
@@ -103,6 +111,12 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     else if (LenderAssociationStatus.KYC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.ENACH_PAGE;
                     }
+                }
+            }
+            if(offerModifiedEligibleLenders.contains(lendingApplication.getLender())) {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) && lendingApplication.getLoanAmount() > lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) {
+                    nextPage = LendingViewStates.MODIFIED_OFFER;
                 }
             }
 
