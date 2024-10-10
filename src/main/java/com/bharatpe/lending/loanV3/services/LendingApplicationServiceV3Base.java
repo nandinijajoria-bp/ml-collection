@@ -31,7 +31,6 @@ import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -89,9 +88,6 @@ public abstract class LendingApplicationServiceV3Base {
     @Lazy
     @Autowired
     KycRequestKafka kycRequestKafka;
-
-    @Value("${offer.modified.eligible.lender}")
-    String offerModifiedEligibleLenders;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -156,15 +152,6 @@ public abstract class LendingApplicationServiceV3Base {
                         .stage(LenderAssociationStages.BRE)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
-                        .build());
-            }else if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) && (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < currentDraftApplication.getLoanAmount()) &&
-                    Objects.nonNull(offerModifiedEligibleLenders) && Arrays.asList(offerModifiedEligibleLenders.split(",")).contains(currentDraftApplication.getLender())) {
-                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                        .status(LenderAssociationStatus.BRE_IN_PROGRESS)
-                        .stage(LenderAssociationStages.BRE)
-                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                        .lender(currentDraftApplication.getLender())
-                        .isOfferModified(true)
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
