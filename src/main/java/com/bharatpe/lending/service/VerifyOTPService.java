@@ -806,7 +806,17 @@ public class VerifyOTPService {
             } else previousAmount = loanUtil.getForeclosureAmount(activeLoan);
 
 
-            lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount() - previousAmount - lendingApplication.getProcessingFee());
+            double initialDisbursalAmountWithoutProcessingFee = lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee();
+
+            double  processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
+
+            double finalDisbursalAmountWithoutProcessingFee = lendingApplication.getLoanAmount() - previousAmount;
+
+            double processingFee = Math.ceil(finalDisbursalAmountWithoutProcessingFee * processingFeeRate);
+
+            lendingApplication.setProcessingFee(processingFee);
+            lendingApplication.setDisbursalAmount(finalDisbursalAmountWithoutProcessingFee - processingFee);
+            
             lendingApplicationDao.save(lendingApplication);
 
             if(!Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
