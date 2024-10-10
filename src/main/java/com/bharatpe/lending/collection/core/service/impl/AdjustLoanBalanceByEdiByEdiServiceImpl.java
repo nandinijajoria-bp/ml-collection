@@ -33,7 +33,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     //==================================================================================================================
     // __________________________________     Calculation   ____________________________________________________________
     //==================================================================================================================
-    public PaymentCalculation adjustEdiSchedule(LendingPaymentSchedule loan, double amount, boolean adjustPrincipleFirst) {
+    public PaymentCalculation adjustEdiSchedule(LendingPaymentSchedule loan, double amount, Boolean adjustPrincipleFirst) {
+        if (adjustPrincipleFirst == null) adjustPrincipleFirst = false;
+
         PaymentCalculation settleLoanPaymentDTO = settleEDIPrincipleAndInterest(loan, amount, adjustPrincipleFirst);
 
         PaymentCalculation penalty = adjustPenalty(loan, settleLoanPaymentDTO.getBalance());
@@ -41,6 +43,8 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
         PaymentCalculation charges = adjustOtherCharges(loan, settleLoanPaymentDTO.getBalance());
         settleLoanPaymentDTO.setBalance(settleLoanPaymentDTO.getBalance() - charges.getUsed());
+
+        if (adjustPrincipleFirst) checkForNPA(loan);
 
         return  PaymentCalculation.builder()
                 .received(amount)
@@ -51,6 +55,14 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .penaltySettled(penalty.getUsed())
                 .chargesSettled(charges.getUsed())
                 .build();
+    }
+
+
+    private void checkForNPA(LendingPaymentSchedule activeLoan) {
+        // switch back to IPC if all due is paid
+        if (activeLoan.getDueAmount() <= 0) {
+            activeLoan.setSettleAllPrinciple(false);
+        }
     }
 
     private PaymentCalculation settleEDIPrincipleAndInterest(LendingPaymentSchedule loan, double amount, Boolean settleAllPrinciple) {

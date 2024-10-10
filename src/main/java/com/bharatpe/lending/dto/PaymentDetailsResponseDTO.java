@@ -85,6 +85,7 @@ public class PaymentDetailsResponseDTO {
         private ForeClosureDetailDTO foreClosureDetail;
 		private Double foreClosureAmountAtLender;
 		private Double foreClosureAmountAtBp;
+		private Double excessBalance;
 
 		public Data() {
 			
