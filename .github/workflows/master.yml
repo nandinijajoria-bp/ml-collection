@@ -27,7 +27,6 @@ jobs:
       - name: Installing Git Secrets
         run: |
             ls -al
-            sudo ln -s "$(which echo)" /usr/local/bin/say
             cd git-secrets
             ls -al
             sudo make install
