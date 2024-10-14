@@ -11,6 +11,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDt
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
+import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
@@ -129,6 +130,28 @@ public class AssociationServiceUtil {
     @Autowired
     AbflDocGenerateService abflDocGenerateService;
 
+    @Autowired
+    CreditSaisonDisbursalCallbackService creditSaisonDisbursalCallbackService;
+
+    @Autowired
+    CreditSaisonBREService creditSasionBREService;
+
+    @Autowired
+    CreditSaisonKYCService creditSaisonKYCService;
+
+    @Autowired
+    CreditSaisonCreateClientService creditSaisonCreateClientService;
+
+    @Autowired
+    CreditSaisonPennyDropService creditSaisonPennyDropService;
+
+    @Autowired
+    CreditSaisonDocUploadService creditSaisonDocUploadService;
+
+    @Autowired
+    CreditSaisonFetchSignedDocService creditSaisonFetchSignedDocService;
+
+
     @Lazy
     @Autowired
     KycRequestKafka kycRequestKafka;
@@ -153,6 +176,9 @@ public class AssociationServiceUtil {
 
     @Autowired
     PayURepaymentScheduleService payURepaymentScheduleService;
+
+    @Autowired
+    CreditSaisonForeclosureService creditSaisonForeclosureService;
 
     @Autowired
     PayUForeclosureService payUForeclosureService;
@@ -183,6 +209,8 @@ public class AssociationServiceUtil {
                 return mfKycService.invokeKyc(lenderAssociationDetailsRequest);
             case "PAYU":
                 return payUKycService.invokeKyc(lenderAssociationDetailsRequest);
+            case "CREDITSAISON":
+                return creditSaisonKYCService.invokeKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -234,6 +262,8 @@ public class AssociationServiceUtil {
                 return capriBreService.invokeBre(lenderAssociationDetailsRequest);
             case "PAYU":
                 return payUBreService.invokeBre(lenderAssociationDetailsRequest);
+            case "CREDITSAISON":
+                return creditSasionBREService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -251,6 +281,8 @@ public class AssociationServiceUtil {
                 return capriDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "PAYU":
                 return payUDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(),  lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+            case "CREDITSAISON":
+                return creditSaisonDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             default:
                 return false;
         }
@@ -285,6 +317,8 @@ public class AssociationServiceUtil {
                 return capriDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
             case "PAYU":
                 return payUDisbursalCallbackService.handleDisbursalCallbackResponse(nbfcResponseDTO);
+            case "CREDITSAISON":
+                return creditSaisonDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -302,6 +336,8 @@ public class AssociationServiceUtil {
                 return tlBreService.processBreCallback(nbfcResponseDTO);
             case "PAYU":
                 return payUBreService.processBreCallback(nbfcResponseDTO);
+            case "CREDITSAISON":
+                return creditSasionBREService.processCreditSasionBreCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -319,6 +355,8 @@ public class AssociationServiceUtil {
                 return capriForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "PAYU":
                 return payUForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger);
+            case "CREDITSAISON":
+                return creditSaisonForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             default:
                 return null;
         }
@@ -345,6 +383,8 @@ public class AssociationServiceUtil {
                 return tlCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
             case "CAPRI":
                 return capriCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
+            case "CREDITSAISON":
+                return creditSaisonCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -356,6 +396,8 @@ public class AssociationServiceUtil {
                 return tlKycService.processKycCallback(nbfcResponseDTO);
             case "MUTHOOT":
                 return mfKycService.processMFKycCallback(nbfcResponseDTO);
+            case "CREDITSAISON":
+                return creditSaisonKYCService.processCreditSasionKycCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -416,6 +458,15 @@ public class AssociationServiceUtil {
         }
     }
 
+    public Boolean invokePennyDropService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        switch (lender) {
+            case "CREDITSAISON":
+                return creditSaisonPennyDropService.invokePennyDrop(lenderAssociationDetailsRequest);
+            default:
+                return false;
+        }
+    }
+
     public boolean invokeEkycStatusCheck(String lender, LendingApplication lendingApplication) {
         switch (lender) {
             case "ABFL":
@@ -444,4 +495,14 @@ public class AssociationServiceUtil {
                 return false;
         }
     }
+
+    public Boolean handlePennyDropCallback(String lender, NBFCResponseDTO nbfcResponseDTO) {
+        switch (lender) {
+            case "CREDITSAISON":
+                return creditSaisonPennyDropService.processCallback(nbfcResponseDTO);
+            default:
+                return false;
+        }
+    }
+
 }

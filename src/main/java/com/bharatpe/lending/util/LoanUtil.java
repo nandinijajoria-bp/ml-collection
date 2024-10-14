@@ -297,6 +297,11 @@ public class LoanUtil {
 	@Value("${fore.closure.charges.rollout.date.PAYU:2024-09-10 00:00}")
 	String payuForeClosureChargesRolloutDate;
 
+
+	@Value("${fore.closure.charges.rollout.date.CREDITSAISON:2024-10-01 00:00}")
+	String creditSaisonForeClosureChargesRolloutDate;
+
+
 	@Value("${autopay.upi.lenders:}")
 	String autoPayUpiLenders;
 
@@ -1694,6 +1699,9 @@ public class LoanUtil {
 		if("PAYU".equalsIgnoreCase(lender)) {
 			finalLender = Lender.PAYU.name();
 		}
+		if("CREDITSAISON".equalsIgnoreCase(lender)) {
+			finalLender = Lender.CREDITSAISON.name();
+		}
 		return finalLender;
 	}
 
@@ -2275,6 +2283,8 @@ public class LoanUtil {
 					break;
 				case "PAYU":
 					date = payuForeClosureChargesRolloutDate;
+				case "CREDITSAISON":
+					date = creditSaisonForeClosureChargesRolloutDate;
 					break;
 				default:
 					break;
@@ -2370,6 +2380,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		rejectedLenderMapping.put(PAYU.name(), "PAYU");
+		rejectedLenderMapping.put(CREDITSAISON.name(), "CREDITSAISON");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 

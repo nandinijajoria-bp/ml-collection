@@ -6,6 +6,15 @@ import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.LoanPaymentLedgerAdjustmentService;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
+import com.bharatpe.lending.common.dao.LendingCollectionExcessDao;
+import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
+import com.bharatpe.lending.common.dao.PenalChargesDao;
+import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
+import com.bharatpe.lending.common.entity.LendingCollectionExcess;
+import com.bharatpe.lending.common.entity.LendingPrepayment;
+import com.bharatpe.lending.common.entity.PenalCharges;
+import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -16,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 
@@ -185,7 +195,9 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                     .used(lendingCollectionExcess.getAmount())
                     .principleSettled(lendingCollectionExcess.getAmount())
                     .build();
-            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc,"EXCESS_NACH_ADJUSTED", CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name(), desc);
+            String transferType = (StringUtils.hasLength(lendingCollectionExcess.getTransferType())) ? lendingCollectionExcess.getTransferType() : CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name();
+            String adjustmentMode = LoanPaymentUtil.getExcessAdjustedModeDesc(lendingCollectionExcess.getMode());
+            LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, paymentAdjusted,desc, adjustmentMode, transferType, desc);
             if (Objects.nonNull(excessCollectionLedger)) lendingCollectionAuditService.sendCollectionAudit(excessCollectionLedger);
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }

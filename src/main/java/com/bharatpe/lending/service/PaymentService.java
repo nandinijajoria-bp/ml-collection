@@ -44,6 +44,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -74,6 +75,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -278,6 +280,10 @@ public class PaymentService {
     @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
     String nbfcPayuForeclosureTopic;
 
+    @Lazy
+    @Autowired
+    CreditSaisonConfig csConfig;
+
     @Autowired
     LoanPaymentUtil loanPaymentUtil;
     @Autowired
@@ -325,7 +331,7 @@ public class PaymentService {
         Double netForeclosureAtLender = 0d;
         double finalForeclosureAtLender = 0d;
         PaymentDetailsResponseDTO.Data data= new PaymentDetailsResponseDTO.Data(loanAmount, overdueAmount, overdueDays, isPayable, activeLoan.getEdiRemainingCount(), activeLoan.getEdiAmount());
-
+        data.setExcessBalance(excessCollectionBalance);
         if(Boolean.TRUE.equals(showForeClosureDetails)) {
             //show foreclosure details --
             Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
@@ -734,6 +740,7 @@ public class PaymentService {
 
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
+        log.info("Pg callback reciverd from pg {}",request);
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
@@ -1421,7 +1428,7 @@ public class PaymentService {
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 postForeclosureReceiptPiramal(activeLoan, lendingLedger);
             }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
@@ -1579,6 +1586,8 @@ public class PaymentService {
                 return nbfcCapriForeclosureTopic;
             case "PAYU":
                 return nbfcPayuForeclosureTopic;
+            case "CREDITSAISON":
+                return csConfig.getNbfcCreditsaisonForeclosureTopic();
             default:
                 return null;
         }
@@ -2293,7 +2302,7 @@ public class PaymentService {
             else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())) {
                 loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId);
             }
-            else if (Arrays.asList("USFB", "CAPRI").contains(activeLoan.getNbfc())) {
+            else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON").contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);
             } else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
                     || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())
@@ -2561,9 +2570,11 @@ public class PaymentService {
         List<LendingLedger> lendingLedgersListExcessCollection = new ArrayList<>();
         for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
             String desc = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + (lendingCollectionExcess.getDeductionCount() + 1);
+            String transferType = (CollectionTransferTypeEnum.TRANSFER_BY_BP.name().equalsIgnoreCase(lendingCollectionExcess.getTransferType())) ?  CollectionTransferTypeEnum.TRANSFER_BY_BP.name() : "EXTERNAL";
+            String adjustmentMode = LoanPaymentUtil.getExcessAdjustedModeDesc(lendingCollectionExcess.getMode());
             LendingLedger excessCollectionLedger = createLendingLedger(activeLoan, lendingCollectionExcess.getAmount(),
                     lendingCollectionExcess.getAmount(), 0d,  desc,
-                    "EXCESS_NACH_ADJUSTED", "EXTERNAL", desc, 0D
+                    adjustmentMode, transferType, desc, 0D
             );
             lendingLedgersListExcessCollection.add(excessCollectionLedger);
         }

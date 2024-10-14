@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
@@ -10,8 +11,11 @@ import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.dao.LendingOfferModificationSnapshotDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -55,6 +59,9 @@ public abstract class LendingApplicationServiceV3Base {
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
+    LendingAuditTrialDao lendingAuditTrialDao;
+
+    @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
@@ -70,6 +77,9 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Autowired
     LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Autowired
+    LendingOfferModificationSnapshotDao lendingOfferModificationSnapshotDao;
 
     @Lazy
     @Autowired
@@ -488,6 +498,67 @@ public abstract class LendingApplicationServiceV3Base {
             log.info("Exception in initiating lender eKyc {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Something went wrong in initiating lender eKyc");
+    }
+
+    public ApiResponse<?> modifyOffer(Long applicationId, Long merchantId){
+        try{
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if (ObjectUtils.isEmpty(lendingApplication)){
+                return new ApiResponse<>(false, "Something went wrong");
+            }
+            LendingOfferModificationSnapshot lendingOfferModificationSnapshot = new LendingOfferModificationSnapshot();
+            lendingOfferModificationSnapshot.setApplicationId(lendingApplication.getId());
+            lendingOfferModificationSnapshot.setPayableDays(lendingApplication.getPayableDays());
+            lendingOfferModificationSnapshot.setDisbursalAmount(lendingApplication.getDisbursalAmount());
+            lendingOfferModificationSnapshot.setLoanAmount(lendingApplication.getLoanAmount());
+            lendingOfferModificationSnapshot.setEdiAmount(lendingApplication.getEdi());
+            lendingOfferModificationSnapshot.setProceeingFee(lendingApplication.getProcessingFee());
+            lendingOfferModificationSnapshot.setRepaymentAmount(lendingApplication.getRepayment());
+
+            lendingOfferModificationSnapshotDao.save(lendingOfferModificationSnapshot);
+
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
+                return new ApiResponse<>(false, "Something went wrong");
+            }
+            if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()<=0){
+                return new ApiResponse<>(false, "Revised offer amount is less than 0");
+            }
+
+            Double interestAmt = (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100);
+            Long payableDays = lendingApplication.getPayableDays();
+            Double ediAmount = Math.ceil((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            double initialDisbursalAmountWithoutProcessingFee = lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee();
+            double  processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
+            double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
+
+            lendingApplication.setProcessingFee(processingFee);
+            lendingApplication.setLoanAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
+            lendingApplication.setRepayment(ediAmount * payableDays);
+            lendingApplication.setDisbursalAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() - processingFee);
+            lendingApplication.setEdi(ediAmount);
+
+            lendingApplicationDao.save(lendingApplication);
+
+
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setLoanId(Objects.nonNull(lendingApplication.getExternalLoanId())?lendingApplication.getExternalLoanId():"");
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial.setType("OFFER_MODIFIED");
+            lendingAuditTrial.setOldStatus(lendingApplication.getStatus());
+            lendingAuditTrial.setNewStatus(lendingApplication.getStatus());
+            lendingAuditTrial.setRemarks("LENDER_BRE_OFFER_MODIFIED");
+            lendingAuditTrialDao.save(lendingAuditTrial);
+
+
+
+            return new ApiResponse<>(true, "Offer successfully modified");
+        } catch (Exception ex){
+            log.info("Exception occurred while modifying offer for application:{}", applicationId);
+        }
+        return new ApiResponse<>(false, "something went wrong");
     }
 
 }

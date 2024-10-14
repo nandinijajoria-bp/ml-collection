@@ -2450,6 +2450,13 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_PAYU;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_PAYU;
             }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.CREDITSAISON.toString())){
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_CREDITSAISON;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_CREDITSAISON;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_CREDITSAISON;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_CREDITSAISON;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_CREDITSAISON;
+            }
             else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
@@ -2720,7 +2727,7 @@ public class LendingApplicationServiceV2 {
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name()).contains(lender)) ? 360 : 365;
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name()).contains(lender)) ? 360 : 365;
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
@@ -2954,6 +2961,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + ".html";
             } else if(lender.equalsIgnoreCase(Lender.PAYU.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_PAYU" + ".html";
+            }else if(Lender.CREDITSAISON.name().equalsIgnoreCase(lender)) {
+                filePath = "/templates/CREDITSAISON/" + "KFS_CREDIT_SAISON" + ".html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -3111,6 +3120,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT.html";
             } else if (lender.equalsIgnoreCase(Lender.PAYU.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PAYU.html";
+            } else if (lender.equalsIgnoreCase(Lender.CREDITSAISON.name())) {
+                filePath = "/templates/CREDITSAISON/" + "SANCTION_LOAN_AGREEMENT_CREDIT_SAISON" + ".html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
@@ -3356,7 +3367,7 @@ public class LendingApplicationServiceV2 {
         else data.put("date", "");
         data.put("disbursal_date", new SimpleDateFormat("dd-MMM-yyyy").format(dateTime));
         data.put("mobile_number_for_otp", merchant.getMobile());
-        data.put("platform", "BHARATPE");
+        data.put("platform", "BharatPe for Business");
         data.put("ip_address", ip);
         data.put("location", kfsDto.getLocationLatLong());
         if(timeStamp)data.put("time_stamp", dateTime);
@@ -3403,6 +3414,8 @@ public class LendingApplicationServiceV2 {
             log.info("borrower bank details getting populated for application ; {}",applicationId);
         }
         LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
+
+
         if (Lender.PAYU.name().equalsIgnoreCase(kfsDto.getLender()) && !ObjectUtils.isEmpty(lendingGstDetail)) {
             data.put("business_city",lendingGstDetail.getCity());
             data.put("business_state",lendingGstDetail.getState());
@@ -3413,6 +3426,11 @@ public class LendingApplicationServiceV2 {
             data.put("processing_fee_includes_tax", String.format("%.2f", kfsDto.getProcessingFee()));
             data.put("processing_percentage_without_gst", String.format("%.2f",kfsDto.getProcessingFeePercentageWithoutGst()));
             data.put("gst_amount_of_processing_fee", String.format("%.2f",(kfsDto.getLoanAmount() * (kfsDto.getProcessingFeePercentageWithoutGst()/100D) * (KfsConstants.GST_PERCENTAGE)/100D)));
+        }
+
+        if(Lender.CREDITSAISON.name().equalsIgnoreCase(kfsDto.getLender())){
+            data.put("processing_fee_excludes_tax", String.format("%.2f", kfsDto.getProcessingFee() / 1.18));
+            data.put("annual_rate_of_interest", String.format("%.2f", kfsDto.getAnnualRoi()));
         }
 
         String ediStartDate = lendingEdiScheduleService.getEdiStartDate(merchant.getId(),applicationId);
@@ -3583,6 +3601,8 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/hindon_letterhead-1681130033877.png";
         } else if (lender.equalsIgnoreCase(Lender.HINDON.name()) && applicationDocType.equals(ApplicationDocType.HINDON_LETTERHEAD_FOOTER)) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/hindon_footer-1681129971473.png";
+        }else if (lender.equalsIgnoreCase(Lender.CREDITSAISON.name())) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/credit-saison-header-1726661778569.png";
         }
         else if(lender.equalsIgnoreCase(Lender.MAMTA.toString())
           || lender.equalsIgnoreCase(Lender.MAMTA0.toString())

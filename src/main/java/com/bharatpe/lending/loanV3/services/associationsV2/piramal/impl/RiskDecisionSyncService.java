@@ -56,13 +56,6 @@ public class RiskDecisionSyncService {
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setTenure(riskDecisionResponseDto.getRiskDecision().getLoanTenor());
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
-                if(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt() < lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount()) {
-                    log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
-                            lenderAssociationDetailsRequestDto.getLendingApplication().getId(),lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt(), lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount());
-                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
-                    return false;
-                }
-
                 return true;
             }
             //handling for async call
