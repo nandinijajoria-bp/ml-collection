@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 @Slf4j
 @Component
@@ -68,4 +69,46 @@ public class CommonUtil {
         log.info("Audit Trail: {}", auditLender);
         lendingAuditTrialDao.save(auditLender);
     }
+
+    public boolean isAllConsecutiveLetters(String name) {
+        String strippedName = name.replaceAll("\\s+", "");
+        if (strippedName.length() < 2) return false; // Less than 2 chars cannot be consecutive
+
+        for (int i = 0; i < strippedName.length() - 1; i++) {
+            if (strippedName.charAt(i + 1) - strippedName.charAt(i) != 1) {
+                return false; // If any two chars are not consecutive, return false
+            }
+        }
+
+        return true; // All letters are consecutive
+    }
+
+    public boolean hasAtLeastThreeConsecutiveChars(String name) {
+        String[] parts = name.split("\\s+"); // Split by one or more spaces
+
+        for (String part : parts) {
+            if (part.length() >= 3) {
+                return true; // If any part has 3 or more consecutive characters
+            }
+        }
+        return false; // No part had 3 consecutive characters
+    }
+
+    public boolean hasMoreThanFourConsecutiveNumbers(String mobile) {
+        return IntStream.range(0, mobile.length() - 4)
+                .anyMatch(i ->
+                        IntStream.range(1, 5)
+                                .allMatch(j -> Character.getNumericValue(mobile.charAt(i + j)) == Character.getNumericValue(mobile.charAt(i)) + j)
+                                || IntStream.range(1, 5)
+                                .allMatch(j -> Character.getNumericValue(mobile.charAt(i + j)) == Character.getNumericValue(mobile.charAt(i)) - j)
+                );
+    }
+
+    public boolean hasMoreThanFourSameDigits(String mobile) {
+        return IntStream.range(0, mobile.length() - 4)
+                .anyMatch(i -> mobile.substring(i, i + 5).chars()
+                        .allMatch(c -> c == mobile.charAt(i)));
+    }
+
+
 }

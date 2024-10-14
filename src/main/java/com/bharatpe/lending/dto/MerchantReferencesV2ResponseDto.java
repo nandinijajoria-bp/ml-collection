@@ -27,5 +27,6 @@ public class MerchantReferencesV2ResponseDto {
     public static class MerchantReferenceData {
         private String name;
         private String phoneNumber;
+        private String relation;
     }
 }

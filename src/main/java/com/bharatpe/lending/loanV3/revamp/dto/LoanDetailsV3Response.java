@@ -311,6 +311,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setDummyMerchant(referenceStateDTO.isDummyMerchant());
         loanDetailsV3Response.setApplicationStatus(referenceStateDTO.getApplicationStatus());
         loanDetailsV3Response.setLender(referenceStateDTO.getLender());
+        loanDetailsV3Response.setMerchantName(referenceStateDTO.getMerchantName());
+        loanDetailsV3Response.setMobile(referenceStateDTO.getMobile());
     }
 
     private static void setLenderEvaluationResponse(LenderEvaluationStateDTO lenderEvaluationStateDTO, LoanDetailsV3Response loanDetailsV3Response){

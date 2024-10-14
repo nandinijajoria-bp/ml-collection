@@ -59,6 +59,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.util.MongoPublisherUtil;
@@ -176,6 +177,9 @@ public class LoanDetailsServiceV2 {
 
     @Autowired
     FosService fosService;
+
+    @Autowired
+    CommonUtil commonUtil;
 
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
@@ -1649,6 +1653,7 @@ public class LoanDetailsServiceV2 {
                     .map(reference -> MerchantReferencesV2ResponseDto.MerchantReferenceData.builder()
                             .name(reference.getReferenceName())
                             .phoneNumber(reference.getReferenceNumber())
+                            .relation(reference.getInferredRelation())
                             .build())
                     .collect(Collectors.toList());
 
@@ -1729,6 +1734,11 @@ public class LoanDetailsServiceV2 {
             if (Objects.isNull(requestedReferenceList)) {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
+            for(MerchantReference reference : requestedReferenceList) {
+                if(isNotValid(reference, merchant)) {
+                    return new ApiResponse<>(false, "references are not valid!");
+                }
+            }
             List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
             if(!lendingRiskVariablesSnapshot.getNewContactReferenceLogic() && requestedReferenceList.size() == 3) {
                 //old version & 3 references - v3 changes.
@@ -1747,6 +1757,7 @@ public class LoanDetailsServiceV2 {
                         LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
                         lendingMerchantReferences.setReferenceName(requestedReferences.getName());
                         lendingMerchantReferences.setReferenceNumber(requestedReferences.getPhoneNumber());
+                        lendingMerchantReferences.setInferredRelation(requestedReferences.getInferredRelation());
                         lendingMerchantReferences.setMerchantId(merchantId);
                         lendingMerchantReferences.setApplicationId(applicationId);
 
@@ -1801,6 +1812,7 @@ public class LoanDetailsServiceV2 {
                 LendingMerchantReferences lendingMerchantReferences = new LendingMerchantReferences();
                 lendingMerchantReferences.setReferenceName(requestedReference.getName());
                 lendingMerchantReferences.setReferenceNumber(requestedReference.getPhoneNumber());
+                lendingMerchantReferences.setInferredRelation(requestedReference.getInferredRelation());
                 lendingMerchantReferences.setMerchantId(merchant.getId());
                 lendingMerchantReferences.setApplicationId(lendingApplication.getId());
                 lendingMerchantReferencesDao.save(lendingMerchantReferences);
@@ -1813,6 +1825,7 @@ public class LoanDetailsServiceV2 {
                 MerchantReference requestedReference = requestedReferenceList.get(i);
                 savedReference.setReferenceName(requestedReference.getName());
                 savedReference.setReferenceNumber(requestedReference.getPhoneNumber());
+                savedReference.setInferredRelation(requestedReference.getInferredRelation());
                 lendingMerchantReferencesDao.save(savedReference);
                 log.info("Updated reference: {} of merchantId: {}", requestedReference.getName(), merchant.getId());
             }
@@ -2824,6 +2837,66 @@ public class LoanDetailsServiceV2 {
             log.error("Exception while saving Merchant PSP in Mongo, Exception is :{}", Arrays.asList(ex.getStackTrace()));
 
         }
+    }
+
+    private boolean isNotValid(MerchantReference reference, BasicDetailsDto merchant) {
+        String name = reference.getName();
+        if (StringUtils.isEmpty(name)) {
+            log.info("reference name is Empty!");
+            return false;
+        }
+        String strippedName = name.replaceAll(" ", "");
+
+        // Rule 1: Name cannot be the same as the merchant's name
+        if (!StringUtils.isEmpty(merchant.getName()) && name.equalsIgnoreCase(merchant.getName())) {
+            log.info("reference name matches with merchant name, {}", name);
+            return false;
+        }
+
+        // Rule 2: Must have at least 3 consecutive characters
+        if (!commonUtil.hasAtLeastThreeConsecutiveChars(name)) {
+            log.info("reference name is not having atleast three consecutive chars, {}", name);
+            return false;
+        }
+
+        // Rule 3: Must not contain any numerical or special characters
+        if (!strippedName.matches("[a-zA-Z]+")) {
+            log.info("reference name is having special or numeric chars, {}", name);
+            return false;
+        }
+
+        // Rule 4: Must not be entirely consecutive letters
+        if (commonUtil.isAllConsecutiveLetters(strippedName)) {
+            log.info("reference name having all consecutive letters, {}", name);
+            return false;
+        }
+
+        String merchantMobile = merchant.getMobile();
+        String referenceMobile = reference.getPhoneNumber();
+        if (StringUtils.isEmpty(merchantMobile) || StringUtils.isEmpty(referenceMobile)) {
+            return false;
+        }
+        merchantMobile = merchantMobile.length() == 12 ? merchantMobile.substring(2) : merchantMobile;
+        referenceMobile = referenceMobile.length() == 12 ? referenceMobile.substring(2) : referenceMobile;
+
+        // Rule 1: Mobile number cannot be the same as the merchant's number
+        if (referenceMobile.equals(merchantMobile)) {
+            log.info("merchant mobile matches with reference mobile, {}", referenceMobile);
+            return false;
+        }
+
+        // Rule 2: Consecutive numbers for more than 4 values are not allowed
+        if (commonUtil.hasMoreThanFourConsecutiveNumbers(referenceMobile)) {
+            log.info("reference mobile having more than 4 consecutive numbers, {}", referenceMobile);
+            return false;
+        }
+
+        // Rule 3: The same digit repeated more than 4 times is not allowed
+        if (commonUtil.hasMoreThanFourSameDigits(referenceMobile)) {
+            log.info("reference mobile having same digit more than 4 times, {}", referenceMobile);
+            return false;
+        }
+        return true;
     }
 
     public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId) {
