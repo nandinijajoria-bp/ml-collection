@@ -99,7 +99,7 @@ public class DocUploadUtils {
 
     public void saveESignedDocs(Long applicationId, String signedKFSUrl, String signedSanctionUrl) {
         try {
-            log.info("saving signed docs for applicationId : {}", applicationId);
+            log.info("saving signed docs for applicationId : {} signedKFSUrl: {} signedSanctionUrl: {}", applicationId,signedKFSUrl,signedSanctionUrl);
 
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
             if (ObjectUtils.isEmpty(lendingKfs)) {

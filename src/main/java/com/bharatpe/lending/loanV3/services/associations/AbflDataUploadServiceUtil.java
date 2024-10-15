@@ -131,6 +131,10 @@ public class AbflDataUploadServiceUtil {
     @Value("${abfl.lender.doc.rollout.datetime:}")
     String lenderDocRolloutDateTime;
 
+
+    @Autowired
+    ABFLDigiSignService abflDigiSignService;
+
     @Value("${abfl.topup.lender.doc.rollout.datetime:}")
     String lenderTopupDocRolloutDateTime;
 
@@ -503,7 +507,7 @@ public class AbflDataUploadServiceUtil {
         try {
             DigitalDataUploadResponse digitalDataUploadResponse = apiGatewayV3.invokeDigitalDataUpload(digitalDataUploadRequest);
             if (ObjectUtils.isEmpty(digitalDataUploadResponse) || ObjectUtils.isEmpty(digitalDataUploadResponse.getData()) ||
-                !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digitalDataUploadResponse.getData().getResponseStatus())
+                    !StatusCheckResponse.SUCCESS.name().equalsIgnoreCase(digitalDataUploadResponse.getData().getResponseStatus())
             ) {
                 response = LenderAssociationStatus.DGTL_UPLOAD_FAILED.name();
             }
@@ -557,7 +561,7 @@ public class AbflDataUploadServiceUtil {
     }
 
     @Async
-    public void pushDataToNbfc(Long applicationId, List<String> documents, boolean systemMangedState) {
+    public void pushDataToNbfc(Long applicationId, List<String> documents, boolean systemMangedState, boolean digiSignRetry) {
         if (systemMangedState) {
             try {
                 log.info("invoking regulatory for {}", applicationId);
@@ -573,10 +577,22 @@ public class AbflDataUploadServiceUtil {
             }
         }
         try {
-            log.info("invoking docs for {}", applicationId);
-            uploadDocuments(applicationId, documents, systemMangedState);
+            if(!ObjectUtils.isEmpty(documents) && documents.get(0).equalsIgnoreCase("skip_docs")){
+                log.info("skipping doc upload as pushDataToNbfc called via digi sign");
+            } else {
+                log.info("invoking docs for {}", applicationId);
+                uploadDocuments(applicationId, documents, systemMangedState);
+            }
         } catch (Exception e) {
             log.error("error occurred while uploading docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+        }
+        if(digiSignRetry){
+            try {
+                log.info("invoking digiSign for {}", applicationId);
+                abflDigiSignService.invoke(applicationId, new HashMap<>());
+            } catch (Exception e) {
+                log.error("error occurred while uploading digisign docs data {} {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()) );
+            }
         }
     }
 }
