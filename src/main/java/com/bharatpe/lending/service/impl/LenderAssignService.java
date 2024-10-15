@@ -530,18 +530,19 @@ public class LenderAssignService implements ILenderAssignService {
         if(!ObjectUtils.isEmpty(decidedLender)){
             saveLenderChangeAudit(application, decidedLender);
         }else{
-            EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
-            log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
+//            EdiModel modifiedEdiModel = ediModel.getNoOfEdiDaysInAWeek() == 6 ? EdiModel.SEVEN_DAY_MODEL:EdiModel.SIX_DAY_MODEL;
+//            log.info("EDI MODEL CHANGED TO -> {}", modifiedEdiModel);
             // ModifyEdiModel
-            decidedLender = lenderAssignmentHandler(application, modifiedEdiModel, merchantDetails);
-            if(isGstOfferEnabled && Lender.ABFL.name().equals(decidedLender)) {
-                decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
-            }
+//            decidedLender = lenderAssignmentHandler(application, modifiedEdiModel, merchantDetails);
+//            if(isGstOfferEnabled && Lender.ABFL.name().equals(decidedLender)) {
+//                decidedLender = updateLenderForGstAndBS(application, ediModel, decidedLender);
+//            }
             if(ObjectUtils.isEmpty(decidedLender)){
                 decidedLender = assignFallackLender(application, ediModel);
-            } else{
-                modifyEdiModel(application, modifiedEdiModel);
             }
+//            else{
+//                modifyEdiModel(application, modifiedEdiModel);
+//            }
             saveLenderChangeAudit(application, decidedLender);
         }
         String enachMode = loanUtil.getEnachBankMode(application.getMerchantId()).getMode();
