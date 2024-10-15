@@ -22,16 +22,18 @@ public class AbflDataUploadService implements ILenderAssociationService<Optional
     @Override
     public Optional invoke(Long applicationId, Map<String, Object> args) {
         String[] documents = {"KFS_SANCTION_AGREEMENT", "SHOP-FRONT", "SHOP-STOCK"};
+        Boolean digiSignRetry = false;
         boolean systemMangedState = true;
         try {
             if (args != null) {
                 documents = args.containsKey("documents") ? ((String) args.get("documents")).split(";") : documents;
                 systemMangedState = args.containsKey("systemManagedState") ? Boolean.parseBoolean((String) args.get("systemManagedState")) : systemMangedState;
+                digiSignRetry = args.containsKey("digi_sign_retry") ? Boolean.parseBoolean((String) args.get("digi_sign_retry")) : false;
             }
         } catch (Exception e) {
-           log.info("exception occurred while parsing args for {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.info("exception occurred while parsing args for {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        abflDataUploadServiceUtil.pushDataToNbfc(applicationId, Arrays.asList(documents), systemMangedState);
+        abflDataUploadServiceUtil.pushDataToNbfc(applicationId, Arrays.asList(documents), systemMangedState, digiSignRetry);
         return Optional.empty();
     }
 }
