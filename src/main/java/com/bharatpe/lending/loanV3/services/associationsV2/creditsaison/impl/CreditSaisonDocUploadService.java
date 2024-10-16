@@ -128,9 +128,9 @@ public class CreditSaisonDocUploadService {
     private String getDocUrl(DocType fileBlob, LendingKfs lendingKfs) {
         switch (fileBlob) {
             case KEY_FACT_STATEMENT:
-                return  getS3PresignedUrlFromKey(lendingKfs.getKfsDocFile());
+                return  getS3PresignedUrlFromKey(lendingKfs.getSignedKfsDocFile());
             case LOAN_AGREEMENT:
-                return getS3PresignedUrlFromKey(lendingKfs.getSanctionLoanAgreementDocFile());
+                return getS3PresignedUrlFromKey(lendingKfs.getSignedSanctionDocFile());
             default:
                 return null;
         }
