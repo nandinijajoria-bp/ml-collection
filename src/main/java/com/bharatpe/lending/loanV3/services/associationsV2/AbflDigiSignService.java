@@ -171,17 +171,17 @@ public class AbflDigiSignService {
 
         String mergedFileName = "KFS_SANCTION_AGREEMENT_MERGED_FOR_DIGISIGN_"+ applicationId + ".pdf";
 
-        log.info("bucket",bucket);
+        log.info("bucket: {}",bucket);
         URL url1 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docKfsName,bucket));
         URLConnection connection1 = url1.openConnection();
         InputStream inputStream1 = connection1.getInputStream();
         PdfReader reader1 = new PdfReader(inputStream1);
-        log.info("URL1",url1);
+        log.info("URL1: {}",url1);
         URL url2 = new URL(s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(docSanctionName,bucket));
         URLConnection connection2 = url2.openConnection();
         InputStream inputStream2 = connection2.getInputStream();
         PdfReader reader2 = new PdfReader(inputStream2);
-        log.info("URL2",url2);
+        log.info("URL2: {}",url2);
         Document document = new Document();
         PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
         copy.setCompressionLevel(9);
@@ -196,11 +196,11 @@ public class AbflDigiSignService {
         s3BucketHandler.uploadFileToS3(mergedFile,"loan-document", mergedFileName);
 
         String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
-        log.info("mergeDocumentPresignedUrl",mergeDocumentPresignedUrl);
+        log.info("mergeDocumentPresignedUrl{}",mergeDocumentPresignedUrl);
         log.info("pre-signed url for merged doc for digi sign: {}, {}", applicationId,  mergeDocumentPresignedUrl);
 
         Path uploadedFilePath = Paths.get(CURRENT_DIR + "/" + mergedFileName);
-        log.info("uploadedFilePath",uploadedFilePath);
+        log.info("uploadedFilePath: {}",uploadedFilePath);
         FileUtil.deleteFile(uploadedFilePath);
 
         return mergeDocumentPresignedUrl;
