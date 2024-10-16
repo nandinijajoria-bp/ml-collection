@@ -49,6 +49,7 @@ public class CreditSaisonConfig {
     private String metaDataKey = "ip";
     private String docTypeSanctionWrapper = "Insurance Policy";
     private String docTypeLoanAgreement = "Loan Agreement";
+    private String docTypeScheduleLetter = "Schedule Letter";
 
     private String countryCode = "+91";
 
