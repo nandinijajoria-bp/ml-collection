@@ -5,6 +5,7 @@ import com.bharatpe.lending.loanV3.consumer.*;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 
+import com.bharatpe.lending.loanV3.services.associationsV2.AbflDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.InsurancePolicyDocService;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.ESignDocService;
@@ -13,12 +14,14 @@ import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.RiskDeci
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.itextpdf.text.DocumentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -201,6 +204,17 @@ public class NbfcCallbackControllerV3 {
         log.info("pennyDrop callback received via controller {}", nbfcResponseDTO);
         pennyDropCallbackWrapperService.pennyDropCallback(nbfcResponseDTO);
         return ResponseEntity.ok(new ApiResponse<>(true,"pennyDrop async callback handled"));
+    }
+
+    //test controller
+
+    @Autowired
+    AbflDigiSignService abflDigiSignService;
+    @PostMapping("merge-docs")
+    public ResponseEntity<ApiResponse<?>> mergeDocs(@RequestBody MergeDocsController mergeDocsController) throws IOException, DocumentException {
+        log.info("mergeDocs hit received via controller {}", mergeDocsController);
+        String mergedUrl=abflDigiSignService.mergedKFSAndSanctionLetterUrl(mergeDocsController.getApplicationId(),mergeDocsController.getDocKfsName(),mergeDocsController.getDocSanctionName());
+        return ResponseEntity.ok(new ApiResponse<>(true,mergedUrl));
     }
 
 }
