@@ -128,9 +128,9 @@ public class CreditSaisonDocUploadService {
     private String getDocUrl(DocType fileBlob, LendingKfs lendingKfs) {
         switch (fileBlob) {
             case KEY_FACT_STATEMENT:
-                return  getS3PresignedUrlFromKey(lendingKfs.getSignedKfsDocUrl());
+                return  getS3PresignedUrlFromKey(lendingKfs.getSignedKfsDocFile());
             case LOAN_AGREEMENT:
-                return getS3PresignedUrlFromKey(lendingKfs.getSignedSanctionDocUrl());
+                return getS3PresignedUrlFromKey(lendingKfs.getSignedSanctionDocFile());
             default:
                 return null;
         }
@@ -139,7 +139,7 @@ public class CreditSaisonDocUploadService {
     private String getDocIdentifier(DocType docType) {
         switch (docType) {
             case KEY_FACT_STATEMENT :
-                return csConfig.getDocTypeSanctionWrapper();
+                return csConfig.getDocTypeScheduleLetter();
             case LOAN_AGREEMENT :
                 return csConfig.getDocTypeLoanAgreement();
             default:
