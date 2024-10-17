@@ -31,6 +31,7 @@ import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -88,6 +89,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Lazy
     @Autowired
     KycRequestKafka kycRequestKafka;
+
+    @Value("${ekyc.status.check.enabled.lenders:}")
+    String eKycStatusCheckEnabledLenders;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -155,7 +159,7 @@ public abstract class LendingApplicationServiceV3Base {
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
-                if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lendingApplicationLenderDetails.getLender())) {
+                if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
                     lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
                 }
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
