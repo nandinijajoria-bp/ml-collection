@@ -124,12 +124,6 @@ public class AbflDigiSignService {
                         .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile().substring(2))
                         .build())
                 .build();
-        } catch (IOException ex) {
-            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {} : {}", lendingApplication.getId(),Arrays.asList(ex.getStackTrace()));
-            throw new RuntimeException("DIGI sign: eIOException while merging kfs and sanction files");
-        }catch (DocumentException exception) {
-            log.error("DIGI sign: DocumentException while merging kfs and sanction files applicationId {} : {}", lendingApplication.getId(),Arrays.asList(exception.getStackTrace()));
-            throw new RuntimeException("DIGI sign: DocumentException while merging kfs and sanction files");
         } catch (Exception exception) {
             log.error("DIGI sign: Error in while merging kfs and sanction files applicationId: {} : {}", lendingApplication.getId(),Arrays.asList(exception.getStackTrace()));
             throw new RuntimeException("DIGI sign: error in merging docs for ABFL DigiSign API");
@@ -200,7 +194,7 @@ public class AbflDigiSignService {
         log.info("pre-signed url for merged doc for digi sign: {}, {}", applicationId,  mergeDocumentPresignedUrl);
 
         Path uploadedFilePath = Paths.get(CURRENT_DIR + "/" + mergedFileName);
-        
+
         FileUtil.deleteFile(uploadedFilePath);
 
         return mergeDocumentPresignedUrl;
