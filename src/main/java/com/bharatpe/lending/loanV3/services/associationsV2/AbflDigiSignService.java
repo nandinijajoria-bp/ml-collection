@@ -110,7 +110,7 @@ public class AbflDigiSignService {
             log.error("DIGI sign: Error in fetching merchant details for merchantId: {}", lendingApplication.getMerchantId());
             throw new RuntimeException("DIGI sign: error in fetching merchant details for ABFL DigiSign API");
         }
-        String mergedURL = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingKfs.getKfsDocUrl(),bucket);
+        String mergedURL = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingKfs.getKfsDocFile(),bucket);
 
         return AbflDigiSignRequestDTO.builder()
                 .applicationId(lendingApplication.getId())
