@@ -124,13 +124,13 @@ public class AbflDigiSignService {
                         .build())
                 .build();
         } catch (IOException ex) {
-            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {}", lendingApplication.getId());
+            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {} : {}", lendingApplication.getId(),ex);
             throw new RuntimeException("DIGI sign: eIOException while merging kfs and sanction files");
         }catch (DocumentException exception) {
-            log.error("DIGI sign: DocumentException while merging kfs and sanction files applicationId {}", lendingApplication.getId());
+            log.error("DIGI sign: DocumentException while merging kfs and sanction files applicationId {} : {}", lendingApplication.getId(),exception);
             throw new RuntimeException("DIGI sign: DocumentException while merging kfs and sanction files");
         } catch (Exception exception) {
-            log.error("DIGI sign: Error in while merging kfs and sanction files applicationId: {}", lendingApplication.getId());
+            log.error("DIGI sign: Error in while merging kfs and sanction files applicationId: {} : {}", lendingApplication.getId(),exception);
             throw new RuntimeException("DIGI sign: error in merging docs for ABFL DigiSign API");
         }
     }
