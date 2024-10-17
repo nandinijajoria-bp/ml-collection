@@ -222,7 +222,7 @@ public class AbflDataUploadServiceUtil {
         List<RegulatoryDataDto.Consent> consents = new ArrayList<>();
         consents.add(RegulatoryDataDto.Consent.builder()
                 .type("Bureau consent")
-                .content("I authorize Resilient Digi Services Private Limited (acting as an authorized agent) (“BharatPe Money”) and its Lending Partners (Trillion Loans Fintech Private Limited, Aditya Birla Finance Ltd., Piramal Capital and Housing Finance Limited, Muthoot FinCorp Limited, Capri Global Capital Limited and NDX P2P Private) Limited to collect, store and verify the Credit Information / Credit Report from the Credit Information Company for processing my loan application")
+                .content("I authorize Resilient Digi Services Private Limited (acting as an authorized agent) (“BharatPe Money”) and its Lending Partners to collect, store and verify the Credit Information / Credit Report from the Credit Information Company for processing my loan application")
                 .ip(lendingApplication.getIp())
                 .timestamp(String.valueOf(lendingApplicationLenderDetails.getCreatedAt().getTime()))
                 .build()
