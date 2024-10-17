@@ -78,7 +78,7 @@ public class InvokeSanctionWrapperService {
                 MDC.clear();
                 return;
             }
-            if(Arrays.asList(Lender.MUTHOOT.name(), Lender.CREDITSAISON.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
+            if(Arrays.asList(Lender.MUTHOOT.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
             }
 
