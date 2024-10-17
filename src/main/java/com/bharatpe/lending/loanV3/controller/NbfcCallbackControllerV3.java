@@ -207,26 +207,4 @@ public class NbfcCallbackControllerV3 {
         return ResponseEntity.ok(new ApiResponse<>(true,"pennyDrop async callback handled"));
     }
 
-    //test controller
-
-    @Autowired
-    AbflDigiSignService abflDigiSignService;
-
-    @Autowired
-    ABFLDigiSignService abflDigiSignService2;
-
-    @PostMapping("merge-docs")
-    public ResponseEntity<ApiResponse<?>> mergeDocs(@RequestBody MergeDocsController mergeDocsController) throws IOException, DocumentException {
-        log.info("mergeDocs hit received via controller {}", mergeDocsController);
-        String mergedUrl=abflDigiSignService.mergedKFSAndSanctionLetterUrl(mergeDocsController.getApplicationId(),mergeDocsController.getDocKfsName(),mergeDocsController.getDocSanctionName());
-        return ResponseEntity.ok(new ApiResponse<>(true,mergedUrl));
-    }
-
-    @PostMapping("manual-abfl-digisign-invoke")
-    public ResponseEntity<ApiResponse<?>> manualDigiSignInvoke(@RequestBody ManualDigiSignInvoke manualDigiSignInvoke) throws IOException, DocumentException {
-        log.info("manualDigiSignInvoke hit received via controller {}", manualDigiSignInvoke);
-        AbflDigiSignResponseDTO abflDigiSignResponseDTO=abflDigiSignService2.invoke(manualDigiSignInvoke.getApplicationId(),manualDigiSignInvoke.getArgs());
-        return ResponseEntity.ok(new ApiResponse<>(true,abflDigiSignResponseDTO.toString()));
-    }
-
 }

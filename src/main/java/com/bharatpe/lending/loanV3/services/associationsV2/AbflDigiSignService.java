@@ -192,10 +192,8 @@ public class AbflDigiSignService {
 
         File mergedFile = new File("/data/" + mergedFileName);
         s3BucketHandler.uploadFileToS3(mergedFile,"loan-document", mergedFileName);
-
         String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
         log.info("pre-signed url for merged doc for digi sign: {}, {}", applicationId,  mergeDocumentPresignedUrl);
-
         Path uploadedFilePath = Paths.get(CURRENT_DIR + "/" + mergedFileName);
         FileUtil.deleteFile(uploadedFilePath);
 
