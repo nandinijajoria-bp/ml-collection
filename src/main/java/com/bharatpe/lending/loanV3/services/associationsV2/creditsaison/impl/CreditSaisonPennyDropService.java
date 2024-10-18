@@ -88,6 +88,7 @@ public class CreditSaisonPennyDropService  {
                 log.info("CS: stage is SanctionWrapper and Account number is changed for CredistSaison so moving forward and initiating pennydrop after verifyOTP for application {}", nbfcRequestDTO.getApplicationId());
             } else if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(merchantBankDetails) && isAccountSame) {
                 log.info("CS: Account number is same as previous pennydrop so returning true for application {}", nbfcRequestDTO.getApplicationId());
+                commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
                 return true;
             } else if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !LenderAssociationStages.PENNY_DROP.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
                 log.info("CS: lender or stage mismatch while initiating pennydrop for application {}", nbfcRequestDTO.getApplicationId());
