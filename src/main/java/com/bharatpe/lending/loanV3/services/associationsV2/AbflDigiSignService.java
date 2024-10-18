@@ -110,7 +110,8 @@ public class AbflDigiSignService {
             log.error("DIGI sign: Error in fetching merchant details for merchantId: {}", lendingApplication.getMerchantId());
             throw new RuntimeException("DIGI sign: error in fetching merchant details for ABFL DigiSign API");
         }
-        String mergedURL = mergedKFSAndSanctionLetterUrl(lendingApplication.getId(), lendingKfs.getKfsDocUrl(), lendingKfs.getSanctionLoanAgreementDocUrl());
+        String mergedURL = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingKfs.getKfsDocFile(),bucket);
+
         return AbflDigiSignRequestDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender("ABFL")
@@ -123,14 +124,8 @@ public class AbflDigiSignService {
                         .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile().substring(2))
                         .build())
                 .build();
-        } catch (IOException ex) {
-            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {}", lendingApplication.getId());
-            throw new RuntimeException("DIGI sign: eIOException while merging kfs and sanction files");
-        }catch (DocumentException exception) {
-            log.error("DIGI sign: IOException while merging kfs and sanction files applicationId {}", lendingApplication.getId());
-            throw new RuntimeException("DIGI sign: DocumentException while merging kfs and sanction files");
         } catch (Exception exception) {
-            log.error("DIGI sign: Error in while merging kfs and sanction files applicationId: {}", lendingApplication.getId());
+            log.error("DIGI sign: Error in while merging kfs and sanction files applicationId: {} : {}", lendingApplication.getId(),Arrays.asList(exception.getStackTrace()));
             throw new RuntimeException("DIGI sign: error in merging docs for ABFL DigiSign API");
         }
     }
