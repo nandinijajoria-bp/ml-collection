@@ -1735,7 +1735,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
             for(MerchantReference reference : requestedReferenceList) {
-                if(isNotValid(reference, merchant)) {
+                if(!isValid(reference, merchant)) {
                     return new ApiResponse<>(false, "references are not valid!");
                 }
             }
@@ -2839,7 +2839,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private boolean isNotValid(MerchantReference reference, BasicDetailsDto merchant) {
+    private boolean isValid(MerchantReference reference, BasicDetailsDto merchant) {
         String name = reference.getName();
         if (StringUtils.isEmpty(name)) {
             log.info("reference name is Empty!");
