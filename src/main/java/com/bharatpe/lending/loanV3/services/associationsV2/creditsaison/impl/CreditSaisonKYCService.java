@@ -326,15 +326,11 @@ public class CreditSaisonKYCService {
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadId(lendingApplication.getExternalLoanId());
                         commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                         return true;
-                    } else {
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
-                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
-                        return false;
                     }
                 }
-                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
             }
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
         } catch (Exception e) {
             log.error("CS: exception while processing KYC callback of creditsaison for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
