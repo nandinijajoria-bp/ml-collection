@@ -510,6 +510,22 @@ public abstract class LendingApplicationServiceV3Base {
             if (ObjectUtils.isEmpty(lendingApplication)){
                 return new ApiResponse<>(false, "Something went wrong");
             }
+
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
+                return new ApiResponse<>(false, "Something went wrong");
+            }
+
+            if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()<=0){
+                return new ApiResponse<>(false, "Revised offer amount is less than 0");
+            }
+
+            if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() >= lendingApplication.getLoanAmount()) {
+                log.info("nbfcApprovedLoanOfferAmt is equal to loan amount for applicationId {}", lendingApplication.getId());
+                return new ApiResponse<>(true, "Offer already modified");
+            }
+
             LendingOfferModificationSnapshot lendingOfferModificationSnapshot = new LendingOfferModificationSnapshot();
             lendingOfferModificationSnapshot.setApplicationId(lendingApplication.getId());
             lendingOfferModificationSnapshot.setPayableDays(lendingApplication.getPayableDays());
@@ -520,15 +536,6 @@ public abstract class LendingApplicationServiceV3Base {
             lendingOfferModificationSnapshot.setRepaymentAmount(lendingApplication.getRepayment());
 
             lendingOfferModificationSnapshotDao.save(lendingOfferModificationSnapshot);
-
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
-            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
-                return new ApiResponse<>(false, "Something went wrong");
-            }
-            if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()<=0){
-                return new ApiResponse<>(false, "Revised offer amount is less than 0");
-            }
 
             Double interestAmt = (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100);
             Long payableDays = lendingApplication.getPayableDays();
