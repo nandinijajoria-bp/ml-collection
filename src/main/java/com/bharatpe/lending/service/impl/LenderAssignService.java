@@ -193,6 +193,13 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.eligible.lenders.for.modify:2}")
     Integer maxEligibleLendersCountForModify;
 
+    @Value("${trillion.topup.lenders:-}")
+    public void setTrillionTopupLenders(String trillionTopupLenders) {
+        LenderAssignService.trillionTopupLenders = Arrays.asList(trillionTopupLenders.split(","));
+    }
+
+    static List<String> trillionTopupLenders;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -998,6 +1005,9 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public static String topupLenderMapper(String prevLender){
+
+        if(trillionTopupLenders.contains(prevLender)) return TRILLIONLOANS.toString();
+
         if(LDC.toString().equals(prevLender)) return LIQUILOANS_NBFC.toString();
 
         if(LIQUILOANS_NBFC.toString().equals(prevLender)) return LIQUILOANS_NBFC.toString();
@@ -1005,7 +1015,7 @@ public class LenderAssignService implements ILenderAssignService {
         if(LIQUILOANS_P2P.toString().equals(prevLender) || LIQUILOANS_P2P_OF.toString().equals(prevLender)) return LIQUILOANS_P2P.toString();
 
         if(ABFL.name().equalsIgnoreCase(prevLender)) return ABFL.name();
-        
+
         return null;
     }
 

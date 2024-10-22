@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Data;
+import org.springframework.util.ObjectUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -28,8 +29,12 @@ public class TLDisbursalCallbackResponseDto {
 
     private String disbursementDate;
 
+    private String AdditionalUTR;
+
     public Date formatDisbursementDate(SimpleDateFormat simpleDateFormat) throws ParseException {
-        return simpleDateFormat.parse(this.getDisbursementDate());
+        if(!ObjectUtils.isEmpty(this.disbursementDate))
+            return simpleDateFormat.parse(this.getDisbursementDate());
+        else return new Date();
     }
 
 }

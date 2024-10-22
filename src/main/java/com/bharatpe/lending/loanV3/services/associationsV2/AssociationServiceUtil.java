@@ -186,6 +186,18 @@ public class AssociationServiceUtil {
     @Autowired
     EKycService eKycService;
 
+    @Autowired
+    TLTopupUndoApproveService tlTopupUndoApproveService;
+
+    @Autowired
+    TLTopupDataService tlTopupDataService;
+
+    @Autowired
+    TLAddChargeService tlAddChargeService;
+
+    @Autowired
+    TLTopupApproveService tlTopupApproveService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -505,4 +517,40 @@ public class AssociationServiceUtil {
         }
     }
 
+
+    public boolean invokeTopupUndoApproveService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlTopupUndoApproveService.invokeTopupUndoApprove(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeTopupDataService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlTopupDataService.invokeTopupData(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeAddChargeService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlAddChargeService.invokeAddCharge(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeTopupApproveService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlTopupApproveService.invokeTopupApprove(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
 }

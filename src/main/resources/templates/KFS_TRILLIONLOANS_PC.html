@@ -250,6 +250,18 @@
                         Other details related to loan
                     </td>
                 </tr>
+                <tr class="width-100" style="display: {{topup_loan_clause_display_prop}};">
+                    <td style="padding: 0px 5px" class="width-33">
+                        <p style="margin: 6px 16px" class="fw-bold text-left">
+                            Parent Loan Outstanding (in rupees)
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-66">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            Rs. {{loan_foreclosure_amount}} (Rupees {{loan_foreclosure_amount_in_words}})
+                        </p>
+                    </td>
+                </tr>
                 <tr class="width-100">
                     <td style="padding: 0px 5px" class="width-33">
                         <p style="margin: 6px 16px" class="fw-bold text-left">
@@ -330,7 +342,8 @@
                         <p style="margin: 6px 16px" class="fw400 text-left">
                             • Deduction of amount Instalment Amount or any other dues as per the Loan Documents from the
                             daily Settlement Amount** as per the instructions of the Borrower to Resilient Innovations
-                            Private Limited (offline payment aggregator of the Borrower) <span class="fw-bold">(“Offline PA”).</span>
+                            Private Limited (offline payment aggregator of the Borrower) <span class="fw-bold">(“Offline
+                                PA”).</span>
                         </p>
                         <p style="margin: 6px 16px" class="fw400 text-left">
                             *Borrower hereby expressly, unconditionally and irrevocably authorizes the Offline PA to
@@ -390,7 +403,7 @@
                         </p>
                     </td>
                 </tr>
-                
+
                 <tr class="width-100">
                     <td style="padding: 0px 5px" class="width-100 text-center fw-bold" colspan=2>
                         Details about Contingent Charges
@@ -675,6 +688,16 @@
         <p style="margin: 6px 16px" class="fw400 mb20">
             *For more detailed information, please refer to the Sanction Letter & Loan Agreement for the loan facility.
             This Key Fact Statement needs to be read along with the Sanction Letter & Loan Agreement.
+        </p>
+        <p style="margin: 6px 16px; display: {{topup_loan_clause_display_prop}};" class="fw400 ml10">
+            The Customer agrees, confirms and understands that the Lender has granted the present top-up
+            loan facility to the Customer on the understanding that the loan previously granted to it vide LAN
+            ACCOUNT NO {{parent_loan_bpl_id}} (parent LAN) will be suspended permanently, and will be superseded and
+            replaced by the new LAN Account number which we understand will be communicated by Trillionloans
+            Fintech Private Limited welcome letter. The Customer agrees, acknowledges and understands that if it
+            chooses to exercise its rights of cancellation of Loan (if so granted under the Agreement) and
+            cancels the Loan within 1 day of disbursement, the Customer will have to initiate repayment on the
+            new LAN as per old POS outstanding of the parent LAN.
         </p>
         <div style="page-break-inside: avoid !important">
             <h3 class="text-center">

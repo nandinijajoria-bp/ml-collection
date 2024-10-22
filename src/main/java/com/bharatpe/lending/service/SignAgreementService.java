@@ -31,7 +31,6 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -52,7 +51,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -758,8 +756,8 @@ public class SignAgreementService {
 
 		if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
 			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
-		} else if("ABFL".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
-			previousAmount = loanUtil.getForeClosureAmountForABFL(prevLendingSchedule);
+		} else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(prevLendingSchedule.getNbfc())) {
+			previousAmount = loanUtil.getForeClosureAmountForLender(prevLendingSchedule);
 			if(previousAmount <= 0){
 				logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
 				response.put("message","Invalid loan application");
@@ -859,13 +857,12 @@ public class SignAgreementService {
 //			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 
 			response.put("application_id", newApplication.getId());
-			if(Lender.ABFL.name().equalsIgnoreCase(newApplication.getLender())) {
-				DateFormat df = new SimpleDateFormat("ddMMyy");
-				Date dateobj = new Date();
-				String loanId = "BPL" + df.format(dateobj) + newApplication.getId();
+			if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.ABFL.name()).contains(newApplication.getLender())) {
+				String loanId = "BPL" +  new SimpleDateFormat("ddMMyy").format(new Date()) + newApplication.getId();
 				newApplication.setExternalLoanId(loanId);
 				lendingApplicationDao.save(newApplication);
 			}
+
 			loanUtil.createApplicationSnapshot(newApplication, merchant);
 		}
 		LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
@@ -880,7 +877,8 @@ public class SignAgreementService {
 		}
 		lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
 		lendingApplicationDetailsDao.save(lendingApplicationDetails);
-		LendingViewStates currentViewState = Lender.ABFL.name().equalsIgnoreCase(newApplication.getLender()) ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.ENACH_PAGE;
+
+		LendingViewStates currentViewState = Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(newApplication.getLender()) ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.ENACH_PAGE;
 		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), currentViewState);
 
 		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());

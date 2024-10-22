@@ -273,6 +273,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
             nbfcRequestDto = NbfcRequestDto.builder()
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
+                    .productName("LENDING")
                     .payload(PInsuranceRequestDTO.builder()
                             .leadId(leadIds.get(0))
                             .loanAmount(lendingApplication.getLoanAmount())

@@ -26,6 +26,12 @@ public class PaymentController {
                                                                        @RequestParam(required = false, defaultValue = "true") Boolean showForeClosureDetails) {
     	return new ResponseEntity<>(paymentService.getPaymentDetails(merchant, showForeClosureDetails), HttpStatus.OK);
     }
+
+    @RequestMapping(value="/details/v2", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetailsV2(@RequestParam Long merchantId,
+                                                                       @RequestParam(required = false, defaultValue = "true") Boolean showForeClosureDetails) {
+        return new ResponseEntity<>(paymentService.getPaymentDetails(merchantId, showForeClosureDetails), HttpStatus.OK);
+    }
     
     @RequestMapping(value="/initiate", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
     public ResponseEntity<InitiatePaymentResponseDTO> initiatePayment(@RequestHeader("token") String token, @RequestAttribute BasicDetailsDto merchant, @RequestBody RequestDTO<InitiatePaymentRequestDTO> requestDTO) {

@@ -65,6 +65,7 @@ public class TLNachMandateService {
             if (ObjectUtils.isEmpty(nachManadateRequest)) {
                 log.info("error in nach mandate payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequest.getApplicationId());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
+                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.NACH_MANDATE.name());
                 commonService.manageApplicationState(lenderAssociationDetailsRequest);
                 return false;
             }
@@ -79,6 +80,7 @@ public class TLNachMandateService {
             log.error("error while pushing nach mandate request of TrillionLoans for  {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
+        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.NACH_MANDATE.name());
         commonService.manageApplicationState(lenderAssociationDetailsRequest);
         return Boolean.FALSE;
     }

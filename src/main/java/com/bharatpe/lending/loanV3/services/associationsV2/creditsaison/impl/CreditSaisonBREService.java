@@ -283,15 +283,11 @@ public class CreditSaisonBREService {
                             return false;
                         }
                         return true;
-                    } else {
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.BRE_FAILED);
-                        return false;
                     }
                 }
-                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.BRE_FAILED);
             }
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.BRE_FAILED);
         } catch (Exception e) {
             log.error("CS: exception while processing BRE callback of CreditSaison for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }

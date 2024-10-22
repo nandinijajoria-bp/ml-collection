@@ -14,10 +14,6 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.enums.EdiModel;
-import com.bharatpe.lending.common.enums.LendingEnum;
-import com.bharatpe.lending.common.enums.PincodeColor;
-import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
@@ -78,7 +74,6 @@ import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
-import static com.bharatpe.lending.enums.Lender.ABFL;
 import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
@@ -312,6 +307,9 @@ public class LoanUtil {
 
 	@Value("${excluded.error.codes}")
 	private String excludedErrorCodes;
+
+	@Value("${trillion.topup.application.max.count:-1}")
+	Integer trillionTopupApplicationMaxCount;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
@@ -1476,7 +1474,7 @@ public class LoanUtil {
 		return prevLoanUnpaidAmount;
 	}
 
-	public double getForeClosureAmountForABFL(LendingPaymentSchedule lendingPaymentSchedule) {
+	public double getForeClosureAmountForLender(LendingPaymentSchedule lendingPaymentSchedule) {
 		Double netForeclosureAtLender = 0d;
 		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
 				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
@@ -2440,6 +2438,21 @@ public class LoanUtil {
 		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
 		return false;
 	}
-	
+
+
+	public Boolean isMerchantTrillionTopupEligible(Long merchantId, Integer percent) {
+
+		if (isInternalMerchant(merchantId)) return true;
+
+		if (trillionTopupApplicationMaxCount != -1) {
+			Integer count = lendingApplicationDao.findCountByLenderAndStatusInAndLoanType(LendingEnum.LENDER.TRILLIONLOANS.name(), "TOPUP");
+			if (count >= trillionTopupApplicationMaxCount) {
+				logger.info("Trillion TOPUP: Total lending application count exceeded: {}", count);
+				return false;
+			}
+		}
+
+		return easyLoanUtil.percentScaleUp(merchantId, percent);
+	}
 }
 

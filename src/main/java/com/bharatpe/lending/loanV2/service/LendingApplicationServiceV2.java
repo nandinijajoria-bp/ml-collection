@@ -61,10 +61,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.Invok
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.bharatpe.lending.service.APIGatewayService;
-import com.bharatpe.lending.service.CleverTapEventService;
-import com.bharatpe.lending.service.LenderMappingService;
-import com.bharatpe.lending.service.LendingEdiScheduleService;
+import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -119,10 +116,13 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Service
 @Slf4j
 public class LendingApplicationServiceV2 {
+
     @Autowired
     private LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
     @Autowired
     private LendingRiskVariablesDao lendingRiskVariablesDao;
+
     @Autowired
     private LmsStageHistoryDao lmsStageHistoryDao;
 
@@ -321,6 +321,9 @@ public class LendingApplicationServiceV2 {
     AssociationServiceUtil associationServiceUtil;
 
     @Autowired
+    MerchantLoansService merchantLoansService;
+
+    @Autowired
     LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
 
     @Value("${lender.doc.generate.enabled.lenders:}")
@@ -328,6 +331,9 @@ public class LendingApplicationServiceV2 {
 
     @Value("${lender.doc.generate.topup.enabled.lenders:}")
     String lenderDocGenerateTopUpEnabledLenders;
+
+    @Value("${aws.s3.bucket:loan-document}")
+    private String s3Bucket;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -2536,7 +2542,7 @@ public class LendingApplicationServiceV2 {
                     .leadId(lendingApplicationLenderDetails.getLeadId())
                     .build();
 
-            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
                 if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
                     throw new Exception("Unable to fetch parent loan details");
@@ -2548,7 +2554,6 @@ public class LendingApplicationServiceV2 {
                 kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
                 kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
             }
-
             return new ApiResponse<>(kfsDto);
         }
         catch(Exception e){
@@ -2602,7 +2607,6 @@ public class LendingApplicationServiceV2 {
         }
 
         //PAYU LOAN DOCS
-
         if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
 
             Date date = new Date();
@@ -2638,25 +2642,20 @@ public class LendingApplicationServiceV2 {
             String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
 
             if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-
                 ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
-
                 if (ObjectUtils.isEmpty(inStream)) {
                     throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
                 }
 
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            }
-            else {
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            } else {
                 fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
                 PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
                 PdfDocument pdfDocument = new PdfDocument(writer);
-                if(!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                     if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
                             Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
                         ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
@@ -2678,10 +2677,10 @@ public class LendingApplicationServiceV2 {
                 InputStream htmlStringInputStream = new ByteArrayInputStream(sanctionCumLoanAgreementHtml.getBytes(StandardCharsets.UTF_8));
                 HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
                 ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             }
 
-            String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
             if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
             else {
@@ -2798,22 +2797,14 @@ public class LendingApplicationServiceV2 {
             String kfsHtml = (String) apiResponse.data;
 
             if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + KFS_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-
-
                 ByteArrayInputStream inStream = getLoanDocPdf(kfsHtml, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, lendingApplication, kfsCompressionLevel);
-
-                if(ObjectUtils.isEmpty(inStream)) {
+                if (ObjectUtils.isEmpty(inStream)) {
                     throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
                 }
-
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-
-            }
-            else {
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            } else {
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
                 PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
@@ -2827,7 +2818,7 @@ public class LendingApplicationServiceV2 {
                         Header headerHandler = new Header(headerImageData);
                         pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
                         Footer footerHandler = new Footer(footerImageData);
-                        //                        HeaderFooter headerFooterHandler = new HeaderFooter(headerImageData,footerImageData);
+//                        HeaderFooter headerFooterHandler = new HeaderFooter(headerImageData,footerImageData);
                         pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
 
                     } else {
@@ -2839,10 +2830,10 @@ public class LendingApplicationServiceV2 {
                 InputStream htmlStringInputStream = new ByteArrayInputStream(kfsHtml.getBytes(StandardCharsets.UTF_8));
                 HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
                 ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             }
 
-            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
             if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
@@ -2973,7 +2964,7 @@ public class LendingApplicationServiceV2 {
             for(Map.Entry<String,Object> entry : data.entrySet()) {
                 String key = "{{" + entry.getKey() + "}}";
                 String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
-                log.info(key + " " + val);
+                //log.info(key + " " + val);
                 html = html.replace(key, val);
             }
             return new ApiResponse<>(html);
@@ -3132,7 +3123,7 @@ public class LendingApplicationServiceV2 {
             for(Map.Entry<String,Object> entry : data.entrySet()) {
                 String key = "{{" + entry.getKey() + "}}";
                 String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
-                log.info(key + " " + val);
+                //log.info(key + " " + val);
                 html = html.replace(key, val);
             }
             return new ApiResponse<>(html);
@@ -3160,7 +3151,7 @@ public class LendingApplicationServiceV2 {
 
     public String createAndPutDisbursementRequestLetterInS3(Long applicationId, String html) {
         String fileName =  DISBURSEMENT_REQUEST_LETTER_S3_KEY_PREFIX + applicationId + ".pdf";;
-        String bucket = "loan-document";
+        String bucket = s3Bucket;
         if (s3BucketHandler.doesS3ObjectExist(fileName, bucket)) {
             return fetchDisbursementRequestLetterFromS3andGenerateShortUrl(applicationId, fileName);
         }
@@ -3173,8 +3164,8 @@ public class LendingApplicationServiceV2 {
 
             HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
             ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            String disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            String disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             shortUrl = apiGatewayService.getShortUrl(disbursementRequestLetterUrl);
         } catch (Exception e) {
             log.error("Error while creating DisbursementRequestLetter for applicationiId : {} {} {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -3247,7 +3238,7 @@ public class LendingApplicationServiceV2 {
     }
 
     public String fetchKfsFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
-            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String kfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
             if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for KFS doc link for : " + applicationId);
@@ -3256,7 +3247,7 @@ public class LendingApplicationServiceV2 {
     }
 
     public String fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
-        String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
         String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
         if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())
             throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + applicationId);
@@ -3267,7 +3258,7 @@ public class LendingApplicationServiceV2 {
     public String fetchDisbursementRequestLetterFromS3andGenerateShortUrl(Long applicationId, String fileName) {
         String disbursementRequestLetterUrl = null;
         try {
-            disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            disbursementRequestLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
         } catch (FileNotFoundException e) {
             log.error("Unable to find file  disbursementRequestLetter for applicationId :  {} {}", applicationId, e.getMessage());
             return null;
@@ -3283,7 +3274,7 @@ public class LendingApplicationServiceV2 {
     public String fetchLoanInsuranceDoc(Long applicationId, String fileName) {
         String insuranceDocUrl = null;
         try {
-            insuranceDocUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            insuranceDocUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
         } catch (FileNotFoundException e) {
             log.error("Unable to find file  insuranceDoc for applicationId :  {} {}", applicationId, e.getMessage());
             return null;
@@ -3296,7 +3287,7 @@ public class LendingApplicationServiceV2 {
     }
 
     public String fetchAuthorizationLetterFromS3andGenerateShortUrl(Long applicationId, String fileName) throws Exception {
-        String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
         String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
         if (ObjectUtils.isEmpty(authorizationLetterShortUrl)|| authorizationLetterShortUrl.trim().isEmpty())
             throw new Exception("Unable to create short URL for Authorization doc link for : " + applicationId);
@@ -3359,7 +3350,7 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
-        data.put("processing_fee_statement", kfsDto.isTopUpLoan()?"":kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
+        data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
         if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
@@ -3524,6 +3515,16 @@ public class LendingApplicationServiceV2 {
                 data.put("foreclosure_charges_clause_display_prop", "none");
                 data.put("foreclosure_charges_na_clause_display_prop", "block");
             }
+
+            if (kfsDto.isTopUpLoan()) {
+                data.put("loan_foreclosure_amount", kfsDto.getLenderForeclosureAmount());
+                data.put("parent_loan_bpl_id", kfsDto.getParentLoanBplId());
+                data.put("topup_loan_clause_display_prop", "block");
+                data.put("topup_loan_na_clause_display_prop", "none");
+            } else {
+                data.put("topup_loan_clause_display_prop", "none");
+                data.put("topup_loan_na_clause_display_prop", "block");
+            }
         }
 
         data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
@@ -3545,7 +3546,7 @@ public class LendingApplicationServiceV2 {
             data.put("insurance_premium", lendingLoanInsurance.getInsurancePremium());
             data.put("insurance_premium_in_words", getAmountInWords(lendingLoanInsurance.getInsurancePremium().toString()));
         }
-        log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
+        //log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
 
@@ -3977,8 +3978,8 @@ public class LendingApplicationServiceV2 {
         InputStream htmlStringInputStream = new ByteArrayInputStream(welcomeHtml.getBytes(StandardCharsets.UTF_8));
         HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
         ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-        String welcomeUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+        String welcomeUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
         String welcomeShortUrl = apiGatewayService.getShortUrl(welcomeUrl);
         if (welcomeShortUrl == null || welcomeShortUrl.isEmpty() || welcomeShortUrl.trim().isEmpty())
             throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
@@ -4064,8 +4065,8 @@ public class LendingApplicationServiceV2 {
             InputStream htmlStringInputStream = new ByteArrayInputStream(authorizationHtml.getBytes(StandardCharsets.UTF_8));
             HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
             ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            String authorizationLetterUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String authorizationLetterShortUrl = apiGatewayService.getShortUrl(authorizationLetterUrl);
             if (ObjectUtils.isEmpty(authorizationLetterShortUrl) || authorizationLetterShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for Authorization doc link for : " + lendingApplication.getId());
@@ -4110,7 +4111,7 @@ public class LendingApplicationServiceV2 {
     }
 
     private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
-        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForABFL(lendingPaymentSchedule);
+        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
         if(foreClosureAmountForABFL <= 0){
             log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
             throw new Exception("Unable to fetch foreclosure amount for parent loan");
@@ -4131,7 +4132,7 @@ public class LendingApplicationServiceV2 {
             if (!ObjectUtils.isEmpty(lendingKfs)) {
                 String fileName = preSigned ? lendingKfs.getKfsDocFile() : lendingKfs.getSignedKfsDocFile();
                 if (!ObjectUtils.isEmpty(fileName)) {
-                    String lenderKfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+                    String lenderKfsUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
                     return new ApiResponse<>(lenderKfsUrl);
                 }
             }
@@ -4155,7 +4156,7 @@ public class LendingApplicationServiceV2 {
             if (!ObjectUtils.isEmpty(lendingKfs)) {
                 String fileName = preSigned ? lendingKfs.getSanctionLoanAgreementDocFile() : lendingKfs.getSignedSanctionDocFile();
                 if (!ObjectUtils.isEmpty(fileName)) {
-                    String lenderSanctionUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+                    String lenderSanctionUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
                     return new ApiResponse<>(lenderSanctionUrl);
                 }
             }
@@ -4195,9 +4196,9 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to generate MITC for applicationID" + lendingApplication.getId());
             }
 
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
 
-            String mitcUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String mitcUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String mitcShortUrl = apiGatewayService.getShortUrl(mitcUrl);
             if (mitcShortUrl == null || mitcShortUrl.isEmpty() || mitcShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for MITC doc link for : " + lendingApplication.getId());
@@ -4271,8 +4272,8 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to generate GTC for applicationID" + lendingApplication.getId());
             }
 
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            String gtcUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            String gtcUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String gtcShortUrl = apiGatewayService.getShortUrl(gtcUrl);
             if (gtcShortUrl == null || gtcShortUrl.isEmpty() || gtcShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for GTC doc link for : " + lendingApplication.getId());
@@ -4346,8 +4347,8 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
             }
 
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String loaShortUrl = apiGatewayService.getShortUrl(loaUrl);
             if (loaShortUrl == null || loaShortUrl.isEmpty() || loaShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for loaHtml doc link for : " + lendingApplication.getId());
@@ -4424,8 +4425,8 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to generate Application Form for applicationID" + lendingApplication.getId());
             }
 
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
-            String applicationFormUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            String applicationFormUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String applicationFormShortUrl = apiGatewayService.getShortUrl(applicationFormUrl);
             if (applicationFormShortUrl == null || applicationFormShortUrl.isEmpty() || applicationFormShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for applicationFormHtml doc link for : " + lendingApplication.getId());

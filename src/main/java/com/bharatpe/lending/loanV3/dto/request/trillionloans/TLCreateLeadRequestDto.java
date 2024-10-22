@@ -12,6 +12,8 @@ import java.util.List;
 public class TLCreateLeadRequestDto {
 
     private Long clientId;
+    private Boolean isTopup;
+    private Long[] loanIdToClose;
     private Long loanOfficerId;
     private Double amount;
     private String losProductKey;
@@ -27,7 +29,7 @@ public class TLCreateLeadRequestDto {
         private Integer repayEvery;
         private Integer repaymentPeriodFrequencyEnum;
         private Integer termPeriodFrequencyEnum;
-        private Integer termFrequency;
+        private Long termFrequency;
         private Double interestRatePerPeriod;
         private Double graceOnPrincipalPayment;
         private Double graceOnInterestCharged;
