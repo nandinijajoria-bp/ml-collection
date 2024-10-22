@@ -6,6 +6,7 @@ import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -89,6 +90,10 @@ public class LoanDetailsV3Response {
     private Boolean lenderKycPipe;
     private String fullName;
     private String dob;
+    private Long refreshCountDownMinutes;
+    private Double apr;
+    private Double loanOffer;
+    private Long applicationId;
 
     @Data
     @ToString
@@ -156,6 +161,11 @@ public class LoanDetailsV3Response {
                     return loanDetailsV3Response;
                 case RTE_PIN_PAGE:
                     setRTEPinPageResponse((EligibilityStateDTO) lendingStateDTO.getData(),loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+
+                case MODIFIED_OFFER:
+                    setModifiedOfferResponse((ModifiedOfferStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
 
@@ -316,6 +326,9 @@ public class LoanDetailsV3Response {
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO.getRefreshCountDownMinutes())){
+            loanDetailsV3Response.setRefreshCountDownMinutes(eligibilityStateDTO.getRefreshCountDownMinutes());
+        }
     }
 
     private static void setPanPinResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -332,6 +345,9 @@ public class LoanDetailsV3Response {
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
+        if(!ObjectUtils.isEmpty(eligibilityStateDTO.getRefreshCountDownMinutes())){
+            loanDetailsV3Response.setRefreshCountDownMinutes(eligibilityStateDTO.getRefreshCountDownMinutes());
+        }
     }
 
     private static void setEnachResponse(EnachStateDTO enachStateDTO,LoanDetailsV3Response loanDetailsV3Response){
@@ -347,6 +363,17 @@ public class LoanDetailsV3Response {
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
+    }
+
+    private static void setModifiedOfferResponse(ModifiedOfferStateDTO modifiedOfferStateDTO, LoanDetailsV3Response loanDetailsV3Response){
+        loanDetailsV3Response.setEdiAmount(modifiedOfferStateDTO.getEdiAmount());
+        loanDetailsV3Response.setEdiCount(modifiedOfferStateDTO.getEdiCount());
+        loanDetailsV3Response.setApr(modifiedOfferStateDTO.getApr());
+        loanDetailsV3Response.setTenure(modifiedOfferStateDTO.getTenure());
+        loanDetailsV3Response.setInterestRate(modifiedOfferStateDTO.getInterestRate());
+        loanDetailsV3Response.setArrangerFee(modifiedOfferStateDTO.getArrangerFee());
+        loanDetailsV3Response.setLoanOffer(modifiedOfferStateDTO.getLoanOffer());
+        loanDetailsV3Response.setApplicationId(modifiedOfferStateDTO.getApplicationId());
     }
 
     public static LoanDetailsV3Response populateResponseForRequestWithoutScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response) {

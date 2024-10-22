@@ -58,5 +58,6 @@ public class EligibilityStateDTO {
     private Double previousFinalOffer;
     private String fullName;
     private String dob;
+    private Long refreshCountDownMinutes;
 
 }

@@ -17,12 +17,10 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+import static com.bharatpe.lending.collection.core.constant.ExcessConstants.ExcessCollectionAdjustmentModeDescription;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 
 @Service
@@ -30,6 +28,8 @@ import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 public class LoanPaymentUtil {
 
     public static final String DEFAULT_LOAN_SETTLEMENT_MECHANISM = IPC.name();
+    public static final String DEFAULT_EXCESS_ADJUSTED_DESCRPTION = "EXCESS_NACH_ADJUSTED";
+
 
     @Value("${is.new.payment.settlement.enabled:false}")
     public  boolean newPaymentSettlementModeAllowed;
@@ -52,8 +52,8 @@ public class LoanPaymentUtil {
         int dpdCount = calculateDPD(loan.getEdiAmount(), loan.getDueAmount());
         log.info("getLoanSettlementMechanism for loanId: {} dpd is  {}", loan.getId(), dpdCount);
 
-        if (dpdCount > 90) {
-            log.info("getLoanSettlementMechanism for loanId: {} is a NPA with dpd : {} and mechanism is {}", loan.getId(), dpdCount, NPA.name());
+        if (dpdCount > 90 || (Objects.nonNull(loan.getSettleAllPrinciple()) && loan.getSettleAllPrinciple())) {
+            log.info("getLoanSettlementMechanism for loanId: {} is a NPA with dpd : {} and mechanism is {}  settlePrinciple {}", loan.getId(), dpdCount, NPA.name(), loan.getSettleAllPrinciple());
             return NPA.name();
         }
 
@@ -145,5 +145,32 @@ public class LoanPaymentUtil {
         } catch(Exception ex) {
             log.error("Exception while sending payment SMS to merchant {}, Exception is {}");
         }
+    }
+
+    public static String getExcessAdjustedModeDesc(String excessMode) {
+        if (StringUtils.hasLength(excessMode)) {
+            try {
+                return ExcessCollectionAdjustmentModeDescription.getOrDefault(excessMode, buildDefaultExcessAdjustedModeDesc(excessMode));
+            } catch (Exception e) {
+                log.error("Exception while getting the adjustment mode desc for {} {} {}", excessMode, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            }
+        }
+        return DEFAULT_EXCESS_ADJUSTED_DESCRPTION;
+    }
+
+    private static String buildDefaultExcessAdjustedModeDesc(String excessMode) {
+        if (StringUtils.hasLength(excessMode) && !"NACH".equalsIgnoreCase(excessMode)) {
+            try {
+                return "EXCESS_ADJUSTED_"+excessMode;
+            } catch (Exception e) {
+                log.error("Exception while buildDefaultExcessAdjustedModeDesc for {}  {} {}", excessMode, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            }
+        }
+        return DEFAULT_EXCESS_ADJUSTED_DESCRPTION;
+    }
+
+    public boolean excessCollectionCommunicationSmsRequired(String source) {
+        // currently there is only nach template is defined... define sms identifier before adding here
+        return "BHARATPE_NACH".equalsIgnoreCase(source) || "EXCESS_NACH_ADJUSTED".equalsIgnoreCase(source);
     }
 }

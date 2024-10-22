@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.PerpetualDpdAdjusted;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
@@ -33,6 +34,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -236,6 +238,12 @@ public class MerchantLoansService {
 
     @Autowired
     LendingApplicationLenderDetailsDaoSlave lendingApplicationLenderDetailsDaoSlave;
+
+    @Value("${toup.min.qrpaidRatio.12MonthsTenure:80}")
+    Double topupMinQrPaidRatioFor12MonthsTenure;
+
+    @Value("${toup.min.qrpaidRatio.moreThan12MonthsTenure:54}")
+    Double topupMinQrPaidRatioForMoreThan12MonthsTenure;
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -527,8 +535,16 @@ public class MerchantLoansService {
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             if (Objects.nonNull(lendingPaymentSchedule)) {
-                List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
-                        (2D, true, lendingPaymentSchedule.getNbfc());
+                List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves;
+
+                if(Lender.TRILLIONLOANS.toString().equals(lendingPaymentSchedule.getNbfc())){
+                    penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
+                            (1D, true, lendingPaymentSchedule.getNbfc());
+                }
+                else{
+                    penaltyFeeConfigSlaves = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc
+                            (2D, true, lendingPaymentSchedule.getNbfc());
+                }
 
                 List<LendingMerchantLoansResponseDTO.PenaltyConfig> penaltyConfigs = new ArrayList<>();
 
@@ -547,6 +563,9 @@ public class MerchantLoansService {
                 if (date.after(lendingPaymentSchedule.getStartDate())) {
                     responseDTO.setEdiStarted(Boolean.TRUE);
                 } else {
+                    if(PerpetualDpdAdjusted.Y.name().equalsIgnoreCase(lendingPaymentSchedule.getPerpetualDpdAdjusted())){
+                        responseDTO.setPerpetualDpdRestrictPgPayment(Boolean.TRUE);
+                    }
                     responseDTO.setEdiStarted(Boolean.FALSE);
                 }
                 List<LendingMerchantLoansResponseDTO.RepaymentDetails> repaymentDetailsList = new ArrayList<>();
@@ -1050,12 +1069,6 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
-                double dpd = lendingPaymentSchedule.getDueAmount() / lendingPaymentSchedule.getEdiAmount();
-                if (dpd > 3D) {
-                    logger.info("DPD is greater than 3 for merchant ID {}", lendingPaymentSchedule.getMerchantId());
-                    return eligiblity;
-                }
-
                 BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
                 if (maxDpd.intValue() > 30) {
                     logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
@@ -1067,12 +1080,12 @@ public class MerchantLoansService {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
                 }
 
-                if (paidRatio >= 0.6D && paidRatio <= 0.95D) {
-                    logger.info("paid ratio is between 60 to 95 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                if (lendingApplication.getTenureInMonths() < 12 && paidRatio > 0.5D) {
+                    logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
-                if (paidRatio >= 0.5D && paidRatio < 0.60D && (!ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()))) {
-                    logger.info("paid ratio is between 50 to 60 of merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                if (lendingApplication.getTenureInMonths() >= 12 && paidRatio > 0.75D) {
+                    logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
             }
@@ -1087,8 +1100,8 @@ public class MerchantLoansService {
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (qrPaidRatio < 80) {
-                logger.info("QR payment less than 80% for merchant: {}", lendingPaymentSchedule.getMerchantId());
+            if (qrPaidRatio < topupMinQrPaidRatioForMoreThan12MonthsTenure) {
+                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
@@ -1233,8 +1246,8 @@ public class MerchantLoansService {
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (qrPaidRatio < 70) {
-                logger.info("QR payment less than 70% for merchant:{}", lendingPaymentSchedule.getMerchantId());
+            if (qrPaidRatio < topupMinQrPaidRatioFor12MonthsTenure) {
+                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 

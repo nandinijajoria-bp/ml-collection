@@ -76,6 +76,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.ABFL;
 import static com.bharatpe.lending.enums.Lender.*;
@@ -278,6 +279,9 @@ public class LoanUtil {
 	@Autowired
 	PenalChargesDao penalChargesDao;
 
+	@Autowired
+	LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
+
 	@Value("${fore.closure.charges.rollout.date:2024-04-10 00:00}")
 	String foreClosureChargesRolloutDate;
 
@@ -292,6 +296,11 @@ public class LoanUtil {
 
 	@Value("${fore.closure.charges.rollout.date.PAYU:2024-09-10 00:00}")
 	String payuForeClosureChargesRolloutDate;
+
+
+	@Value("${fore.closure.charges.rollout.date.CREDITSAISON:2024-10-01 00:00}")
+	String creditSaisonForeClosureChargesRolloutDate;
+
 
 	@Value("${autopay.upi.lenders:}")
 	String autoPayUpiLenders;
@@ -1109,6 +1118,8 @@ public class LoanUtil {
 				lendingRiskVariablesSnapshot.setMinTvrCount(lendingRiskVariables.getMinTvrCount());
 				lendingRiskVariablesSnapshot.setNewContactReferenceLogic(lendingRiskVariables.getNewContactReferenceLogic());
 				lendingRiskVariablesSnapshot.setStpFlag(lendingRiskVariables.getStpFlag());
+				lendingRiskVariablesSnapshot.setLoanCategory(lendingRiskVariables.getLoanCategory());
+				lendingRiskVariablesSnapshot.setMetaData(lendingRiskVariables.getMetaData());
 				lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
 			}
 		} catch (Exception e) {
@@ -1402,11 +1413,12 @@ public class LoanUtil {
 		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 
+		Double extraInterestofPerpetualDpdLoan = fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
 
 		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
 		- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
 		+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
-		- advanceEdiAmount - excessCollectionBalance);
+		- advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
 	}
 
 	public int getForeclosureAmount(LendingPaymentScheduleSlave lendingPaymentSchedule) {
@@ -1417,8 +1429,12 @@ public class LoanUtil {
 		double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
 
 		Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+		Double extraInterestofPerpetualDpdLoan = fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
 
-		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0) + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0) - advanceEdiAmount - excessCollectionBalance);
+		return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount()
+				- (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
+				+ (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
+				- advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
 	}
 
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
@@ -1682,6 +1698,9 @@ public class LoanUtil {
 		}
 		if("PAYU".equalsIgnoreCase(lender)) {
 			finalLender = Lender.PAYU.name();
+		}
+		if("CREDITSAISON".equalsIgnoreCase(lender)) {
+			finalLender = Lender.CREDITSAISON.name();
 		}
 		return finalLender;
 	}
@@ -2264,6 +2283,8 @@ public class LoanUtil {
 					break;
 				case "PAYU":
 					date = payuForeClosureChargesRolloutDate;
+				case "CREDITSAISON":
+					date = creditSaisonForeClosureChargesRolloutDate;
 					break;
 				default:
 					break;
@@ -2331,6 +2352,13 @@ public class LoanUtil {
 		return false;
 	}
 
+	public Long getRefreshCountDownMinutes(GlobalLimitResponse globalLimitResponse){
+		return (!ObjectUtils.isEmpty(globalLimitResponse)
+				&& !ObjectUtils.isEmpty(globalLimitResponse.getData())
+				&& !ObjectUtils.isEmpty(globalLimitResponse.getData().getRefreshCountDownMinutes()))
+				? globalLimitResponse.getData().getRefreshCountDownMinutes() : null;
+	}
+
 	private List<String> getExcludedErrorCode() {
 		List<String> excludedCodes = new ArrayList<>();
 		if (StringUtils.hasLength(excludedErrorCodes)) {
@@ -2352,6 +2380,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(PIRAMAL.name(), "PIRAMAL");
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		rejectedLenderMapping.put(PAYU.name(), "PAYU");
+		rejectedLenderMapping.put(CREDITSAISON.name(), "CREDITSAISON");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
@@ -2394,11 +2423,23 @@ public class LoanUtil {
 				.collect(Collectors.toList());
 	}
 
+	public double fetchExtraEdiInterestCollectionForPerpetualDpdLoan(Long lpsId){
+		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
+		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
+			logger.info("checking for collection of extra interest for perpetual dpd loan id : {}", lendingPaymentScheduleLendingCommon.get().getId());
+			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, new Date());
+			if(!ObjectUtils.isEmpty(lendingLedger)){
+				return Math.abs(lendingLedger.getInterest());
+			}
+		}
+		return 0d;
+	}
+
 	private boolean checkLoanCoolOffPeriod(Date createdAt) {
 		double	durationInDays = calculateDurationInDays(createdAt);
 		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
 		return false;
 	}
-
+	
 }
 

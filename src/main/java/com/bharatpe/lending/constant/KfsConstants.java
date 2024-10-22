@@ -70,7 +70,7 @@ public interface KfsConstants {
     String LENDER_BUSINESS_ADDRESS_PIRAMAL = "6th floor, Amiti Building, Agastya Corporate Park, Kamani Junction Opp Fire Station, LBS Marg, Kurla (W), Mumbai, MH – 400070";
     String LENDER_CONTACT_NAME_PIRAMAL = "Ms. Hetal Parihar";
     String LENDER_CONTACT_EMAIL_PIRAMAL = "nodal.officer@piramal.com";
-    String LENDER_CONTACT_NUMBER_PIRAMAL = "022-69181273";
+    String LENDER_CONTACT_NUMBER_PIRAMAL = "022-71740555";
     String LENDER_GRIEVANCE_TIME_ABFL = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
     String ESIGNED_SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX = "ESigned_Sanction_Cum_Loan_Agreement_";
     String ESIGNED_KFS_S3_KEY_PREFIX = "ESigned_Key_Facts_Statement_";
@@ -90,5 +90,9 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_PAYU = "Mr. Suraj Sapte";
     String LENDER_CONTACT_EMAIL_PAYU = "grievance.smbbharatpe@payufin.com";
     String LENDER_CONTACT_NUMBER_PAYU = "+91 2269821144";
-
+    String LENDER_CORPORATE_NAME_CREDITSAISON = "KISETSU SAISON FINANCE INDIA PRIVATE LIMITED";
+    String LENDER_BUSINESS_ADDRESS_CREDITSAISON = "IndiQube Lexington Tower, First Floor, Tavarekere Main Rd, Tavarekere, S.G. Palya, Bengaluru, Karnataka 560029";
+    String LENDER_CONTACT_NAME_CREDITSAISON = "Emaad Khan";
+    String LENDER_CONTACT_EMAIL_CREDITSAISON = "emaad.khan@creditsaison-in.com";
+    String LENDER_CONTACT_NUMBER_CREDITSAISON = "+91-7289000552";
 }

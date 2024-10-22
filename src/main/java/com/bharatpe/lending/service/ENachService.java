@@ -18,7 +18,9 @@ import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dao.NachMandateRevokeRequestDao;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.NachMandateRevokeRequest;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
@@ -42,6 +44,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import javax.persistence.Basic;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -129,6 +132,9 @@ public class ENachService {
 
     @Autowired
     FunnelService funnelService;
+
+    @Autowired
+    NachMandateRevokeRequestDao nachMandateRevokeRequestDao;
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider, String nachMode){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -286,8 +292,8 @@ public class ENachService {
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name()).contains(lendingApplication.getLender())) {
-                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name()).contains(lendingApplication.getLender())) {
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name()).contains(lendingApplication.getLender())) {
+                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
                 } else if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                     LendingApplicationLenderDetails lendingApplicationLenderDetails =
@@ -549,6 +555,29 @@ public class ENachService {
             }
         }
         return new CommonResponse(true, "success");
+    }
+
+    public CommonResponse captureMandateRevokeRequest(BasicDetailsDto merchantDetails){
+        logger.info("Mandate revoke request for merchant:{}", merchantDetails.getId());
+        try{
+            if (ObjectUtils.isEmpty(merchantDetails)){
+                logger.info("merchant details not found");
+                return new CommonResponse(false, "merchant not found");
+            }
+
+            List<NachMandateRevokeRequest> nachMandateRevokeRequestList  = nachMandateRevokeRequestDao.findByMerchantIdAndStatus(merchantDetails.getId(), "PENDING");
+            if (!ObjectUtils.isEmpty(nachMandateRevokeRequestList)){
+                logger.info("Request already exists in pending state for merchant:{}", merchantDetails.getId());
+                return new CommonResponse(false, "Request already exists in pending state");
+            }
+            NachMandateRevokeRequest nachMandateRevokeRequest = new NachMandateRevokeRequest(merchantDetails.getId(), merchantDetails.getMobile(), merchantDetails.getBeneficiaryName(), "PENDING");
+            if (!ObjectUtils.isEmpty(nachMandateRevokeRequestDao.save(nachMandateRevokeRequest))){
+                return new CommonResponse(true, "data captured successfully");
+            }
+        }catch(Exception ex){
+            logger.error("EXception occurred while capturing mandate revoke request for merchant:{} {}", merchantDetails.getId(), ex.getMessage());
+        }
+        return new CommonResponse(false, "Something went wrong");
     }
 
     public void uploadBulkEnach(EnachUploadRequestDTO enachUploadRequestDTO) {

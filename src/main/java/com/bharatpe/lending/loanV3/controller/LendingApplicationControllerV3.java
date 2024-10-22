@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("lending/v3/")
 @Slf4j
@@ -90,6 +92,24 @@ public class LendingApplicationControllerV3 {
         ApiResponse<?> response = lendingApplicationServiceV3.invokeStageForLender(invokeStageRequest);
         HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
         return ResponseEntity.status(status).body(response);
+    }
+
+    @PostMapping("/lender/eKyc")
+    public ResponseEntity<?> lenderEkyc(@RequestBody InvokeStageRequestDTO invokeStageRequest) {
+        log.info("initiated lender eKyc request {}", invokeStageRequest);
+        ApiResponse<?> response = lendingApplicationServiceV3.initiateLenderEKyc(invokeStageRequest);
+        HttpStatus status = response.success ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(response);
+    }
+
+    @PostMapping ("/modifyOffer")
+    ResponseEntity<?> modifyOffer(@RequestBody Map<String, Long> map, @RequestAttribute BasicDetailsDto merchant){
+        log.info("modify offer request : {}", map);
+        if (ObjectUtils.isEmpty(merchant) || ObjectUtils.isEmpty(map) || !map.containsKey("applicationId")){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(false,"required parameters are missing"));
+        }
+        ApiResponse<?> response =lendingApplicationServiceV3.modifyOffer(map.get("applicationId"), merchant.getId());
+        return ResponseEntity.ok(response);
     }
 
 }

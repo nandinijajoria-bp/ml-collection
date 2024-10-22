@@ -254,11 +254,22 @@ public class KycHandler {
             if (!CollectionUtils.isEmpty(kycDocs)) {
                 if (kycDocs.size() < lenderKycPipeMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
                 for (KycDoc kycDoc : kycDocs) {
-                    if (kycDoc.getStatus() != null && kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
-                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
-                    }
-                    if (kycDoc.getStatus() != null && !kycDoc.getStatus().equals(KycDocStatus.APPROVED) && !(kycDoc.getDocType().equals(KycDocType.SELFIE) && kycDoc.getStatus().equals(KycDocStatus.DRAFT))) {
-                        return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
+                    if (kycDoc.getStatus() != null && lenderKycPipeMandatoryDocs.contains(kycDoc.getDocType())) {
+                        if (kycDoc.getStatus().equals(KycDocStatus.REJECTED)) {
+                            return KycStatusDTO.builder()
+                                    .kycDocType(kycDoc.getDocType())
+                                    .kycStatus(KycStatus.REJECTED)
+                                    .remarks(kycDoc.getRemarks())
+                                    .build();
+                        }
+                        if (!kycDoc.getStatus().equals(KycDocStatus.APPROVED)
+                                && !(kycDoc.getDocType().equals(KycDocType.SELFIE)
+                                && kycDoc.getStatus().equals(KycDocStatus.DRAFT))) {
+                            return KycStatusDTO.builder()
+                                    .kycDocType(kycDoc.getDocType())
+                                    .kycStatus(KycStatus.valueOf(kycDoc.getStatus().name()))
+                                    .build();
+                        }
                     }
                 }
 
@@ -374,7 +385,7 @@ public class KycHandler {
         return responseObj;
     }
 
-    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate) {
+    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate, Boolean onlySelfieLivelinessRequired) {
         log.info("Initiate kyc for merchant:{}", merchantId);
         Map<String, String> responseObj = new HashMap<>();
         try {
@@ -397,6 +408,7 @@ public class KycHandler {
                 put("merchantId", initiateKycDTO.getMerchantId());
                 put("documents", documents);
                 put("validAfter", finaValidAfter);
+                put("onlySelfieLivelinessRequired", onlySelfieLivelinessRequired);
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
@@ -547,6 +559,43 @@ public class KycHandler {
             throw exception;
         }catch (Exception e) {
             log.error("Error occurred while verifying pan details for merchantId {}", merchantId, e);
+        }
+        return null;
+    }
+
+    public PanVerifyKYCResponseDto verifyPanDetailsInternal(String panNumber, String name, String dob, Long merchantId) {
+        if (ObjectUtils.isEmpty(panNumber) || ObjectUtils.isEmpty(name) || ObjectUtils.isEmpty(dob)) {
+            log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
+            return null;
+        }
+        try {
+            String url = env.getProperty("kyc.service.base.url") + LendingConstants.PAN_VERIFY_V3_INTERNAL;
+
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("panNumber", panNumber);
+            payload.put("dob", dob);
+            payload.put("name", name);
+            payload.put("userType", "MERCHANT");
+            payload.put("merchantId", merchantId);
+            payload.put("source", "LOAN");
+
+            HttpHeaders headers = getApiHeaders(payload);
+            headers.set("Content-Type", MediaType.APPLICATION_JSON_VALUE);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+            log.info("Pan Verify Internal request for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            ResponseEntity<PanVerifyKYCResponseDto> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, PanVerifyKYCResponseDto.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+            log.info("Pan Verify Internal Response {} for merchantId: {}", mapper.writeValueAsString(responseEntity.getBody()),merchantId);
+            if(responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.hasBody()) {
+                return responseEntity.getBody();
+            }
+        }catch (HttpClientErrorException.TooManyRequests exception) {
+            log.error("Too Many Requests error while verifying pan details for merchantId:{} {}",merchantId, Arrays.asList(exception.getStackTrace()));
+        }catch (Exception e) {
+            log.error("Error occurred while verifying pan details for merchantId {} {}", merchantId,Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

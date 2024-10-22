@@ -6,6 +6,7 @@ import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.common.entity.LendingCollectionExcess;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 
+import java.util.Date;
 import java.util.List;
 
 public interface LoanPaymentLedgerAdjustmentService {
@@ -20,6 +21,9 @@ public interface LoanPaymentLedgerAdjustmentService {
     LendingLedger createLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjusted, String description, String adjustmentMode, String transferType, String terminalOrderId);
 
     LendingLedger createLendingLedger(LendingPaymentSchedule loan, Double amount, Double principle,
+                                      Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges);
+
+    LendingLedger createLendingLedger(LendingPaymentSchedule loan, Date ledgerDate, Double amount, Double principle,
                                       Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges);
 
     LoanPaymentOrder createLoanPaymentOrder(LendingPaymentSchedule loan, double orderAmount, String paymentReferenceNo, String status, String source, String orderId);

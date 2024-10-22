@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.utils;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -10,6 +11,7 @@ import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
@@ -68,6 +70,9 @@ public class KycUtils {
 
     @Value("${abfl.lender.kyc.rollout.percent:1}")
     Integer abflLenderKycRolloutPercent;
+
+    @Value("${piramal.lender.kyc.rollout.percent:1}")
+    Integer piramalLenderKycRolloutPercent;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -159,6 +164,20 @@ public class KycUtils {
             return null;
         }
         return kycDoc.getDob();
+    }
+
+    public static String getFatherName(String careOf) {
+        try {
+            if (ObjectUtils.isEmpty(careOf) || !careOf.contains("S/O")) {
+                return null;
+            }
+            careOf = careOf.toUpperCase();
+            careOf = careOf.replaceAll("S/O", "").replaceAll("\\.", "").replaceAll(":", "").replaceFirst(" ", "");
+            return careOf.substring(0, careOf.indexOf(","));
+        } catch (Exception e) {
+            log.info("Exception in fetching father name from kyc address {}", Arrays.asList(e.getStackTrace()));
+        }
+        return null;
     }
 
     public static Date getFormattedDate(String dateString) {
@@ -287,9 +306,9 @@ public class KycUtils {
         return cKycResponseDto;
     }
 
-    public CKycResponseDto parsePoaXML(String poaXml, Long merchantId, CKycResponseDto cKycResponseDto, Long applicationId, Boolean saveKycDetails) {
+    public CKycResponseDto parsePoaXML(String poaXml, Long merchantId, CKycResponseDto cKycResponseDto, Long applicationId) {
         try {
-            if(!ObjectUtils.isEmpty(poaXml)) {
+            if (!ObjectUtils.isEmpty(poaXml)) {
                 log.info("poaXml {}", poaXml);
                 XmlMapper xmlMapper = new XmlMapper();
                 Map<String, Object> poaXmlMap = xmlMapper.readValue(poaXml, Map.class);
@@ -311,21 +330,8 @@ public class KycUtils {
                         cKycResponseDto.setPincode(poa.getPc());
                         cKycResponseDto.setPoAXml(ConverterUtils.convertXmlToBase64String(poaXml));
                         cKycResponseDto.setPoaString(poaXml);
-                        if (saveKycDetails) {
-                            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
-                            if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
-                                lendingApplicationKycDetails.setAadharAddress(address);
-                                lendingApplicationKycDetails.setAadharApprovedAt(new Date());
-                                lendingApplicationKycDetails.setAadharName(poi.getName());
-                                lendingApplicationKycDetails.setFatherName(poa.getCo().contains("S/O") ? poa.getCo().substring(poa.getCo().indexOf(":") + 1) : null);
-                                lendingApplicationKycDetails.setAadharXml(poaXml);
-                                lendingApplicationKycDetails.setDob(poi.getDob());
-                                lendingApplicationKycDetails.setAadharIdentifier(poaData.getKycRes().getUidData().getUid());
-                                String fileName = applicationId + "_" + UUID.randomUUID() + ".jpeg";
-                                lendingApplicationKycDetails.setAadharImage(s3BucketHandler.uploadToS3Bucket(poaData.getKycRes().getUidData().getPht(), fileName, bucketName));
-                                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
-                            }
-                        }
+                        cKycResponseDto.setCareOf(poa.getCo());
+                        savePoaDetailsForLenderKyc(applicationId, cKycResponseDto);
                     }
                 }
             }
@@ -335,11 +341,33 @@ public class KycUtils {
         return cKycResponseDto;
     }
 
+    public void savePoaDetailsForLenderKyc(Long applicationId, CKycResponseDto cKycResponseDto) {
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+        if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            lendingApplicationKycDetails.setAadharAddress(cKycResponseDto.getAddress());
+            lendingApplicationKycDetails.setAadharApprovedAt(new Date());
+            lendingApplicationKycDetails.setAadharName(cKycResponseDto.getName());
+            lendingApplicationKycDetails.setFatherName(getFatherName(cKycResponseDto.getCareOf() + ","));
+            lendingApplicationKycDetails.setDob(cKycResponseDto.getDob());
+            lendingApplicationKycDetails.setAadharIdentifier(cKycResponseDto.getAadharNumber());
+            lendingApplicationKycDetails.setAadharXml(cKycResponseDto.getPoaString());
+            lendingApplicationKycDetails.setGender(cKycResponseDto.getGender());
+            lendingApplicationKycDetails.setAadharState(cKycResponseDto.getState());
+            lendingApplicationKycDetails.setAadharCity(cKycResponseDto.getCity());
+            lendingApplicationKycDetails.setAadharPinCode(cKycResponseDto.getPincode());
+            String fileName = applicationId + "_" + UUID.randomUUID() + ".jpeg";
+            lendingApplicationKycDetails.setAadharImage(s3BucketHandler.uploadToS3Bucket(cKycResponseDto.getSelfieBase64(), fileName, bucketName));
+            lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+        }
+    }
+
     public Boolean isELigibleForLenderKyc(String lender, Long merchantId) {
         if(lenderKycPipeLenders.contains(lender)) {
             switch (lender) {
                 case "ABFL" :
                     return easyLoanUtil.percentScaleUp(merchantId, abflLenderKycRolloutPercent);
+                case "PIRAMAL":
+                    return easyLoanUtil.percentScaleUp(merchantId, piramalLenderKycRolloutPercent);
                 default:
                     return false;
             }

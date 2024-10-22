@@ -69,6 +69,9 @@ public class NbfcCallbackControllerV3 {
     @Autowired
     InsurancePolicyDocService insurancePolicyDocService;
 
+    @Autowired
+    PennyDropCallbackWrapperService pennyDropCallbackWrapperService;
+
 
     @PostMapping("bre")
     public ResponseEntity<ApiResponse<?>> listenBreCallback(@RequestBody BreCallbackResponseDto breCallbackResponseDto) throws JsonProcessingException {
@@ -184,6 +187,20 @@ public class NbfcCallbackControllerV3 {
         log.info("eKyc callback received via controller {}", eKycCallbackResponseDto);
         kycRequestKafka.eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc event consumed successfully !"));
+    }
+
+    @PostMapping("eKyc-decision")
+    public ResponseEntity<ApiResponse<?>> eKycCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) {
+        log.info("eKyc callback received via controller {}", nbfcResponseDTO);
+        kycCallbackWrapperService.lenderEKycCallback(nbfcResponseDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc callback consumed successfully !"));
+    }
+
+    @PostMapping("penny-drop")
+    public ResponseEntity<ApiResponse<?>> listenPennyDropCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
+        log.info("pennyDrop callback received via controller {}", nbfcResponseDTO);
+        pennyDropCallbackWrapperService.pennyDropCallback(nbfcResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(true,"pennyDrop async callback handled"));
     }
 
 }

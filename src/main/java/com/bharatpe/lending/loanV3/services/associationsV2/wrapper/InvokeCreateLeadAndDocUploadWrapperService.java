@@ -76,13 +76,13 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             log.info("base checks ran for applicationId {} with lender {}", applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
             stagesToBeInvokedInOrder = getStageToBeInvokedInOrder(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
             lenderAssociationDetailsRequestDto.setManageState(true);
-            Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !invokeStage(lenderAssociationDetailsRequestDto, stage)).findFirst();
+            Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto, stage)).findFirst();
             if (failureStage.isPresent()) {
                 log.info("lender association failed at {} stage for applicationId {}  with lender {}", failureStage.get(), applicationId, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
                 MDC.clear();
                 return;
             }
-            if(!Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
+            if(!Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CREDITSAISON.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
                 invokeBREWorkflow(lenderAssociationDetailsRequestDto);
             }
             MDC.clear();
@@ -202,6 +202,8 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case PAYU:
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name(),
                         LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.KYC.name());
+            case CREDITSAISON:
+                return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.KYC.name());
             default:
                 throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }

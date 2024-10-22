@@ -1,17 +1,22 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.loanV3.dto.piramal.CreateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+import com.bharatpe.lending.loanV3.enums.StateMapping;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
+import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.util.CommonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,6 +32,12 @@ public class UpdateLeadAdditionalDataService {
 
     @Autowired
     private CommonUtil commonUtil;
+
+    @Autowired
+    LendingGstDao lendingGstDao;
+
+    @Autowired
+    ConverterUtils converterUtils;
 
     public Boolean updateLeadAditionalData(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
         try {
@@ -59,6 +70,7 @@ public class UpdateLeadAdditionalDataService {
                 .loanInformation(CreateLeadRequestDTO.LoanInformation.builder()
                         .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(lendingApplication.getId()))
                         .build())
+                .applicantsDetail(applicant)
                 .build();
         return NbfcRequestDto.builder()
                 .applicationId(lendingApplication.getId())
@@ -69,10 +81,15 @@ public class UpdateLeadAdditionalDataService {
     }
 
     private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
-
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .customerId(lendingApplicationLenderDetails.getCccId())
                 .build();
+        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
+        if(!ObjectUtils.isEmpty(lendingGstDetail)) {
+            applicantsDetail.setApplicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
+                            .mailingAddress(getMailingAddress(lendingGstDetail))
+                    .build());
+        }
         return applicantsDetail;
     }
 
@@ -96,5 +113,36 @@ public class UpdateLeadAdditionalDataService {
                 .auditTrailList(auditTrailLists)
                 .build();
         return auditTrailInformation;
+    }
+
+    private CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address getMailingAddress(LendingGstDetail lendingGstDetail) {
+        String address = converterUtils.parseData(lendingGstDetail.getAddress1());
+        int addressSize = address.length();
+        String address1 = "", address2 = "", address3 = "";
+        if (addressSize <= 40) {
+            address1 = address;
+        } else if (addressSize <= 80) {
+            address1 = address.substring(0, 40);
+            address2 = address.substring(40, addressSize);
+        } else {
+            address1 = address.substring(0, 40);
+            address2 = address.substring(40, 80);
+            address3 = address.substring(80, addressSize);
+        }
+        CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address currentAddress = CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address
+                .builder()
+                .addressType("MAILING")
+                .addressLine1(address1)
+                .addressLine2(address2)
+                .addressLine3(address3)
+                .city(lendingGstDetail.getCity())
+                .stateCode(lendingGstDetail.getState())
+                .street(".")
+                .buildingNumber(".")
+                .stateCode(Objects.nonNull(StateMapping.getStateEnum(lendingGstDetail.getState())) ? StateMapping.getStateEnum(lendingGstDetail.getState()).name() : null)
+                .country("INDIA")
+                .postalCode(lendingGstDetail.getPincode())
+                .build();
+        return currentAddress;
     }
 }

@@ -89,9 +89,9 @@ public class TLNachMandateService {
         try {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             TLNachMandateRequestDto mandateDetails = null;
-            if (lendingApplicationDetails.getIsNachSkip()) {
-                MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
-                if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
+            Long nachApplicationId = lendingApplicationDetails.getIsNachSkip() ? null : lendingApplication.getId();
+            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), nachApplicationId, loanUtil.enachServiceLenderMapper(lendingApplication.getLender()));
+            if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
                     mandateDetails = TLNachMandateRequestDto.builder()
                             .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
                             .status("DESTINATION_ACCEPTED")
@@ -114,34 +114,6 @@ public class TLNachMandateService {
                             .mode(merchantNachDetailsResponseDTO.getNachMode())
                             .build();
                 }
-            } else {
-                BharatPeEnachResponseDTO bharatPeEnachResponseDTO = enachHandler.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
-                final MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId(), Arrays.asList(
-                        Constants.MerchantUtil.Scope.BANK_DETAIL,
-                        Constants.MerchantUtil.Scope.MERCHANT_USER
-                ));
-                if (!ObjectUtils.isEmpty(bharatPeEnachResponseDTO) && !ObjectUtils.isEmpty(merchantDetailsDto)) {
-                    mandateDetails = TLNachMandateRequestDto.builder()
-                            .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
-                            .status("DESTINATION_ACCEPTED")
-                            .umrn(bharatPeEnachResponseDTO.getProviderUmrn())
-                            .bankAccountHolderName(merchantDetailsDto.getBankDetail().getBeneficiaryName())
-                            .bankName(merchantDetailsDto.getBankDetail().getBankName())
-                            .bankAccountNumber(merchantDetailsDto.getBankDetail().getAccountNumber())
-                            .ifsc(merchantDetailsDto.getBankDetail().getIfsc())
-                            .bankAccountType(getAccountType(merchantDetailsDto.getBankDetail().getAccountType()))
-                            .mandateRegistrationRequestedDate(DateTimeUtil.getDateInFormat(new Date(), "dd-MM-yyyy"))
-                            .periodStartDate(DateTimeUtil.getDateInFormat(new Date(), "dd-MM-yyyy"))
-                            .periodEndDate(DateTimeUtil.getDateInFormat(expiryDate,"dd-MM-yyyy"))
-                            .periodUntilCancelled(Boolean.TRUE)
-                            .debitTypeEnum("FIXED_AMOUNT")
-                            .debitFrequencyEnum("DAILY")
-                            .amount(bharatPeEnachResponseDTO.getAmount())
-                            .externalRefernceNumber(bharatPeEnachResponseDTO.getMandateId())
-                            .mode("API")
-                            .build();
-                }
-            }
             if (payloadValidation.isInvalidNachMandatePayload(mandateDetails)) {
                 log.info("error in getting mandate details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return null;

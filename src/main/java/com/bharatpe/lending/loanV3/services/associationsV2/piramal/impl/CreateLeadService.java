@@ -1,7 +1,6 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -47,8 +46,6 @@ public class CreateLeadService {
     @Autowired
     ObjectMapper objectMapper;
 
-    @Autowired
-    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
     CreateLeadPayloadValidationLayer createLeadPayloadValidationLayer;
@@ -60,10 +57,12 @@ public class CreateLeadService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
+            Boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId());
             if (InvokeCreateLeadAndDocUploadWraperService.kycDataNeeded(LenderAssociationStages.PiramalAssociationStages.LEAD_CREATION.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
-                lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
+                CKycResponseDto cKycResponseDto = isEligibleForLenderKyc ? kycUtils.getPanData(lenderAssociationDetailsDto.getMerchantId()) : kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId());
+                lenderAssociationDetailsDto.setCKycResponseDto(cKycResponseDto);
             }
-            if (createLeadPayloadValidationLayer.isInValidPayload(lenderAssociationDetailsDto.getCKycResponseDto(), lenderAssociationDetailsDto.getMerchantId())) {
+            if (createLeadPayloadValidationLayer.isInValidPayload(lenderAssociationDetailsDto.getCKycResponseDto(), isEligibleForLenderKyc)) {
                 log.info("invalid response from downstream api : {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.LEAD_CREATION_FAILED);
@@ -73,7 +72,7 @@ public class CreateLeadService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
             LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-            NbfcRequestDto createLeadRequestDTO = getPayload(lenderAssociationDetailsDto);
+            NbfcRequestDto createLeadRequestDTO = getPayload(lenderAssociationDetailsDto, isEligibleForLenderKyc);
             if (Objects.isNull(createLeadRequestDTO)) {
                 log.info("error in create lead payload for applicationId: {}", lendingApplication.getId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
@@ -99,8 +98,7 @@ public class CreateLeadService {
     }
 
 
-    private NbfcRequestDto getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
-        // call validation Layer
+    private NbfcRequestDto getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, Boolean isEligibleForLenderKyc) {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsDto.getCKycResponseDto();
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
@@ -109,7 +107,7 @@ public class CreateLeadService {
             String middleName = nameAndDobDetailsDto.getMiddleName();
             String lastName = nameAndDobDetailsDto.getLastName();
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-            applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto));
+            applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto, isEligibleForLenderKyc));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
                             .partnerApplicationId(lenderAssociationDetailsDto.getLendingApplication().getExternalLoanId())
                             .entityType("INDIVIDUAL")
@@ -141,7 +139,7 @@ public class CreateLeadService {
         return null;
     }
 
-    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto) {
+    private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto, Boolean isEligibleForLenderKyc) {
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .applicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
                         .firstName(nameAndDobDetailsDto.getFirstName())
@@ -154,23 +152,24 @@ public class CreateLeadService {
                         .occupationType("SENP")
                         .gender(ObjectUtils.isEmpty(cKycResponseDto.getGender()) ? "OTHERS" : getGender(cKycResponseDto.getGender()))
                         .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
-                        .salutation(cKycResponseDto.getGender().equalsIgnoreCase("F") ? "MRS" : "MR")
+                        .salutation(getGender(cKycResponseDto.getGender()).equalsIgnoreCase("FEMALE") ? "MRS" : "MR")
                         .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                         .panCardDetail(CreateLeadRequestDTO.ApplicantsDetail.Applicant.PanCardDetail.builder()
                                 .name(nameAndDobDetailsDto.getFirstName())
                                 .panCardNo(cKycResponseDto.getPanNumber())
                                 .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                                 .build())
-                        .currentAddress(getAddress(cKycResponseDto, "CURRENT"))
-                        .permanentAddress(getAddress(cKycResponseDto, "PERMANENT"))
-                        .kycAddress(getAddress(cKycResponseDto, "KYC"))
                         .build())
                 .kycDetail(CreateLeadRequestDTO.ApplicantsDetail.KycDetail.builder()
-//                        .ckycID(cKycResponseDto.getAadharNumber())
-                        .kycType("OKYC")
+                        .kycType(isEligibleForLenderKyc ? "OKYC_DIGILOCKER" : "OKYC")
                         .build())
                 .build();
-        return applicantsDetail;
+        if(!isEligibleForLenderKyc) {
+             applicantsDetail.getApplicant().setCurrentAddress(getAddress(cKycResponseDto, "CURRENT"));
+             applicantsDetail.getApplicant().setPermanentAddress(getAddress(cKycResponseDto, "PERMANENT"));
+             applicantsDetail.getApplicant().setKycAddress(getAddress(cKycResponseDto, "KYC"));
+        }
+         return applicantsDetail;
     }
 
     private String getGender(String gender) {

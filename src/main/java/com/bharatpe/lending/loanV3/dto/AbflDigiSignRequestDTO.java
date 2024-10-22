@@ -27,9 +27,10 @@ public class AbflDigiSignRequestDTO {
         String accountId;
         String mobile_number;
         Boolean merged_pdf_flag;
-        String sanction_letter;
-        String loan_agreement;
+        String unsigned_merged_pdf;
         String key_fact_statement;
+        String loan_agreement;
+        String sanction_letter;
     }
 }
 
