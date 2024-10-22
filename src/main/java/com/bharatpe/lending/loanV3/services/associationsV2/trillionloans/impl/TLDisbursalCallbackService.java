@@ -20,7 +20,7 @@ public class TLDisbursalCallbackService {
 
     public DisbursalCallbackCommonDTO parseCallbackResponse(NBFCResponseDTO nbfcResponseDTO) {
         try {
-            if(!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDTO.getData())) {
+            if(!ObjectUtils.isEmpty(nbfcResponseDTO) && !ObjectUtils.isEmpty(nbfcResponseDTO.getData())) {
                 TLDisbursalCallbackResponseDto disbursalCallbackResponse = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLDisbursalCallbackResponseDto.class);
                 Boolean disbursalStatus = "Disbursed".equalsIgnoreCase(disbursalCallbackResponse.getStatus()) ? Boolean.TRUE : Boolean.FALSE;
                 SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MMM dd, yyyy");

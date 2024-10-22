@@ -109,7 +109,7 @@ public class TLCreateClientService {
                     .productName("LENDING")
                     .payload(TLCreateClientRequestDto.builder()
                             .clientDetails(getClientDetails(lendingApplication, cKycResponseDto))
-                            .addressDetails(getAddressDetails(cKycResponseDto))
+                            .addressDetails(getAddressDetails(lendingApplication, cKycResponseDto))
                             .bankDetails(getBankDetails(lendingApplication, cKycResponseDto))
                             .clientIdentifierDetails(getClientIdentifier(cKycResponseDto))
                             .employmentDetails(getEmploymentDetails())
@@ -140,7 +140,7 @@ public class TLCreateClientService {
                 .build();
     }
 
-    public List<TLCreateClientRequestDto.AddressDetails> getAddressDetails(CKycResponseDto cKycResponseDto) {
+    public List<TLCreateClientRequestDto.AddressDetails> getAddressDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
         List<TLCreateClientRequestDto.AddressDetails> addressDataList = new ArrayList<>();
         String address = converterUtils.parseData(cKycResponseDto.getAddress());
         int addressSize = address.length();
@@ -158,7 +158,7 @@ public class TLCreateClientService {
                 .addressType(Collections.singletonList("PERMANENT")) //setting PERMANENT as default value
                 .addressLineOne(address1)
                 .addressLineTwo(address2)
-                .postalCode(cKycResponseDto.getPincode())
+                .postalCode(ObjectUtils.isEmpty(lendingApplication.getPincode()) ? cKycResponseDto.getPincode() : lendingApplication.getPincode().toString())
                 .build();
         addressDataList.add(currentAddress);
         return addressDataList;
@@ -176,7 +176,7 @@ public class TLCreateClientService {
         }
         List<TLCreateClientRequestDto.BankDetails> bankDetailsDataList = new ArrayList<>();
         TLCreateClientRequestDto.BankDetails bankDetails = TLCreateClientRequestDto.BankDetails.builder()
-                .accountNumber(merchantDetailsDto.getBankDetail().getAccountNumber())
+                .accountNumber(merchantDetailsDto.getBankDetail().getAccountNumber().trim())
                 .accountType("current".equalsIgnoreCase(merchantDetailsDto.getBankDetail().getAccountType()) ? "CURRENTACCOUNT" : "SAVINGSACCOUNT") // for current : CURRENTACCOUNT
                 .ifscCode(merchantDetailsDto.getBankDetail().getIfsc())
                 .name(merchantDetailsDto.getBankDetail().getBeneficiaryName())

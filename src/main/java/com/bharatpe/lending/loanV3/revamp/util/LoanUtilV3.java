@@ -20,8 +20,8 @@ import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.CleverTapEvents;
-import com.bharatpe.lending.enums.KycDocStatus;
-import com.bharatpe.lending.enums.KycDocType;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.ResubmitDoneDTO;
@@ -30,7 +30,6 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.CollectionUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -247,5 +246,37 @@ public class LoanUtilV3 {
         return !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)
                 && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getReferenceCount())
                 && lendingRiskVariablesSnapshot.getReferenceCount() == 0;
+    }
+
+
+    /**
+     * returns {@code true} if top-up is from non trillion to trillion using current lending application , otherwise {@code false}.
+     *
+     * @param currentLendingApplication  current application of merchant
+     *
+     * @return {@code true} if previous loan is non TL and lending application is for top-up, otherwise {@code false}
+     */
+    public boolean isNonTLToTLTopup(LendingApplication currentLendingApplication) {
+        LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
+        return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
+                && Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+                && !ObjectUtils.isEmpty(previousLendingApplication)
+                && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+    }
+
+
+    /**
+     * returns {@code true} if top-up is from trillion to trillion using current and previous lending application, otherwise {@code false}.
+     *
+     * @param currentLendingApplication  current application of merchant
+     *
+     * @return {@code true} if previous loan is TL and lending application is for top-up, otherwise {@code false}
+     */
+    public boolean isTLToTLTopup(LendingApplication currentLendingApplication) {
+        LendingApplication previousLendingApplication = lendingApplicationDao.getLastDisbursedLoan(currentLendingApplication.getMerchantId());
+        return LoanType.TOPUP.name().equalsIgnoreCase(currentLendingApplication.getLoanType())
+                && Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
+                && !ObjectUtils.isEmpty(previousLendingApplication)
+                && Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
     }
 }

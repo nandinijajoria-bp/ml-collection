@@ -313,6 +313,21 @@ public class PaymentService {
         return new PaymentDetailsResponseDTO("Something went wrong.");
     }
 
+    public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId, Boolean showForeClosureDetails) {
+        logger.info("Received payment details request for merchant id {}", merchantId);
+        try {
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            if(activeLoan == null) {
+                logger.info("No active loan found for merchant id {}", merchantId);
+                return new PaymentDetailsResponseDTO("No active loan found.");
+            }
+            return getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
+        } catch(Exception ex) {
+            logger.error("Execption while fetching payment details for merchant id {}, Exception is {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return new PaymentDetailsResponseDTO("Something went wrong.");
+    }
+
 
     public PaymentDetailsResponseDTO getPaymentDetailsForActiveLoan(LendingPaymentSchedule activeLoan, Boolean showForeClosureDetails)  {
         LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(activeLoan.getMerchantId(), activeLoan.getId());

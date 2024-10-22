@@ -798,8 +798,8 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
-            } else if("ABFL".equalsIgnoreCase(activeLoan.getNbfc())) {
-                previousAmount = loanUtil.getForeClosureAmountForABFL(activeLoan);
+            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(activeLoan.getNbfc())) {
+                previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
                 if(previousAmount <= 0){
                     throw new RuntimeException("Error getting ABFL foreclosure details");
                 }
@@ -814,12 +814,13 @@ public class VerifyOTPService {
 
             double processingFee = Math.ceil(finalDisbursalAmountWithoutProcessingFee * processingFeeRate);
 
-            lendingApplication.setProcessingFee(processingFee);
+            // skipping updating pf for trillion as the details is already sent to them
+            if(!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())) lendingApplication.setProcessingFee(processingFee);
             lendingApplication.setDisbursalAmount(finalDisbursalAmountWithoutProcessingFee - processingFee);
             
             lendingApplicationDao.save(lendingApplication);
 
-            if(!Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())){
+            if (!Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {
                 logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
                 activeLoan.setStatus("INACTIVE_TOPUP");
                 lendingPaymentScheduleDao.save(activeLoan);

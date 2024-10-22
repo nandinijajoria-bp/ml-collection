@@ -4,11 +4,14 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLCreateLeadRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLCreateLeadResponseDto;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateLeadAndDocUploadWrapperService;
@@ -43,6 +46,12 @@ public class TLCreateLeadService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LoanUtilV3 loanUtilV3;
+
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         try {
@@ -63,18 +72,18 @@ public class TLCreateLeadService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
             LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-            NBFCRequestDTO createLeadRequest = getCreateLeadPayload(lenderAssociationDetailsDto);
+            NBFCRequestDTO<?> createLeadRequest = getCreateLeadPayload(lenderAssociationDetailsDto);
             if (Objects.isNull(createLeadRequest)) {
                 log.info("error in create lead payload of TrillionLoans for applicationId: {}", lendingApplication.getId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.LEAD_CREATION_FAILED);
                 return false;
             }
-            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(createLeadRequest, LenderAssociationStages.CREATE_LEAD);
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(createLeadRequest, LenderAssociationStages.CREATE_LEAD);
             log.info("create lead response of TrillionLoans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
                 log.info("createLead request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
-                TLCreateLeadResponseDto createLeadResponseDTO = objectMapper.readValue( objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateLeadResponseDto.class);
+                TLCreateLeadResponseDto createLeadResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateLeadResponseDto.class);
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadId(createLeadResponseDTO.getResourceId().toString());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_SUCCESS.name());
                 commonService.manageApplicationState(lenderAssociationDetailsDto);
@@ -88,25 +97,25 @@ public class TLCreateLeadService {
         return false;
     }
 
-    private NBFCRequestDTO getCreateLeadPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+    private NBFCRequestDTO<?> getCreateLeadPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
-            if(ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                 throw new RuntimeException("Lending application details not found for application " + lendingApplication.getId());
             }
             TLCreateLeadRequestDto createLeadRequest = TLCreateLeadRequestDto.builder()
                     .clientId(Long.valueOf(lendingApplicationLenderDetails.getCccId()))
                     .loanOfficerId(1L)
                     .amount(lendingApplication.getLoanAmount())
-                    .losProductKey("ELO")    // need to update it later
+                    .losProductKey(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? "ELTO" : "ELO")
                     .leadApplicationTerms(TLCreateLeadRequestDto.LeadApplicationTerms.builder()
                             .maxEligibleAmount(lendingApplication.getLoanAmount())
                             .numberOfRepayments(lendingApplication.getPayableDays())
                             .repayEvery(1)                      // fixed
                             .repaymentPeriodFrequencyEnum(0)    // 0 : Days
                             .termPeriodFrequencyEnum(0)         // 0 : Days
-                            .termFrequency(1)                   // fixed
+                            .termFrequency(lendingApplication.getPayableDays())
                             .interestRatePerPeriod(lendingApplicationLenderDetails.getAnnualRoi())
                             .graceOnPrincipalPayment(0.00)
                             .graceOnInterestCharged(0.00)
@@ -114,10 +123,17 @@ public class TLCreateLeadService {
                             .build())
                     .charges(Collections.singletonList(TLCreateLeadRequestDto.Charge.builder()
                             .chargeId(2L)
-                            .amount(String.format("%.2f", (lendingApplication.getProcessingFee() / lendingApplication.getLoanAmount()) * 100))
+                            .amount(String.format("%.3f", (lendingApplication.getProcessingFee() / lendingApplication.getLoanAmount()) * 100))
                             .build()))
                     .externalId(lendingApplication.getExternalLoanId())
+                    .loanIdToClose(null)
+                    .isTopup(Boolean.FALSE)
                     .build();
+            LendingApplication previousDisbursedApplication = lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
+            if (loanUtilV3.isTLToTLTopup(lendingApplication) && !ObjectUtils.isEmpty(previousDisbursedApplication)) {
+                createLeadRequest.setIsTopup(Boolean.TRUE);
+                createLeadRequest.setLoanIdToClose(new Long[]{Long.valueOf(previousDisbursedApplication.getNbfcId())});
+            }
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())

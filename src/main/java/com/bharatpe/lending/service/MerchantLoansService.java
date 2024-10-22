@@ -2,10 +2,13 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.*;
+import com.bharatpe.common.dao.EligibleLoanDao;
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.PhonebookHandler;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
@@ -15,23 +18,12 @@ import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.PerpetualDpdAdjusted;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
-import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
-import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
-import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.FunnelService;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.query.dao.AutoPayUPISlaveDao;
-import com.bharatpe.lending.common.query.dao.LendingEDIScheduleQueryDao;
-import com.bharatpe.lending.common.query.dao.LendingPrePaymentSlaveDao;
-import com.bharatpe.lending.common.query.entity.LendingEDIScheduleQuery;
-import com.bharatpe.lending.common.query.entity.AutoPayUPISlave;
-import com.bharatpe.lending.common.query.entity.LendingPrepaymentSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.Lender;
@@ -41,9 +33,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
-import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -55,7 +45,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.HttpClientErrorException;
 
 import java.math.BigInteger;
 import java.text.DecimalFormat;
@@ -64,9 +53,10 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import static com.bharatpe.lending.constant.LendingConstants.*;
-import static com.bharatpe.lending.enums.Lender.ABFL;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
+
+import static com.bharatpe.lending.constant.LendingConstants.PAYTM;
+import static com.bharatpe.lending.constant.LendingConstants.TOPUP_PILOT_IDENTIFIER;
+import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
 @Service
@@ -232,6 +222,12 @@ public class MerchantLoansService {
 
     @Autowired
     PenalChargesDao penalChargesDao;
+
+    @Value("${trillion.topup.rollout.percent:1}")
+    Integer trillionTopupRolloutPercent;
+
+    @Value("${trillion.topup.rejection.banner.tat:5}")
+    Long trillionTopupRejectionBannerTat;
 
     @Autowired
     LoanUtilV3 loanUtilV3;
@@ -638,7 +634,7 @@ public class MerchantLoansService {
                         }
                         funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
-                    if("ABFL".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                    if(Arrays.asList(ABFL.name(), TRILLIONLOANS.name()).contains(lendingPaymentSchedule.getNbfc())) {
                         responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId()));
                     }
                 } catch (Exception e) {
@@ -677,8 +673,11 @@ public class MerchantLoansService {
                 if(LoanType.TOPUP.name().equalsIgnoreCase(prevApplication.getLoanType()) && "rejected".equalsIgnoreCase(prevApplication.getStatus())) {
                     log.info("latest application with topup loanType for merchantId : {}", prevApplication);
                     Long minutes = TimeUnit.MINUTES.toMinutes(new Date().getTime() - prevApplication.getUpdatedAt().getTime()) / 60000;
-                    if(minutes < abflTopupRejectionBannerTat) {
-                        log.info("topup application rejected for merchantId : {} less than {} minutes ago", merchantId, abflTopupRejectionBannerTat);
+                    if(ABFL.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < abflTopupRejectionBannerTat) {
+                        log.info("ABFL topup application rejected for merchantId : {} less than {} minutes ago", merchantId, abflTopupRejectionBannerTat);
+                        return Boolean.TRUE;
+                    } else if(TRILLIONLOANS.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < trillionTopupRejectionBannerTat) {
+                        log.info("TRILLIONLOANS topup application rejected for merchantId : {} less than {} minutes ago", merchantId, trillionTopupRejectionBannerTat);
                         return Boolean.TRUE;
                     }
                 }
@@ -978,6 +977,11 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
+            if(TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !loanUtil.isMerchantTrillionTopupEligible(lendingPaymentSchedule.getMerchantId(), trillionTopupRolloutPercent)) {
+                log.info("TRILLIONLOANS Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+
             if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), abflTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 log.info("ABFL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
@@ -1003,11 +1007,15 @@ public class MerchantLoansService {
                   findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
 
-                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 300000D, "12 Months", "ACTIVE", null, 0, 0, null, 1149, 0, 357339, null, "TOPUP", null);
-                internalMerchantLoan.setRateOfInterest(1.59);
-                internalMerchantLoan.setProcessingFee(14130);
-                internalMerchantLoan.setProcessingFeeRate(0.05D);
+                EligibleLoan internalMerchantLoan = new EligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 200000D, "12 Months", "ACTIVE", null, 0, 0, null, 665, 0, 239400, null, "TOPUP", null);
+                internalMerchantLoan.setEdiCount(360);
+                internalMerchantLoan.setRateOfInterest(1.63);
+                internalMerchantLoan.setProcessingFee(9420);
+                internalMerchantLoan.setProcessingFeeRate(0.0471);
                 internalMerchantLoan.setId(644147506L);
+                internalMerchantLoan.setTenureInMonths(12);
+                internalMerchantLoan.setCreatedAt(new Date());
+                eligibleLoanDao.save(internalMerchantLoan);
                 eligibleLoanList.add(internalMerchantLoan);
 
                 double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
@@ -1663,5 +1671,21 @@ public class MerchantLoansService {
         }
 
         return prevLoanUnpaidAmount;
+    }
+
+    public double getPreviousLoanAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+        double previousAmount = 0;
+        if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+            previousAmount = loanUtil.getForeclosureAmountForLdc(lendingPaymentSchedule);
+        } else if (Arrays.asList(ABFL.name(), TRILLIONLOANS.name()).contains(lendingPaymentSchedule.getNbfc())) {
+            previousAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+            if (previousAmount <= 0) {
+                String error = String.format("Error getting foreclosure details for %s %s with loanId %s", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getId());
+                throw new RuntimeException(error);
+            }
+        } else {
+            previousAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+        }
+        return previousAmount;
     }
 }

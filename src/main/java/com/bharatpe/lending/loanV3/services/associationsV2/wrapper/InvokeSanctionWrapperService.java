@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -44,6 +45,9 @@ public class InvokeSanctionWrapperService {
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
+    @Autowired
+    LoanUtilV3 loanUtilV3;
+
     @Async("lenderPoolTaskExecutor")
     public void invokeSanctionFlow(Map<String, String> request, Map<String, Object> args) {
         try {
@@ -72,6 +76,10 @@ public class InvokeSanctionWrapperService {
                 return;
             }
 
+            if(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())){
+                stagesToBeInvokedInOrder = checkTrillionRetryAndGetStageToBeInvokedInOrderList(lenderAssociationDetailsDto, stagesToBeInvokedInOrder);
+            }
+
             Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage)).findFirst();
             if (failureStage.isPresent()) {
                 log.info("lender association failed at {} stage for applicationId {} with lender {}", failureStage.get(), applicationId, lenderAssociationDetailsDto.getLendingApplication().getLender());
@@ -81,12 +89,25 @@ public class InvokeSanctionWrapperService {
             if(Arrays.asList(Lender.MUTHOOT.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
             }
-
             MDC.clear();
         } catch (Exception e) {
             log.info("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
             MDC.clear();
         }
+    }
+
+    private List<String> checkTrillionRetryAndGetStageToBeInvokedInOrderList(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, List<String> stagesToBeInvokedInOrder) {
+        boolean isTrillionRetry = !ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
+
+        if (isTrillionRetry && !ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus())) {
+            int retryApiIndex = stagesToBeInvokedInOrder.indexOf(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
+            if (retryApiIndex >= 0) {
+                stagesToBeInvokedInOrder = stagesToBeInvokedInOrder.subList(retryApiIndex, stagesToBeInvokedInOrder.size());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setSanctionStatus(null);
+                lendingApplicationLenderDetailsDao.save(lenderAssociationDetailsDto.getLendingApplicationLenderDetails());
+            }
+        }
+        return stagesToBeInvokedInOrder;
     }
 
     private void createRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, Long applicationId) {
@@ -111,11 +132,18 @@ public class InvokeSanctionWrapperService {
 
     public List<String> getStageToBeInvokedInOrder(Long applicationId) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
-        if(ObjectUtils.isEmpty(lendingApplication.get())) {
+
+        if (!lendingApplication.isPresent()) {
             return new ArrayList<>();
         }
         switch (lendingApplication.get().getLender()) {
-            case "TRILLIONLOANS":
+            case "TRILLIONLOANS": {
+                if(loanUtilV3.isNonTLToTLTopup(lendingApplication.get()))
+                    return Arrays.asList(LenderAssociationStages.TOPUP_UNDO_APPROVE.name(), LenderAssociationStages.TOPUP_DATA.name(),
+                            LenderAssociationStages.ADD_CHARGE.name(), LenderAssociationStages.TOPUP_APPROVE.name(), LenderAssociationStages.NACH_MANDATE.name());
+                else
+                    return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
+            }
             case "CAPRI":
             case "PAYU":
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());

@@ -242,6 +242,14 @@ public class NbfcUtils {
                 return associationServiceUtil.invokeNachMandateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             case "PENNY_DROP":
                 return associationServiceUtil.invokePennyDropService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "TOPUP_UNDO_APPROVE":
+                return associationServiceUtil.invokeTopupUndoApproveService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "TOPUP_DATA":
+                return associationServiceUtil.invokeTopupDataService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "ADD_CHARGE":
+                return associationServiceUtil.invokeAddChargeService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "TOPUP_APPROVE":
+                return associationServiceUtil.invokeTopupApproveService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }

@@ -116,7 +116,7 @@ public class TLDigitalSignService {
                 throw new RuntimeException("Lending Application / Lending Application Lender Details not found for application id : " + lenderAssociationDetailsRequest.getApplicationId());
             }
 
-            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(lenderAssociationDetailsRequest.getApplicationId());
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsRequest.getApplicationId(), lendingApplication.getLender());
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lenderAssociationDetailsRequest.getMerchantId());
             if (ObjectUtils.isEmpty(lendingKfs) || ObjectUtils.isEmpty(cKycResponseDto)) {
                 throw new RuntimeException("Unable to fetch lending kfs/cKycResponseDto for application " + lenderAssociationDetailsRequest.getApplicationId());

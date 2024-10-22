@@ -179,7 +179,7 @@ public class AbflDocGenerateService {
     }
 
     private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
-        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForABFL(lendingPaymentSchedule);
+        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
         if (foreClosureAmountForABFL <= 0) {
             log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
             throw new Exception("Unable to fetch foreclosure amount for parent loan id " + lendingPaymentSchedule.getApplicationId());

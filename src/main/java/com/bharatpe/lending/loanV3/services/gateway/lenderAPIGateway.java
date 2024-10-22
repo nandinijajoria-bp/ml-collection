@@ -72,6 +72,18 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.pennydrop.api:api/v3/lender/penny-drop}")
     String nbfcPennyDropUrl;
 
+    @Value("${nbfc.topup.undo.approve.api:api/v3/lender/topup-undo-approve}")
+    String topupUndoApproveUrl;
+
+    @Value("${nbfc.topup.data.api:api/v3/lender/topup-data}")
+    String topupDataUrl;
+
+    @Value("${nbfc.add.charge.api:api/v3/lender/add-charge}")
+    String addChargeUrl;
+
+    @Value("${nbfc.topup.approve.api:api/v3/lender/topup-approve}")
+    String topupApproveUrl;
+
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
@@ -122,6 +134,14 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+loanPreviewUrl;
             case "PENNY_DROP":
                 return nbfcBaseUrl+nbfcPennyDropUrl;
+            case "TOPUP_UNDO_APPROVE":
+                return nbfcBaseUrl+topupUndoApproveUrl;
+            case "TOPUP_DATA":
+                return nbfcBaseUrl+topupDataUrl;
+            case "ADD_CHARGE":
+                return nbfcBaseUrl+addChargeUrl;
+            case "TOPUP_APPROVE":
+                return nbfcBaseUrl+topupApproveUrl;
             default:
                 return null;
         }
