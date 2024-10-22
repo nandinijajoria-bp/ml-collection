@@ -15,9 +15,9 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ErrorMessages;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.NachMandateRevokeRequestDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.NachMandateRevokeRequest;
@@ -25,7 +25,6 @@ import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
-import com.bharatpe.lending.loanV3.revamp.controller.LoanDashboardController;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -44,7 +43,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import javax.persistence.Basic;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -103,6 +101,9 @@ public class ENachService {
 
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Lazy
     @Autowired
@@ -565,12 +566,17 @@ public class ENachService {
                 return new CommonResponse(false, "merchant not found");
             }
 
-            List<NachMandateRevokeRequest> nachMandateRevokeRequestList  = nachMandateRevokeRequestDao.findByMerchantIdAndStatus(merchantDetails.getId(), "PENDING");
-            if (!ObjectUtils.isEmpty(nachMandateRevokeRequestList)){
+            NachMandateRevokeRequest nachMandateRevokeRequest = nachMandateRevokeRequestDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchantDetails.getId(), "PENDING");
+            if (!ObjectUtils.isEmpty(nachMandateRevokeRequest)){
                 logger.info("Request already exists in pending state for merchant:{}", merchantDetails.getId());
                 return new CommonResponse(false, "Request already exists in pending state");
             }
-            NachMandateRevokeRequest nachMandateRevokeRequest = new NachMandateRevokeRequest(merchantDetails.getId(), merchantDetails.getMobile(), merchantDetails.getBeneficiaryName(), "PENDING");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantDetails.getId(), "ACTIVE");
+            if (Objects.nonNull(lendingPaymentSchedule)){
+                logger.info("Active loan exists for merchant {} for application {}", merchantDetails.getId(), lendingPaymentSchedule.getApplicationId());
+                return new CommonResponse(false, "active loan exists for merchant");
+            }
+            nachMandateRevokeRequest = new NachMandateRevokeRequest(merchantDetails.getId(), merchantDetails.getMobile(), merchantDetails.getBeneficiaryName(), "PENDING");
             if (!ObjectUtils.isEmpty(nachMandateRevokeRequestDao.save(nachMandateRevokeRequest))){
                 return new CommonResponse(true, "data captured successfully");
             }
