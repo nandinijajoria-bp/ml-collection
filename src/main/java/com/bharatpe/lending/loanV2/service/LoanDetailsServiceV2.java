@@ -2846,9 +2846,9 @@ public class LoanDetailsServiceV2 {
             return false;
         }
         String strippedName = name.replaceAll(" ", "");
-
+        String merchantName = loanUtil.getBeneficiaryName(merchant.getId());
         // Rule 1: Name cannot be the same as the merchant's name
-        if (!StringUtils.isEmpty(merchant.getName()) && name.equalsIgnoreCase(merchant.getName())) {
+        if (!StringUtils.isEmpty(merchantName) && name.equalsIgnoreCase(merchant.getName())) {
             log.info("reference name matches with merchant name, {}", name);
             return false;
         }
@@ -2873,7 +2873,8 @@ public class LoanDetailsServiceV2 {
 
         String merchantMobile = merchant.getMobile();
         String referenceMobile = reference.getPhoneNumber();
-        if (StringUtils.isEmpty(merchantMobile) || StringUtils.isEmpty(referenceMobile)) {
+        if (StringUtils.isEmpty(merchantMobile) || StringUtils.isEmpty(referenceMobile) || referenceMobile.length() < 10) {
+            log.info("reference mobile is empty or length is less than 10");
             return false;
         }
         merchantMobile = merchantMobile.length() == 12 ? merchantMobile.substring(2) : merchantMobile;
