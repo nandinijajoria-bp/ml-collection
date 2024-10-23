@@ -1,23 +1,24 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingConsentDao;
+import com.bharatpe.lending.common.dao.LendingLoanInsuranceDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingConsent;
 import com.bharatpe.lending.common.entity.LendingLoanInsurance;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.AgreementResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -42,12 +43,10 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.*;
-import java.util.stream.Collectors;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -120,7 +119,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 && !topupLoans.contains(lendingApplication.getLoanType())
                 && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), piramalInsuranceRolloutPercent)) {
             List<LoanInsuranceDTO> oldInsurances = isInsuredBefore(lendingApplication);
-            if (!ObjectUtils.isEmpty(oldInsurances) && ObjectUtils.isEmpty(insurances) && ObjectUtils.isEmpty(isInsured)) {
+            if (!ObjectUtils.isEmpty(oldInsurances) && (ObjectUtils.isEmpty(isInsured) || isInsured)) {
                 log.info("Merchant: {} is insured before for the application id: {} and insurance: {}", lendingApplication.getMerchantId(), lendingApplication.getId(), oldInsurances);
                 insurances = oldInsurances;
                 isInsured = true;

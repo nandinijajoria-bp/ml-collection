@@ -941,7 +941,7 @@ public class LiquiloansService {
         } else {
             event = FunnelEnums.StageEvent.REJECT;
         }
-        logger.info("Insurance is: {} for merchant: {}", event.name(), lendingLoanInsurance.getApplicationId());
+        logger.info("Insurance is: {} for merchant: {}", event.name(), lendingApplication.getMerchantId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
             funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);

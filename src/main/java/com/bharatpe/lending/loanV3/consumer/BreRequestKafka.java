@@ -4,6 +4,8 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -66,6 +68,9 @@ public class BreRequestKafka {
 
     @Autowired
     ConverterUtils converterUtils;
+
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
@@ -139,7 +144,6 @@ public class BreRequestKafka {
                 }
         } catch (Exception ex) {
             log.error("exception occurred while processing bre request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-//            throw new RuntimeException("unable to ack bre event" + request);
             nbfcUtils.modifyLender(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.BRE_REQUEST_CLIENT_FAILURE);
         }
     }
@@ -228,10 +232,9 @@ public class BreRequestKafka {
             CKycResponseDto cKycResponseDto = kycUtils.getPanData(lendingApplication.get().getMerchantId());
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.get().getId());
             String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
-            String panName = Optional.ofNullable(cKycResponseDto.getPanName()).orElse("").trim();
-            String aadharName = Optional.ofNullable(cKycResponseDto.getName()).orElse("").trim();
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
+            Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId());
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -268,7 +271,7 @@ public class BreRequestKafka {
                                     )
                                     .productCode(productCode)
                                     .source("BharatPe")
-                                    .loanSegment(RiskEngineUtil.loanRiskMapping(lendingRiskVariablesSnapshot.getRiskSegment().name()))
+                                    .loanSegment(isABFLRepeat ? "TOPUP" : RiskEngineUtil.loanRiskMapping(lendingRiskVariablesSnapshot.getRiskSegment().name()))
                                     .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
                                     .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
@@ -284,15 +287,6 @@ public class BreRequestKafka {
         return null;
     }
 
-    private String getMiddleName(String name) {
-        int firstOccurence = name.indexOf(" ");
-        int lastOccurence = name.lastIndexOf(" ");
-        if (firstOccurence == lastOccurence) {
-            return "";
-        }
-        return name.substring(firstOccurence + 1, lastOccurence).trim();
-    }
-
     private String getVintage(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot) {
         if(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getVintage())) {
             Date vintageDate = DateTimeUtil.addDays(new Date(), -lendingRiskVariablesSnapshot.getVintage().intValue());
@@ -301,19 +295,13 @@ public class BreRequestKafka {
         return "";
     }
 
-    private String getFirstName(String name) {
-        if(!ObjectUtils.isEmpty(name)) {
-            return name.indexOf(" ") == -1 ? name :
-                    name.substring(0, name.indexOf(" ")).trim();
+    private Boolean checkForABFLRepeatCase(Long merchantId) {
+        List<LendingPaymentScheduleSlave> previousLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(merchantId, "CLOSED");
+        for(LendingPaymentScheduleSlave loan : previousLoans) {
+            if(Lender.ABFL.name().equalsIgnoreCase(loan.getNbfc())) {
+                return true;
+            }
         }
-        return "";
-    }
-
-    private String getLastName(String name) {
-        if(!ObjectUtils.isEmpty(name)) {
-            return name.lastIndexOf(" ") == -1 ? name :
-                    name.substring(name.lastIndexOf(" ") + 1).trim();
-        }
-        return "";
+        return false;
     }
 }
