@@ -262,6 +262,9 @@ public class LiquiloansService {
     @Value("${backdated.loan.eligible.lenders:ABFL}")
     String backDatedLoanEligibleLenders;
 
+    @Value("${backdated.perpetual.dpd.loan.eligible.lenders:SMFG}")
+    String backDatedPerpetualDPDLoanEligibleLenders;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
     private LendingLedgerDao lendingLedgerDao;
@@ -716,7 +719,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setOffDay(lendingApplication.getPayableDays() % 30 == 0 ?
                         LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 
-                if (Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name()).contains(lendingPaymentSchedule.getNbfc())) {
+                if (Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name()).contains(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
 
@@ -727,7 +730,7 @@ public class LiquiloansService {
                 Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
 //                Date tomorrow = new Date();
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
-                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON").contains(lendingApplication.getLender())) {
+                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON", "SMFG").contains(lendingApplication.getLender())) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
                 }
                 tomorrow = format.parse(format.format(tomorrow));
@@ -845,19 +848,21 @@ public class LiquiloansService {
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
         }
-        if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
-                diffInDisbursalDates > 0) {
-            createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
-        }else if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)){
-            Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if(lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())){
+        Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = Optional.empty();
+        if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)) {
+            lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
+            if (lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())) {
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
                 lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
-                createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
             }
         }
-
+        if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
+                diffInDisbursalDates > 0) {
+            createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
+        } else if (lendingPaymentScheduleLendingCommon.isPresent() && PerpetualDpdAdjusted.Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
+            createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
+        }
         postPayoutResponseDto.setLoanStartDate(lendingPaymentSchedule.getStartDate());
         postPayoutResponseDto.setNextEdiDate(lendingPaymentSchedule.getNextEdiDate());
         postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
@@ -1017,7 +1022,7 @@ public class LiquiloansService {
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
 //            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
-            if (lendingEDISchedule.getDate().after(new Date()))
+            if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) ? 1 : 0)))
                 break;
             if (lendingEDISchedule.getInstallmentNumber() <= offset)
                 continue;
@@ -1035,7 +1040,13 @@ public class LiquiloansService {
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  lendingLedgerList.size());
-        lendingLedgerDao.saveAll(lendingLedgerList);
+        List<LendingLedger> lendingLedger = lendingLedgerDao.saveAll(lendingLedgerList);
+        if(backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc())) {
+            Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
+            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
+        }
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
 
@@ -1684,7 +1695,7 @@ public class LiquiloansService {
             if(!flag) {
                 constructBharatPeEDISchedule(paymentSchedule);
             }
-        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON").contains(paymentSchedule.getNbfc()))  {
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON", "SMFG").contains(paymentSchedule.getNbfc()))  {
             boolean success = constructLenderEDISchedule(paymentSchedule);
             if(!success) {
                 logger.info("creating bharatPe edi schedule as failed to create lender edi schedule for {}", paymentSchedule.getApplicationId());
@@ -1715,6 +1726,8 @@ public class LiquiloansService {
             if (procFee > 0D) {
                 ediSchedules.add(createProcFeeSchedule(paymentSchedule, storeId));
             }
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(paymentSchedule.getLoanApplication().getId(), "ACTIVE", paymentSchedule.getNbfc());
+            Double annualRoi = lendingApplicationLenderDetails.getAnnualRoi();
             if ("CONSTRUCT_2".equals(construct) || "CONSTRUCT_3".equals(construct)) {
                 if ("CONSTRUCT_3".equals(construct)) {
                     int ioInstallmentNo = 1;
@@ -1762,17 +1775,25 @@ public class LiquiloansService {
                     Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * paymentSchedule.getLoanAmount()));
                     double interest = round(paymentSchedule.getEdiAmount().intValue() - principal);
 
-                    if (Lender.PIRAMAL.name().equalsIgnoreCase(paymentSchedule.getNbfc())) {
+                    if (Lender.SMFG.name().equalsIgnoreCase(paymentSchedule.getNbfc())) {
+                        interest = round((openingBalance * annualRoi) / 36500D);
+                        principal = round(paymentSchedule.getEdiAmount().intValue() - interest);
+                    }
+
+                    if (Arrays.asList(Lender.PIRAMAL.name(),Lender.SMFG.name()).contains(paymentSchedule.getNbfc())) {
                         interest = roundToWhole(interest);
                         principal = paymentSchedule.getEdiAmount().intValue() - interest;
                     }
 
                     if (normalEdIinstallmentNo == ediCount) {
-                        if (!paymentSchedule.getLoanAmount().equals(totalPrincipal + principal)) {
+                        if (Lender.SMFG.name().equalsIgnoreCase(paymentSchedule.getNbfc())) {
+                            principal = openingBalance;
+                        } else if (!paymentSchedule.getLoanAmount().equals(totalPrincipal + principal)) {
                             double diff = paymentSchedule.getLoanAmount() - (totalPrincipal + principal);
                             principal = round(paymentSchedule.getLoanAmount() - totalPrincipal);
                             interest = round(interest - diff < 0 ? 0 : interest - diff);
                         }
+
                     }
                     totalPrincipal = totalPrincipal + principal;
                     totalInterest = totalInterest + interest;
@@ -1969,7 +1990,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(lenderEdIScheduleResponse.getTotalInterestPayable());
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(lenderEdIScheduleResponse.getLoanMaturityDate());
-            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name()).contains(paymentSchedule.getNbfc())) {
+            if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name()).contains(paymentSchedule.getNbfc())) {
                 LendingApplication lendingApplication = paymentSchedule.getLoanApplication();
                 Double totalPayableAmount = lendingApplication.getLoanAmount() + lenderEdIScheduleResponse.getTotalInterestPayable();
                 paymentSchedule.setTotalPayableAmount(totalPayableAmount);

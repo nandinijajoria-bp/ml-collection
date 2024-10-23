@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -34,6 +35,11 @@ public class CommonService {
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Lazy
     @Autowired
     CommonUtil commonUtil;
 
@@ -97,5 +103,6 @@ public class CommonService {
             lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
+        lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
     }
 }

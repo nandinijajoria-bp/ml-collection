@@ -2,7 +2,13 @@ package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dao.LmsFieldValuesDao;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.entity.LmsFieldValues;
+import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -11,9 +17,10 @@ import com.bharatpe.lending.dao.LendingPancardDetailsDao;
 import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
-import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
 import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.PoaXmlDTO;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
@@ -33,6 +40,9 @@ import java.text.SimpleDateFormat;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.LendingConstants.BUSINESS_CATEGORY_LMS_FIELD_ID;
+import static com.bharatpe.lending.constant.LendingConstants.BUSINESS_SUBCATEGORY_LMS_FIELD_ID;
 
 @Component
 @Slf4j
@@ -77,13 +87,25 @@ public class KycUtils {
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
+    @Autowired
+    LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Autowired
+    LmsFieldValuesDao lmsFieldValuesDao;
+
+    @Autowired
+    DsHandler dsHandler;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
+
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
         if (!basicDetailsDto.isPresent()) {
             return cKycResponseDto;
         }
-        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, true);
+        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, true, "PAN_NO,SELFIE,POA");
         if (ObjectUtils.isEmpty(kycDocs)){
             return cKycResponseDto;
         }
@@ -104,6 +126,7 @@ public class KycUtils {
                     cKycResponseDto.setAadharNumber(doc.getDocIdentifier());
                     cKycResponseDto.setPoaString(Objects.isNull(doc.getXml()) ? null : ConverterUtils.convertXmlToString(doc.getXml()));
                     cKycResponseDto.setPoaString(ObjectUtils.isEmpty(cKycResponseDto.getPoaString()) ? ConverterUtils.convertXmlToString(doc.getDigioXml()) : cKycResponseDto.getPoAXml());
+                    cKycResponseDto.setAadhaarPanNameMatchPer(doc.getNameMatchPer());
 
                 } else if ("PAN_NO".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setPanNumber(doc.getDocIdentifier());
@@ -112,9 +135,12 @@ public class KycUtils {
                     cKycResponseDto.setLastName(doc.getLastName());
                     cKycResponseDto.setPanDob(doc.getDob());
                     cKycResponseDto.setPanName(doc.getName());
+                    cKycResponseDto.setBankBenePanNameMatchPer(doc.getNameMatchPer());
                 } else if ("SELFIE".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setSelfieBase64(ConverterUtils.convertPreSignedUrlToBase64String(doc.getDocFrontImageUrl()));
                     cKycResponseDto.setSelfieString(doc.getDocFrontImageUrl());
+                    cKycResponseDto.setSelfieLivelinessScore(doc.getLivelinessScore());
+                    cKycResponseDto.setSelfieAadhaarFaceMatchPer(getParsedFaceMatchPer(doc.getFaceMatchPer()));
                 }
             } catch (Exception e) {
                 log.info("error in processing kyc doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -373,5 +399,95 @@ public class KycUtils {
             }
         }
         return false;
+    }
+
+    public Map<String, String> getShopAddressLatLong(LendingApplication lendingApplication) {
+        try {
+            Map<String, String> latLong = new HashMap<>();
+            if (!ObjectUtils.isEmpty(lendingApplication.getLatitude()) && !ObjectUtils.isEmpty(lendingApplication.getLongitude())) {
+                latLong.put("lat", lendingApplication.getLatitude());
+                latLong.put("long", lendingApplication.getLongitude());
+                return latLong;
+            }
+            List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
+            for (LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList) {
+                if (!ObjectUtils.isEmpty(lendingShopDocuments) && !ObjectUtils.isEmpty(lendingShopDocuments.getLatitude()) && !ObjectUtils.isEmpty(lendingShopDocuments.getLongitude())) {
+                    latLong.put("lat", lendingShopDocuments.getLatitude());
+                    latLong.put("long", lendingShopDocuments.getLongitude());
+                    return latLong;
+                }
+            }
+            Map<String, Double> dsResponse = dsHandler.fetchDsLocation(lendingApplication.getMerchantId());
+            if (!ObjectUtils.isEmpty(dsResponse) || dsResponse.containsKey("latitude") || !ObjectUtils.isEmpty(dsResponse.get("latitude")) || dsResponse.containsKey("longitude") || !ObjectUtils.isEmpty(dsResponse.get("longitude"))) {
+                latLong.put("lat", String.valueOf(dsResponse.get("latitude")));
+                latLong.put("long", String.valueOf(dsResponse.get("longitude")));
+                return latLong;
+            }
+
+        } catch (Exception e) {
+            log.error("error while getting latitude and longitude for application Id {} and merchantId {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), e, Arrays.asList(e.getStackTrace()));
+        }
+
+        log.info("couldn't get lat long for applicationId {} and merchantId {} from shopDocs and DS API", lendingApplication.getId(), lendingApplication.getMerchantId());
+        return null;
+    }
+
+    public Map<String, String> getBusinessCategoryAndSubCategory(Long merchantId) {
+        Map<String, String> categories = new HashMap<>();
+        String businessCategory = null;
+        String businessSubcategory = null;
+        Optional<LendingPaymentScheduleSlave> prevLoan = lendingPaymentScheduleDaoSlave.findLatestClosedLoan(merchantId);
+        if (prevLoan.isPresent()) {
+            List<Long> lmsFieldIds = new ArrayList<>();
+            lmsFieldIds.add(BUSINESS_CATEGORY_LMS_FIELD_ID);
+            lmsFieldIds.add(BUSINESS_SUBCATEGORY_LMS_FIELD_ID);
+            List<LmsFieldValues> lmsFieldValuesList = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(
+                    prevLoan.get().getApplicationId(), lmsFieldIds
+            );
+            if (ObjectUtils.isEmpty(lmsFieldValuesList)) {
+                log.info("business category not available from last disbursed app {}", prevLoan.get().getApplicationId());
+                return categories;
+            }
+            for (LmsFieldValues lmsFieldValues : lmsFieldValuesList) {
+                String dropdownValue = lmsFieldValues.getFieldDropdownValue();
+                if (!ObjectUtils.isEmpty(dropdownValue)) {
+                    dropdownValue = dropdownValue.replace("\r", "").trim();
+                }
+                if (BUSINESS_CATEGORY_LMS_FIELD_ID.equals(lmsFieldValues.getFieldId())) {
+                    businessCategory = dropdownValue;
+                } else if (BUSINESS_SUBCATEGORY_LMS_FIELD_ID.equals(lmsFieldValues.getFieldId())) {
+                    businessSubcategory = dropdownValue;
+                }
+            }
+        }
+        categories.put("businessCategory", businessCategory);
+        categories.put("businessSubcategory", businessSubcategory);
+        return categories;
+    }
+
+    public PriorityQueue<BusinessDocsDTO> getBusinessDocData(Long merchantId, String lender, String docs) {
+        PriorityQueue<BusinessDocsDTO> businessDocs = new PriorityQueue<>(Comparator.comparingInt(BusinessDocsDTO::getPriority));
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
+        if (!basicDetailsDto.isPresent()) {
+            return businessDocs;
+        }
+        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, false, "BUSINESSDOCS");
+        for (KycDoc doc : kycDocs) {
+            if (ObjectUtils.isEmpty(docs) || docs.contains(doc.getSubDocType().name())) {
+                businessDocs.add(new BusinessDocsDTO(doc.getSubDocType(), doc.getDocPdfUrl(), BusinessDocsDTO.getDocPriorityForLender(doc.getSubDocType(), lender), doc.getDocIdentifier()));
+            }
+        }
+        return businessDocs;
+    }
+
+    private Double getParsedFaceMatchPer(String faceMatchPer) {
+        if (!ObjectUtils.isEmpty(faceMatchPer)) {
+            try {
+                return Double.parseDouble(faceMatchPer.replace("%", "").trim());
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid faceMatchPer value: " + faceMatchPer, e);
+            }
+        }
+        return null;
     }
 }

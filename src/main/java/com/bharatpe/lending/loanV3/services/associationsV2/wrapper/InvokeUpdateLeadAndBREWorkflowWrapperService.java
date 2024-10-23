@@ -3,11 +3,15 @@ package com.bharatpe.lending.loanV3.services.associationsV2.wrapper;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -20,10 +24,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -46,6 +51,9 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
 
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
     @Async("lenderPoolTaskExecutor")
     public void invokeUpdateLeadAndBREWorkflow(Map<String,String> request, Map<String, Object> args) {
         try {
@@ -58,14 +66,24 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
                 MDC.clear();
                 return;
             }
+            LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("No application found for application id : {}", applicationId);
+                return;
+            }
+
             LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
-            createRecord(lenderAssociationDetailsDto, applicationId);
+            if ("SMFG".equalsIgnoreCase(lendingApplication.getLender()))
+                runBaseChecksAndCreateLenderDetailsRecord(lenderAssociationDetailsDto, lendingApplication);
+            else
+                createRecord(lenderAssociationDetailsDto, lendingApplication);
+
             if(ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplication()) || ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails())) {
                 log.info("No application details found for {}", lenderAssociationDetailsDto.getApplicationId());
                 MDC.clear();
                 return;
             }
-            if (Objects.isNull(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())) {
+            if (Objects.isNull(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId()) && !"SMFG".equalsIgnoreCase(lendingApplication.getLender())) {
                 log.info("lead creation was unsuccessful for {} ", applicationId);
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.UPDATE_LEAD_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.UPDATE_LEAD_FAILED);
@@ -84,19 +102,13 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
         }
     }
 
-    private void createRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, Long applicationId) {
-        lenderAssociationDetailsDto.setApplicationId(applicationId);
-        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
-        if (!lendingApplicationOptional.isPresent()) {
-            log.info("No application found for application id : {}", applicationId);
-            return;
-        }
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(applicationId, Status.ACTIVE.name(), lendingApplicationOptional.get().getLender());
+    private void createRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LendingApplication lendingApplication) {
+        lenderAssociationDetailsDto.setApplicationId(lendingApplication.getId());
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || Objects.isNull(lendingApplicationLenderDetails.getLeadId())) {
-            log.info("No lender association details found for lender {} of application id : {}", lendingApplicationOptional.get().getLender(), applicationId);
+            log.info("No lender association details found for lender {} of application id : {}",lendingApplication.getLender(), lendingApplication.getId());
             return;
         }
-        LendingApplication lendingApplication = lendingApplicationOptional.get();
         lenderAssociationDetailsDto.setLendingApplication(lendingApplication);
         lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
         lenderAssociationDetailsDto.setMerchantId(lendingApplication.getMerchantId());
@@ -115,6 +127,7 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
             case "CAPRI":
             case "PAYU":
             case "CREDITSAISON":
+            case "SMFG":
                 return true;    // Skipped update lead as its only taking same payload as createLead
             default:
                 return false;
@@ -128,4 +141,39 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
             associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailDto.getLendingApplication().getLender(), lenderAssociationDetailDto);
         }
     }
+
+    private void runBaseChecksAndCreateLenderDetailsRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LendingApplication lendingApplication) {
+        lenderAssociationDetailsDto.setApplicationId(lendingApplication.getId());
+        lenderAssociationDetailsDto.setLendingApplication(lendingApplication);
+        lenderAssociationDetailsDto.setMerchantId(lendingApplication.getMerchantId());
+        lenderAssociationDetailsDto.setModifyLender(enableLenderChange);
+        lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lenderAssociationDetailsDto.getApplicationId(), Status.ACTIVE.name(), lendingApplication.getLender());
+        if (Objects.nonNull(lendingApplicationLenderDetails) && Objects.nonNull(lendingApplicationLenderDetails.getLeadId())) {
+            log.info("lead creation already done for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+        }
+        LenderAssociationStages initialLenderDetailsStage = LenderAssociationStageFactoryV2.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.INIT);
+        if (null == lendingApplicationLenderDetails) {
+            lendingApplicationLenderDetails = createLenderRecord(lendingApplication, initialLenderDetailsStage.name(), Status.ACTIVE.name());
+        }
+        lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+    }
+
+    private LendingApplicationLenderDetails createLenderRecord(LendingApplication lendingApplication, String stage, String recordStatus) {
+        LendingApplicationLenderDetails lendingApplicationLenderDetails;
+        lendingApplicationLenderDetails = new LendingApplicationLenderDetails();
+        lendingApplicationLenderDetails.setApplicationId(lendingApplication.getId());
+        lendingApplicationLenderDetails.setLender(lendingApplication.getLender());
+        lendingApplicationLenderDetails.setStage(stage);
+        lendingApplicationLenderDetails.setStatus(recordStatus);
+        lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
+        DecimalFormat df = new DecimalFormat("#.##");
+        df.setRoundingMode(RoundingMode.DOWN);
+        lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
+                lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(),
+                        LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.getLender()))));
+        return lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+    }
+
 }

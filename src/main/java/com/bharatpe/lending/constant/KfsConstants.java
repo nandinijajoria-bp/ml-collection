@@ -14,6 +14,7 @@ public interface KfsConstants {
     String AF_S3_KEY_PREFIX = "APPLICATION_FORM_";
     String SANCTION_LETTER_S3_KEY_PREFIX = "SANCTION_LETTER_";
     String KFS_LETTER_S3_KEY_PREFIX = "KFS_LETTER_";
+    String LENDER_ADDITIONAL_S3_KEY_PREFIX = "LENDER_ADDITIONAL_DOC_";
 
     String LENDER_CORPORATE_NAME_LIQUILOANS = "NDX P2P Private Limited";
     String LENDER_BUSINESS_ADDRESS_LIQUILOANS = "B 104, The Qube, Hasan Pada Rd, Mittal Industrial Estate, Marol, Andheri East, Mumbai, Maharashtra 400059";
@@ -95,4 +96,10 @@ public interface KfsConstants {
     String LENDER_CONTACT_NAME_CREDITSAISON = "Emaad Khan";
     String LENDER_CONTACT_EMAIL_CREDITSAISON = "emaad.khan@creditsaison-in.com";
     String LENDER_CONTACT_NUMBER_CREDITSAISON = "+91-7289000552";
+    String LENDER_CORPORATE_NAME_SMFG = "SMFG India Credit Company Limited (formerly Fullerton India Credit Company Limited)";
+    String LENDER_BUSINESS_ADDRESS_SMFG = "3rd Floor, No - 165 Megh Towers, PH Road Maduravoyal, Chennai - 600 095";
+    String LENDER_CONTACT_NAME_SMFG = "Grievance Redressal Officer";
+    String LENDER_CONTACT_EMAIL_SMFG = "GRO@smfgindia.com";
+    String LENDER_CONTACT_NUMBER_SMFG = "022-69581104";
+
 }

@@ -50,6 +50,7 @@ public class DisbursalStageMapping {
         put(Pair.of("CAPRI", "DISBURSED"), "DISBURSED");
         put(Pair.of("PAYU", "DISBURSED"), "DISBURSED");
         put(Pair.of(Lender.CREDITSAISON.name(), "DISBURSED"), "DISBURSED");
+        put(Pair.of("SMFG", "DISBURSED"), "DISBURSED");
     }};
 
     public static String getDisbursedStage(String lender, String stage) {

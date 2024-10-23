@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class PanFetchKYCResponseDto {
     private Boolean status;
     private Data data;
-    public class Data {
+    public static class Data {
         private String id;
         private String message;
         private Boolean maxCountReached;

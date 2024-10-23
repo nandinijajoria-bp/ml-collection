@@ -1,10 +1,15 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
+import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -261,6 +266,85 @@ public class DocUploadUtils {
             log.error("Exception in saving lender agreement docs for {}, {}, {}", application.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
 
+    }
+
+    public LenderAssociationStatus getStatusForDocumentUpload(DocType docType, String currentStage) {
+        switch (docType.name()) {
+            case "DIGILOCKER_AADHAAR_XML":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.AADHAR_UPLOAD_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.AADHAR_UPLOAD_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.AADHAR_UPLOAD_PENDING;
+                }
+            case "SELFIE":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.SELFIE_UPLOAD_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.SELFIE_UPLOAD_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.SELFIE_UPLOAD_PENDING;
+                }
+            case "SHOP_PHOTO":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.SHOP_PHOTO_UPLOAD_PENDING;
+                }
+            case "BUSINESS_DOC":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.BUSINESS_DOC_UPLOAD_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.BUSINESS_DOC_UPLOAD_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.BUSINESS_DOC_UPLOAD_PENDING;
+                }
+            case "AUDIT_TRAIL_DOC":
+                switch (currentStage) {
+                    case "FAILED":
+                        return LenderAssociationStatus.AUDIT_TRAIL_FAILED;
+                    case "SUCCESS":
+                        return LenderAssociationStatus.AUDIT_TRAIL_SUCCESS;
+                    default:
+                        return LenderAssociationStatus.AUDIT_TRAIL_PENDING;
+                }
+            default:
+                return null;
+        }
+    }
+
+    public String getFileBlob(DocType fileBlob, CKycResponseDto cKycResponseDto, LendingKfs lendingKfs, LendingShopDocuments lendingShopDocument, BusinessDocsDTO businessDocs) {
+        String key = null;
+        switch (fileBlob.name()) {
+            case "DIGILOCKER_AADHAAR_XML":
+                return cKycResponseDto.getPoaString();
+            case "SELFIE":
+                return cKycResponseDto.getSelfieString();
+            case "KEY_FACT_STATEMENT":
+                key = lendingKfs.getKfsDocFile();
+                break;
+            case "LOAN_AGREEMENT":
+                key = lendingKfs.getSanctionLoanAgreementDocFile();
+                break;
+            case "SHOP_PHOTO":
+                key =  lendingShopDocument.getProofFrontSide();
+                break;
+            case "BUSINESS_DOC":
+                return businessDocs.getPdfUrl();
+            case "AUDIT_TRAIL_DOC":
+                key = lendingKfs.getLoaDocFile();
+                break;
+            default:
+                return null;
+        }
+        return getS3PresignedUrlFromKey(key);
     }
 
 }

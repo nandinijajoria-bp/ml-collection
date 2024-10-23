@@ -22,6 +22,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
@@ -175,7 +176,7 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${payu.rollout.percent:1}")
     Integer payuRolloutPercent;
 
-    @Value("${max.apr.eligible.lenders:CREDITSAISON,MUTHOOT}")
+    @Value("${max.apr.eligible.lenders:CREDITSAISON,MUTHOOT,SMFG}")
     String maxAprEligibleLender;
 
     @Lazy
@@ -209,6 +210,13 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     static List<String> trillionTopupLenders;
+
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    SmfgConfig smfgConfig;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -411,6 +419,13 @@ public class LenderAssignService implements ILenderAssignService {
         if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
             String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
+                log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, lendingApplication.getId());
+                return false;
+            }
+        }
+        if (SMFG.name().equalsIgnoreCase(lender)) {
+            if(SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
+                log.info("skipping {} due to minimum vintage checks failing for {}", lender, lendingApplication.getId());
                 return false;
             }
         }
@@ -893,6 +908,9 @@ public class LenderAssignService implements ILenderAssignService {
             case "CREDITSAISON":
                 rolloutPercent = csConfig.getRolloutPercent();
                 break;
+            case "SMFG":
+                rolloutPercent = smfgConfig.getRolloutPercentage();
+                break;
             default:
                 rolloutPercent = 0;
         }
@@ -1136,7 +1154,7 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
-        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(),lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
+        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
         Double maxApr = 0D;
         switch (lender) {
             case "CREDITSAISON":
@@ -1144,6 +1162,9 @@ public class LenderAssignService implements ILenderAssignService {
                 break;
             case "MUTHOOT":
                 maxApr = muthootMaxIrr;
+                break;
+            case "SMFG":
+                maxApr = smfgConfig.getMaxApr();
                 break;
             default:
                 maxApr = 0D;

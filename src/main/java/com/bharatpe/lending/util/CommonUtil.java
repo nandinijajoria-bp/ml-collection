@@ -61,7 +61,7 @@ public class CommonUtil {
         auditLender.setApplicationId(lendingApplication.getId());
         auditLender.setMerchantId(lendingApplication.getMerchantId());
         auditLender.setType(type);
-        auditLender.setLoanId("BPL"+lendingApplication.getId());
+        auditLender.setLoanId(lendingApplication.getExternalLoanId());
         auditLender.setOldStatus(oldStatus);
         auditLender.setNewStatus(newStatus);
         auditLender.setRemarks(remarks);

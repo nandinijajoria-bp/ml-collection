@@ -49,7 +49,8 @@ public enum KycDocType {
     TELEPHONE_BILL("TELEPHONE_BILL"),
     TRUST_DEED("TRUST_DEED"),
     VAT("VAT"),
-    WATER_BILL("WATER_BILL");
+    WATER_BILL("WATER_BILL"),
+    UDYAM_CERTIFICATE("UDYAM_CERTIFICATE");
 
     String val;
 

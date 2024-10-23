@@ -39,4 +39,8 @@ public class KycDoc {
     private String middleName;
     private String firstName;
     private String aadhaarSeedingStatus;
+    private String faceMatchPer;
+    private Double livelinessScore;
+    private Double nameMatchPer;
+    private String docPdfUrl;
 }

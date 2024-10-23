@@ -25,6 +25,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -1700,6 +1701,9 @@ public class LoanUtil {
 		if("CREDITSAISON".equalsIgnoreCase(lender)) {
 			finalLender = Lender.CREDITSAISON.name();
 		}
+		if("SMFG".equalsIgnoreCase(lender)) {
+			finalLender = Lender.SMFG.name();
+		}
 		return finalLender;
 	}
 
@@ -2379,6 +2383,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		rejectedLenderMapping.put(PAYU.name(), "PAYU");
 		rejectedLenderMapping.put(CREDITSAISON.name(), "CREDITSAISON");
+		rejectedLenderMapping.put(SMFG.name(), "SMFG");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
@@ -2425,7 +2430,7 @@ public class LoanUtil {
 		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
 		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
 			logger.info("checking for collection of extra interest for perpetual dpd loan id : {}", lendingPaymentScheduleLendingCommon.get().getId());
-			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, new Date());
+			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, DateTimeUtil.getCurrentDayStartTime());
 			if(!ObjectUtils.isEmpty(lendingLedger)){
 				return Math.abs(lendingLedger.getInterest());
 			}

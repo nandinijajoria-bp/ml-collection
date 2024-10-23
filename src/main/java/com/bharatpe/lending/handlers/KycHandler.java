@@ -114,20 +114,20 @@ public class KycHandler {
         return null;
     }
 
-    public List<KycDoc> getKycDoc(Long merchantId, Boolean acceptRejected, Boolean acceptDraft) {
+    public List<KycDoc> getKycDoc(Long merchantId, Boolean acceptRejected, Boolean acceptDraft, String docs) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         try {
-            String docs = "PAN_NO,SELFIE,POA";
             Map<String, Object> requestParams = new HashMap<String, Object>(){{
                 put("merchantId", merchantId);
                 put("docs", docs);
                 put("imgRequire", true);
                 put("acceptRejected", acceptRejected);
                 put("acceptDraft", acceptDraft);
+                put("returnMultipleSubDocTypes", "BUSINESSDOCS".equalsIgnoreCase(docs));
             }};
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=" + acceptRejected + "&acceptDraft=" + acceptDraft;
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=" + acceptRejected + "&acceptDraft=" + acceptDraft + "&returnMultipleSubDocTypes=" + requestParams.get("returnMultipleSubDocTypes");
             log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
@@ -250,7 +250,7 @@ public class KycHandler {
         }
 
         try {
-            List<KycDoc> kycDocs = getKycDoc(merchantId, false, true);
+            List<KycDoc> kycDocs = getKycDoc(merchantId, false, true, "PAN_NO,SELFIE,POA");
             if (!CollectionUtils.isEmpty(kycDocs)) {
                 if (kycDocs.size() < lenderKycPipeMandatoryDocs.size()) return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
                 for (KycDoc kycDoc : kycDocs) {

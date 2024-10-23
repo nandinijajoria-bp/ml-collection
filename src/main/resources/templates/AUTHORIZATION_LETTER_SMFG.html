@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mb30 {
+            margin-bottom: 20px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<div style="padding: 20px 30px; margin-top: 50px">
+    <h2 class="text-center">
+        <span class="underline">PAYMENT INSTRUCTION/AUTHORIZATION</span>
+    </h2>
+    <div class="text-right mb20">Date: {{date}}</div>
+    <div class="text-left mb10">Resilient Innovations Private Limited (<span class="bold">RIPL/ Offline PA</span>)
+    </div>
+    <div class="text-left mb10">3rd Floor, Ramnath House, 18, Community Center,</div>
+    <div class="text-left mb10">Opp. Jet Airways, Yusuf Sarai, New Delhi-110049</div>
+    <div class="text-left mb40">(acting as the offline payment aggregator)</div>
+    <div class="text-left bold underline mb30">Sub: Deduction of Due Amounts from the Settlement Amount</div>
+    <div class="text-left mb30">Dear Sir/ Ma’am,</div>
+    <ol type="1">
+        <li class="mb10">This is in reference to loan sanctioned to the undersigned by SMFG India Credit Company Limited <i>(Formerly Fullerton India Credit Company Limited)</i> (<span
+                class="bold">“Lender”</span>) vide
+            the Loan ID {{lead_id}} (<span class="bold">“Loan ID”</span>).
+        </li>
+        <li class="mb10">
+            Pursuant to the Key Facts Statement, Sanction Letter and other loan documents (<span class="bold">“Loan
+                    Documents”</span>) accepted by the undersigned, the undersigned has agreed to give an irrevocable,
+            unconditional and express consent/authorization to the Offline Payment Aggregator (<span
+                class="bold">PA</span>) to
+            deduct the applicable instalment amounts as per the agreed frequency and/or any other dues
+            stated under the Loan Documents (“<span class="bold">Due Amounts</span>”). The Offline PA, shall upon
+            receipt of
+            such instructions from the Lender, deduct the Due Amounts from the Settlement Amount and
+            transfer such Due Amounts to the Lender’s bank account against repayment of the loan availed
+            by the undersigned vide the above-mentioned Loan ID. For clarification, Settlement Amount
+            shall have the same meaning assigned to it under the Loan Documents.
+        </li>
+        <li class="mb10">The undersigned hereby give its irrevocable, unconditional, and express consent to the
+            Offline
+            PA to deduct the Due Amounts from the Settlement Amount as communicated by the Lender
+            and/or its representatives and transfer such amounts to Lender’s bank account as repayment for
+            the loan availed by the undersigned vide the above-mentioned Loan ID.
+        </li>
+        <li class="mb10">The undersigned hereby irrevocably and unconditionally confirm that these
+            instructions/authorization in favour of the Offline PA and the Lender as mentioned above shall
+            be irrevocable and shall not be revoked until the loan has been repaid in full to the satisfaction
+            of the Lender.
+        </li>
+    </ol>
+    <div class="text-left mb30">Yours Sincerely,</div>
+    <div class="text-left mb30">{{borrower_name}} (“Borrower”)</div>
+    <div class="text-left mb40">{{pan_of_borrower}}</div>
+    <br/>
+    <br/>
+    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+           style="page-break-inside: avoid !important">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left"> Borrower Name </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{borrower_name}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left"> Mobile No. for OTP </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{mobile_number_for_otp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    BharatPe for Business
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{ip_address}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{time_stamp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">SMICC Lead ID</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{lead_id}}
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

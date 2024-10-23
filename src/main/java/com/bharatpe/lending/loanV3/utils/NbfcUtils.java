@@ -80,9 +80,6 @@ public class NbfcUtils {
     @Autowired
     CommonUtil commonUtil;
 
-//    @Value("${offer.modified.eligible.lender}")
-//    String offerModifiedEligibleLenders;
-
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
         if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -208,6 +205,7 @@ public class NbfcUtils {
             case CAPRI:
             case PAYU:
             case CREDITSAISON:
+            case SMFG:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:

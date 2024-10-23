@@ -17,6 +17,8 @@ public class LenderAssociationStageFactoryV2 {
                     case PAYU:
                     case CREDITSAISON:
                         return LenderAssociationStages.KYC;
+                    case SMFG:
+                        return LenderAssociationStages.BRE;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
                 }
@@ -40,6 +42,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return LenderAssociationStages.ASSC_COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -52,6 +55,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return LenderAssociationStages.DOC_UPLOAD;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -63,6 +67,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return LenderAssociationStages.DRAWDOWN;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -76,6 +81,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return LenderAssociationStages.SANCTION_WRAPPER;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -88,18 +94,11 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return LenderAssociationStages.COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
                 }
-
-//            case DIGI_SIGN:
-//                switch (lender) {
-//                    case TRILLIONLOANS:
-//                        return LenderAssociationStages.DOC_UPLOAD;
-//                    default:
-//                        return LenderAssociationStages.OLD_MODEL;
-//                }
             default:
                 switch (lender) {
                     case USFB:
@@ -108,6 +107,8 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                         return LenderAssociationStages.KYC;
+                    case SMFG:
+                        return LenderAssociationStages.BRE;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
                 }
@@ -124,6 +125,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -135,6 +137,7 @@ public class LenderAssociationStageFactoryV2 {
                     case MUTHOOT:
                     case CAPRI:
                     case PAYU:
+                    case SMFG:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -159,6 +162,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -171,6 +175,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -184,6 +189,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -195,17 +201,11 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
+                    case SMFG:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
                 }
-//            case DIGI_SIGN:
-//                switch (lender) {
-//                    case TRILLIONLOANS:
-//                        return Boolean.TRUE;
-//                    default:
-//                        return Boolean.FALSE;
-//                }
             default:
                 return Boolean.FALSE;
         }

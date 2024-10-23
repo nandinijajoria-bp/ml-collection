@@ -45,6 +45,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
@@ -334,6 +335,10 @@ public class LendingApplicationServiceV2 {
 
     @Value("${aws.s3.bucket:loan-document}")
     private String s3Bucket;
+
+    @Lazy
+    @Autowired
+    SmfgConfig smfgConfig;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -2386,6 +2391,7 @@ public class LendingApplicationServiceV2 {
                 annualRoi = lendingApplicationLenderDetails.getAnnualRoi();
             }
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingKfs.getMerchantId());
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
 
             String lenderCorporateName = "";
             String lenderBusinessAddress = "";
@@ -2463,6 +2469,13 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_CREDITSAISON;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_CREDITSAISON;
             }
+            else if (lendingApplication.getLender().equalsIgnoreCase(Lender.SMFG.toString())) {
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_SMFG;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_SMFG;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_SMFG;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_SMFG;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_SMFG;
+            }
             else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
@@ -2531,6 +2544,11 @@ public class LendingApplicationServiceV2 {
                     .ediDays((lendingApplication.getPayableDays() % 30) == 0 ? 7 : 6)
                     .agreementAt(lendingApplication.getAgreementAt())
                     .shopAddress(shopAddress)
+                    .shopName(lendingApplication.getBusinessName())
+                    .shopState(lendingApplication.getState())
+                    .shopPincode(String.valueOf(lendingApplication.getPincode()))
+                    .shopCity(lendingApplication.getCity())
+                    .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(lendingRiskVariables.getMonthlyIncome())
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
@@ -2601,19 +2619,22 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
 
         //Authorization Letter
-        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.getLender())){
+        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name()).contains(lendingApplication.getLender())){
             generateAuthorizationLetterDoc(lendingApplication, merchant, lendingKfs, null);
             lendingKfs.setAuthorizationLetterSignedAt(dateTimeUtil.getCurrentDate());
         }
 
+        Date date = new Date();
+        //AUTHORIZATION LETTER PAYU
+        // AUDIT TRAIL LETTER SMFG
+        if (Arrays.asList(Lender.PAYU.name(), Lender.SMFG.name()).contains(lendingApplication.getLender())) {
+            generateLOADoc(lendingApplication, merchant, lendingKfs, date);
+        }
+
         //PAYU LOAN DOCS
         if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
-
-            Date date = new Date();
-
             generateMITCDoc(lendingApplication, merchant, lendingKfs, date);
             generateGTCDoc(lendingApplication, merchant, lendingKfs, date);
-            generateLOADoc(lendingApplication, merchant, lendingKfs, date);
             generateApplicationFormDoc(lendingApplication, merchant, lendingKfs, date);
         }
 
@@ -2954,6 +2975,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_PAYU" + ".html";
             }else if(Lender.CREDITSAISON.name().equalsIgnoreCase(lender)) {
                 filePath = "/templates/CREDITSAISON/" + "KFS_CREDIT_SAISON" + ".html";
+            } else if(lender.equalsIgnoreCase(Lender.SMFG.name())) {
+                filePath = "/templates/" + "KFS_NONP2P_SMFG" + ".html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -3113,6 +3136,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PAYU.html";
             } else if (lender.equalsIgnoreCase(Lender.CREDITSAISON.name())) {
                 filePath = "/templates/CREDITSAISON/" + "SANCTION_LOAN_AGREEMENT_CREDIT_SAISON" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_SMFG.html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
@@ -3398,7 +3423,7 @@ public class LendingApplicationServiceV2 {
         else throw new Exception("Unable to get aadhar address for : " + applicationId);
         data.put("device_id", "");
         if(!ObjectUtils.isEmpty(merchantBankDetail)) {
-            data.put("accountNumber", "XXXXXXXX" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length() - 4));
+            data.put("accountNumber", LendingEnum.LENDER.SMFG.name().equalsIgnoreCase(kfsDto.getLender()) ? merchantBankDetail.getAccountNumber() :  "XXXXXXXX" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length() - 4));
             data.put("accountType", merchantBankDetail.getAccountType());
             data.put("ifsc", merchantBankDetail.getIfsc());
             data.put("bankName", merchantBankDetail.getBankName());
@@ -3461,6 +3486,11 @@ public class LendingApplicationServiceV2 {
         data.put("edi_days", kfsDto.getEdiDays());
         data.put("date_of_execution",Optional.ofNullable(kfsDto.getAgreementAt()).map(String::valueOf).orElse(""));
         data.put("shopAddress",kfsDto.getShopAddress());
+        data.put("shop_name", kfsDto.getShopName());
+        data.put("shop_state", kfsDto.getShopState());
+        data.put("shop_city", kfsDto.getShopCity());
+        data.put("shop_pincode", kfsDto.getShopPincode());
+        data.put("annual_turnover",kfsDto.getAnnualTurnover()); // summaryTPV * 360
         data.put("monthlyIncome",Optional.ofNullable(kfsDto.getMonthlyIncome()).map(String::valueOf).orElse(""));
         data.put("annual_roi", kfsDto.getAnnualRoi());
 
@@ -3546,6 +3576,25 @@ public class LendingApplicationServiceV2 {
             data.put("insurance_premium", lendingLoanInsurance.getInsurancePremium());
             data.put("insurance_premium_in_words", getAmountInWords(lendingLoanInsurance.getInsurancePremium().toString()));
         }
+
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
+        data.put("father_name", lendingApplicationKycDetails.getFatherName());
+        data.put("email_address", lendingApplicationKycDetails.getEmail());
+
+        Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
+        data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
+        data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
+        CKycResponseDto cKycResponseDto = kycUtils.getKycData(kfsDto.getMerchantId());
+        data.put("borrower_selfie", cKycResponseDto.getSelfieString());
+        if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender())) {
+            data.put("udyam_number", null);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
+                PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
+                data.put("udyam_number", businessDocs.peek() != null ? businessDocs.peek().getDocIdentifier() : null);
+            }
+        }
+
         //log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
@@ -3610,6 +3659,8 @@ public class LendingApplicationServiceV2 {
           || lender.equalsIgnoreCase(Lender.MAMTA1.toString())
           || lender.equalsIgnoreCase(Lender.MAMTA2.toString())){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
+        } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SMICC-Logo-1724934813170_1-1728285292259.png";
         }
         return logoUrl;
     }
@@ -3623,8 +3674,9 @@ public class LendingApplicationServiceV2 {
             }
         }
 
-        CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
-        if(!response.isSuccess()){
+        CommonResponse response = Lender.SMFG.name().equalsIgnoreCase(lender) ? lendingEdiScheduleService.getEdiScheduleV3(merchant.getId(), applicationId)
+        : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
+        if (!response.isSuccess()) {
             log.info(response.getMessage());
             log.info("Unable to fetch edi schedule for applicationId : {}", applicationId);
             return null;
@@ -4033,6 +4085,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_TRILLIONS_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = "/templates/AUTHORIZATION_LETTER_TRILLIONS_PC"+ language +".html";
+            } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
+               filePath = "/templates/AUTHORIZATION_LETTER_SMFG" +".html";
             } else {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
             }
@@ -4336,19 +4390,25 @@ public class LendingApplicationServiceV2 {
         apiResponse = generateLOA(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if (apiResponse.success) {
             String loaHtml = (String) apiResponse.data;
-
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
-            fileName = lendingApplicationLenderDetails.getLeadId() + '_' + LOA_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-
-            ByteArrayInputStream inStream = getLoanDocPdf(loaHtml, ApplicationDocType.PAYU_LOA_DOC, lendingApplication, sanctionCompressionLevel);
-
-            if (ObjectUtils.isEmpty(inStream)) {
-                throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
+            if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                fileName = lendingApplicationLenderDetails.getLeadId() + '_' + LOA_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
+                ByteArrayInputStream inStream = getLoanDocPdf(loaHtml, ApplicationDocType.PAYU_LOA_DOC, lendingApplication, sanctionCompressionLevel);
+                if (ObjectUtils.isEmpty(inStream)) {
+                    throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
+                }
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+            } else {
+                fileName = LENDER_ADDITIONAL_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
+                PdfDocument pdfDocument = new PdfDocument(writer);
+                InputStream htmlStringInputStream = new ByteArrayInputStream(loaHtml.getBytes(StandardCharsets.UTF_8));
+                HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
             }
-
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
+            String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
             String loaShortUrl = apiGatewayService.getShortUrl(loaUrl);
             if (loaShortUrl == null || loaShortUrl.isEmpty() || loaShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for loaHtml doc link for : " + lendingApplication.getId());
@@ -4358,12 +4418,15 @@ public class LendingApplicationServiceV2 {
             }
         }
         else{
-            log.error("Unable to store LOA pdf doc for applicationId : {}", lendingApplication.getId());
+            log.error("Unable to store LOA / Audit Trail pdf doc for applicationId : {}", lendingApplication.getId());
             throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
         }
     }
 
     public ApiResponse<?> generateLOA(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+        if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            return generateAuditTrail(lendingApplication);
+        }
 
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
@@ -4490,6 +4553,44 @@ public class LendingApplicationServiceV2 {
         } catch (Exception e) {
             log.error("Exception while generating application form html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Unable to generate application form");
+        }
+    }
+
+    public ApiResponse<?> generateAuditTrail(LendingApplication lendingApplication) {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            String html = "";
+            String filePath = "";
+
+            CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.getMerchantId());
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
+            data.put("otp_date_with_timestamp", !ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) ? lendingApplication.getAgreementAt().toString() : null);
+            data.put("dob", nameAndDobDetailsDto.getDob());
+            data.put("pan_dob_match_kyc", "YES");
+            data.put("aadhar_linked_status_with_pan", "YES");
+            data.put("kyc_name_match_score_pennydrop", "YES");
+            data.put("selfie_match_score", cKycResponseDto.getSelfieAadhaarFaceMatchPer());
+            data.put("liveliness_score", cKycResponseDto.getSelfieLivelinessScore());
+            data.put("liveliness_check", "YES");
+
+            if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                filePath = "/templates/" + "AUDIT_TRAIL_DOC_SMFG" + ".html";
+            }
+
+            log.info("file path for audit trail doc: {}", filePath);
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                log.info(key + " " + val);
+                html = html.replace(key, val);
+            }
+            return new ApiResponse<>(html);
+        } catch (Exception e) {
+            log.error("Exception while generating audit trail document html for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Unable to generate AuditTrailDoc form");
         }
     }
 

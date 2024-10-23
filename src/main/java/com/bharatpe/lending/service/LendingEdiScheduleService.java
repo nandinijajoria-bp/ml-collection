@@ -2,6 +2,8 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -37,6 +39,9 @@ public class LendingEdiScheduleService {
 
     @Autowired
     LiquiloansService liquiloansService;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     public CommonResponse getEdiSchedule(Long merchantId, Long applicationId) {
         logger.info("Creating EDI Schedule for applicationId:{}", applicationId);
@@ -279,4 +284,59 @@ public class LendingEdiScheduleService {
         }
          return null;
     }
+
+    public CommonResponse getEdiScheduleV3(Long merchantId, Long applicationId) {
+        logger.info("Creating EDI Schedule V3 for applicationId:{}", applicationId);
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                return new CommonResponse(false, "Lending application not found");
+            }
+            LendingPaymentSchedule lendingPaymentSchedule =
+                    lendingPaymentScheduleDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+            int installmentNo = 1;
+            int ediCount = lendingApplication.getPayableDays().intValue();
+            Double openingBalance = lendingApplication.getLoanAmount();
+            double totalInterest = 0D;
+            double totalPrincipal = 0D;
+            List<EdiScheduleV2DTO> ediSchedules = new ArrayList<>();
+            Calendar cal = Calendar.getInstance();
+            if (lendingPaymentSchedule != null) {
+                cal.setTime(lendingPaymentSchedule.getStartDate());
+            }
+            int normalEdIinstallmentNo = 1;
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingApplication.getLender());
+            Double annualRoi = lendingApplicationLenderDetails.getAnnualRoi();
+            while (normalEdIinstallmentNo <= ediCount) {
+                double interest = round((openingBalance * annualRoi) / 36500D);
+                double principal = round(lendingApplication.getEdi().intValue() - interest);
+                if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    interest = roundToWhole(interest);
+                    principal = lendingApplication.getEdi().intValue() - interest;
+                }
+                if (normalEdIinstallmentNo == ediCount) {
+                    principal = openingBalance;
+                }
+                totalPrincipal = totalPrincipal + principal;
+                totalInterest = totalInterest + interest;
+                EdiScheduleV2DTO currentSchedule = new EdiScheduleV2DTO();
+                currentSchedule.setSerialNumber(installmentNo);
+                currentSchedule.setInterest(interest);
+                currentSchedule.setPrincipal(principal);
+                currentSchedule.setEdiAmount((int) (principal + interest));
+                currentSchedule.setDate(cal.getTime());
+                currentSchedule.setBalance(round(openingBalance));
+                ediSchedules.add(currentSchedule);
+                openingBalance = openingBalance - principal;
+                installmentNo++;
+                normalEdIinstallmentNo++;
+                cal.add(Calendar.DAY_OF_MONTH, 1);
+            }
+            return new CommonResponse(true, "success", ediSchedules);
+        } catch(Exception ex) {
+            logger.error("Exception while creating schedule V3 for applicationId {}, Exception is {}, Stacktrace : {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return new CommonResponse(false, "Something went wrong in V3 edi schedule");
+    }
+
 }
