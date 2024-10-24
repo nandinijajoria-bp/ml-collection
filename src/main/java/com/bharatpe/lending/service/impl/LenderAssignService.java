@@ -175,6 +175,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${payu.rollout.percent:1}")
     Integer payuRolloutPercent;
 
+    @Value("${max.apr.eligible.lenders:CREDITSAISON,MUTHOOT}")
+    String maxAprEligibleLender;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
@@ -401,7 +404,7 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, Long vintage, Double summaryTpv) {
-        if(maxAprCheckFailed(lendingApplication, ediModel, lender)) {
+        if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)) {
             log.info("skipping {} due to maxApr checks failing for {}", lender, lendingApplication.getId());
             return false;
         }
