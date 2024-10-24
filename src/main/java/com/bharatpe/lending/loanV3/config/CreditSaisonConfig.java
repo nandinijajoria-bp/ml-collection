@@ -76,6 +76,7 @@ public class CreditSaisonConfig {
     private String nbfcCreditsaisonForeclosureTopic = "credit-saison-foreclose-loan";
     private String foreclosureTag = "FORECLOSURE";
     private String foreclosureModeOfPay = "ONLINE";
+    private Double maxIRR=40.0;
 
 
     private Double income = 100000D;

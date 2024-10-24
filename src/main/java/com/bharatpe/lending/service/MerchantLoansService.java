@@ -1088,6 +1088,10 @@ public class MerchantLoansService {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
                 }
 
+                if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && paidRatio > 0.95D) {
+                    logger.info("paid ratio is {} for ABFL loan of merchantId {}", paidRatio, lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
                 if (lendingApplication.getTenureInMonths() < 12 && paidRatio > 0.5D) {
                     logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);

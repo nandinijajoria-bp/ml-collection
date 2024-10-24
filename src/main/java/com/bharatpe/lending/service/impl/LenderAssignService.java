@@ -21,6 +21,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
@@ -149,6 +150,12 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${lending.wildcard.lender.name:TRILLIONLOANS}")
     String lendingWildcardLenderName;
 
+    @Value("${muthoot.max.irr:37.0}")
+    Double muthootMaxIrr;
+
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Value("${aadhaar.seeding.status.check.lenders:}")
     String aadhaarSeedingStatusCheckLenders;
@@ -274,8 +281,8 @@ public class LenderAssignService implements ILenderAssignService {
                                     continue;
                                 }
                             }
-                            if (!baseChecksPassedForLenders(application, lender)) {
-                                log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, application.getId());
+                            if (!baseChecksPassedForLenders(application, lender, ediModel, vintage, summaryTpv)) {
+                                log.info("base checks failed, skipping {} for {}", lender, application.getId());
                                 iterator.remove();
                                 continue;
                             }
@@ -393,7 +400,11 @@ public class LenderAssignService implements ILenderAssignService {
         return false;
     }
 
-    private boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender) {
+    public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, Long vintage, Double summaryTpv) {
+        if(maxAprCheckFailed(lendingApplication, ediModel, lender)) {
+            log.info("skipping {} due to maxApr checks failing for {}", lender, lendingApplication.getId());
+            return false;
+        }
         if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
             String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
@@ -1119,5 +1130,21 @@ public class LenderAssignService implements ILenderAssignService {
             log.error("Exception in checking forceful assigned lender for merchantId : {}, {}", lendingApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(),lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
+        Double maxApr = 0D;
+        switch (lender) {
+            case "CREDITSAISON":
+                maxApr = csConfig.getMaxIRR();
+                break;
+            case "MUTHOOT":
+                maxApr = muthootMaxIrr;
+                break;
+            default:
+                maxApr = 0D;
+        }
+        return apr > maxApr;
     }
 }
