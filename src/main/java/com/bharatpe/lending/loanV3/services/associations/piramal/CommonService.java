@@ -37,6 +37,7 @@ public class CommonService {
     @Autowired
     CommonUtil commonUtil;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
