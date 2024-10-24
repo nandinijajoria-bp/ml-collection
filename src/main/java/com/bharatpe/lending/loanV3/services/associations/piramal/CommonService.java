@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -35,6 +36,9 @@ public class CommonService {
 
     @Autowired
     CommonUtil commonUtil;
+
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -85,6 +89,7 @@ public class CommonService {
             lendingApplication.setManualKyc("rejected");
             lendingApplication.setManualKycReason(lendingApplication.getLender() + "_" + lendingApplicationLenderDetails.getLeadStatus());
             lendingApplicationDao.save(lendingApplication);
+            lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
             commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected", oldStatus, "APP_STATUS", lendingApplication.getManualKyc());
         }
         if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
