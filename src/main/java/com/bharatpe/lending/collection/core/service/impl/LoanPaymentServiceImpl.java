@@ -46,6 +46,7 @@ import java.util.concurrent.Executors;
 
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.TRANSFER_BY_BP;
 
@@ -116,6 +117,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     @Override
     @Transactional
@@ -213,6 +217,11 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private void createLoanExcess(LendingPaymentSchedule loan, double amount, LoanPaymentDetailDTO payment) {
+        Date ledgerDate = new Date();
+        Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId());
+        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())){
+            ledgerDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), 1);
+        }
         log.info("Creating Excess balance for merchant:{} amount:{} source:{}", loan.getMerchantId(), amount, payment.getSource());
         LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
         lendingCollectionExcess.setLoanId(loan.getId());
@@ -223,7 +232,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingCollectionExcess.setMode(payment.getSource());
         lendingCollectionExcess.setTerminalOrderId(StringUtils.hasLength(payment.getTerminalOrderId()) ? payment.getTerminalOrderId() : payment.getBankRefNo());
         lendingCollectionExcess.setDeductionCount(0);
-        lendingCollectionExcess.setCreditDate(new Date());
+        lendingCollectionExcess.setCreditDate(ledgerDate);
         lendingCollectionExcess.setTransferType(payment.getTransferType());
         lendingCollectionExcess.setDeductedAmount(0D);
         lendingCollectionExcessDao.save(lendingCollectionExcess);
@@ -231,10 +240,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         // As we already inform user when NACH excess was created from bank
         // As per product - do not send it for other source
         //if (loanPaymentUtil.excessCollectionCommunicationSmsRequired(payment.getSource())) sendExcessNachCollectionSMS(loan.getMerchantId(), loan.getId());
-        createLendingCollectionAuditForExcessNachCredit(loan, payment.getTerminalOrderId(), payment.getSource(), amount, lendingCollectionExcess.getId(), payment.getTransferType());
+        createLendingCollectionAuditForExcessNachCredit(loan, payment.getTerminalOrderId(), payment.getSource(), amount, lendingCollectionExcess.getId(), payment.getTransferType(), ledgerDate);
     }
 
-    private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, String source, Double amount, Long refId, String transferType){
+    private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, String source, Double amount, Long refId, String transferType, Date ledgerDate){
         if (TRANSFER_BY_BP.name().equalsIgnoreCase(transferType)) {
             log.info("its transfer by bp no lca entry is required {} {} {}", lendingPaymentSchedule.getId(), txnId, source);
             return;
@@ -254,7 +263,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 .otherCharges(0D)
                 .penalty(0D)
                 .adjustmentMode(String.format("EXCESS_%s_CREDIT", StringUtils.hasLength(source) ? source : ""))
-                .transferDate(DateTimeUtil.getCurrentDayStartTime())  // todo: check for other mode
+                .transferDate(ledgerDate)  // todo: check for other mode
                 .terminalOrderId(txnId)
                 .lender(lendingPaymentSchedule.getNbfc())
                 .loanStatus(lendingPaymentSchedule.getStatus())

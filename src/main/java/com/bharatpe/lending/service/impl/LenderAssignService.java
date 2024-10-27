@@ -176,7 +176,7 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${payu.rollout.percent:1}")
     Integer payuRolloutPercent;
 
-    @Value("${max.apr.eligible.lenders:CREDITSAISON,MUTHOOT,SMFG}")
+    @Value("${max.apr.eligible.lenders:CREDITSAISON,MUTHOOT}")
     String maxAprEligibleLender;
 
     @Lazy
@@ -210,10 +210,6 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     static List<String> trillionTopupLenders;
-
-    @Lazy
-    @Autowired
-    LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
     SmfgConfig smfgConfig;
@@ -423,11 +419,9 @@ public class LenderAssignService implements ILenderAssignService {
                 return false;
             }
         }
-        if (SMFG.name().equalsIgnoreCase(lender)) {
-            if(SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
-                log.info("skipping {} due to minimum vintage checks failing for {}", lender, lendingApplication.getId());
-                return false;
-            }
+        if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
+            log.info("skipping {} due to minimum vintage checks failing for {}", lender, lendingApplication.getId());
+            return false;
         }
         return true;
     }
