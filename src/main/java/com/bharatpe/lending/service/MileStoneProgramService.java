@@ -249,6 +249,7 @@ public class MileStoneProgramService {
                 return new ApiResponse<>(response);
             }
         }
+
         if (!ObjectUtils.isEmpty(responseDTO) && responseDTO.getIsNTC() == Boolean.FALSE) {
             log.info("response DTO for merchant {}, bureauScore {}, bbsScore{} ,pinCodeColor {}",
                     merchant.getId(),
@@ -451,6 +452,7 @@ public class MileStoneProgramService {
             log.info("added key in cache");
             return new ApiResponse<>(mileStoneDashboardDetails);
         } else {
+            int programDuration = entity.getProgramDuration();
             for (DSMileStoneAchievementResponse.Achievement achievement : achievementResponse.achievement) {
                 Target target = targetMileStoneNoMap.get(achievement.getMilestone_no());
 
@@ -498,6 +500,16 @@ public class MileStoneProgramService {
                         executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_12DAYS.name(), cleverTapEvtData, merchant.getMid()));
                         funnelService.submitEvent(merchant.getId(), null, null,
                                 FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_12_DAYS, mileStoneResponse.getProgram_type());
+                    }
+
+                    if(programDuration==60 && daysAfterEnroll==30) {
+                        pushEventToFunnelService(CleverTapEvents.RTE_V3_ACTIVE_30DAYS.name(), FunnelEnums.StageEvent.ENROLL_30_DAYS, merchant, cleverTapEvtData, mileStoneResponse);
+                    } else if(programDuration ==90) {
+                        if(daysAfterEnroll==30) {
+                            pushEventToFunnelService(CleverTapEvents.RTE_V3_ACTIVE_30DAYS.name(), FunnelEnums.StageEvent.ENROLL_30_DAYS, merchant, cleverTapEvtData, mileStoneResponse);
+                        } else if( daysAfterEnroll ==60) {
+                            pushEventToFunnelService(CleverTapEvents.RTE_V3_ACTIVE_60DAYS.name(), FunnelEnums.StageEvent.ENROLL_60_DAYS, merchant, cleverTapEvtData, mileStoneResponse);
+                        }
                     }
                 }
             }
@@ -673,6 +685,7 @@ public class MileStoneProgramService {
                 log.info("exception while fetching response is: {}", e.getMessage());
             }
         }
+
         MileStoneEligibilityResponseDto responseDto = isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)
                 ? mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId())))
                 : mileStoneHelperService.calculateEligibility(merchant);
@@ -698,6 +711,12 @@ public class MileStoneProgramService {
         }
         cacheLoanDetailsData(rteProgramDetailsDto, merchant.getId());
         return new ApiResponse<>(rteProgramDetailsDto);
+    }
+
+    private void pushEventToFunnelService(String clearTapEvent, FunnelEnums.StageEvent stageEvent, BasicDetailsDto merchant, HashMap<String, String> cleverTapEvtData , DSMileStoneResponse mileStoneResponse ) {
+        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(clearTapEvent, cleverTapEvtData, merchant.getMid()));
+        funnelService.submitEvent(merchant.getId(), null, null,
+                FunnelEnums.StageId.RTE, stageEvent, mileStoneResponse.getProgram_type());
     }
 
 }
