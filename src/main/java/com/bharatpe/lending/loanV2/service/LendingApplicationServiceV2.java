@@ -3578,9 +3578,10 @@ public class LendingApplicationServiceV2 {
         }
 
         LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
-        data.put("father_name", lendingApplicationKycDetails.getFatherName());
-        data.put("email_address", lendingApplicationKycDetails.getEmail());
-
+        if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            data.put("father_name", lendingApplicationKycDetails.getFatherName());
+            data.put("email_address", lendingApplicationKycDetails.getEmail());
+        }
         Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
         data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
         data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
@@ -3589,7 +3590,7 @@ public class LendingApplicationServiceV2 {
         if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender())) {
             data.put("udyam_number", null);
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
                 PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
                 data.put("udyam_number", businessDocs.peek() != null ? businessDocs.peek().getDocIdentifier() : null);
             }
@@ -4397,7 +4398,7 @@ public class LendingApplicationServiceV2 {
                 if (ObjectUtils.isEmpty(inStream)) {
                     throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
                 }
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             } else {
                 fileName = LENDER_ADDITIONAL_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
@@ -4406,9 +4407,9 @@ public class LendingApplicationServiceV2 {
                 InputStream htmlStringInputStream = new ByteArrayInputStream(loaHtml.getBytes(StandardCharsets.UTF_8));
                 HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
                 ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "loan-document");
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             }
-            String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, "loan-document");
+            String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String loaShortUrl = apiGatewayService.getShortUrl(loaUrl);
             if (loaShortUrl == null || loaShortUrl.isEmpty() || loaShortUrl.trim().isEmpty())
                 throw new Exception("Unable to create short URL for loaHtml doc link for : " + lendingApplication.getId());
