@@ -514,7 +514,7 @@ public class KycRequestKafka {
             }
             EKycStatusCheckRequestApiDto eKycStatusCheckRequestApiDto = EKycStatusCheckRequestApiDto.builder()
                     .applicationId(lendingApplication.getId())
-                    .topup(Boolean.FALSE)
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
                     .productName("LENDING")
                     .lender(lendingApplication.getLender())
                     .payload(EKycStatusCheckRequestApiDto.Payload.builder()
