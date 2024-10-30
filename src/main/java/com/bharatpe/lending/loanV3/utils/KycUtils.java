@@ -434,34 +434,15 @@ public class KycUtils {
 
     public Map<String, String> getBusinessCategoryAndSubCategory(Long merchantId) {
         Map<String, String> categories = new HashMap<>();
-        String businessCategory = null;
-        String businessSubcategory = null;
-        Optional<LendingPaymentScheduleSlave> prevLoan = lendingPaymentScheduleDaoSlave.findLatestClosedLoan(merchantId);
-        if (prevLoan.isPresent()) {
-            List<Long> lmsFieldIds = new ArrayList<>();
-            lmsFieldIds.add(BUSINESS_CATEGORY_LMS_FIELD_ID);
-            lmsFieldIds.add(BUSINESS_SUBCATEGORY_LMS_FIELD_ID);
-            List<LmsFieldValues> lmsFieldValuesList = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(
-                    prevLoan.get().getApplicationId(), lmsFieldIds
-            );
-            if (ObjectUtils.isEmpty(lmsFieldValuesList)) {
-                log.info("business category not available from last disbursed app {}", prevLoan.get().getApplicationId());
-                return categories;
-            }
-            for (LmsFieldValues lmsFieldValues : lmsFieldValuesList) {
-                String dropdownValue = lmsFieldValues.getFieldDropdownValue();
-                if (!ObjectUtils.isEmpty(dropdownValue)) {
-                    dropdownValue = dropdownValue.replace("\r", "").trim();
-                }
-                if (BUSINESS_CATEGORY_LMS_FIELD_ID.equals(lmsFieldValues.getFieldId())) {
-                    businessCategory = dropdownValue;
-                } else if (BUSINESS_SUBCATEGORY_LMS_FIELD_ID.equals(lmsFieldValues.getFieldId())) {
-                    businessSubcategory = dropdownValue;
-                }
-            }
+        categories.put("businessCategory", null);
+        categories.put("businessSubcategory", null);
+        List<Long> prevLoansIds = lendingPaymentScheduleDaoSlave.findAllLatestClosedLoans(merchantId, "CLOSED");
+        LmsFieldValues businessCategoryField = lmsFieldValuesDao.findCategoryByApplicationId(prevLoansIds, BUSINESS_CATEGORY_LMS_FIELD_ID);
+        if (!ObjectUtils.isEmpty(businessCategoryField)) {
+            categories.put("businessCategory", businessCategoryField.getFieldDropdownValue());
+            LmsFieldValues subBusinessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_SUBCATEGORY_LMS_FIELD_ID, businessCategoryField.getLendingApplicationId());
+            categories.put("businessSubcategory", ObjectUtils.isEmpty(subBusinessCategoryField) ? "OTHERS" : subBusinessCategoryField.getFieldDropdownValue());
         }
-        categories.put("businessCategory", businessCategory);
-        categories.put("businessSubcategory", businessSubcategory);
         return categories;
     }
 
