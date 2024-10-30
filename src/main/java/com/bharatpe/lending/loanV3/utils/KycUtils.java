@@ -436,12 +436,18 @@ public class KycUtils {
         Map<String, String> categories = new HashMap<>();
         categories.put("businessCategory", null);
         categories.put("businessSubcategory", null);
-        List<Long> prevLoansIds = lendingPaymentScheduleDaoSlave.findAllLatestClosedLoans(merchantId, "CLOSED");
-        LmsFieldValues businessCategoryField = lmsFieldValuesDao.findCategoryByApplicationId(prevLoansIds, BUSINESS_CATEGORY_LMS_FIELD_ID);
-        if (!ObjectUtils.isEmpty(businessCategoryField)) {
-            categories.put("businessCategory", businessCategoryField.getFieldDropdownValue());
-            LmsFieldValues subBusinessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_SUBCATEGORY_LMS_FIELD_ID, businessCategoryField.getLendingApplicationId());
-            categories.put("businessSubcategory", ObjectUtils.isEmpty(subBusinessCategoryField) ? "OTHERS" : subBusinessCategoryField.getFieldDropdownValue());
+        try {
+            List<Long> prevLoansIds = lendingPaymentScheduleDaoSlave.findAllLatestClosedLoans(merchantId, "CLOSED");
+            if (!ObjectUtils.isEmpty(prevLoansIds)) {
+                LmsFieldValues businessCategoryField = lmsFieldValuesDao.findCategoryByApplicationId(prevLoansIds, BUSINESS_CATEGORY_LMS_FIELD_ID);
+                if (!ObjectUtils.isEmpty(businessCategoryField)) {
+                    categories.put("businessCategory", businessCategoryField.getFieldDropdownValue());
+                    LmsFieldValues subBusinessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_SUBCATEGORY_LMS_FIELD_ID, businessCategoryField.getLendingApplicationId());
+                    categories.put("businessSubcategory", ObjectUtils.isEmpty(subBusinessCategoryField) ? "OTHERS" : subBusinessCategoryField.getFieldDropdownValue());
+                }
+            }
+        } catch (Exception e) {
+            log.info("Exception in fetching business category for merchantId {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return categories;
     }
