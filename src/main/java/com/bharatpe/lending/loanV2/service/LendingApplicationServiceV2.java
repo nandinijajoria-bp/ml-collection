@@ -3582,12 +3582,12 @@ public class LendingApplicationServiceV2 {
             data.put("father_name", lendingApplicationKycDetails.getFatherName());
             data.put("email_address", lendingApplicationKycDetails.getEmail());
         }
-        Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
-        data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
-        data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
         CKycResponseDto cKycResponseDto = kycUtils.getKycData(kfsDto.getMerchantId());
         data.put("borrower_selfie", cKycResponseDto.getSelfieString());
         if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender())) {
+            Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
+            data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
+            data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
             data.put("udyam_number", null);
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
