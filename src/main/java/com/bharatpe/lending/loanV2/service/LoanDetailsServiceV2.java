@@ -215,6 +215,9 @@ public class LoanDetailsServiceV2 {
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
+
+    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList("MOTHER", "FATHER", "WIFE", "HUSBAND"));
+
     @Autowired
     MerchantService merchantService;
 
@@ -1734,8 +1737,11 @@ public class LoanDetailsServiceV2 {
             if (Objects.isNull(requestedReferenceList)) {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
-            for(MerchantReference reference : requestedReferenceList) {
-                if(!isValid(reference, merchant)) {
+            if (!hasValidRestrictedRelations(requestedReferenceList)) {
+                return new ApiResponse<>(false, "References Relations are not associated correctly!");
+            }
+            for (MerchantReference reference : requestedReferenceList) {
+                if (!isValid(reference, merchant)) {
                     return new ApiResponse<>(false, "references are not valid!");
                 }
             }
@@ -2896,6 +2902,20 @@ public class LoanDetailsServiceV2 {
         if (commonUtil.hasMoreThanFourSameDigits(referenceMobile)) {
             log.info("reference mobile having same digit more than 4 times, {}", referenceMobile);
             return false;
+        }
+        return true;
+    }
+
+    private boolean hasValidRestrictedRelations(List<MerchantReference> references) {
+        Map<String, Integer> relationCount = new HashMap<>();
+
+        for (MerchantReference reference : references) {
+            String relation = reference.getInferredRelation();
+            relationCount.put(relation, relationCount.getOrDefault(relation, 0) + 1);
+            if ((restrictedRelations.contains(relation) && relationCount.get(relation) > 1) || relationCount.get(relation) > 2) {
+                log.info("Relation {} is associated with threshold references!", relation);
+                return false;
+            }
         }
         return true;
     }
