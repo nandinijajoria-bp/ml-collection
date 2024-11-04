@@ -150,7 +150,10 @@ public class UploadDocumentService {
 
 		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         if(!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())){
-            Double SID = calculateShopInferredDistance(requestDTO.getMeta(), lendingApplication.getMerchantId());
+			Double SID = null;
+			if (!ObjectUtils.isEmpty(requestDTO.getMeta())) {
+				SID = calculateShopInferredDistance(requestDTO.getMeta().getLatitude(), requestDTO.getMeta().getLongitude(), lendingApplication.getMerchantId());
+			}
             logger.info("Calculated Shop Inferred Distance for merchant:{} and application:{} is:{}", lendingApplication.getMerchantId(), lendingApplication.getId(), SID);
             if (SID != null && SID > sidThreshold && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent)) {
                 logger.info("SID iS greater than 2.5KM for merchant:{} and application:{}", lendingApplication.getMerchantId(), lendingApplication.getId());
@@ -435,7 +438,7 @@ public class UploadDocumentService {
 		return lendingShopDocuments;
 	}
 
-    public Double calculateShopInferredDistance(MetaDTO meta, Long merchantId){
+    public Double calculateShopInferredDistance(String latitude, String longitude, Long merchantId){
         logger.info("Calculating shop inferred distance for merchant:{}", merchantId);
         try{
             // send more than 2500 for internal merchant
@@ -444,12 +447,12 @@ public class UploadDocumentService {
             }
 
             Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
-            if(ObjectUtils.isEmpty(meta) || ObjectUtils.isEmpty(meta.getLatitude()) || ObjectUtils.isEmpty(meta.getLongitude()) || ObjectUtils.isEmpty(dsResponse)
+            if(ObjectUtils.isEmpty(latitude) || ObjectUtils.isEmpty(longitude) || ObjectUtils.isEmpty(dsResponse)
                     || !dsResponse.containsKey("latitude") || ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") || ObjectUtils.isEmpty(dsResponse.get("longitude"))){
                 return null;
             }
-            Double lat1 = Double.valueOf(meta.getLatitude());
-            Double lon1 = Double.valueOf(meta.getLongitude());
+            Double lat1 = Double.valueOf(latitude);
+            Double lon1 = Double.valueOf(longitude);
             Double lat2 = dsResponse.get("latitude");
             Double lon2 = dsResponse.get("longitude");
 

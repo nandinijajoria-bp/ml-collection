@@ -55,6 +55,7 @@ public class SmfgConfig {
     private Double faceLivelinessPerThreshold = 0.7;
     private Double benePanNameMatchPerThreshold = 0.6;
     private String foreclosureTopic = "smfg-loan-receipt";
+    private Double shopInferredDistanceThreshold = 2500D;
 
     //LMS
     private String LmsAppName;

@@ -3,8 +3,10 @@ package com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.RiskSegment;
@@ -28,6 +30,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.service.UploadDocumentService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +85,12 @@ public class SmfgBreService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
+
+    @Autowired
+    UploadDocumentService uploadDocumentService;
 
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -268,6 +277,7 @@ public class SmfgBreService {
     private boolean isBreChecksFailed(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
         PanFetchKYCResponseDto panFetchKYCResponse = kycHandler.panFetch(cKycResponseDto.getPanNumber(), lenderAssociationDetailsRequest.getMerchantId());
+        LendingShopDocuments lendingShopDocuments = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lenderAssociationDetailsRequest.getMerchantId(), lenderAssociationDetailsRequest.getApplicationId(), "SHOP-FRONT");
         if (ObjectUtils.isEmpty(cKycResponseDto) || ObjectUtils.isEmpty(panFetchKYCResponse) || ObjectUtils.isEmpty(panFetchKYCResponse.getData())) {
             log.info("bre check failed application id {}, pan or kyc data missing for merchant id {}, {}, {}", lenderAssociationDetailsRequest.getApplicationId(), lenderAssociationDetailsRequest.getMerchantId(), cKycResponseDto, panFetchKYCResponse);
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_OR_KYC_DATA_MISSING.name());
@@ -304,6 +314,14 @@ public class SmfgBreService {
             log.info("bre check failed application id {}, bank and pan name match {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(),  cKycResponseDto.getBankBenePanNameMatchPer(), smfgConfig.getBenePanNameMatchPerThreshold());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_BANK_NAME_MISMATCH.name());
             return true;
+        }
+        if (!ObjectUtils.isEmpty(lendingShopDocuments)) {
+            Double sid = uploadDocumentService.calculateShopInferredDistance(lendingShopDocuments.getLatitude(), lendingShopDocuments.getLongitude(), lenderAssociationDetailsRequest.getMerchantId());
+            if (ObjectUtils.isEmpty(sid) || sid > smfgConfig.getShopInferredDistanceThreshold()) {
+                log.info("bre check failed application id {}, shop calculated inferred shop distance {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(), sid, smfgConfig.getShopInferredDistanceThreshold());
+                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.SHOP_INFERRED_DISTANCE_FAILED.name());
+                return true;
+            }
         }
         return false;
     }
