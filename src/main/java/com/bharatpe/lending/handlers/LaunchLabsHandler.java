@@ -20,7 +20,6 @@ public class LaunchLabsHandler {
     private String BASE_URL;
 
     @Autowired
-    @Qualifier("ExperimentConfigTemplate")
     private RestTemplate restTemplate;
 
     /**
