@@ -216,7 +216,7 @@ public class LoanDetailsServiceV2 {
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
 
-    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList("MOTHER", "FATHER", "WIFE", "HUSBAND"));
+    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name()));
 
     @Autowired
     MerchantService merchantService;
@@ -2907,12 +2907,19 @@ public class LoanDetailsServiceV2 {
     }
 
     private boolean hasValidRestrictedRelations(List<MerchantReference> references) {
-        Map<String, Integer> relationCount = new HashMap<>();
+        Map<ReferenceRelation, Integer> relationCount = new HashMap<>();
 
+        ReferenceRelation relation = null;
         for (MerchantReference reference : references) {
-            String relation = reference.getInferredRelation();
+            try {
+                relation = ReferenceRelation.valueOf(reference.getInferredRelation().trim());
+            } catch (Exception e) {
+                log.error("Exception while getting relation enum", e);
+                return false;
+            }
+            if (ObjectUtils.isEmpty(relation)) return false;
             relationCount.put(relation, relationCount.getOrDefault(relation, 0) + 1);
-            if ((restrictedRelations.contains(relation.toUpperCase()) && relationCount.get(relation) > 1) || relationCount.get(relation) > 2) {
+            if ((restrictedRelations.contains(relation.name()) && relationCount.get(relation) > 1) || relationCount.get(relation) > 2) {
                 log.info("Relation {} is associated with threshold references!", relation);
                 return false;
             }
