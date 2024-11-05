@@ -478,6 +478,10 @@ public class MileStoneProgramService {
                     put("program_type", RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type()) ? "v3" : "v2");
                 }};
 
+                log.info("Program Duration is :{}", programDuration);
+                cleverTapEvtData.putIfAbsent("target_achieved_days", String.valueOf(achievementResponse.getTotal() !=null ? achievementResponse.getTotal().getActive_days() : 0));
+                cleverTapEvtData.putIfAbsent("program_duration_enrol", String.valueOf(programDuration));
+
                 LocalDate enrollDate = entity.getCreatedAt().toInstant()
                         .atZone(ZoneId.systemDefault())
                         .toLocalDate();
