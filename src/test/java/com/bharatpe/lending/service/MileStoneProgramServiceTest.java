@@ -31,20 +31,24 @@ import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.platform.commons.util.CollectionUtils;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.util.ArrayList;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.*;
@@ -839,4 +843,69 @@ public class MileStoneProgramServiceTest {
         assertEquals(20000, rteProgramDetailsDto.getLoanAmount());
     }
 
+    @Test
+    public void testRTE60Daysfor30DaysEvent() {
+        boolean isRtev3Enabled = true;
+        ReflectionTestUtils.setField(mileStoneProgramService, "isRtev3Enabled", isRtev3Enabled);
+        BasicDetailsDto basicDetailsDto = new BasicDetailsDto();
+        DSMileStoneAchievementResponse achievementResponse = new DSMileStoneAchievementResponse();
+        ArrayList<DSMileStoneAchievementResponse.Achievement> achievements = new ArrayList<>();
+        DSMileStoneAchievementResponse.Achievement a1 = new DSMileStoneAchievementResponse.Achievement();
+        a1.setActive_days(30);
+        a1.setUnq_payer(30);
+        a1.setTpv(30);
+        a1.setMilestone_no(1);
+        a1.setActive_days_daily(new ArrayList<>());
+        achievements.add(a1);
+        DSMileStoneAchievementResponse.Total total = new DSMileStoneAchievementResponse.Total();
+        total.setActive_days(30);
+        achievementResponse.setTotal(total);
+        achievementResponse.setAchievement(achievements);
+        DSMileStoneResponse mileStoneResponse = new DSMileStoneResponse();
+        mileStoneResponse.setProgram_type("SLIDER");
+        DSMileStoneResponse.total_target tot = new DSMileStoneResponse.total_target();
+        tot.setActive_days(30);
+        mileStoneResponse.setTotal_target(tot);
+        Target t1 = new Target();
+        t1.setMilestone_no(1);
+        Target t2 = new Target();
+        t2.setMilestone_no(2);
+
+        ArrayList<Target> targets = new ArrayList<>();
+        targets.add(t1);
+        targets.add(t2);
+        mileStoneResponse.setTarget(targets);
+        basicDetailsDto.setId(1234L);
+        MileStoneEntity m1 = new MileStoneEntity();
+        m1.setMerchantId(1234L);
+        m1.setProgramDuration(60);
+        m1.setCreatedAt(getPrevDateOfGivenDays(30));
+        when(mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(eq(basicDetailsDto.getId())))
+                .thenReturn(m1);
+        when(mileStoneHelperService.getAchievementData(eq(dsHandler), eq(m1))).thenReturn(achievementResponse);
+        doNothing().when(dsHandler).pushMilestoneAchievementData(eq(m1.getId()), eq(achievementResponse));
+        when(mileStoneHelperService.fetchTarget(any(MileStoneEntity.class)))
+                .thenReturn(mileStoneResponse);
+        when(easyLoanUtil.percentScaleUp(any(Long.class), anyInt())).thenReturn(true);
+        MileStoneDashboardDetails response = new MileStoneDashboardDetails();
+        List<MileStoneDashboardData> mpListData = new ArrayList<>();
+        MileStoneDashboardData mapData = MileStoneDashboardData.builder().
+                AchieveMilestone(1)
+                .TargetMileStone(1)
+                .AchieveMileStoneActiveDays(30)
+                .TargetActiveDays(0)
+                .AchieveMileStoneUniquePayer(30)
+                .TargetUniquePayer(0)
+                .build();
+        mpListData.add(mapData);
+        response.setMapList(mpListData);
+        assertEquals(mileStoneProgramService.dashboardDetails(basicDetailsDto).data.getMapList().size(), mpListData.size());
+    }
+
+    /******************************  Private Methods *************************/
+
+    private Date getPrevDateOfGivenDays(long days) {
+        LocalDate localDate = LocalDate.now().minusDays(days);
+        return Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
+    }
 }
