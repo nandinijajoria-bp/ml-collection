@@ -2912,7 +2912,7 @@ public class LoanDetailsServiceV2 {
         for (MerchantReference reference : references) {
             String relation = reference.getInferredRelation();
             relationCount.put(relation, relationCount.getOrDefault(relation, 0) + 1);
-            if ((restrictedRelations.contains(relation) && relationCount.get(relation) > 1) || relationCount.get(relation) > 2) {
+            if ((restrictedRelations.contains(relation.toUpperCase()) && relationCount.get(relation) > 1) || relationCount.get(relation) > 2) {
                 log.info("Relation {} is associated with threshold references!", relation);
                 return false;
             }
