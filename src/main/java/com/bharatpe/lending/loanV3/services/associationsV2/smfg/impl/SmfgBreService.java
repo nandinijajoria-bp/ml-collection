@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -70,6 +71,7 @@ public class SmfgBreService {
     ConverterUtils converterUtils;
 
     @Autowired
+    @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
