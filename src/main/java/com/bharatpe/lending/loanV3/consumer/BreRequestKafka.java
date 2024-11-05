@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -71,6 +72,9 @@ public class BreRequestKafka {
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Value("${offer.modified.eligible.lender:}")
+    String offerModifiedEligibleLenders;
 
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
@@ -207,6 +211,12 @@ public class BreRequestKafka {
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
             lendingApplicationDao.save(lendingApplication.get());
+            if(!offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
+               && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
+                log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
+                nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
+                return;
+            }
             log.info("bre completed for {}", data.getAccountId());
             if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId())
                     && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
