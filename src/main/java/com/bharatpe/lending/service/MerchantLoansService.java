@@ -241,6 +241,9 @@ public class MerchantLoansService {
     @Value("${toup.min.qrpaidRatio.moreThan12MonthsTenure:54}")
     Double topupMinQrPaidRatioForMoreThan12MonthsTenure;
 
+    @Value(("${topup.pilot.run.enabled.lenders:ABFL}"))
+    String topupPilotRunEnabledLenders;
+
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
     static List<String> allowedRiskGroupsStp = Arrays.asList("R1", "R2");
@@ -987,7 +990,7 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
-            if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+            if(topupPilotRunEnabledLenders.contains(lendingPaymentSchedule.getNbfc())){
                 LenderTopupEligibility lenderTopupEligibility = lenderTopupEligibilityDao.findTopupEligibilityFromLender(
                         lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
                 if(ObjectUtils.isEmpty(lenderTopupEligibility)){
