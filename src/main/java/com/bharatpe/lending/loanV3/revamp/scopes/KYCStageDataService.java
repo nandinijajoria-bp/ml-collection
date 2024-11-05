@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitReasonCount;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -34,6 +35,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.CleverTapEventService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -103,6 +105,9 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
     @Autowired
     KycUtils kycUtils;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     @Override
     public LendingStateDTO<KYCStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         return fetchScopedData(scopeDataArgs);
@@ -165,6 +170,9 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
                 log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
                 initiateKycResponse.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
+                if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && loanUtil.isApplicableForAggregationFlow(lendingApplication.getMerchantId())){
+                    return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_AGGREGATION, LendingViewStates.KYC_PAGE);
+                }
             }
 
             Boolean kycRetry = false;

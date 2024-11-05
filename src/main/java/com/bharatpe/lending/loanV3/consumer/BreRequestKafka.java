@@ -200,23 +200,23 @@ public class BreRequestKafka {
                 return;
             }
             BreCallbackResponseDto.Data data = breCallbackResponseDto.getData().getData();
-            existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_COMPLETED.name());
-            LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(breCallbackResponseDto.getLender()),LenderAssociationStages.BRE);
-            existingLendingApplicationLenderDetails.setStage(nextStage.name());
             existingLendingApplicationLenderDetails.setBreCompletionTimestamp(new Date());
             existingLendingApplicationLenderDetails.setNbfcBreAsyncId(data.getAsyncId());
             existingLendingApplicationLenderDetails.setCccId(data.getCccId());
             existingLendingApplicationLenderDetails.setNbfcApprovedLoanOfferAmt(data.getLoanAmount());
             existingLendingApplicationLenderDetails.setRoi(Double.valueOf(data.getRoi()));
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
-            lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
-            lendingApplicationDao.save(lendingApplication.get());
             if(!offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
-               && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
+                    && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
                 log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
                 nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
                 return;
             }
+            existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_COMPLETED.name());
+            LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(breCallbackResponseDto.getLender()),LenderAssociationStages.BRE);
+            existingLendingApplicationLenderDetails.setStage(nextStage.name());
+            lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+            lendingApplicationDao.save(lendingApplication.get());
             log.info("bre completed for {}", data.getAccountId());
             if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId())
                     && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {

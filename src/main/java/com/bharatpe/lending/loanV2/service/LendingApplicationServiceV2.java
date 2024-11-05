@@ -607,7 +607,7 @@ public class LendingApplicationServiceV2 {
             }
             AddressValidationDto addressValidationDto = null;
             if (isAddressUpdated(lendingApplication,applicationRequest)) {
-                addressValidationDto = getAddressValidationScore(applicationRequest);
+                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
                 if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
                     log.info("address quality score less than 20");
                     return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
@@ -629,14 +629,17 @@ public class LendingApplicationServiceV2 {
                 log.error("application already exist for this merchant id {}",inProgressLoanApplication);
                 return new ApiResponse<>(true,"Application already exist for this merchant id");
             }
-            checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
-
-            AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
-            String error = baseChecks(merchant, applicationRequest);
-            if (error != null) return new ApiResponse<>(false, error);
-            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-                log.info("address quality score less than 20");
-                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+            Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
+            AddressValidationDto  addressValidationDto = null;
+            Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId());
+            if (!isApplicableForAggregationFlow || isPreApproved){
+                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
+                String error = baseChecks(merchant, applicationRequest.getAddressDetails());
+                if (error != null) return new ApiResponse<>(false, error);
+                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                    log.info("address quality score less than 20");
+                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+                }
             }
             EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
 //            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
@@ -644,7 +647,7 @@ public class LendingApplicationServiceV2 {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
+            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto, isApplicableForAggregationFlow);
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
 
             final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
@@ -704,11 +707,11 @@ public class LendingApplicationServiceV2 {
         return rejected;
     }
 
-    private AddressValidationDto getAddressValidationScore(CreateApplicationRequest createApplicationRequest) {
+    private AddressValidationDto getAddressValidationScore(AddressDetails addressDetails) {
         AddressValidationDto addressValidationDto = null;
         try {
-            if (!ObjectUtils.isEmpty(createApplicationRequest.getAddressDetails())) {
-                addressValidationDto = apiGatewayService.validateAddress(createApplicationRequest.getAddressDetails());
+            if (!ObjectUtils.isEmpty(addressDetails)) {
+                addressValidationDto = apiGatewayService.validateAddress(addressDetails);
             }
         } catch (Exception e) {
             log.error("error occured while validating address: {}", e);
@@ -727,7 +730,7 @@ public class LendingApplicationServiceV2 {
         lendingAuditTrialDao.save(lendingAuditTrial);
     }
 
-    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto) {
+    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
         LendingApplication lendingApplication = new LendingApplication();
         int processingFee;
         if (apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId())) {
@@ -782,12 +785,15 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        if (forceSetPiramal) {
-            lendingApplication.setLender("PIRAMAL");
+        if(isApplicableForAggregationFlow) {
+            loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
+        }
+        if (forceSetPiramal && lendingApplication.getMerchantId() == 20000962) { //TODO For Testing
+            lendingApplication.setLender("PIRAMAL"); //TODO For Testing
             lendingApplication = lendingApplicationDao.save(lendingApplication);
         } else {
             lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
-                EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+                    EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
         }
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
@@ -1006,14 +1012,17 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    private String baseChecks(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
+    private String baseChecks(BasicDetailsDto merchant, AddressDetails addressDetails) {
 
-        if(easyLoanUtil.isDummyMerchant(merchant.getId())) {
+        if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
             return null;
         }
 
-        if (Objects.isNull(applicationRequest.getAddressDetails()) || Objects.isNull(applicationRequest.getAddressDetails().getPincode())) {
-            log.info("pincode not found in createNewApplication for merchant:{}", merchant.getId());
+        log.info("result:{}, {}", Objects.isNull(addressDetails),  Objects.isNull(addressDetails.getPincode()));
+        log.info("pincode:{} for merchant:{}",addressDetails.getPincode(), merchant.getId());
+        log.info("address details:{} for merchant:{}", addressDetails, merchant.getId());
+        if (Objects.isNull(addressDetails) || Objects.isNull(addressDetails.getPincode())) {
+            log.info("pincode not found in address deatils ;{} for merchant:{}", merchant.getId(), addressDetails);
             return "pincode not found";
         }
        /* LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
@@ -1021,7 +1030,7 @@ public class LendingApplicationServiceV2 {
             log.info("Already open application found for merchant:{}", merchant.getId());
             return "Application already exist for this merchant id";
         }*/
-        Integer pincode = Integer.valueOf(applicationRequest.getAddressDetails().getPincode());
+        Integer pincode = Integer.valueOf(addressDetails.getPincode());
         if (loanUtil.isOGL(pincode)) {
             log.info("OGL pincode found for merchant:{}", merchant.getId());
             return "OGL pincode";
@@ -1032,7 +1041,7 @@ public class LendingApplicationServiceV2 {
             return "pincode mismatch";
         }
 
-        if (loanUtil.hasActiveLoan(merchant)){
+        if (loanUtil.hasActiveLoan(merchant)) {
             log.info("Already an ongoing loan exists for the merchant : {}", merchant.getId());
             return "Already an ongoing loan exists";
         }
@@ -1040,15 +1049,17 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    public void checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest){
+    public Boolean checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest) {
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
         if (lendingRiskVariables != null) {
             String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
-            if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+            if (!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)) {
                 log.info("loan request is pre-approved repeat for {}", merchantId);
                 fetchPreviousApplicationData(merchantId, applicationRequest);
+                return true;
             }
         }
+        return false;
     }
 
     public void fetchPreviousApplicationData(Long merchantId, CreateApplicationRequest applicationRequest){
@@ -4221,18 +4232,6 @@ public class LendingApplicationServiceV2 {
         }
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
     }
-
-    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
-        log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
-        commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
-                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
-                "APP_STATUS", "rejected due to nullable lender");
-        lendingApplication.setStatus("rejected");
-        lendingApplication.setManualKyc("rejected");
-        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
-        lendingApplicationDao.save(lendingApplication);
-        evictCache(lendingApplication.getMerchantId());
-    }
     public void generateMITCDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
 
         String fileName = "";
@@ -4556,6 +4555,78 @@ public class LendingApplicationServiceV2 {
             return new ApiResponse<>(false, "Unable to generate application form");
         }
     }
+
+    public ApiResponse<?> assignLender(BasicDetailsDto merchatDetails, AssignLenderRequestDto requestDto) {
+        if (ObjectUtils.isEmpty(requestDto) || ObjectUtils.isEmpty(requestDto.getApplicationId()) || ObjectUtils.isEmpty(requestDto.getLender())) {
+            log.info("Request params are missing:{}", requestDto.toString());
+            return new ApiResponse<>(false, "Request params are missing");
+        }
+        Map<String, Object> response = lenderAssignService.assignLender(requestDto.getApplicationId(), merchatDetails, LendingEnum.LENDER.valueOf(requestDto.getLender()));
+        if (Objects.nonNull(response) && response.containsKey("success") && response.get("success").equals(true)){
+            return new ApiResponse<>(true, response, "lender assigned successfully");
+        }
+        return new ApiResponse<>(false, "Something went wrong");
+    }
+
+    public ApiResponse<?> saveAddressDetails(BasicDetailsDto merchantDetails, SaveMerchantDetailsDto merchantDetailsDto){
+        Long applicationId = null;
+        try{
+            log.info("save address request:{} for merchant:{}", merchantDetailsDto, merchantDetails.getId());
+            AddressValidationDto addressValidationDto = getAddressValidationScore(merchantDetailsDto.getAddressDetails());
+            String error = baseChecks(merchantDetails, merchantDetailsDto.getAddressDetails());
+            if (error != null) return new ApiResponse<>(false, error);
+            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                log.info("address quality score less than 20");
+                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+            }
+            if (Objects.nonNull(merchantDetailsDto.getAddressDetails())) {
+                LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantDetails.getId(), "draft");
+                if(ObjectUtils.isEmpty(lendingApplication)){
+                    return new ApiResponse<>(false, "open application not found.");
+                }
+                applicationId = lendingApplication.getId();
+                lendingApplication.setPincode(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getPincode())?Long.valueOf(merchantDetailsDto.getAddressDetails().getPincode()):lendingApplication.getPincode());
+                lendingApplication.setArea(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getArea()) ? merchantDetailsDto.getAddressDetails().getArea() : lendingApplication.getArea());
+                lendingApplication.setCity(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getCity()) ? merchantDetailsDto.getAddressDetails().getCity() : lendingApplication.getCity());
+                lendingApplication.setState(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getState()) ? merchantDetailsDto.getAddressDetails().getState() : lendingApplication.getState());
+                lendingApplication.setShopNumber(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getAddress1()) ?
+                        merchantDetailsDto.getAddressDetails().getAddress1().substring(0, Math.min(merchantDetailsDto.getAddressDetails().getAddress1().length(), 98)) : lendingApplication.getShopNumber());
+                lendingApplication.setStreetAddress(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getAddress2()) ? merchantDetailsDto.getAddressDetails().getAddress2() : lendingApplication.getStreetAddress());
+                lendingApplication.setLandmark(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getLandmark()) ? merchantDetailsDto.getAddressDetails().getLandmark() : lendingApplication.getLandmark());
+                lendingApplication.setBusinessName(merchantDetailsDto.getBusinessName());
+                if(!ObjectUtils.isEmpty(merchantDetailsDto.getAdditionalDetails())){
+                    lendingApplication.setEmail(merchantDetailsDto.getAdditionalDetails().getEmail());
+                    lendingApplication.setAlternateMobile(merchantDetailsDto.getAdditionalDetails().getAlternateContact());
+                }
+                if(!ObjectUtils.isEmpty(merchantDetailsDto.getProfessionalDetails())){
+                    saveGstDetails(lendingApplication,merchantDetailsDto.getProfessionalDetails());
+                }
+                saveAddressQltyDetails(lendingApplication,addressValidationDto);
+                lendingApplicationDao.save(lendingApplication);
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+                lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(merchantDetailsDto.getCurrentAddressSameAsPermanentAddress());
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            }
+        } catch (Exception ex) {
+
+            log.error("Exception while saving address details for merchant:{}, {}, {}", merchantDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            return new ApiResponse<>(false, "Something went wrong");
+
+        }
+        return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(true).applicationId(applicationId).build());
+    }
+
+
+    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
+        log.info("Default lender is none for the applicationId: {}", lendingApplication.getId());
+        lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS");
+        lendingApplication.setStatus("rejected");
+        lendingApplicationDao.save(lendingApplication);
+        evictCache(lendingApplication.getMerchantId());
+    }
+
 
     public ApiResponse<?> generateAuditTrail(LendingApplication lendingApplication) {
         try {

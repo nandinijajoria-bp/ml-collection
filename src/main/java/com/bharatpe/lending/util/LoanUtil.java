@@ -36,6 +36,7 @@ import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -147,6 +148,9 @@ public class LoanUtil {
 	@Autowired
 	LendingBBSSnapshotDao lendingBBSSnapshotDao;
 
+	@Autowired
+	LaunchLabsHandler launchLabsHandler;
+
 //	@Autowired
 //	MerchantScoreDao merchantScoreDao;
 
@@ -234,6 +238,9 @@ public class LoanUtil {
 
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
+
+	@Value("${aggregation.flow.experimentId:}")
+	String isAggregationFlowApplicableExperimentId;
 
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
@@ -2458,6 +2465,24 @@ public class LoanUtil {
 		}
 
 		return easyLoanUtil.percentScaleUp(merchantId, percent);
+	}
+
+	public boolean isApplicableForAggregationFlow(Long merchantId){
+		try{
+			Set<String> inclusionScreens = new HashSet<>();
+			inclusionScreens.add("vertical-scroll");
+			inclusionScreens.add("horizontal-scroll-lender-selection");
+			inclusionScreens.add("horizontal-card");
+			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			if(Objects.nonNull(experimentConfigResponseDTO) && inclusionScreens.contains(experimentConfigResponseDTO.getVariationId())){
+				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				return true;
+			}
+		} catch (Exception ex) {
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex.getMessage());
+		}
+		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
+		return false;
 	}
 }
 

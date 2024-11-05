@@ -113,6 +113,10 @@ public interface LendingConstants {
 	}};
 
 	String NONE_LENDER = "NONE";
+
+	String LENDER_REJECTION_MESSAGE1 = "Your loan application has been rejected by {{lenderName}}. Please select another lender.";
+	String LENDER_REJECTION_MESSAGE2 = "Sorry your application has been rejected by {{LenderName}}. Please proceed with {{defaultLender}} to process your application.";
+	String NO_API_RESPONSE_MESSAGE="We are facing issues in your loan approval with {{lenderName}}. Attemp with another lender.";
 }
 
 

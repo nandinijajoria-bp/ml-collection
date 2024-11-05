@@ -396,8 +396,7 @@ public class SignAgreementService {
 		loanUtil.publishApplicationEvent(newApplication);
 
 //		lenderMappingService.lenderMapping(newApplication);
-		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant);
-
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant, loanUtil.isApplicableForAggregationFlow(merchant.getId()));
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 			lendingAuditTrial.setMerchantId(merchant.getId());
@@ -828,7 +827,7 @@ public class SignAgreementService {
 		funnelService.submitEventV3((merchant.getId()), null, newApplication.getId(), newApplication.getLoanType(), FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG );
 		loanUtil.publishApplicationEvent(newApplication);
 
-		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant);
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant, Boolean.FALSE);
 //		lenderMappingService.lenderMapping(newApplication);
 
 		if(newApplication.getId() != null) {
