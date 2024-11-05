@@ -218,6 +218,8 @@ public class LoanDetailsServiceV2 {
 
     public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name()));
 
+    final Integer MAX_UNIQUE_RELATION = 2;
+
     @Autowired
     MerchantService merchantService;
 
@@ -2912,14 +2914,14 @@ public class LoanDetailsServiceV2 {
         ReferenceRelation relation = null;
         for (MerchantReference reference : references) {
             try {
-                relation = ReferenceRelation.valueOf(reference.getInferredRelation().trim());
+                relation = ReferenceRelation.valueOf(reference.getInferredRelation());
             } catch (Exception e) {
                 log.error("Exception while getting relation enum", e);
                 return false;
             }
             if (ObjectUtils.isEmpty(relation)) return false;
             relationCount.put(relation, relationCount.getOrDefault(relation, 0) + 1);
-            if ((restrictedRelations.contains(relation.name()) && relationCount.get(relation) > 1) || relationCount.get(relation) > 2) {
+            if ((restrictedRelations.contains(relation.name()) && relationCount.get(relation) > 1) || relationCount.get(relation) > MAX_UNIQUE_RELATION) {
                 log.info("Relation {} is associated with threshold references!", relation);
                 return false;
             }
