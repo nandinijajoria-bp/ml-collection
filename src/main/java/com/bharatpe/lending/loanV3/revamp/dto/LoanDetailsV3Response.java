@@ -104,6 +104,7 @@ public class LoanDetailsV3Response {
     private String previousLender;
     private Double processingFee;
     private Integer attemptCount;
+    private Boolean isAggregationFlowApplicable;
 
     @Data
     @ToString
@@ -274,6 +275,7 @@ public class LoanDetailsV3Response {
         applicationDetails.setApplicationStatus(shopDetailsStateDTO.getApplicationStatus());
         applicationDetails.setRejectReason(shopDetailsStateDTO.getResubmitReason());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
+        loanDetailsV3Response.setIsAggregationFlowApplicable(shopDetailsStateDTO.getIsAggregationFlowApplicable());
 
         if(Objects.nonNull(shopDetailsStateDTO.getResubmitDone())){
             loanDetailsV3Response.setResubmitDone(shopDetailsStateDTO.getResubmitDone());
