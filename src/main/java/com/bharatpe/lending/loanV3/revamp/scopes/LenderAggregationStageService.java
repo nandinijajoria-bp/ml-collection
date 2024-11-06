@@ -92,7 +92,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
             lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(scopeDataArgs.getMerchant().getId());
-            return null;
+            return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
         }
         LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(!ObjectUtils.isEmpty(defaultLender) && defaultLender.getLender().equals(lendingApplication.getLender())){
