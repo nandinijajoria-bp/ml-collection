@@ -786,6 +786,9 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
+        if(isApplicableForAggregationFlow) {
+            loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
+        }
         if (forceSetPiramal && lendingApplication.getMerchantId() == 20000962) { //TODO For Testing
             lendingApplication.setLender("PIRAMAL"); //TODO For Testing
             lendingApplication = lendingApplicationDao.save(lendingApplication);
