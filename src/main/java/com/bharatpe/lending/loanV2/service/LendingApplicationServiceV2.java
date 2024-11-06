@@ -631,7 +631,7 @@ public class LendingApplicationServiceV2 {
             }
             Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
             AddressValidationDto  addressValidationDto = null;
-            Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId());
+            Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
             if (!isApplicableForAggregationFlow || isPreApproved){
                 addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
                 String error = baseChecks(merchant, applicationRequest.getAddressDetails());
@@ -659,6 +659,7 @@ public class LendingApplicationServiceV2 {
             if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
                 return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
+            loanUtil.isApplicableForAggregationFlow(lendingApplication.getMerchantId(), lendingApplication.getId()); // For saving screen type if lender aggregation is applicable.
 
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
@@ -786,12 +787,6 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
         if(isApplicableForAggregationFlow) {
-            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-            lendingAuditTrial.setApplicationId(lendingApplication.getId());
-            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
-            lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
-            lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId())?"":lendingApplication.getExternalLoanId());
-            lendingAuditTrialDao.save(lendingAuditTrial);
             loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
         }
         if (forceSetPiramal && lendingApplication.getMerchantId() == 20000962) { //TODO For Testing

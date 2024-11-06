@@ -274,7 +274,7 @@ public class LoanEligibleService {
             responseDTO.setMessage("Created eligible loan entry successfully");
             responseDTO.setSuccess(true);
             Map<String,Object> map = new HashMap<>();
-            map.put("isAggregationFlowApplicable", loanUtil.isApplicableForAggregationFlow(merchantId));
+            map.put("isAggregationFlowApplicable", loanUtil.isApplicableForAggregationFlow(merchantId, null));
             responseDTO.setData(map);
             return responseDTO;
         }

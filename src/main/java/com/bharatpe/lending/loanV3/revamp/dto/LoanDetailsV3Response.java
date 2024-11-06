@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.dto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
+import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +11,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -94,6 +96,15 @@ public class LoanDetailsV3Response {
     private Double apr;
     private Double loanOffer;
     private Long applicationId;
+    private List<LenderAggregationResponseDto.LenderData> lenders;
+    private String message;
+    private String screenType;
+    private Double loanAmount;
+    private String loanType;
+    private String previousLender;
+    private Double processingFee;
+    private Integer attemptCount;
+    private Boolean isAggregationFlowApplicable;
 
     @Data
     @ToString
@@ -117,6 +128,10 @@ public class LoanDetailsV3Response {
                     return loanDetailsV3Response;
                 case AGREEMENT_PAGE:
                     setAgreementResponse((AgreementStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+                case LENDER_AGGREGATION:
+                    setLenderAggregationResponse((LenderAggregationResponseDto) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case KEY_FACTOR_STATEMENT_PAGE:
@@ -260,6 +275,7 @@ public class LoanDetailsV3Response {
         applicationDetails.setApplicationStatus(shopDetailsStateDTO.getApplicationStatus());
         applicationDetails.setRejectReason(shopDetailsStateDTO.getResubmitReason());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
+        loanDetailsV3Response.setIsAggregationFlowApplicable(shopDetailsStateDTO.getIsAggregationFlowApplicable());
 
         if(Objects.nonNull(shopDetailsStateDTO.getResubmitDone())){
             loanDetailsV3Response.setResubmitDone(shopDetailsStateDTO.getResubmitDone());
@@ -374,6 +390,22 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setArrangerFee(modifiedOfferStateDTO.getArrangerFee());
         loanDetailsV3Response.setLoanOffer(modifiedOfferStateDTO.getLoanOffer());
         loanDetailsV3Response.setApplicationId(modifiedOfferStateDTO.getApplicationId());
+    }
+
+    private static void setLenderAggregationResponse(LenderAggregationResponseDto lenderAggregationResponseDto, LoanDetailsV3Response loanDetailsV3Response){
+        loanDetailsV3Response.setApplicationId(lenderAggregationResponseDto.getApplicationId());
+        loanDetailsV3Response.setMessage(lenderAggregationResponseDto.getMessage());
+        loanDetailsV3Response.setEdiAmount(lenderAggregationResponseDto.getEdi());
+        loanDetailsV3Response.setInterestRate(lenderAggregationResponseDto.getInterestRate());
+        loanDetailsV3Response.setAttemptCount(lenderAggregationResponseDto.getAttemptCount());
+        loanDetailsV3Response.setProcessingFee(lenderAggregationResponseDto.getProcessingFee());
+        loanDetailsV3Response.setLoanAmount(lenderAggregationResponseDto.getLoanAmount());
+        loanDetailsV3Response.setTenure(lenderAggregationResponseDto.getTenure());
+        loanDetailsV3Response.setLenders(lenderAggregationResponseDto.getLenders());
+        loanDetailsV3Response.setScreenType(lenderAggregationResponseDto.getScreenType());
+        loanDetailsV3Response.setLoanType(lenderAggregationResponseDto.getLoanType());
+        loanDetailsV3Response.setPreviousLender(lenderAggregationResponseDto.getPreviousLender());
+        loanDetailsV3Response.setRepeatLoan(lenderAggregationResponseDto.getRepeatLoan());
     }
 
     public static LoanDetailsV3Response populateResponseForRequestWithoutScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response) {
