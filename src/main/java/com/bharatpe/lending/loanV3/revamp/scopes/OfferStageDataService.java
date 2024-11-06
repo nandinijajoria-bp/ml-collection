@@ -50,7 +50,7 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
     @Override
     public LendingStateDTO<EligibilityStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if (loanUtil.isApplicableForAggregationFlow(scopeDataArgs.getMerchant().getId())){
+        if (loanUtil.isApplicableForAggregationFlow(scopeDataArgs.getMerchant().getId(), null)){
             lendingStateDTO.setLendingViewStates(LendingViewStates.LENDER_AGGREGATION);
         } else if(lendingStateDTO.getData().getIsPreapprovedRepeatLoan()){
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);

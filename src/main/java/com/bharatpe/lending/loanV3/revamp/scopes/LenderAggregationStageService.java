@@ -59,9 +59,6 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
     @Lazy
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
-    @Autowired
-    LaunchLabsHandler launchLabsHandler;
-
 
     @Value("${aggregation.flow.experimentId:37}")
     String isAggregationFlowApplicableExperimentId;
@@ -92,7 +89,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
             lendingApplication.setStatus(ApplicationStatus.REJECTED.name().toLowerCase());
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(scopeDataArgs.getMerchant().getId());
-            return null;
+            return new LendingStateDTO<>(null, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.LENDER_AGGREGATION);
         }
         LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
         if(!ObjectUtils.isEmpty(defaultLender) && defaultLender.getLender().equals(lendingApplication.getLender())){
@@ -124,8 +121,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
         responseDto.setLoanType(lendingApplication.getLoanType());
         responseDto.setPreviousLender(lendingApplication.getLender());
         responseDto.setRepeatLoan(loanUtil.isRepeatLoan(lendingApplication.getMerchantId()));
-        ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), lendingApplication.getMerchantId());
-        responseDto.setScreenType(experimentConfigResponseDTO.getVariationId());
+        responseDto.setScreenType(loanUtil.getLenderAggregationScreen(lendingApplication.getId()));
         responseDto.setAttemptCount(prevlenders.size() + 1);
         responseDto.setMessage(getMessage(responseDto.getAttemptCount(), lendingApplication.getLender(), Objects.nonNull(defaultLender) ? defaultLender.getLender() : null));
 

@@ -3,23 +3,19 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -49,6 +45,10 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
 
     @Autowired
     LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Autowired
+    LoanUtil loanUtil;
+
 
     @Override
     public LendingStateDTO<ShopDetailsStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -98,6 +98,7 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
         }
         shopDetailsStateDTO.setApplicationId(lendingApplication.getId());
         shopDetailsStateDTO.setApplicationStatus(lendingApplication.getStatus().toLowerCase());
+        shopDetailsStateDTO.setIsAggregationFlowApplicable(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId())));
 
         return new LendingStateDTO<>(shopDetailsStateDTO , LendingViewStates.SHOP_DETAILS_PAGE, LendingViewStates.SHOP_DETAILS_PAGE);
     }

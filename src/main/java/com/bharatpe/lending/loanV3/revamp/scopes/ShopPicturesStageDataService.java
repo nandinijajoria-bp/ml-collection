@@ -88,7 +88,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
                 log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
                 shopPicturesStateDTO.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
-                if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && loanUtil.isApplicableForAggregationFlow(lendingApplication.getMerchantId())){
+                if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))){
                     return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
                 }
             }
