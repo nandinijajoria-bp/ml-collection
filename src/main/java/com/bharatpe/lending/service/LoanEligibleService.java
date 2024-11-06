@@ -273,6 +273,9 @@ public class LoanEligibleService {
             eligibleLoanAuditDao.save(EligibleLoanAudit.createObject(customLoan));
             responseDTO.setMessage("Created eligible loan entry successfully");
             responseDTO.setSuccess(true);
+            Map<String,Object> map = new HashMap<>();
+            map.put("isAggregationFlowApplicable", loanUtil.isApplicableForAggregationFlow(merchantId));
+            responseDTO.setData(map);
             return responseDTO;
         }
         } catch (Exception e) {
