@@ -321,6 +321,9 @@ public class LoanUtil {
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
+	@Value("${lender.aggregation.screens:}")
+	String lenderAggregationScreens;
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -2469,12 +2472,8 @@ public class LoanUtil {
 
 	public boolean isApplicableForAggregationFlow(Long merchantId){
 		try{
-			Set<String> inclusionScreens = new HashSet<>();
-			inclusionScreens.add("vertical-scroll");
-			inclusionScreens.add("horizontal-scroll-lender-selection");
-			inclusionScreens.add("horizontal-card");
 			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
-			if(Objects.nonNull(experimentConfigResponseDTO) && inclusionScreens.contains(experimentConfigResponseDTO.getVariationId())){
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				return true;
 			}
