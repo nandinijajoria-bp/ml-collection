@@ -2,6 +2,7 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
     <title>Sanction Cum Loan Agreement P2P Lender</title>
     <style>
         .fw400 {
@@ -958,7 +959,16 @@
                 respect to the Loan (e) act as a recovery agent for contacting the
                 Borrower in case of default in repayment of the Loan (f) such other
                 Loan Facilitation Services as may be agreed between the Lender and
-                LSP from time to time and notified to the Borrower.</p>
+                LSP from time to time and notified to the Borrower.
+            </p>
+            <p style="margin: 6px 16px" class="fw400 ml10"><span>2.11</span>
+
+                The Borrower undertakes and confirms that if MFL/Lender has any suspicion or indication of
+                wrongdoing or fraudulent activity w.r.t. your loan account MFL/Lender shall be entitled to use an
+                external auditor or an internal audit for further investigation. The Borrower shall indemnify and
+                keep indemnified MFL/Lender against all losses incurred by MFL/Lender arising out of or in
+                connection with such fraudulent activity of the Borrower.
+            </p>
         </li>
         <li class="fw400 text-justify">
             <h3 class="text-left underline">RATE OF INTEREST</h3>
@@ -1829,11 +1839,11 @@
         <tr class="width-100">
             <td class="width-100" colspan="4">
                 <div style="display: flex; align-items: center">
-                    <p style="margin-right: 10px"><input type="checkbox" id="pan">PAN</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="voter_id">Voter ID</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="driving_licence">Driving Licence
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="pan">PAN</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="voter_id">Voter ID</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="driving_licence">Driving Licence
                     </p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="passport">Passport</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="passport">Passport</p>
                     <p style="margin-right: 10px"><input type="checkbox" id="aadhar_card" checked>Aadhar Card
                     </p>
                 </div>
@@ -1860,11 +1870,11 @@
         <tr class="width-100">
             <td class="width-100" colspan="4">
                 <div style="display: flex; align-items: center">
-                    <p style="margin-right: 10px"><input type="checkbox" id="pan">PAN</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="voter_id">Voter ID</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="driving_licence">Driving Licence
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="pan">PAN</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="voter_id">Voter ID</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="driving_licence">Driving Licence
                     </p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="passport">Passport</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="passport">Passport</p>
                     <p style="margin-right: 10px"><input type="checkbox" id="aadhar_card" checked>Aadhar Card
                     </p>
                 </div>
@@ -2488,19 +2498,19 @@
                 </p>
             </td>
         </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-33">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    ऋण की अवधि के दौरान लगाया गया कुल ब्याज
-                </p>
-            </td>
-            <td style="padding: 0px 5px" class="width-66 word-wrap">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    रु {{interest_charged_to_borrower}}/- ( रुपए शब्दों में
-                    {{interest_charged_to_borrower_in_words}} )
-                </p>
-            </td>
-        </tr>
+        <!-- <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-33">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            ऋण की अवधि के दौरान लगाया गया कुल ब्याज
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-66 word-wrap">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            रु {{interest_charged_to_borrower}}/- ( रुपए शब्दों में
+                            {{interest_charged_to_borrower_in_words}} )
+                        </p>
+                    </td>
+                </tr> -->
         <tr class="width-100">
             <td style="padding: 0px 5px" class="width-33">
                 <p style="margin: 6px 16px" class="fw400 text-left">
@@ -3194,6 +3204,17 @@
                 एजेंट के रूप में कार्य करना (एफ.) ऐसी अन्य ऋण सुविधा सेवाएं जो समय-समय पर ऋणदाता और एल.एस.पी. के बीच
                 सहमत हो सकती हैं और उधारकर्ता को अधिसूचित की जा सकती हैं।
             </p>
+
+            <p style="margin: 6px 16px" class="fw400 ml10"><span>2.11</span>
+                उधारकर्ता यह स्वीकार और पुष्टि करता है कि यदि MFL/ऋणदाता को आपके लोन अकाउंट के संबंध में किसी गलत
+                गतिविधि या धोखाधड़ी की आशंका या संकेत मिलता है, तो MFL/ऋणदाता को इस मामले की आगे जाँच के लिए बाहरी
+                ऑडिटर या इंटर्नल ऑडिट का सहारा लेने का अधिकार होगा। उधारकर्ता MFL/ऋणदाता को उधारकर्ता द्वारा की गई
+                ऐसी धोखाधड़ी गतिविधियों से उत्पन्न या उससे संबंधित सभी नुकसानों के लिए क्षतिपूर्ति करेगा और
+                MFL/ऋणदाता को पूरी तरह से सुरक्षित रखेगा।
+            </p>
+
+
+
         </li>
         <li class="fw400">
             <h3 class="text-left underline">ब्याज दर</h3>
@@ -3697,102 +3718,89 @@
         है। इसके अलावा, उधारकर्ता खाते को एक बार एन.पी.ए. के रूप में वर्गीकृत किया जा सकता है
     </p><br>
     <br>
-    <h3 class="width-100 mb20 text-center"><span class="text-center mb10">APPENDIX I</span></h3>
+    <h3 class="width-100 mb20 text-center"><span class="text-center mb10">परिशिष्ट I</span></h3>
     <ol class="text-justify">
         <li>
-            <p style="margin: 16px" class="fw400">The Company has entered into co-lending arrangement with certain
-                banks eligible under co-lending guidelines notified by RBI vide notification dated November 05, 2020
-                titled “Co-Lending by Banks and NBFCs to Priority Sector” (<span class="fw600">“Co-lending
-                        Guidelines”</span>) pursuant to
-                which if the loan availed by you is accepted by any of the aforesaid banks (<span
-                        class="fw600">“Bank”</span>), the Bank will
-                transfer monies to the extent of 80% of the total principal outstanding to the Company (<span
-                        class="fw600">“Bank
-                        Contribution”</span>) and part of the loan will be novated by the Bank (<span
-                        class="fw600">“Bank’s
-                        Participation”</span>) absolutely
-                and forever, to the end and intent that the Bank shall be deemed to be the full and absolute owner
-                of the Bank’s Participation and as such legally and beneficially entitled to all such portion of the
-                loan, free from all encumbrances. Further, upon transfer by the Bank of the Bank Contribution, the
-                terms of the loan will be deemed to be novated in such a manner that Bank will become a co-lender of
-                the loan and will be deemed to have executed this document as a co-lender along with the Company.
+            <p style="margin: 16px" class="fw400">कंपनी ने आर.बी.आई द्वारा 05 नवंबर, 2020 को अधिसूचित को-लेंडिंग
+                दिशानिर्देशों के तहत पात्र कुछ बैंकों के साथ को-लेंडिंग व्यवस्था में प्रवेश किया है, जिसका शीर्षक है
+                "प्राथमिकता वाले क्षेत्र के लिए बैंकों और एन.बी.एफ.सी द्वारा को-लेंडिंग" ("<span class="fw600">को-लेंडिंग दिशानिर्देश</span>")।
+                यदि आपके द्वारा लिया गया लोन उपरोक्त किसी भी बैंक ("<span class="fw600">बैंक</span>") द्वारा स्वीकार किया जाता है, तो बैंक
+                कंपनी को कुल बकाया मूलधन का 80% ("<span class="fw600">बैंक अंशदान</span>") और लोन का कुछ हिस्सा बैंक द्वारा नवीनीकृत किया जाएगा
+                ("<span class="fw600">बैंक की भागीदारी</span>") पूरी तरह से और हमेशा के लिए, अंत तक और आशय यह है कि बैंक को बैंक की भागीदारी का
+                पूर्ण और पूर्ण स्वामी माना जाएगा और इस तरह सभी बाधाओं से मुक्त, लोन के ऐसे सभी हिस्से के लिए कानूनी
+                और लाभकारी रूप से हकदार होगा। इसके अलावा, बैंक योगदान के बैंक द्वारा हस्तांतरण पर, लोन की शर्तों को
+                इस तरह से नवोन्मेषित माना जाएगा कि बैंक लोन का को-लेंडर बन जाएगा और माना जाएगा कि इस दस्तावेज को
+                कंपनी के साथ को-लेंडर के रूप में एक्ज़िक्यूट किया गया है।
             </p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">Any repayments made by the Borrower in relation to the loan shall
-                be apportioned first towards any expenses, cost, and charges, then interest and then towards
-                principal. The monies will be distributed between the Bank and the Company in the ratio agreed as
-                per the co-lending arrangement.</p>
+            <p style="margin: 16px" class="fw400">लोन के संबंध में उधारकर्ता द्वारा किए गए किसी भी रीपेमेंट को पहले
+                किसी भी खर्च, लागत और शुल्क, ब्याज और फिर मूलधन में विभाजित किया जाएगा। धन को बैंक और कंपनी के बीच
+                को-लेंडिंग व्यवस्था के अनुसार सहमत अनुपात में वितरित किया जाएगा।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">The Company shall continue to be single point of interface for the
-                Borrower, irrespective of a portion of the loan being novated by the Bank and shall continue to
-                perform its obligation under this document on behalf of itself and the Bank.</p>
+            <p style="margin: 16px" class="fw400">बैंक द्वारा लोन का एक हिस्सा नवीनीकृत किए जाने के बावजूद, कंपनी
+                उधारकर्ता के लिए इंटरफ़ेस का एकल बिंदु बनी रहेगी और अपनी और बैंक की ओर से इस दस्तावेज़ के तहत अपने
+                दायित्व का पालन करना जारी रखेगी।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">The Company shall inter-alia (i) collect the receivables and
-                repayment amounts against the loan from the Borrower on behalf of itself and the Bank; and (ii)
-                maintain details and accounts of the Borrower.</p>
+            <p style="margin: 16px" class="fw400">कंपनी, अन्य बातों के साथ, (i) स्वयं और बैंक की ओर से उधारकर्ता से
+                लोन के खिलाफ प्राप्तियों और रीपेमेंट राशि एकत्र करेगी; और (ii) उधारकर्ता के विवरण और अकाउंट्स को
+                बनाए रखेगी। </p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">The Company and the Bank have agreed to adhere to a standard
-                operating procedure mutually framed by the Company and the Bank which shall be monitored and
-                periodically reviewed by an operating committee.</p>
+            <p style="margin: 16px" class="fw400">कंपनी और बैंक ने कंपनी और बैंक द्वारा पारस्परिक रूप से तैयार की गई
+                मानक संचालन प्रक्रियाओं का पालन करने पर सहमति व्यक्त की है, जिसकी निगरानी और समय-समय पर संचालन समिति
+                द्वारा समीक्षा की जाएगी।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">Under the co-lending arrangement, the Bank and the Company has
-                confirmed that they shall follow the Co-lending Guidelines, in all respects in relation to the loan.
+            <p style="margin: 16px" class="fw400">को-लेंडिंग व्यवस्था के तहत, बैंक और कंपनी ने पुष्टि की है कि वे
+                लोन के संबंध में सभी मामलों में को-लेंडिंग दिशानिर्देशों का पालन करेंगे।
             </p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">The Bank will also maintain a Borrower account. However, all the
-                collection and recovery of the amounts due from the Borrower in relation to the loan and all such
-                acts and performances in relation to the servicing and recovery of loan will be undertaken by the
-                Company therefore all the payments to be made by the Borrower, in relation to the loan shall be made
-                to the Company only. In the event the co-lending arrangement is terminated, the same shall be
-                notified to the Borrower by the Company and the Borrower shall accordingly make all such payments in
-                relation to the Bank’s Participation to the Bank directly.</p>
+            <p style="margin: 16px" class="fw400">बैंक एक उधारकर्ता अकाउंट भी बनाए रखेगा। हालाँकि, लोन के संबंध में
+                उधारकर्ता से देय राशि की सभी वसूली और वसूली और लोन की सर्विसिंग और वसूली के संबंध में ऐसे सभी कार्य
+                और प्रदर्शन कंपनी द्वारा किए जाएंगे, इसलिए लोन के संबंध में उधारकर्ता द्वारा किए जाने वाले सभी
+                पेमेंट केवल कंपनी को किए जाएंगे। को-लेंडिंग व्यवस्था की समाप्ति के मामले में, कंपनी द्वारा इसकी
+                सूचना उधारकर्ता को दी जाएगी और उधारकर्ता बैंक की भागीदारी से संबंधित ऐसे सभी भुगतान सीधे बैंक को
+                करेगा।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">The Bank and the Company have formulated a business continuity
-                plan to ensure uninterrupted service to the Borrower till repayment of the loan in the event the
-                co-lending arrangement is terminated.</p>
+            <p style="margin: 16px" class="fw400">को-लेंडिंग व्यवस्था समाप्त होने की स्थिति में, बैंक और कंपनी ने
+                लोन चुकाने तक उधारकर्ता को सेवा की निरंतरता सुनिश्चित करने के लिए एक व्यवसाय निरंतरता योजना तैयार की
+                है।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">In addition to the grievance redressal set out under paragraph 16
-                of the terms and conditions set out herein, the Borrower may register a complaint with the Company
-                with respect to the loan, by way of e-mail to customercare@muthoot.com or by way of a complaint
-                registered with the call center of the Company at 18001021616 or by way of filing a direct written
-                complaint addressed to The Grievance Redressal Officer, Muthoot Fincorp Limited, Muthoot Centre,
-                Punnen Road, Trivandrum-695001, Kerala. The Company shall within 30 days, resolve the complaint,
-                failing which the Borrower would have the option to escalate the same with the concerned Banking
-                Ombudsman/Ombudsman for NBFCs or the Customer Education and Protection Cell (CEPC) in RBI.</p>
+            <p style="margin: 16px" class="fw400">यहां निर्धारित नियमों और शर्तों के अनुच्छेद 16 के तहत निर्धारित
+                शिकायत निवारण के अलावा, उधारकर्ता customercare@muthoot.com पर ई-मेल के माध्यम से कंपनी के साथ लोन के
+                संबंध में शिकायत दर्ज कर सकता है या कंपनी के कॉल सेंटर 18001021616 पर पंजीकृत शिकायत के माध्यम से या
+                शिकायत निवारण अधिकारी, Muthoot Fincorp Limited, मुथूट सेंटर, पुन्नेन रोड, तिरुवनंतपुरम-695001, केरल
+                को संबोधित सीधे लिखित शिकायत दर्ज करके कर सकता है। कंपनी 30 दिनों के भीतर शिकायत का समाधान करेगी,
+                ऐसा न करने पर उधारकर्ता के पास एन.बी.एफ.सी. के लिए संबंधित बैंकिंग लोकपाल/लोकपाल या आर.बी.आई. में
+                ग्राहक शिक्षा और सुरक्षा सेल (सी.ई.पी.सी.) के पास इसे आगे बढ़ाने का विकल्प होगा। </p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">This document shall be held by the Company for itself and in
-                trust, and for the benefit of the Bank. As per the co-lending arrangement, the Company shall keep
-                this document, any other document in relation to the loan in safe custody.</p>
+            <p style="margin: 16px" class="fw400">यह दस्तावेज़ कंपनी द्वारा अपने लिए, ट्रस्ट के रूप में और बैंक के
+                लाभ के लिए रखा जाएगा। को-लेंडिंग व्यवस्था के अनुसार, कंपनी इस दस्तावेज़ और लोन से संबंधित किसी भी
+                अन्य दस्तावेज़ को सुरक्षित निगरानी में रखेगी।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">The interest to be paid by the Borrower in relation to the loan
-                shall be due and payable daily instalment loan (<span class="fw600">“Interest Payment Dates“</span>)
-                . Provided that in the
-                event up-to-date interest is paid prior to the relevant Interest Payment Date (<span
-                        class="fw600">“Early Payment
-                        Date”</span>), the next date on which the interest shall be due and payable shall be one (1) day
-                from such
-                Early Payment Date.</p>
+            <p style="margin: 16px" class="fw400">लोन के संबंध में उधारकर्ता द्वारा पेमेंट किया जाने वाला ब्याज
+                दैनिक किश्त लोन ("<span class="fw600">ब्याज पेमेंट की तारीख</span>") के रूप में देय और पेमेंट करने योग्य होगा। बशर्ते कि यदि
+                उपयुक्त ब्याज पेमेंट की तारीख ("<span class="fw600">प्रारंभिक पेमेंट की तारीख</span>") से पहले अप-टु-डेट ब्याज का पेमेंट किया
+                जाता है, तो अगली तारीख जिस पर ब्याज देय और पेमेंट करने योग्य होगा, वह उस प्रारंभिक पेमेंट की तारीख
+                से एक (1) दिन बाद होगी।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">I am aware that for facilitating the Co-lending arrangement as
-                above through digital mode, the KYC and related details of the Borrower is required to be shared
-                with the Bank and therefore, I hereby give my consent to the Company for sharing such information
-                with the Bank.</p>
+            <p style="margin: 16px" class="fw400">मैं यह जानता हूँ कि उपरोक्त को-लेंडिंग व्यवस्था को डिजिटल माध्यम
+                से सुविधाजनक बनाने के लिए उधारकर्ता का के.वाई.सी. और संबंधित विवरण बैंक के साथ शेयर करना आवश्यक है,
+                इसलिए मैं कंपनी को इस जानकारी को बैंक के साथ शेयर करने के लिए अपनी सहमति प्रदान करता हूँ।</p>
         </li>
         <li>
-            <p style="margin: 16px" class="fw400">Any consent given by the Borrower to the Company as per the terms
-                and conditions set out above including paragraph 15 of the terms and conditions, shall, upon
-                novation of Bank’s Participation, be deemed to be given to the Bank also.</p>
+            <p style="margin: 16px" class="fw400">नियम और शर्तों के अनुच्छेद 15 सहित ऊपर निर्धारित नियमों और शर्तों
+                के अनुसार उधारकर्ता द्वारा कंपनी को दी गई कोई भी सहमति, बैंक की भागीदारी के नवीनीकरण पर, बैंक को भी
+                दी गई मानी जाएगी।</p>
         </li>
     </ol>
     <br>
@@ -3955,11 +3963,11 @@
         <tr class="width-100">
             <td class="width-100" colspan="4">
                 <div style="display: flex; align-items: center">
-                    <p style="margin-right: 10px"><input type="checkbox" id="pan">पैन</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="voter_id">वोटर आई.डी.</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="driving_licence">ड्राइविंग लाइसेंस
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="pan">पैन</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="voter_id">वोटर आई.डी.</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="driving_licence">ड्राइविंग लाइसेंस
                     </p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="passport">पासपोर्ट</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="passport">पासपोर्ट</p>
                     <p style="margin-right: 10px"><input type="checkbox" id="aadhar_card" checked>आधार कार्ड
                     </p>
                 </div>
@@ -3988,11 +3996,11 @@
         <tr class="width-100">
             <td class="width-100" colspan="4">
                 <div style="display: flex; align-items: center">
-                    <p style="margin-right: 10px"><input type="checkbox" id="pan">पैन</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="voter_id">वोटर आई.डी.</p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="driving_licence">ड्राइविंग लाइसेंस
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="pan">पैन</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="voter_id">वोटर आई.डी.</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="driving_licence">ड्राइविंग लाइसेंस
                     </p>
-                    <p style="margin-right: 10px"><input type="checkbox" id="passport">पासपोर्ट</p>
+                    <p style="margin-right: 10px"><input type="checkbox" disabled id="passport">पासपोर्ट</p>
                     <p style="margin-right: 10px"><input type="checkbox" id="aadhar_card" checked>आधार कार्ड
                     </p>
                 </div>
