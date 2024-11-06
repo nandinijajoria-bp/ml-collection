@@ -786,6 +786,12 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
         if(isApplicableForAggregationFlow) {
+            LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+            lendingAuditTrial.setApplicationId(lendingApplication.getId());
+            lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+            lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
+            lendingAuditTrial.setLoanId(ObjectUtils.isEmpty(lendingApplication.getExternalLoanId())?"":lendingApplication.getExternalLoanId());
+            lendingAuditTrialDao.save(lendingAuditTrial);
             loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
         }
         if (forceSetPiramal && lendingApplication.getMerchantId() == 20000962) { //TODO For Testing
