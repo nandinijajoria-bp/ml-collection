@@ -46,6 +46,7 @@ import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -2470,11 +2471,20 @@ public class LoanUtil {
 		return easyLoanUtil.percentScaleUp(merchantId, percent);
 	}
 
-	public boolean isApplicableForAggregationFlow(Long merchantId){
+	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
 		try{
 			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(applicationId);
+					lendingAuditTrial.setMerchantId(merchantId);
+					lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
+					lendingAuditTrial.setLoanId("BPL"+applicationId);
+					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
+					lendingAuditTrialDao.save(lendingAuditTrial);
+				}
 				return true;
 			}
 		} catch (Exception ex) {
@@ -2482,6 +2492,18 @@ public class LoanUtil {
 		}
 		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
 		return false;
+	}
+
+	public String getLenderAggregationScreen(Long applicationId){
+		try{
+			LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.LENDER_AGGREGATION.name());
+			if(!ObjectUtils.isEmpty(lendingAuditTrial)){
+				return lendingAuditTrial.getOldStatus();
+			}
+		} catch (Exception ex){
+			logger.error("Exception occurred while fetching aggregation screen for applicationId {} {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+		}
+		return null;
 	}
 }
 

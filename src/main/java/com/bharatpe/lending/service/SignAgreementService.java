@@ -396,7 +396,7 @@ public class SignAgreementService {
 		loanUtil.publishApplicationEvent(newApplication);
 
 //		lenderMappingService.lenderMapping(newApplication);
-		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant, loanUtil.isApplicableForAggregationFlow(merchant.getId()));
+		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant, loanUtil.isApplicableForAggregationFlow(merchant.getId(), null));
 		if(newApplication.getId() != null) {
 			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
 			lendingAuditTrial.setMerchantId(merchant.getId());
