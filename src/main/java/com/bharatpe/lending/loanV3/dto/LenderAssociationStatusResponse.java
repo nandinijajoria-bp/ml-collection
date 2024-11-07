@@ -21,4 +21,5 @@ public class LenderAssociationStatusResponse {
     Boolean lenderKycRetry;
     String prevLender;
     Boolean isOfferModified;
+    Boolean isApplicableForAggregationFlow;
 }

@@ -28,6 +28,7 @@ import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +87,10 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     KycUtils kycUtils;
 
+    @Autowired
+    @Lazy
+    LoanUtil loanUtil;
+
     @Lazy
     @Autowired
     KycRequestKafka kycRequestKafka;
@@ -122,6 +127,7 @@ public abstract class LendingApplicationServiceV3Base {
                     .stage(LenderAssociationStages.LENDER_CHANGE)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                     .lender(currentDraftApplication.getLender())
+                    .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())))
                     .build());
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
