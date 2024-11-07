@@ -477,4 +477,25 @@ public class KycUtils {
         }
         return null;
     }
+
+    public CKycResponseDto getGstData(Long merchantId) {
+        CKycResponseDto cKycResponseDto = new CKycResponseDto();
+
+        List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, true, "GST_NO");
+        if (ObjectUtils.isEmpty(kycDocs)){
+            return cKycResponseDto;
+        }
+
+        for (KycDoc doc : kycDocs) {
+            try {
+                if ("GST_NO".equalsIgnoreCase(doc.getDocType().name())) {
+                    cKycResponseDto.setGstNumber(doc.getDocIdentifier());
+                }
+            } catch (Exception e) {
+                log.error("error in processing kyc doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+            }
+        }
+        log.info("ckyc response {}", cKycResponseDto);
+        return cKycResponseDto;
+    }
 }
