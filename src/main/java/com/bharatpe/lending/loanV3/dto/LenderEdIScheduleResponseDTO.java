@@ -17,6 +17,8 @@ import java.util.List;
 public class LenderEdIScheduleResponseDTO {
     List<RepaymentSchedule> repaymentSchedule;
     Double totalInterestPayable;
+    Double totalRepaymentExpected;
+    Double netDisbursalAmount;
     Date loanMaturityDate;
 
     @Data

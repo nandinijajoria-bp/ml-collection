@@ -2516,8 +2516,13 @@ public class LendingApplicationServiceV2 {
 
             Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (lendingApplication.getLoanAmount() * processingFeePercentageWithoutGst) / 100D ));
 
+            Double disbursalAmount = lendingApplication.getDisbursalAmount();
+            Double repaymentAmount = lendingApplication.getRepayment();
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
+                RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = getLenderRepaymentSchedule(applicationId, lendingApplication.getLender(), false);
+                disbursalAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getNetDisbursalAmount()));
+                repaymentAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getTotalRepaymentExpected()));
             }
 
             KfsDto kfsDto = KfsDto.builder()
@@ -2539,8 +2544,8 @@ public class LendingApplicationServiceV2 {
                     .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
-                    .disbursalAmount(lendingApplication.getDisbursalAmount())
-                    .repaymentAmount(lendingApplication.getRepayment())
+                    .disbursalAmount(disbursalAmount)
+                    .repaymentAmount(repaymentAmount)
                     .interestRate(lendingApplication.getInterestRate())
                     .apr(Optional.ofNullable(apr).orElse(lendingKfs.getApr()))
                     .isTopUpLoan("TOPUP".equals(lendingApplication.getLoanType()))
@@ -3388,8 +3393,21 @@ public class LendingApplicationServiceV2 {
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
-        String repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
-        if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
+        String repaymentSchedule = "";
+        if(Arrays.asList(Lender.PAYU.name()).contains(kfsDto.getLender())) {
+            RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = getLenderRepaymentSchedule(applicationId, kfsDto.getLender(), true);
+            repaymentSchedule = repaymentScheduleResponseDTO.getRepaymentSchedule();
+            if (ObjectUtils.isEmpty(repaymentScheduleResponseDTO.getTotalInterestPayable()) ||
+                    ObjectUtils.isEmpty(repaymentScheduleResponseDTO.getTotalRepaymentExpected()) ||
+                    ObjectUtils.isEmpty(repaymentScheduleResponseDTO.getNetDisbursalAmount())
+            ) throw new Exception("Unable to create repayment schedule for PayU" + applicationId);
+            data.put("interest_charged_to_borrower", repaymentScheduleResponseDTO.getTotalInterestPayable());
+            data.put("repayment_amount", repaymentScheduleResponseDTO.getTotalRepaymentExpected());
+            data.put("loan_amount_disbursed", repaymentScheduleResponseDTO.getNetDisbursalAmount());
+        } else {
+            repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
+        }
+        if (ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
         if(timeStamp)data.put("date", new SimpleDateFormat("dd-MM-yyyy").format(dateTime));
         else data.put("date", "");
@@ -3451,6 +3469,10 @@ public class LendingApplicationServiceV2 {
         }
 
         if(Lender.PAYU.name().equalsIgnoreCase(kfsDto.getLender())){
+            String formattedMobileNumber = merchant.getMobile();
+            formattedMobileNumber = formattedMobileNumber.substring(0,2) + " " + formattedMobileNumber.substring(2);
+            data.put("phone_number_of_borrower", formattedMobileNumber);
+            data.put("mobile_number_for_otp", formattedMobileNumber);
             data.put("processing_fee_includes_tax", String.format("%.2f", kfsDto.getProcessingFee()));
             data.put("processing_percentage_without_gst", String.format("%.2f",kfsDto.getProcessingFeePercentageWithoutGst()));
             data.put("gst_amount_of_processing_fee", String.format("%.2f",(kfsDto.getLoanAmount() * (kfsDto.getProcessingFeePercentageWithoutGst()/100D) * (KfsConstants.GST_PERCENTAGE)/100D)));
@@ -3647,10 +3669,10 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-header-1708687626411.png";
         }
         else if(lender.equalsIgnoreCase(Lender.PAYU.name()) && applicationDocType.equals(ApplicationDocType.PAYU_LETTERHEAD_FOOTER)){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-footer-1724311515772.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-footer-bp-compressed-1729234893465.png";
         }
         else if(lender.equalsIgnoreCase(Lender.PAYU.name())){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-header-1724236921721.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-header-bp-compressed-1729581605675.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";
@@ -3679,14 +3701,6 @@ public class LendingApplicationServiceV2 {
     }
 
     public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant, String lender) {
-
-        if(Arrays.asList(Lender.PAYU.name()).contains(lender)) {
-            String lenderRps = getLenderRepaymentSchedule(applicationId, lender);
-            if (!ObjectUtils.isEmpty(lenderRps)) {
-                return lenderRps;
-            }
-        }
-
         CommonResponse response = Lender.SMFG.name().equalsIgnoreCase(lender) ? lendingEdiScheduleService.getEdiScheduleV3(merchant.getId(), applicationId)
         : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
         if (!response.isSuccess()) {
@@ -3724,7 +3738,7 @@ public class LendingApplicationServiceV2 {
         return html;
     }
 
-    public String getLenderRepaymentSchedule(Long applicationId, String lender) {
+    public RepaymentScheduleResponseDTO getLenderRepaymentSchedule(Long applicationId, String lender, Boolean isRpsRequired) {
         LenderEdIScheduleResponseDTO lenderEdIScheduleResponse= associationServiceUtil.invokeRepaymentScheduleService(lender, applicationId, Boolean.TRUE);
         if(ObjectUtils.isEmpty(lenderEdIScheduleResponse)){
             log.info("Unable to fetch lender edi schedule for applicationId : {}", applicationId);
@@ -3732,30 +3746,38 @@ public class LendingApplicationServiceV2 {
         }
 
         String html = "";
-        LenderEdIScheduleResponseDTO.RepaymentSchedule edi = null;
-        log.info("lenderEdIScheduleResponse response received from loan preview is : {}", lenderEdIScheduleResponse);
-        for(int i = 0; i < lenderEdIScheduleResponse.getRepaymentSchedule().size(); i++){
-            edi = lenderEdIScheduleResponse.getRepaymentSchedule().get(i);
-            int serialNumber = i+1;
-            html += "    <tr class=\"width-100\">\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + serialNumber + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getOpeningBalance() + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getPrincipal() + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getInterest() + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getTotalEdi() + "</p>\n" +
-                    "      </td>\n" +
-                    "    </tr>\n";
+        if(isRpsRequired) {
+            LenderEdIScheduleResponseDTO.RepaymentSchedule edi = null;
+            log.info("lenderEdIScheduleResponse response received from loan preview is : {}", lenderEdIScheduleResponse);
+            for (int i = 0; i < lenderEdIScheduleResponse.getRepaymentSchedule().size(); i++) {
+                edi = lenderEdIScheduleResponse.getRepaymentSchedule().get(i);
+                int serialNumber = i + 1;
+                html += "    <tr class=\"width-100\">\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + serialNumber + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getOpeningBalance() + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getPrincipal() + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getInterest() + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getTotalEdi() + "</p>\n" +
+                        "      </td>\n" +
+                        "    </tr>\n";
+            }
         }
-        return html;
+        RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = RepaymentScheduleResponseDTO.builder()
+                .repaymentSchedule(html)
+                .totalInterestPayable(lenderEdIScheduleResponse.getTotalInterestPayable())
+                .totalRepaymentExpected(lenderEdIScheduleResponse.getTotalRepaymentExpected())
+                .netDisbursalAmount(lenderEdIScheduleResponse.getNetDisbursalAmount())
+                .build();
+        return repaymentScheduleResponseDTO;
     }
 
     public String getAmountInWords(String amount){
