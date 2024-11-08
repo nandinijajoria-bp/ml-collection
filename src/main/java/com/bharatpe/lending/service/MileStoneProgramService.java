@@ -422,13 +422,17 @@ public class MileStoneProgramService {
                     activeDays.add(activeDaysDaily);
                 }
 
+                log.info("total milestone count :{}", milestoneCount);
+                log.info("making data for milestone no :{}", mileStoneNo);
+                log.info("target data for it no :{}", target);
+
                 MileStoneDashboardData data = MileStoneDashboardData.builder().
                         AchieveMilestone(mileStoneNo)
-                        .TargetMileStone(target.getMilestone_no())
+                        .TargetMileStone(Optional.ofNullable(target).map(Target::getMilestone_no).orElse(null))
                         .AchieveMileStoneActiveDays(0)
-                        .TargetActiveDays(target.getActive_days())
+                        .TargetActiveDays(Optional.ofNullable(target).map(Target::getActive_days).orElse(null))
                         .AchieveMileStoneUniquePayer(0)
-                        .TargetUniquePayer(target.getUnq_payer())
+                        .TargetUniquePayer(Optional.ofNullable(target).map(Target::getUnq_payer).orElse(null))
                         .milestone_start_time(DateUtils.addDaysWithTime(entity.getProgramStartDate(), ((mileStoneNo - 1) * weekDays)))
                         .milestone_end_time(DateUtils.addDaysWithTime(entity.getProgramStartDate(), mileStoneNo * weekDays))
                         .active_days_daily(activeDays)
@@ -448,14 +452,16 @@ public class MileStoneProgramService {
         } else {
             for (DSMileStoneAchievementResponse.Achievement achievement : achievementResponse.achievement) {
                 Target target = targetMileStoneNoMap.get(achievement.getMilestone_no());
+                log.info("total milestone count :{}", milestoneCount);
+                log.info("target data for it no :{}", target);
 
                 MileStoneDashboardData data = MileStoneDashboardData.builder().
                         AchieveMilestone(achievement.getMilestone_no())
-                        .TargetMileStone(target.getMilestone_no())
+                        .TargetMileStone(Optional.ofNullable(target).map(Target::getMilestone_no).orElse(null))
                         .AchieveMileStoneActiveDays(achievement.active_days)
-                        .TargetActiveDays(target.active_days)
+                        .TargetActiveDays(Optional.ofNullable(target).map(Target::getActive_days).orElse(null))
                         .AchieveMileStoneUniquePayer(achievement.getUnq_payer())
-                        .TargetUniquePayer(target.getUnq_payer())
+                        .TargetUniquePayer(Optional.ofNullable(target).map(Target::getUnq_payer).orElse(null))
                         .milestone_start_time(achievement.getMilestone_start_time())
                         .milestone_end_time(achievement.getMilestone_end_time())
                         .active_days_daily(achievement.getActive_days_daily())
