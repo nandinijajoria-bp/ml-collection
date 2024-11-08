@@ -481,6 +481,7 @@ public class MileStoneProgramService {
                 log.info("Program Duration is :{}", programDuration);
                 cleverTapEvtData.putIfAbsent("target_achieved_days", String.valueOf(achievementResponse.getTotal() !=null ? achievementResponse.getTotal().getActive_days() : 0));
                 cleverTapEvtData.putIfAbsent("program_duration_enrol", String.valueOf(programDuration));
+                cleverTapEvtData.putIfAbsent("total_target_days", String.valueOf(mileStoneResponse.getTotal_target()!=null ? mileStoneResponse.getTotal_target().getActive_days() : 0));
 
                 LocalDate enrollDate = entity.getCreatedAt().toInstant()
                         .atZone(ZoneId.systemDefault())
