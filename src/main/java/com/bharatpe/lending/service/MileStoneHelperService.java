@@ -138,10 +138,11 @@ public class MileStoneHelperService {
         return entity;
     }
 
-    public MileStoneEligibilityResponseDto.ProgramActiveData setETCProgramActiveData(Double graphData, String weekCount) {
+    public MileStoneEligibilityResponseDto.ProgramActiveData setETCProgramActiveData(Double graphData, String weekCount, String programDuration) {
         MileStoneEligibilityResponseDto.ProgramActiveData programActiveData = new MileStoneEligibilityResponseDto.ProgramActiveData();
+        String minorHeading = "Get Set Loan in " + programDuration + " days";
         programActiveData.setStripHeading(weekCount);
-        programActiveData.setMinorHeading("Get Set Loan in 30 days");
+        programActiveData.setMinorHeading(minorHeading);
         programActiveData.setMajorHeading("Complete your  target!");
         programActiveData.setSubHeading("you are on the right track. Join the program to become eligible");
         programActiveData.setButtonText("Know More");
@@ -149,12 +150,13 @@ public class MileStoneHelperService {
         programActiveData.setProgressPercentage(String.valueOf(graphData));
         programActiveData.setButtonActionDeeplink(activeButtonActionDeepLink);
         return programActiveData;
-
     }
-    public MileStoneEligibilityResponseDto.ProgramActiveData setNTCProgramActiveData(Double graphData, String weekCount) {
+
+    public MileStoneEligibilityResponseDto.ProgramActiveData setNTCProgramActiveData(Double graphData, String weekCount,String programDuration) {
         MileStoneEligibilityResponseDto.ProgramActiveData programActiveData = new MileStoneEligibilityResponseDto.ProgramActiveData();
+        String minorHeading = "Get Set Loan in " + programDuration + " days";
         programActiveData.setStripHeading(weekCount);
-        programActiveData.setMinorHeading("Get Set Loan in 60 days");
+        programActiveData.setMinorHeading(minorHeading);
         programActiveData.setMajorHeading("Complete your  target!");
         programActiveData.setSubHeading("you are on the right track. Join the program to become eligible");
         programActiveData.setButtonText("Know More");
@@ -322,7 +324,7 @@ public class MileStoneHelperService {
                 responseDto.setGraphData(null);
                 responseDto.setWeekCount(null);
                 responseDto.setProgramEligibleData(setNTCProgramEligibleData());
-                responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"));
                 responseDto.setIsMileStoneExpiry(false);
                 responseDto.setDeepLinkUrl(deepLink);
                 responseDto.setPanCard(null);
@@ -349,7 +351,7 @@ public class MileStoneHelperService {
                 responseDto.setGraphData(null);
                 responseDto.setWeekCount(null);
                 responseDto.setProgramEligibleData(setNTCProgramEligibleData());
-                responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"));
                 responseDto.setIsMileStoneExpiry(false);
                 responseDto.setDeepLinkUrl(deepLink);
                 responseDto.setPinCode(pincode);
@@ -382,7 +384,7 @@ public class MileStoneHelperService {
                         responseDto.setGraphData(null);
                         responseDto.setWeekCount(null);
                         responseDto.setProgramEligibleData(setETCProgramEligibleData());
-                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                         responseDto.setIsMileStoneExpiry(false);
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setPinCode(pincode);
@@ -470,7 +472,7 @@ public class MileStoneHelperService {
                         responseDto.setWeekCount(null);
                         responseDto.setPinCode(experian.getPincode());
                         responseDto.setPanCard(kycPancard);
-                        responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setIsEligibleForReapply(true);
                         return responseDto;
@@ -517,7 +519,7 @@ public class MileStoneHelperService {
                         responseDto.setWeekCount(null);
                         responseDto.setPinCode(experian.getPincode());
                         responseDto.setPanCard(kycPancard);
-                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setIsEligibleForReapply(true);
                         return responseDto;
@@ -568,11 +570,11 @@ public class MileStoneHelperService {
                 if (bureauResponseDTO!=null){
                     responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
                     responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                            setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
-                            setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                            setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"):
+                            setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                 }else {
                     responseDto.setProgramEligibleData(setETCProgramEligibleData());
-                    responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                    responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                 }
 
 
@@ -617,11 +619,11 @@ public class MileStoneHelperService {
                     if (bureauResponseDTO!=null){
                         responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
                         responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                                setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
-                                setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                                setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"):
+                                setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                     }else {
                         responseDto.setProgramEligibleData(setETCProgramEligibleData());
-                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                     }
                     responseDto.setDeepLinkUrl(deepLink);
                     responseDto.setIsEligibleForReapply(true);
@@ -726,11 +728,11 @@ public class MileStoneHelperService {
                         if (bureauResponseDTO!=null){
                             responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
                             responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                                    setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
-                                    setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                                    setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"):
+                                    setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                         }else {
                             responseDto.setProgramEligibleData(setETCProgramEligibleData());
-                            responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                            responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                         }
                         responseDto.setDeepLinkUrl(deepLink);
                         responseDto.setIsEligibleForReapply(true);
@@ -746,11 +748,11 @@ public class MileStoneHelperService {
                 if (bureauResponseDTO!=null){
                 responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?setNTCProgramEligibleData():setETCProgramEligibleData());
                 responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                        setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()):
-                        setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                        setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"):
+                        setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                 }else {
                     responseDto.setProgramEligibleData(setETCProgramEligibleData());
-                    responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount()));
+                    responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
                 }
 
                 responseDto.setDeepLinkUrl(deepLink);
