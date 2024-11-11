@@ -14,9 +14,11 @@ public class RiskEngineUtil {
             case "TOPUP":
                 return "TOPUP";
             case "NTB_PURE":
-            case "NTB_ETB_2":
-            case "NTB_ETB_1":
                 return "LowTransactor_ETC_Fresh";
+            case "NTB_ETB_2":
+                return "LowTransactor_ETC_Fresh_2";
+            case "NTB_ETB_1":
+                return  "LowTransactor_ETC_Fresh_1";
             case "REGULAR_NTC":
                 return "HighTransactor_NTC";
             case "REGULAR_ETC":
