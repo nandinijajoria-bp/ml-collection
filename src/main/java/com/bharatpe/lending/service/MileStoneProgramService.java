@@ -480,7 +480,7 @@ public class MileStoneProgramService {
 
         if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
             if(!ObjectUtils.isEmpty(mileStoneResponse.getProgram_type())) {
-                HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
+                Map<String, String> cleverTapEvtData = new HashMap<String, String>() {{
                     put("program_type", RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type()) ? "v3" : "v2");
                 }};
 
@@ -717,7 +717,7 @@ public class MileStoneProgramService {
         return new ApiResponse<>(rteProgramDetailsDto);
     }
 
-    private void pushEventToFunnelService(String clearTapEvent, FunnelEnums.StageEvent stageEvent, BasicDetailsDto merchant, HashMap<String, String> cleverTapEvtData , DSMileStoneResponse mileStoneResponse ) {
+    private void pushEventToFunnelService(String clearTapEvent, FunnelEnums.StageEvent stageEvent, BasicDetailsDto merchant, Map<String, String> cleverTapEvtData , DSMileStoneResponse mileStoneResponse ) {
         executorService.execute(() -> cleverTapEventService.sendClevertapEvent(clearTapEvent, cleverTapEvtData, merchant.getMid()));
         funnelService.submitEvent(merchant.getId(), null, null,
                 FunnelEnums.StageId.RTE, stageEvent, mileStoneResponse.getProgram_type());
