@@ -119,6 +119,9 @@ public class MileStoneProgramService {
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
 
+    @Value("${achievement.cache.ttl:10}")
+    int achievementCacheTtl;
+
     @Value("${enable.rte.v3:true}")
     boolean isRtev3Enabled;
 
@@ -523,7 +526,7 @@ public class MileStoneProgramService {
         AddCacheDto addCacheDto = new AddCacheDto();
         addCacheDto.setKey(milestoneDashboardCacheKey);
         addCacheDto.setValue(mileStoneDashboardDetails);
-        addCacheDto.setTtl(10);
+        addCacheDto.setTtl(achievementCacheTtl);
         lendingCache.add(addCacheDto, TimeUnit.MINUTES);
         log.info("added key in cache");
 
