@@ -7,10 +7,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV2.dto.EligibilityIframeConsumptionDTO;
-import com.bharatpe.lending.loanV2.dto.LatestLoanDetailResponse;
-import com.bharatpe.lending.loanV2.dto.LoanDetailsRequest;
+import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -242,5 +239,18 @@ public class LoanDetailsControllerV2 {
         log.info("sync_psp response: {} for merchant user: {}", apiResponseDTO, merchant.getId());
         return apiResponseDTO;
     }
+
+
+    @GetMapping(value = "/additionalDetails")
+    public ResponseEntity<?> additionalLoanDetails(@RequestAttribute BasicDetailsDto merchant,
+                                                   @RequestParam(required = false) Long applicationId) {
+        return ResponseEntity.ok(loanDetailsServiceV2.additionalLoanDetails(merchant, applicationId));
+    }
+
+    @PostMapping(value = "/additionalDetails")
+    public ResponseEntity<?> additionalLoanDetails(@RequestAttribute BasicDetailsDto merchant, @RequestBody AdditionalLoanDetailsDTO additionalLoanDetails) {
+     return ResponseEntity.ok(loanDetailsServiceV2.saveAdditionalLoanDetails(merchant, additionalLoanDetails));
+    }
+
 
 }

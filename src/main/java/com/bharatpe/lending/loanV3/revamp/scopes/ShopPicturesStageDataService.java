@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
@@ -17,6 +18,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -50,10 +52,17 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
     @Autowired
     KycUtils kycUtils;
 
+    @Autowired
+    LoanUtil loanUtil;
+
 
     @Override
     public LendingStateDTO<ShopPicturesStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ShopPicturesStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
+        if (LendingViewStates.LENDER_AGGREGATION.equals(lendingStateDTO.getLendingViewStates())){
+            return lendingStateDTO;
+        }
+
         if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request().getResubmitReason())){
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_PICTURES_PAGE);
         }
@@ -79,6 +88,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
                 log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
                 shopPicturesStateDTO.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
+                if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))){
+                    return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
+                }
             }
             shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()));
 

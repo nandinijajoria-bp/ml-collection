@@ -34,6 +34,7 @@ public class ForeClosureAmtStageSvcFactory extends LenderAssociationServiceFacto
             case "MUTHOOT":
             case "CAPRI":
             case "PAYU":
+            case "SMFG":
                 return foreClosureDetailsWrapperService;
             case "TRILLIONLOANS":
                 return tlForeclosureFetchService;

@@ -28,6 +28,7 @@ import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -86,6 +87,10 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     KycUtils kycUtils;
 
+    @Autowired
+    @Lazy
+    LoanUtil loanUtil;
+
     @Lazy
     @Autowired
     KycRequestKafka kycRequestKafka;
@@ -116,14 +121,18 @@ public abstract class LendingApplicationServiceV3Base {
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             return new ApiResponse<>(false,"lending application details not found");
         }
+        if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
+                    .stage(LenderAssociationStages.LENDER_CHANGE)
+                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                    .lender(currentDraftApplication.getLender())
+                    .isApplicableForAggregationFlow(!ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(currentDraftApplication.getId())))
+                    .build());
+        }
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LendingEnum.LENDER.ABFL.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
-            InvokeLenderAssociationRequest invokeLenderAssociationRequest = new InvokeLenderAssociationRequest();
-            invokeLenderAssociationRequest.setApplicationId(currentDraftApplication.getId());
-            invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
-            invokeLenderAssociationRequest.setForceEnable(false);
-            initLenderAssociation(invokeLenderAssociationRequest);
-        } else if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+
             if (checkForBPKycRequired(currentDraftApplication)) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
@@ -134,16 +143,22 @@ public abstract class LendingApplicationServiceV3Base {
                         .prevLender(getPrevLender(currentDraftApplication))
                         .build());
             }
-            return new ApiResponse<>(false, "lead creation triggered ! Please retry for status in few minutes");
+
+
+            InvokeLenderAssociationRequest invokeLenderAssociationRequest = new InvokeLenderAssociationRequest();
+            invokeLenderAssociationRequest.setApplicationId(currentDraftApplication.getId());
+            invokeLenderAssociationRequest.setStage(LenderAssociationStages.INIT.name());
+            invokeLenderAssociationRequest.setForceEnable(false);
+            initLenderAssociation(invokeLenderAssociationRequest);
+            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                    .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
+                    .stage(LenderAssociationStages.INIT)
+                    .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                    .lender(currentDraftApplication.getLender())
+                    .build());
+
         } else {
-            if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
-                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
-                        .status(LenderAssociationStatus.LENDER_CHANGE_IN_PROGRESS)
-                        .stage(LenderAssociationStages.LENDER_CHANGE)
-                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                        .lender(currentDraftApplication.getLender())
-                        .build());
-            } else if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
+            if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                         .stage(LenderAssociationStages.COMPLETED)
@@ -399,7 +414,7 @@ public abstract class LendingApplicationServiceV3Base {
                     .build());
         } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
             String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
-            if(Lender.ABFL.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender()) && ObjectUtils.isEmpty(lenderKycRedirectionUrl)) {
+            if(eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender()) && ObjectUtils.isEmpty(lenderKycRedirectionUrl)) {
                 lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
             }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()

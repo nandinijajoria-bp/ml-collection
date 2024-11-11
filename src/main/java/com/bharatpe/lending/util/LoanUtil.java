@@ -25,6 +25,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
@@ -35,6 +36,7 @@ import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
 import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
@@ -44,6 +46,7 @@ import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
+import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -146,6 +149,9 @@ public class LoanUtil {
 	@Autowired
 	LendingBBSSnapshotDao lendingBBSSnapshotDao;
 
+	@Autowired
+	LaunchLabsHandler launchLabsHandler;
+
 //	@Autowired
 //	MerchantScoreDao merchantScoreDao;
 
@@ -234,6 +240,9 @@ public class LoanUtil {
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
 
+	@Value("${aggregation.flow.experimentId:}")
+	String isAggregationFlowApplicableExperimentId;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
@@ -312,6 +321,9 @@ public class LoanUtil {
 	Integer trillionTopupApplicationMaxCount;
 
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
+
+	@Value("${lender.aggregation.screens:}")
+	String lenderAggregationScreens;
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1700,6 +1712,9 @@ public class LoanUtil {
 		if("CREDITSAISON".equalsIgnoreCase(lender)) {
 			finalLender = Lender.CREDITSAISON.name();
 		}
+		if("SMFG".equalsIgnoreCase(lender)) {
+			finalLender = Lender.SMFG.name();
+		}
 		return finalLender;
 	}
 
@@ -2379,6 +2394,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(CAPRI.name(), "CAPRI");
 		rejectedLenderMapping.put(PAYU.name(), "PAYU");
 		rejectedLenderMapping.put(CREDITSAISON.name(), "CREDITSAISON");
+		rejectedLenderMapping.put(SMFG.name(), "SMFG");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
@@ -2425,7 +2441,7 @@ public class LoanUtil {
 		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
 		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
 			logger.info("checking for collection of extra interest for perpetual dpd loan id : {}", lendingPaymentScheduleLendingCommon.get().getId());
-			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, new Date());
+			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, DateTimeUtil.getCurrentDayStartTime());
 			if(!ObjectUtils.isEmpty(lendingLedger)){
 				return Math.abs(lendingLedger.getInterest());
 			}
@@ -2453,6 +2469,41 @@ public class LoanUtil {
 		}
 
 		return easyLoanUtil.percentScaleUp(merchantId, percent);
+	}
+
+	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
+		try{
+			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
+				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
+				if(!ObjectUtils.isEmpty(applicationId)){
+					LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+					lendingAuditTrial.setApplicationId(applicationId);
+					lendingAuditTrial.setMerchantId(merchantId);
+					lendingAuditTrial.setType(LendingViewStates.LENDER_AGGREGATION.name());
+					lendingAuditTrial.setLoanId("BPL"+applicationId);
+					lendingAuditTrial.setOldStatus(experimentConfigResponseDTO.getVariationId());
+					lendingAuditTrialDao.save(lendingAuditTrial);
+				}
+				return true;
+			}
+		} catch (Exception ex) {
+			logger.error("Exception occurred while deciding aggregation flow :{}", ex.getMessage());
+		}
+		logger.info("lender aggregation flow not applicable for merchantId {}", merchantId);
+		return false;
+	}
+
+	public String getLenderAggregationScreen(Long applicationId){
+		try{
+			LendingAuditTrial lendingAuditTrial = lendingAuditTrialDao.findByApplicationIdAndType(applicationId, LendingViewStates.LENDER_AGGREGATION.name());
+			if(!ObjectUtils.isEmpty(lendingAuditTrial)){
+				return lendingAuditTrial.getOldStatus();
+			}
+		} catch (Exception ex){
+			logger.error("Exception occurred while fetching aggregation screen for applicationId {} {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+		}
+		return null;
 	}
 }
 

@@ -52,6 +52,8 @@ public class StageServiceFactory {
     KYCRouteToEligibilityService kycRouteToEligibilityService;
 
     @Autowired
+    LenderAggregationStageService lenderAggregationStageService;
+    @Autowired
     ModifiedOfferStageService modifiedOfferStageService;
 
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
@@ -66,6 +68,8 @@ public class StageServiceFactory {
                 return kfsStageService;
             case SHOP_DETAILS_PAGE:
                 return shopDetailsStageDataService;
+            case LENDER_AGGREGATION:
+                return lenderAggregationStageService;
             case SHOP_PICTURES_PAGE:
                 return shopPicturesStageDataService;
             case APPLICATION_STATUS_PAGE:

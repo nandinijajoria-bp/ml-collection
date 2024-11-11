@@ -32,4 +32,9 @@ public class CKycResponseDto {
     String panDob;
     String panName;
     String careOf;
+    Double selfieLivelinessScore;
+    Double selfieAadhaarFaceMatchPer; // Selfie vs Aadhaar Photo Match
+    Double aadhaarPanNameMatchPer; // PAN Name vs Aadhaar Name Match
+    Double bankBenePanNameMatchPer; // Bank Beneficiary Name vs PAN Name Match
+    String gstNumber;
 }

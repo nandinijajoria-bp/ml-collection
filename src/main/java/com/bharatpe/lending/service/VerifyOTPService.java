@@ -630,7 +630,7 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
-            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name()).contains(lendingApplication.getLender())) {
+            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name()).contains(lendingApplication.getLender())) {
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
@@ -817,7 +817,7 @@ public class VerifyOTPService {
             // skipping updating pf for trillion as the details is already sent to them
             if(!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())) lendingApplication.setProcessingFee(processingFee);
             lendingApplication.setDisbursalAmount(finalDisbursalAmountWithoutProcessingFee - processingFee);
-            
+
             lendingApplicationDao.save(lendingApplication);
 
             if (!Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {

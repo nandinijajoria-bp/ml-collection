@@ -145,4 +145,22 @@ public class LendingApplicationControllerV2 {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "assign_lender", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> assignLender(@RequestHeader("token") String token,
+                                          @RequestAttribute BasicDetailsDto merchant,
+                                          @RequestBody AssignLenderRequestDto requestDto){
+        ApiResponse response = lendingApplicationServiceV2.assignLender(merchant, requestDto);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "address_details", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<?> captureShopDetails(@RequestHeader("token") String token,
+                                         @RequestAttribute BasicDetailsDto merchant,
+                                         @RequestBody SaveMerchantDetailsDto saveMerchantDetailsDto
+    ){
+        ApiResponse response = lendingApplicationServiceV2.saveAddressDetails(merchant,saveMerchantDetailsDto);
+        log.info("save address_details response:{} for merchant:{}", response, merchant.getId());
+        return ResponseEntity.ok(response);
+    }
+
 }

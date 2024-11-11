@@ -45,6 +45,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
@@ -335,6 +336,10 @@ public class LendingApplicationServiceV2 {
     @Value("${aws.s3.bucket:loan-document}")
     private String s3Bucket;
 
+    @Lazy
+    @Autowired
+    SmfgConfig smfgConfig;
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -602,7 +607,7 @@ public class LendingApplicationServiceV2 {
             }
             AddressValidationDto addressValidationDto = null;
             if (isAddressUpdated(lendingApplication,applicationRequest)) {
-                addressValidationDto = getAddressValidationScore(applicationRequest);
+                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
                 if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
                     log.info("address quality score less than 20");
                     return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
@@ -624,14 +629,17 @@ public class LendingApplicationServiceV2 {
                 log.error("application already exist for this merchant id {}",inProgressLoanApplication);
                 return new ApiResponse<>(true,"Application already exist for this merchant id");
             }
-            checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
-
-            AddressValidationDto addressValidationDto = getAddressValidationScore(applicationRequest);
-            String error = baseChecks(merchant, applicationRequest);
-            if (error != null) return new ApiResponse<>(false, error);
-            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-                log.info("address quality score less than 20");
-                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+            Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
+            AddressValidationDto  addressValidationDto = null;
+            Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
+            if (!isApplicableForAggregationFlow || isPreApproved){
+                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
+                String error = baseChecks(merchant, applicationRequest.getAddressDetails());
+                if (error != null) return new ApiResponse<>(false, error);
+                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                    log.info("address quality score less than 20");
+                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+                }
             }
             EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
 //            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
@@ -639,7 +647,7 @@ public class LendingApplicationServiceV2 {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto);
+            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto, isApplicableForAggregationFlow);
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
 
             final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
@@ -651,6 +659,7 @@ public class LendingApplicationServiceV2 {
             if("rejected".equalsIgnoreCase(lendingApplication.getStatus()) && LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
                 return new ApiResponse<>(true, "No lender assigned, application rejected");
             }
+            loanUtil.isApplicableForAggregationFlow(lendingApplication.getMerchantId(), lendingApplication.getId()); // For saving screen type if lender aggregation is applicable.
 
             createStatusAuditTrail(lendingApplication);
             executorService.submit(() -> {
@@ -699,11 +708,11 @@ public class LendingApplicationServiceV2 {
         return rejected;
     }
 
-    private AddressValidationDto getAddressValidationScore(CreateApplicationRequest createApplicationRequest) {
+    private AddressValidationDto getAddressValidationScore(AddressDetails addressDetails) {
         AddressValidationDto addressValidationDto = null;
         try {
-            if (!ObjectUtils.isEmpty(createApplicationRequest.getAddressDetails())) {
-                addressValidationDto = apiGatewayService.validateAddress(createApplicationRequest.getAddressDetails());
+            if (!ObjectUtils.isEmpty(addressDetails)) {
+                addressValidationDto = apiGatewayService.validateAddress(addressDetails);
             }
         } catch (Exception e) {
             log.error("error occured while validating address: {}", e);
@@ -722,7 +731,7 @@ public class LendingApplicationServiceV2 {
         lendingAuditTrialDao.save(lendingAuditTrial);
     }
 
-    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto) {
+    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
         LendingApplication lendingApplication = new LendingApplication();
         int processingFee;
         if (apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId())) {
@@ -777,12 +786,15 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
-        if (forceSetPiramal) {
-            lendingApplication.setLender("PIRAMAL");
+        if(isApplicableForAggregationFlow) {
+            loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
+        }
+        if (forceSetPiramal && lendingApplication.getMerchantId() == 20000962) { //TODO For Testing
+            lendingApplication.setLender("PIRAMAL"); //TODO For Testing
             lendingApplication = lendingApplicationDao.save(lendingApplication);
         } else {
             lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
-                EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails);
+                    EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
         }
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
@@ -1001,14 +1013,17 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    private String baseChecks(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
+    private String baseChecks(BasicDetailsDto merchant, AddressDetails addressDetails) {
 
-        if(easyLoanUtil.isDummyMerchant(merchant.getId())) {
+        if (easyLoanUtil.isDummyMerchant(merchant.getId())) {
             return null;
         }
 
-        if (Objects.isNull(applicationRequest.getAddressDetails()) || Objects.isNull(applicationRequest.getAddressDetails().getPincode())) {
-            log.info("pincode not found in createNewApplication for merchant:{}", merchant.getId());
+        log.info("result:{}, {}", Objects.isNull(addressDetails),  Objects.isNull(addressDetails.getPincode()));
+        log.info("pincode:{} for merchant:{}",addressDetails.getPincode(), merchant.getId());
+        log.info("address details:{} for merchant:{}", addressDetails, merchant.getId());
+        if (Objects.isNull(addressDetails) || Objects.isNull(addressDetails.getPincode())) {
+            log.info("pincode not found in address deatils ;{} for merchant:{}", merchant.getId(), addressDetails);
             return "pincode not found";
         }
        /* LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
@@ -1016,7 +1031,7 @@ public class LendingApplicationServiceV2 {
             log.info("Already open application found for merchant:{}", merchant.getId());
             return "Application already exist for this merchant id";
         }*/
-        Integer pincode = Integer.valueOf(applicationRequest.getAddressDetails().getPincode());
+        Integer pincode = Integer.valueOf(addressDetails.getPincode());
         if (loanUtil.isOGL(pincode)) {
             log.info("OGL pincode found for merchant:{}", merchant.getId());
             return "OGL pincode";
@@ -1027,7 +1042,7 @@ public class LendingApplicationServiceV2 {
             return "pincode mismatch";
         }
 
-        if (loanUtil.hasActiveLoan(merchant)){
+        if (loanUtil.hasActiveLoan(merchant)) {
             log.info("Already an ongoing loan exists for the merchant : {}", merchant.getId());
             return "Already an ongoing loan exists";
         }
@@ -1035,15 +1050,17 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    public void checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest){
+    public Boolean checkForPreapprovedRepeatLoan(Long merchantId, CreateApplicationRequest applicationRequest) {
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
         if (lendingRiskVariables != null) {
             String pilotIdentifier = lendingRiskVariables.getPilotIdentifier();
-            if(!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)){
+            if (!ObjectUtils.isEmpty(pilotIdentifier) && pilotIdentifier.contains(LoanDetailsConstant.PREAPPROVED_REPEAT_LOAN_IDENTIFIER)) {
                 log.info("loan request is pre-approved repeat for {}", merchantId);
                 fetchPreviousApplicationData(merchantId, applicationRequest);
+                return true;
             }
         }
+        return false;
     }
 
     public void fetchPreviousApplicationData(Long merchantId, CreateApplicationRequest applicationRequest){
@@ -2386,6 +2403,7 @@ public class LendingApplicationServiceV2 {
                 annualRoi = lendingApplicationLenderDetails.getAnnualRoi();
             }
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingKfs.getMerchantId());
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
 
             String lenderCorporateName = "";
             String lenderBusinessAddress = "";
@@ -2463,6 +2481,13 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_CREDITSAISON;
                 lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_CREDITSAISON;
             }
+            else if (lendingApplication.getLender().equalsIgnoreCase(Lender.SMFG.toString())) {
+                lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_SMFG;
+                lenderBusinessAddress = KfsConstants.LENDER_BUSINESS_ADDRESS_SMFG;
+                lenderContactName = KfsConstants.LENDER_CONTACT_NAME_SMFG;
+                lenderContactEmail = KfsConstants.LENDER_CONTACT_EMAIL_SMFG;
+                lenderContactNumber = KfsConstants.LENDER_CONTACT_NUMBER_SMFG;
+            }
             else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
@@ -2491,8 +2516,13 @@ public class LendingApplicationServiceV2 {
 
             Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (lendingApplication.getLoanAmount() * processingFeePercentageWithoutGst) / 100D ));
 
+            Double disbursalAmount = lendingApplication.getDisbursalAmount();
+            Double repaymentAmount = lendingApplication.getRepayment();
             if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
                 processingFeePercentageWithoutGst = Double.valueOf(String.format("%.2f", processingFeePercentageWithoutGst));
+                RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = getLenderRepaymentSchedule(applicationId, lendingApplication.getLender(), false);
+                disbursalAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getNetDisbursalAmount()));
+                repaymentAmount = Double.valueOf(String.format("%.2f",repaymentScheduleResponseDTO.getTotalRepaymentExpected()));
             }
 
             KfsDto kfsDto = KfsDto.builder()
@@ -2514,8 +2544,8 @@ public class LendingApplicationServiceV2 {
                     .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
-                    .disbursalAmount(lendingApplication.getDisbursalAmount())
-                    .repaymentAmount(lendingApplication.getRepayment())
+                    .disbursalAmount(disbursalAmount)
+                    .repaymentAmount(repaymentAmount)
                     .interestRate(lendingApplication.getInterestRate())
                     .apr(Optional.ofNullable(apr).orElse(lendingKfs.getApr()))
                     .isTopUpLoan("TOPUP".equals(lendingApplication.getLoanType()))
@@ -2531,6 +2561,11 @@ public class LendingApplicationServiceV2 {
                     .ediDays((lendingApplication.getPayableDays() % 30) == 0 ? 7 : 6)
                     .agreementAt(lendingApplication.getAgreementAt())
                     .shopAddress(shopAddress)
+                    .shopName(lendingApplication.getBusinessName())
+                    .shopState(lendingApplication.getState())
+                    .shopPincode(String.valueOf(lendingApplication.getPincode()))
+                    .shopCity(lendingApplication.getCity())
+                    .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(lendingRiskVariables.getMonthlyIncome())
                     .annualRoi(annualRoi)
                     .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
@@ -2601,19 +2636,22 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
 
         //Authorization Letter
-        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.getLender())){
+        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name()).contains(lendingApplication.getLender())){
             generateAuthorizationLetterDoc(lendingApplication, merchant, lendingKfs, null);
             lendingKfs.setAuthorizationLetterSignedAt(dateTimeUtil.getCurrentDate());
         }
 
+        Date date = new Date();
+        //AUTHORIZATION LETTER PAYU
+        // AUDIT TRAIL LETTER SMFG
+        if (Arrays.asList(Lender.PAYU.name(), Lender.SMFG.name()).contains(lendingApplication.getLender())) {
+            generateLOADoc(lendingApplication, merchant, lendingKfs, date);
+        }
+
         //PAYU LOAN DOCS
         if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())){
-
-            Date date = new Date();
-
             generateMITCDoc(lendingApplication, merchant, lendingKfs, date);
             generateGTCDoc(lendingApplication, merchant, lendingKfs, date);
-            generateLOADoc(lendingApplication, merchant, lendingKfs, date);
             generateApplicationFormDoc(lendingApplication, merchant, lendingKfs, date);
         }
 
@@ -2954,6 +2992,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_PAYU" + ".html";
             }else if(Lender.CREDITSAISON.name().equalsIgnoreCase(lender)) {
                 filePath = "/templates/CREDITSAISON/" + "KFS_CREDIT_SAISON" + ".html";
+            } else if(lender.equalsIgnoreCase(Lender.SMFG.name())) {
+                filePath = "/templates/" + "KFS_NONP2P_SMFG" + ".html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -3113,6 +3153,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PAYU.html";
             } else if (lender.equalsIgnoreCase(Lender.CREDITSAISON.name())) {
                 filePath = "/templates/CREDITSAISON/" + "SANCTION_LOAN_AGREEMENT_CREDIT_SAISON" + ".html";
+            } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_SMFG.html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
@@ -3351,8 +3393,21 @@ public class LendingApplicationServiceV2 {
         data.put("facilitation_fee_in_figure", "0.00");
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
-        String repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
-        if(ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
+        String repaymentSchedule = "";
+        if(Arrays.asList(Lender.PAYU.name()).contains(kfsDto.getLender())) {
+            RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = getLenderRepaymentSchedule(applicationId, kfsDto.getLender(), true);
+            repaymentSchedule = repaymentScheduleResponseDTO.getRepaymentSchedule();
+            if (ObjectUtils.isEmpty(repaymentScheduleResponseDTO.getTotalInterestPayable()) ||
+                    ObjectUtils.isEmpty(repaymentScheduleResponseDTO.getTotalRepaymentExpected()) ||
+                    ObjectUtils.isEmpty(repaymentScheduleResponseDTO.getNetDisbursalAmount())
+            ) throw new Exception("Unable to create repayment schedule for PayU" + applicationId);
+            data.put("interest_charged_to_borrower", repaymentScheduleResponseDTO.getTotalInterestPayable());
+            data.put("repayment_amount", repaymentScheduleResponseDTO.getTotalRepaymentExpected());
+            data.put("loan_amount_disbursed", repaymentScheduleResponseDTO.getNetDisbursalAmount());
+        } else {
+            repaymentSchedule = getRepaymentSchedule(applicationId, merchant, kfsDto.getLender());
+        }
+        if (ObjectUtils.isEmpty(repaymentSchedule))throw new Exception("Unable to create repayment schedule for" + applicationId);
         data.put("repayment_schedule", repaymentSchedule);
         if(timeStamp)data.put("date", new SimpleDateFormat("dd-MM-yyyy").format(dateTime));
         else data.put("date", "");
@@ -3398,7 +3453,7 @@ public class LendingApplicationServiceV2 {
         else throw new Exception("Unable to get aadhar address for : " + applicationId);
         data.put("device_id", "");
         if(!ObjectUtils.isEmpty(merchantBankDetail)) {
-            data.put("accountNumber", "XXXXXXXX" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length() - 4));
+            data.put("accountNumber", LendingEnum.LENDER.SMFG.name().equalsIgnoreCase(kfsDto.getLender()) ? merchantBankDetail.getAccountNumber() :  "XXXXXXXX" + merchantBankDetail.getAccountNumber().substring(merchantBankDetail.getAccountNumber().length() - 4));
             data.put("accountType", merchantBankDetail.getAccountType());
             data.put("ifsc", merchantBankDetail.getIfsc());
             data.put("bankName", merchantBankDetail.getBankName());
@@ -3414,6 +3469,10 @@ public class LendingApplicationServiceV2 {
         }
 
         if(Lender.PAYU.name().equalsIgnoreCase(kfsDto.getLender())){
+            String formattedMobileNumber = merchant.getMobile();
+            formattedMobileNumber = formattedMobileNumber.substring(0,2) + " " + formattedMobileNumber.substring(2);
+            data.put("phone_number_of_borrower", formattedMobileNumber);
+            data.put("mobile_number_for_otp", formattedMobileNumber);
             data.put("processing_fee_includes_tax", String.format("%.2f", kfsDto.getProcessingFee()));
             data.put("processing_percentage_without_gst", String.format("%.2f",kfsDto.getProcessingFeePercentageWithoutGst()));
             data.put("gst_amount_of_processing_fee", String.format("%.2f",(kfsDto.getLoanAmount() * (kfsDto.getProcessingFeePercentageWithoutGst()/100D) * (KfsConstants.GST_PERCENTAGE)/100D)));
@@ -3461,6 +3520,11 @@ public class LendingApplicationServiceV2 {
         data.put("edi_days", kfsDto.getEdiDays());
         data.put("date_of_execution",Optional.ofNullable(kfsDto.getAgreementAt()).map(String::valueOf).orElse(""));
         data.put("shopAddress",kfsDto.getShopAddress());
+        data.put("shop_name", kfsDto.getShopName());
+        data.put("shop_state", kfsDto.getShopState());
+        data.put("shop_city", kfsDto.getShopCity());
+        data.put("shop_pincode", kfsDto.getShopPincode());
+        data.put("annual_turnover",kfsDto.getAnnualTurnover()); // summaryTPV * 360
         data.put("monthlyIncome",Optional.ofNullable(kfsDto.getMonthlyIncome()).map(String::valueOf).orElse(""));
         data.put("annual_roi", kfsDto.getAnnualRoi());
 
@@ -3546,6 +3610,26 @@ public class LendingApplicationServiceV2 {
             data.put("insurance_premium", lendingLoanInsurance.getInsurancePremium());
             data.put("insurance_premium_in_words", getAmountInWords(lendingLoanInsurance.getInsurancePremium().toString()));
         }
+
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
+        if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            data.put("father_name", lendingApplicationKycDetails.getFatherName());
+            data.put("email_address", lendingApplicationKycDetails.getEmail());
+        }
+        CKycResponseDto cKycResponseDto = kycUtils.getKycData(kfsDto.getMerchantId());
+        data.put("borrower_selfie", cKycResponseDto.getSelfieString());
+        if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender())) {
+            Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
+            data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
+            data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
+            data.put("udyam_number", null);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
+                PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
+                data.put("udyam_number", businessDocs.peek() != null ? businessDocs.peek().getDocIdentifier() : null);
+            }
+        }
+
         //log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
@@ -3585,10 +3669,10 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/mfl-header-1708687626411.png";
         }
         else if(lender.equalsIgnoreCase(Lender.PAYU.name()) && applicationDocType.equals(ApplicationDocType.PAYU_LETTERHEAD_FOOTER)){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-footer-1724311515772.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-footer-bp-compressed-1729234893465.png";
         }
         else if(lender.equalsIgnoreCase(Lender.PAYU.name())){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-header-1724236921721.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-header-bp-compressed-1729581605675.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";
@@ -3610,21 +3694,16 @@ public class LendingApplicationServiceV2 {
           || lender.equalsIgnoreCase(Lender.MAMTA1.toString())
           || lender.equalsIgnoreCase(Lender.MAMTA2.toString())){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
+        } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SMICC-Logo-1724934813170_1-1728285292259.png";
         }
         return logoUrl;
     }
 
     public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant, String lender) {
-
-        if(Arrays.asList(Lender.PAYU.name()).contains(lender)) {
-            String lenderRps = getLenderRepaymentSchedule(applicationId, lender);
-            if (!ObjectUtils.isEmpty(lenderRps)) {
-                return lenderRps;
-            }
-        }
-
-        CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
-        if(!response.isSuccess()){
+        CommonResponse response = Lender.SMFG.name().equalsIgnoreCase(lender) ? lendingEdiScheduleService.getEdiScheduleV3(merchant.getId(), applicationId)
+        : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
+        if (!response.isSuccess()) {
             log.info(response.getMessage());
             log.info("Unable to fetch edi schedule for applicationId : {}", applicationId);
             return null;
@@ -3659,7 +3738,7 @@ public class LendingApplicationServiceV2 {
         return html;
     }
 
-    public String getLenderRepaymentSchedule(Long applicationId, String lender) {
+    public RepaymentScheduleResponseDTO getLenderRepaymentSchedule(Long applicationId, String lender, Boolean isRpsRequired) {
         LenderEdIScheduleResponseDTO lenderEdIScheduleResponse= associationServiceUtil.invokeRepaymentScheduleService(lender, applicationId, Boolean.TRUE);
         if(ObjectUtils.isEmpty(lenderEdIScheduleResponse)){
             log.info("Unable to fetch lender edi schedule for applicationId : {}", applicationId);
@@ -3667,30 +3746,38 @@ public class LendingApplicationServiceV2 {
         }
 
         String html = "";
-        LenderEdIScheduleResponseDTO.RepaymentSchedule edi = null;
-        log.info("lenderEdIScheduleResponse response received from loan preview is : {}", lenderEdIScheduleResponse);
-        for(int i = 0; i < lenderEdIScheduleResponse.getRepaymentSchedule().size(); i++){
-            edi = lenderEdIScheduleResponse.getRepaymentSchedule().get(i);
-            int serialNumber = i+1;
-            html += "    <tr class=\"width-100\">\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + serialNumber + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getOpeningBalance() + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getPrincipal() + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getInterest() + "</p>\n" +
-                    "      </td>\n" +
-                    "      <td class=\"width-auto\">\n" +
-                    "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getTotalEdi() + "</p>\n" +
-                    "      </td>\n" +
-                    "    </tr>\n";
+        if(isRpsRequired) {
+            LenderEdIScheduleResponseDTO.RepaymentSchedule edi = null;
+            log.info("lenderEdIScheduleResponse response received from loan preview is : {}", lenderEdIScheduleResponse);
+            for (int i = 0; i < lenderEdIScheduleResponse.getRepaymentSchedule().size(); i++) {
+                edi = lenderEdIScheduleResponse.getRepaymentSchedule().get(i);
+                int serialNumber = i + 1;
+                html += "    <tr class=\"width-100\">\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + serialNumber + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getOpeningBalance() + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getPrincipal() + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getInterest() + "</p>\n" +
+                        "      </td>\n" +
+                        "      <td class=\"width-auto\">\n" +
+                        "        <p style=\"margin: 0px; font-size: 10px;\" class=\"fw400 text-center\">" + edi.getTotalEdi() + "</p>\n" +
+                        "      </td>\n" +
+                        "    </tr>\n";
+            }
         }
-        return html;
+        RepaymentScheduleResponseDTO repaymentScheduleResponseDTO = RepaymentScheduleResponseDTO.builder()
+                .repaymentSchedule(html)
+                .totalInterestPayable(lenderEdIScheduleResponse.getTotalInterestPayable())
+                .totalRepaymentExpected(lenderEdIScheduleResponse.getTotalRepaymentExpected())
+                .netDisbursalAmount(lenderEdIScheduleResponse.getNetDisbursalAmount())
+                .build();
+        return repaymentScheduleResponseDTO;
     }
 
     public String getAmountInWords(String amount){
@@ -4033,6 +4120,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_TRILLIONS_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = "/templates/AUTHORIZATION_LETTER_TRILLIONS_PC"+ language +".html";
+            } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
+               filePath = "/templates/AUTHORIZATION_LETTER_SMFG" +".html";
             } else {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
             }
@@ -4165,18 +4254,6 @@ public class LendingApplicationServiceV2 {
             log.info("Exception in generating lender SanctionCumLoanAgreement document of {} for applicationId {} {}", lendingApplication.getLender(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
         }
         return new ApiResponse<>(false, "Unable to generate lender Sanction Cum Loan Agreement");
-    }
-
-    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
-        log.info("Rejecting application as default lender is none for the applicationId: {}",lendingApplication.getId());
-        commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
-                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
-                "APP_STATUS", "rejected due to nullable lender");
-        lendingApplication.setStatus("rejected");
-        lendingApplication.setManualKyc("rejected");
-        lendingApplication.setManualKycReason("NONE_ELIGIBLE_LENDER");
-        lendingApplicationDao.save(lendingApplication);
-        evictCache(lendingApplication.getMerchantId());
     }
     public void generateMITCDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
 
@@ -4336,18 +4413,24 @@ public class LendingApplicationServiceV2 {
         apiResponse = generateLOA(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
         if (apiResponse.success) {
             String loaHtml = (String) apiResponse.data;
-
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
-            fileName = lendingApplicationLenderDetails.getLeadId() + '_' + LOA_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-
-            ByteArrayInputStream inStream = getLoanDocPdf(loaHtml, ApplicationDocType.PAYU_LOA_DOC, lendingApplication, sanctionCompressionLevel);
-
-            if (ObjectUtils.isEmpty(inStream)) {
-                throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
+            if(Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                fileName = lendingApplicationLenderDetails.getLeadId() + '_' + LOA_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
+                ByteArrayInputStream inStream = getLoanDocPdf(loaHtml, ApplicationDocType.PAYU_LOA_DOC, lendingApplication, sanctionCompressionLevel);
+                if (ObjectUtils.isEmpty(inStream)) {
+                    throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
+                }
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            } else {
+                fileName = LENDER_ADDITIONAL_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+                PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
+                PdfDocument pdfDocument = new PdfDocument(writer);
+                InputStream htmlStringInputStream = new ByteArrayInputStream(loaHtml.getBytes(StandardCharsets.UTF_8));
+                HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             }
-
-            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
             String loaUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String loaShortUrl = apiGatewayService.getShortUrl(loaUrl);
             if (loaShortUrl == null || loaShortUrl.isEmpty() || loaShortUrl.trim().isEmpty())
@@ -4358,12 +4441,15 @@ public class LendingApplicationServiceV2 {
             }
         }
         else{
-            log.error("Unable to store LOA pdf doc for applicationId : {}", lendingApplication.getId());
+            log.error("Unable to store LOA / Audit Trail pdf doc for applicationId : {}", lendingApplication.getId());
             throw new Exception("Unable to generate LOA for applicationID" + lendingApplication.getId());
         }
     }
 
     public ApiResponse<?> generateLOA(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+        if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            return generateAuditTrail(lendingApplication);
+        }
 
         ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
         if(!apiResponse.success){
@@ -4490,6 +4576,116 @@ public class LendingApplicationServiceV2 {
         } catch (Exception e) {
             log.error("Exception while generating application form html for applicationId : {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
             return new ApiResponse<>(false, "Unable to generate application form");
+        }
+    }
+
+    public ApiResponse<?> assignLender(BasicDetailsDto merchatDetails, AssignLenderRequestDto requestDto) {
+        if (ObjectUtils.isEmpty(requestDto) || ObjectUtils.isEmpty(requestDto.getApplicationId()) || ObjectUtils.isEmpty(requestDto.getLender())) {
+            log.info("Request params are missing:{}", requestDto.toString());
+            return new ApiResponse<>(false, "Request params are missing");
+        }
+        Map<String, Object> response = lenderAssignService.assignLender(requestDto.getApplicationId(), merchatDetails, LendingEnum.LENDER.valueOf(requestDto.getLender()));
+        if (Objects.nonNull(response) && response.containsKey("success") && response.get("success").equals(true)){
+            return new ApiResponse<>(true, response, "lender assigned successfully");
+        }
+        return new ApiResponse<>(false, "Something went wrong");
+    }
+
+    public ApiResponse<?> saveAddressDetails(BasicDetailsDto merchantDetails, SaveMerchantDetailsDto merchantDetailsDto){
+        Long applicationId = null;
+        try{
+            log.info("save address request:{} for merchant:{}", merchantDetailsDto, merchantDetails.getId());
+            AddressValidationDto addressValidationDto = getAddressValidationScore(merchantDetailsDto.getAddressDetails());
+            String error = baseChecks(merchantDetails, merchantDetailsDto.getAddressDetails());
+            if (error != null) return new ApiResponse<>(false, error);
+            if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+                log.info("address quality score less than 20");
+                return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+            }
+            if (Objects.nonNull(merchantDetailsDto.getAddressDetails())) {
+                LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantDetails.getId(), "draft");
+                if(ObjectUtils.isEmpty(lendingApplication)){
+                    return new ApiResponse<>(false, "open application not found.");
+                }
+                applicationId = lendingApplication.getId();
+                lendingApplication.setPincode(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getPincode())?Long.valueOf(merchantDetailsDto.getAddressDetails().getPincode()):lendingApplication.getPincode());
+                lendingApplication.setArea(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getArea()) ? merchantDetailsDto.getAddressDetails().getArea() : lendingApplication.getArea());
+                lendingApplication.setCity(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getCity()) ? merchantDetailsDto.getAddressDetails().getCity() : lendingApplication.getCity());
+                lendingApplication.setState(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getState()) ? merchantDetailsDto.getAddressDetails().getState() : lendingApplication.getState());
+                lendingApplication.setShopNumber(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getAddress1()) ?
+                        merchantDetailsDto.getAddressDetails().getAddress1().substring(0, Math.min(merchantDetailsDto.getAddressDetails().getAddress1().length(), 98)) : lendingApplication.getShopNumber());
+                lendingApplication.setStreetAddress(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getAddress2()) ? merchantDetailsDto.getAddressDetails().getAddress2() : lendingApplication.getStreetAddress());
+                lendingApplication.setLandmark(!StringUtils.isEmpty(merchantDetailsDto.getAddressDetails().getLandmark()) ? merchantDetailsDto.getAddressDetails().getLandmark() : lendingApplication.getLandmark());
+                lendingApplication.setBusinessName(merchantDetailsDto.getBusinessName());
+                if(!ObjectUtils.isEmpty(merchantDetailsDto.getAdditionalDetails())){
+                    lendingApplication.setEmail(merchantDetailsDto.getAdditionalDetails().getEmail());
+                    lendingApplication.setAlternateMobile(merchantDetailsDto.getAdditionalDetails().getAlternateContact());
+                }
+                if(!ObjectUtils.isEmpty(merchantDetailsDto.getProfessionalDetails())){
+                    saveGstDetails(lendingApplication,merchantDetailsDto.getProfessionalDetails());
+                }
+                saveAddressQltyDetails(lendingApplication,addressValidationDto);
+                lendingApplicationDao.save(lendingApplication);
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+                lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(merchantDetailsDto.getCurrentAddressSameAsPermanentAddress());
+                lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            }
+        } catch (Exception ex) {
+
+            log.error("Exception while saving address details for merchant:{}, {}, {}", merchantDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            return new ApiResponse<>(false, "Something went wrong");
+
+        }
+        return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(true).applicationId(applicationId).build());
+    }
+
+
+    private void rejectApplicationForIncorrectLender(LendingApplication lendingApplication) {
+        log.info("Default lender is none for the applicationId: {}", lendingApplication.getId());
+        lenderAssignService.saveEligibleLenderAudit(lendingApplication, "rejected",
+                !ObjectUtils.isEmpty(lendingApplication.getStatus()) ? lendingApplication.getStatus() : "",
+                "APP_STATUS");
+        lendingApplication.setStatus("rejected");
+        lendingApplicationDao.save(lendingApplication);
+        evictCache(lendingApplication.getMerchantId());
+    }
+
+
+    public ApiResponse<?> generateAuditTrail(LendingApplication lendingApplication) {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            String html = "";
+            String filePath = "";
+
+            CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.getMerchantId());
+            NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
+            data.put("otp_date_with_timestamp", !ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) ? lendingApplication.getAgreementAt().toString() : null);
+            data.put("dob", nameAndDobDetailsDto.getDob());
+            data.put("pan_dob_match_kyc", "YES");
+            data.put("aadhar_linked_status_with_pan", "YES");
+            data.put("kyc_name_match_score_pennydrop", "YES");
+            data.put("selfie_match_score", cKycResponseDto.getSelfieAadhaarFaceMatchPer());
+            data.put("liveliness_score", cKycResponseDto.getSelfieLivelinessScore());
+            data.put("liveliness_check", "YES");
+
+            if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                filePath = "/templates/" + "AUDIT_TRAIL_DOC_SMFG" + ".html";
+            }
+
+            log.info("file path for audit trail doc: {}", filePath);
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                log.info(key + " " + val);
+                html = html.replace(key, val);
+            }
+            return new ApiResponse<>(html);
+        } catch (Exception e) {
+            log.error("Exception while generating audit trail document html for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return new ApiResponse<>(false, "Unable to generate AuditTrailDoc form");
         }
     }
 

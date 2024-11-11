@@ -15,8 +15,9 @@ public enum DocType {
     GTC("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
     LOA("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
     APPLICATION_FORM("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
-    LOAN_DOCS("LOAN_DOCUMENT", "OTHER", ".pdf", "URL");
-
+    LOAN_DOCS("LOAN_DOCUMENT", "OTHER", ".pdf", "URL"),
+    BUSINESS_DOC("BUSINESS_DOCUMENT", "OTHER", ".pdf", "URL"),
+    AUDIT_TRAIL_DOC("AUDIT_TRAIL_DOC", "OTHER", ".pdf", "URL");
 
 
     String category;

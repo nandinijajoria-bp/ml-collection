@@ -19,4 +19,6 @@ public class ShopDetailsStateDTO {
     private Boolean resubmitDone;
     private boolean resubmitState = false;
     private String lender;
+    private Boolean isAggregationFlowApplicable;
+
 }

@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -71,6 +72,9 @@ public class BreRequestKafka {
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Value("${offer.modified.eligible.lender:}")
+    String offerModifiedEligibleLenders;
 
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
@@ -196,15 +200,21 @@ public class BreRequestKafka {
                 return;
             }
             BreCallbackResponseDto.Data data = breCallbackResponseDto.getData().getData();
-            existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_COMPLETED.name());
-            LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(breCallbackResponseDto.getLender()),LenderAssociationStages.BRE);
-            existingLendingApplicationLenderDetails.setStage(nextStage.name());
             existingLendingApplicationLenderDetails.setBreCompletionTimestamp(new Date());
             existingLendingApplicationLenderDetails.setNbfcBreAsyncId(data.getAsyncId());
             existingLendingApplicationLenderDetails.setCccId(data.getCccId());
             existingLendingApplicationLenderDetails.setNbfcApprovedLoanOfferAmt(data.getLoanAmount());
             existingLendingApplicationLenderDetails.setRoi(Double.valueOf(data.getRoi()));
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
+            if(!offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
+                    && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
+                log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
+                nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
+                return;
+            }
+            existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_COMPLETED.name());
+            LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(breCallbackResponseDto.getLender()),LenderAssociationStages.BRE);
+            existingLendingApplicationLenderDetails.setStage(nextStage.name());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
             lendingApplicationDao.save(lendingApplication.get());
             log.info("bre completed for {}", data.getAccountId());

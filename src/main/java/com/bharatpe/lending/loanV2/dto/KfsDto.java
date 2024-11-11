@@ -41,6 +41,11 @@ public class KfsDto {
     private boolean isTopUpLoan;
     private long ediDays;
     private Date agreementAt;
+    private String shopName;
+    private String shopCity;
+    private String shopState;
+    private String shopPincode;
+    private Double annualTurnover;
     private String shopAddress;
     private Double monthlyIncome;
     private Double annualRoi;

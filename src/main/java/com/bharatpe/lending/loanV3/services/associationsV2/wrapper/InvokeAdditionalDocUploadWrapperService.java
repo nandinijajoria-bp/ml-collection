@@ -48,7 +48,7 @@ public class InvokeAdditionalDocUploadWrapperService {
             try {
                 MDC.put("requestId", reqId);
                 log.info("Updating lead info for application: {}", applicationId);
-                LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).get();
+                LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
                 if (ObjectUtils.isEmpty(lendingApplication)) {
                     log.info("No application found for : {}", applicationId);
                     return;
@@ -66,7 +66,9 @@ public class InvokeAdditionalDocUploadWrapperService {
                 log.info("doc upload status {}, isRetry: {}", lendingApplicationLenderDetails.getDocUploadStatus(), isRetry);
                 if (Objects.isNull(lendingApplicationLenderDetails.getDocUploadStatus()) || isRetry) {
                     LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
+                            .applicationId(applicationId)
                             .lendingApplication(lendingApplication)
+                            .merchantId(lendingApplication.getMerchantId())
                             .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
                             .build();
 
@@ -127,6 +129,8 @@ public class InvokeAdditionalDocUploadWrapperService {
                 return Arrays.asList(DocType.KEY_FACT_STATEMENT, DocType.LOAN_AGREEMENT);
             case "PAYU":
                 return Collections.singletonList(DocType.LOAN_DOCS);
+            case "SMFG":
+                return Arrays.asList(DocType.DIGILOCKER_AADHAAR_XML, DocType.SELFIE, DocType.BUSINESS_DOC, DocType.AUDIT_TRAIL_DOC);
             default:
                 return new ArrayList<>();
         }

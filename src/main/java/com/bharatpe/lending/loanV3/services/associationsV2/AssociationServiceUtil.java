@@ -9,12 +9,13 @@ import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
+import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
-import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
-import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -198,6 +199,24 @@ public class AssociationServiceUtil {
     @Autowired
     TLTopupApproveService tlTopupApproveService;
 
+    @Autowired
+    SmfgBreService smfgBreService;
+
+    @Autowired
+    SmfgDocUploadService smfgDocUploadService;
+
+    @Autowired
+    SmfgNachMandateService smfgNachMandateService;
+
+    @Autowired
+    SmfgDisbursalCallbackService smfgDisbursalCallbackService;
+
+    @Autowired
+    SmfgRpsService smfgRpsService;
+
+    @Autowired
+    SmfgForeclosureService smfgForeclosureService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -276,6 +295,8 @@ public class AssociationServiceUtil {
                 return payUBreService.invokeBre(lenderAssociationDetailsRequest);
             case "CREDITSAISON":
                 return creditSasionBREService.invokeBre(lenderAssociationDetailsRequest);
+            case "SMFG":
+                return smfgBreService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -295,6 +316,8 @@ public class AssociationServiceUtil {
                 return payUDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(),  lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "CREDITSAISON":
                 return creditSaisonDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+            case "SMFG":
+                return smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             default:
                 return false;
         }
@@ -312,6 +335,8 @@ public class AssociationServiceUtil {
                 return capriRepaymentScheduleService.invokeRpsGenerate(applicationId);
             case "PAYU":
                 return payURepaymentScheduleService.invokeRpsGenerate(applicationId, isPreview);
+            case "SMFG":
+                return smfgRpsService.invokeRpsGenerate(applicationId);
             default:
                 return null;
         }
@@ -331,6 +356,8 @@ public class AssociationServiceUtil {
                 return payUDisbursalCallbackService.handleDisbursalCallbackResponse(nbfcResponseDTO);
             case "CREDITSAISON":
                 return creditSaisonDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
+            case "SMFG":
+                return smfgDisbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -350,6 +377,8 @@ public class AssociationServiceUtil {
                 return payUBreService.processBreCallback(nbfcResponseDTO);
             case "CREDITSAISON":
                 return creditSasionBREService.processCreditSasionBreCallback(nbfcResponseDTO);
+            case "SMFG":
+                return smfgBreService.processBreCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -369,6 +398,8 @@ public class AssociationServiceUtil {
                 return payUForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger);
             case "CREDITSAISON":
                 return creditSaisonForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
+            case "SMFG":
+                return smfgForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger);
             default:
                 return null;
         }
@@ -384,6 +415,8 @@ public class AssociationServiceUtil {
                 return capriForeclosureService.getForeclosureDetails(applicationId);
             case "PAYU":
                 return payUForeclosureService.getForeclosureDetails(applicationId);
+            case "SMFG":
+                return smfgForeclosureService.getForeclosureDetails(applicationId);
             default:
                 return 0D;
         }
@@ -454,6 +487,8 @@ public class AssociationServiceUtil {
                 return capriNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             case "PAYU":
                 return payUNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
+            case "SMFG":
+                return smfgNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             default:
                 return false;
         }

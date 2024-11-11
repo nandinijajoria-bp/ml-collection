@@ -2797,4 +2797,105 @@ public class LoanDetailsServiceV2 {
 
         }
     }
+
+    public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchant.getId());
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("lending application not found for {}", applicationId);
+                return new ApiResponse<>(false, "lending application not found for " + applicationId);
+            }
+
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                log.info("lending application kyc details not found for {}", applicationId);
+                return new ApiResponse<>(false, "lending application kyc details not found for " + applicationId);
+            }
+            AdditionalLoanDetailsDTO additionalLoanDetails = AdditionalLoanDetailsDTO.builder()
+                    .applicationId(lendingApplication.getId())
+                    .build();
+            List<AdditionalLoanDetailsDTO.Input> inputs = new ArrayList<>();
+            List<String> requiredInputs = getInputsByLender(lendingApplication.getLender());
+            if (requiredInputs.contains("FATHER_NAME") && ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())) {
+                inputs.add(AdditionalLoanDetailsDTO.Input.builder()
+                        .inputType("FATHER_NAME")
+                        .editable(true)
+                        .build()
+                );
+            }
+            if (requiredInputs.contains("EMAIL") && ObjectUtils.isEmpty(lendingApplicationKycDetails.getEmail())) {
+                inputs.add(AdditionalLoanDetailsDTO.Input.builder()
+                        .inputType("EMAIL")
+                        .editable(true)
+                        .build()
+                );
+            }
+            additionalLoanDetails.setInputs(inputs);
+            additionalLoanDetails.setShowModal(!ObjectUtils.isEmpty(inputs));
+            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(), FunnelEnums.StageId.ADDITIONAL_DETAILS_MODAL,
+                    FunnelEnums.StageEvent.INITIATED, inputs.stream().map(AdditionalLoanDetailsDTO.Input::getInputType).collect(Collectors.joining(",")));
+            return new ApiResponse<>(additionalLoanDetails);
+        } catch (Exception e) {
+            log.error("exception in getting additional loan details for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "something went wrong while getting additional loan details");
+    }
+
+    private List<String> getInputsByLender(String lender) {
+        switch (lender) {
+            case "IIFL":
+                return Arrays.asList("FATHER_NAME");
+            case "SMFG":
+                return Arrays.asList("FATHER_NAME","EMAIL");
+        }
+        return new ArrayList<>();
+    }
+
+    public ApiResponse<?> saveAdditionalLoanDetails(BasicDetailsDto merchant, AdditionalLoanDetailsDTO loanDetails) {
+        try {
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(loanDetails.getApplicationId(), merchant.getId());
+            if (ObjectUtils.isEmpty(lendingApplication)) {
+                log.info("lending application not found for {}", loanDetails.getApplicationId());
+                return new ApiResponse<>(false, "lending application not found for " + loanDetails.getApplicationId());
+            }
+            LendingApplicationKycDetails lendingApplicationKycDetails = null;
+            for (AdditionalLoanDetailsDTO.Input input : loanDetails.getInputs()) {
+                switch (input.getInputType()) {
+                    case "FATHER_NAME":
+                    case "EMAIL":
+                        lendingApplicationKycDetails = saveAdditionalKycDetails(lendingApplication.getId(), lendingApplicationKycDetails, input);
+                        break;
+                }
+            }
+            if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
+            }
+            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(), FunnelEnums.StageId.ADDITIONAL_DETAILS_MODAL,
+                    FunnelEnums.StageEvent.COMPLETED, null);
+            return new ApiResponse<>("Successfully saved additional loan details for applicationId " + lendingApplication.getId());
+        } catch (Exception e) {
+            log.error("exception in getting additional loan details for applicationId {} {}", loanDetails.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "something went wrong while getting additional loan details");
+    }
+
+    private LendingApplicationKycDetails saveAdditionalKycDetails(Long applicationId, LendingApplicationKycDetails lendingApplicationKycDetails, AdditionalLoanDetailsDTO.Input input) {
+        if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+            lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
+                log.info("lending application kyc details not found for {}", applicationId);
+                throw new RuntimeException("lending application kyc details not found for " + applicationId);
+            }
+        }
+        switch (input.getInputType()) {
+            case "FATHER_NAME":
+                lendingApplicationKycDetails.setFatherName(ObjectUtils.isEmpty(input.getValue()) ? lendingApplicationKycDetails.getFatherName() : input.getValue());
+                break;
+            case "EMAIL":
+                lendingApplicationKycDetails.setEmail(ObjectUtils.isEmpty(input.getValue()) ? lendingApplicationKycDetails.getEmail() : input.getValue());
+                break;
+        }
+        return lendingApplicationKycDetails;
+    }
+
 }

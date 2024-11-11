@@ -146,6 +146,7 @@ public class InvokeSanctionWrapperService {
             }
             case "CAPRI":
             case "PAYU":
+            case "SMFG":
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
             case "MUTHOOT":
                 return Collections.singletonList(LenderAssociationStages.UPDATE_LEAD.name());

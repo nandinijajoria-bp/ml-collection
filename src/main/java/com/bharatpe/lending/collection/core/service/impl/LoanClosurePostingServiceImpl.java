@@ -19,6 +19,7 @@ import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.TrilionLoansForeclosureChargesRequestDto;
+import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
@@ -97,6 +98,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     String nbfcLiquiLoansForeclosureTopic;
     @Value("${nbfc.payu.foreclosure.topic:payu-foreclose-loan}")
     String nbfcPayuForeclosureTopic;
+
+    @Autowired
+    SmfgConfig smfgConfig;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
@@ -364,6 +368,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return nbfcCapriForeclosureTopic;
             case "CREDITSAISON":
                 return csConfig.getNbfcCreditsaisonForeclosureTopic();
+            case "SMFG":
+                return smfgConfig.getForeclosureTopic();
             default:
                 return null;
         }

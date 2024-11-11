@@ -29,6 +29,7 @@ import com.bharatpe.lending.loanV3.dto.response.payu.PayUNachCallbackResponseDTO
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUUpdateLeadResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -71,6 +72,9 @@ public class PayUNachMandateService {
 
     @Autowired
     LendingGstDao lendingGstDao;
+
+    @Autowired
+    KycUtils kycUtils;
 
     @Transactional
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -235,6 +239,7 @@ public class PayUNachMandateService {
             PayUUpdateLeadRequestDTO payload = PayUUpdateLeadRequestDTO.builder()
                     .applicationId(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
                     .applicantDetails(getApplicantDetails(lenderAssociationDetailsDto))
+                    .companyDetails(getCompanyDetails(lenderAssociationDetailsDto))
                     .updatedAddress(true)
                     .build();
 
@@ -267,6 +272,37 @@ public class PayUNachMandateService {
 
         applicantDataList.add(applicantDetails);
         return applicantDataList;
+
+    }
+
+    private List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> getCompanyDetails(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+
+        List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> companyDetailsList = new ArrayList<>();
+
+        PayUUpdateLeadRequestDTO.CompanyDetailsDTO companyDetails;
+
+        CKycResponseDto cKycResponseDto = kycUtils.getGstData(lenderAssociationDetailsRequestDto.getMerchantId());
+
+        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+
+        if (ObjectUtils.isEmpty(lendingGstDetail)) {
+            lendingGstDetail = new LendingGstDetail();
+            lendingGstDetail.setMerchantId(lenderAssociationDetailsRequestDto.getMerchantId());
+            lendingGstDetail.setApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+        }
+
+        if(ObjectUtils.isEmpty(lendingGstDetail.getGstNumber())){
+            lendingGstDetail.setGstNumber(cKycResponseDto.getGstNumber());
+        }
+
+        lendingGstDao.save(lendingGstDetail);
+
+        companyDetails = PayUUpdateLeadRequestDTO.CompanyDetailsDTO.builder()
+                .gstin(ObjectUtils.isEmpty(cKycResponseDto.getGstNumber()) ? null : cKycResponseDto.getGstNumber())
+                .build();
+
+        companyDetailsList.add(companyDetails);
+        return companyDetailsList;
 
     }
 
