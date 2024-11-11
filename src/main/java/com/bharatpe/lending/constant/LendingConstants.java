@@ -113,6 +113,10 @@ public interface LendingConstants {
 	}};
 
 	String NONE_LENDER = "NONE";
+	String MINOR_HEADING_SET_LOAN = "Get Set Loan in ";
+	String MINOR_HEADING_DAYS = " days";
+	String ETC_DEFAULT_DAYS="30";
+	String NTC_DEFAULT_DAYS="60";
 
 	String LENDER_REJECTION_MESSAGE1 = "Your loan application has been rejected by {{lenderName}}. Please select another lender.";
 	String LENDER_REJECTION_MESSAGE2 = "Sorry your application has been rejected by {{LenderName}}. Please proceed with {{defaultLender}} to process your application.";

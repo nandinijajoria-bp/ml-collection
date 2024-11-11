@@ -37,6 +37,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.constant.LendingConstants.ETC_DEFAULT_DAYS;
+import static com.bharatpe.lending.constant.LendingConstants.NTC_DEFAULT_DAYS;
+
 @Service
 @Slf4j
 public class MileStoneHelperServicev3 {
@@ -687,7 +690,7 @@ public class MileStoneHelperServicev3 {
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
         responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
-        responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"));
+        responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), NTC_DEFAULT_DAYS));
         responseDto.setIsMileStoneExpiry(false);
         responseDto.setDeepLinkUrl(deepLink);
         responseDto.setPinCode(pincode);
@@ -767,7 +770,7 @@ public class MileStoneHelperServicev3 {
         responseDto.setWeekCount(null);
         responseDto.setProgramType(RTEProgramType.NEW_MERCHANT.name());
         responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-        responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "30"));
+        responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), ETC_DEFAULT_DAYS));
         responseDto.setIsMileStoneExpiry(false);
         responseDto.setDeepLinkUrl(deepLink);
         responseDto.setPinCode(pincode);
@@ -783,7 +786,7 @@ public class MileStoneHelperServicev3 {
         responseDto.setGraphData(null);
         responseDto.setWeekCount(null);
         responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
-        responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), "60"));
+        responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), NTC_DEFAULT_DAYS));
         responseDto.setIsMileStoneExpiry(false);
         responseDto.setDeepLinkUrl(deepLink);
         responseDto.setPanCard(null);
