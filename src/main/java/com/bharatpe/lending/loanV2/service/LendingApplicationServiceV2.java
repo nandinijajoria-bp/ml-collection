@@ -2579,11 +2579,13 @@ public class LendingApplicationServiceV2 {
 
             if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
-                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())){
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingPaymentSchedule.getNbfc())){
+                    log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
                     throw new Exception("Unable to fetch parent loan details");
                 }
                 Optional<LendingApplication> parentLendingApplicationOptional = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId());
                 if(!parentLendingApplicationOptional.isPresent()){
+                    log.error("Unable to fetch parent application for application: {}", lendingPaymentSchedule.getApplicationId());
                     throw new Exception("Unable to fetch parent application");
                 }
                 kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
