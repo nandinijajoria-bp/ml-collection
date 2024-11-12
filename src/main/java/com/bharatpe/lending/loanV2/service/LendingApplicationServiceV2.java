@@ -3689,7 +3689,7 @@ public class LendingApplicationServiceV2 {
         } else if (lender.equalsIgnoreCase(Lender.HINDON.name()) && applicationDocType.equals(ApplicationDocType.HINDON_LETTERHEAD_FOOTER)) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/hindon_footer-1681129971473.png";
         }else if (lender.equalsIgnoreCase(Lender.CREDITSAISON.name())) {
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/credit-saison-header-1726661778569.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SASION_INDIA_LOGO-1731406166905.png";
         }
         else if(lender.equalsIgnoreCase(Lender.MAMTA.toString())
           || lender.equalsIgnoreCase(Lender.MAMTA0.toString())
