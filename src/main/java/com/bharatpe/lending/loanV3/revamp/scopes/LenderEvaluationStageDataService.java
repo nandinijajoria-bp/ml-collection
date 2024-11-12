@@ -95,8 +95,8 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
             LendingViewStates nextPage = LendingViewStates.LENDER_EVALUATION_PAGE;
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {
                 lenderEvaluationStateDTO.setTopup(true);
-                lenderEvaluationStateDTO.setLender(Lender.ABFL.name());
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
+                lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
                 if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                     if(Arrays.asList(LenderAssociationStatus.BRE_FAILED.name(), LenderAssociationStatus.RISK_FAILED.name()).contains(lendingApplicationLenderDetails.getBreStatus())) {
                         log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as BRE_FAILED for applicationId: {}, lender: {}", lendingApplication.getId(), lendingApplication.getLender());

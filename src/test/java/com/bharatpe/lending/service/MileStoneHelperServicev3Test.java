@@ -39,6 +39,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import java.io.IOException;
 import java.util.ArrayList;
 
+import static com.bharatpe.lending.constant.LendingConstants.ETC_DEFAULT_DAYS;
+import static com.bharatpe.lending.constant.LendingConstants.NTC_DEFAULT_DAYS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -163,7 +165,7 @@ public class MileStoneHelperServicev3Test {
         when(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId())).thenReturn("25k");
         when(dsHandler.fetchMileStoneDatav3(any(), any(), any(), anyString(), anyString())).thenReturn(dsMileStoneResponse);
         when(mileStoneHelperService.setNTCProgramEligibleData()).thenReturn(null);
-        when(mileStoneHelperService.setNTCProgramActiveData(any(), anyString())).thenReturn(null);
+        when(mileStoneHelperService.setNTCProgramActiveData(any(), anyString(), NTC_DEFAULT_DAYS)).thenReturn(null);
 
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
 
@@ -248,7 +250,7 @@ public class MileStoneHelperServicev3Test {
         when(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchant.getId())).thenReturn("25k");
         when(dsHandler.fetchMileStoneDatav3(any(), any(), any(), anyString(), anyString())).thenReturn(null);
         when(mileStoneHelperService.setNTCProgramEligibleData()).thenReturn(null);
-        when(mileStoneHelperService.setNTCProgramActiveData(any(), anyString())).thenReturn(null);
+        when(mileStoneHelperService.setNTCProgramActiveData(any(), anyString(), NTC_DEFAULT_DAYS)).thenReturn(null);
 
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
 
@@ -306,7 +308,7 @@ public class MileStoneHelperServicev3Test {
         when(dsHandler.fetchMileStoneDatav3(any(), any(), any(), anyString(), anyString())).thenReturn(dsMileStoneResponse);
         when(lendingRiskVariablesDao.findByMerchantId(eq(merchant.getId()))).thenReturn(lendingRiskVariables);
         when(mileStoneHelperService.setNTCProgramEligibleData()).thenReturn(null);
-        when(mileStoneHelperService.setNTCProgramActiveData(any(), anyString())).thenReturn(null);
+        when(mileStoneHelperService.setNTCProgramActiveData(any(), anyString(),NTC_DEFAULT_DAYS)).thenReturn(null);
 
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
 
@@ -372,7 +374,7 @@ public class MileStoneHelperServicev3Test {
         when(dsHandler.fetchMilestoneAchievements(eq(merchant.getId()), anyString())).thenReturn(null);
         when(lendingCache.get(RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId())).thenReturn(null);
         when(mileStoneHelperService.setETCProgramEligibleData()).thenReturn(null);
-        when(mileStoneHelperService.setETCProgramActiveData(anyDouble(), anyString())).thenReturn(null);
+        when(mileStoneHelperService.setETCProgramActiveData(anyDouble(), anyString(),ETC_DEFAULT_DAYS)).thenReturn(null);
 
         MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(merchant, false);
         assertEquals(true, responseDto.getMilStoneEligibility());
