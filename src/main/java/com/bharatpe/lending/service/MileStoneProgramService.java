@@ -726,4 +726,59 @@ public class MileStoneProgramService {
                 FunnelEnums.StageId.RTE, stageEvent, mileStoneResponse.getProgram_type());
     }
 
+    public ApiResponse<Object> checkRteEligibility(Long merchantId) {
+        // Initialize response object
+        CheckRteEligibilityDTO checkRteEligibilityDTO = new CheckRteEligibilityDTO();
+
+        try {
+            //Prepare basic merchant details
+            BasicDetailsDto merchant = new BasicDetailsDto();
+            merchant.setId(merchantId);
+
+            //Call programDetails with merchant info
+            ApiResponse<Object> res = programDetails(merchant);
+            log.info("Received program-details response: {}", res);
+
+            //Check if the ApiResponse contains data
+            if (res == null || res.getData() == null) {
+                log.error("No data found in program details response.");
+                return new ApiResponse<>(checkRteEligibilityDTO);
+            }
+
+            //Attempt to convert response data to RTEProgramDetailsDto
+            RTEProgramDetailsDto responseData;
+            try {
+                responseData = objectMapper.convertValue(res.getData(), RTEProgramDetailsDto.class);
+            } catch (IllegalArgumentException e) {
+                log.error("Error converting response data to RTEProgramDetailsDto: {}", e.getMessage());
+                return new ApiResponse<>(checkRteEligibilityDTO);
+            }
+
+            log.info("Parsed milestone program-details: {}", responseData);
+
+            //Check if the necessary fields are present
+            if (responseData != null &&
+                    !ObjectUtils.isEmpty(responseData.getRouteToEligibilityData()) &&
+                    !ObjectUtils.isEmpty(responseData.getRouteToEligibilityData().getMilStoneEligibility()) &&
+                    !ObjectUtils.isEmpty(responseData.getRouteToEligibilityData().getEnrollState())) {
+
+                // Populate eligibility data
+                checkRteEligibilityDTO.setRteEligible(responseData.getRouteToEligibilityData().getMilStoneEligibility());
+                checkRteEligibilityDTO.setRteEnrolled(responseData.getRouteToEligibilityData().getEnrollState());
+                log.info("Milestone eligibility and enrollment status found and set.");
+            } else {
+                // Default if fields are missing
+                checkRteEligibilityDTO.setRteEligible(false);
+                checkRteEligibilityDTO.setRteEnrolled(false);
+                log.info("Milestone eligibility or enrollment status missing; defaulting to false.");
+            }
+
+            return new ApiResponse<>(checkRteEligibilityDTO);
+
+        } catch (Exception e) {
+            log.error("An unexpected error occurred during RTE eligibility check: {}", e.getMessage());
+            return new ApiResponse<>(checkRteEligibilityDTO);
+        }
+    }
+
 }

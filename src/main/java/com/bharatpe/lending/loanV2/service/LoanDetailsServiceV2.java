@@ -19,18 +19,22 @@ import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.dao.MileStoneDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
+import com.bharatpe.lending.common.query.entity.MileStoneSlave;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingDTO;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.constant.EligibilityIframeConstants;
+import com.bharatpe.lending.constant.HomepageCardsConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingCategoryDao;
@@ -48,6 +52,7 @@ import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -63,6 +68,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.mutable.MutableBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -241,6 +247,12 @@ public class LoanDetailsServiceV2 {
     @Value("${aadharNach.rollout.percent:10}")
     Integer aadharNachRolloutPercent;
 
+    @Value("${homepage.cards.enabled:true}")
+    Boolean homepageCardsEnabled;
+
+    @Value("${homepage.cards.cache.time.minutes:5}")
+    Integer homepageCardsCacheTtl;
+
     @Autowired
     IEdiModelAssignment iEdiModelAssignment;
 
@@ -303,6 +315,22 @@ public class LoanDetailsServiceV2 {
 
     @Value("${upinach.max.loan.amount:50000}")
     Double maxLoanAmountForNachUPI;
+
+    @Autowired
+    MileStoneHelperServicev3 mileStoneHelperServicev3;
+
+    @Value("${homepage.widget.deeplink:bharatpe://homev2/loans}")
+    String homePageRedirectionDeeplink;
+
+    @Autowired
+    MileStoneDaoSlave mileStoneDaoSlave;
+
+    @Autowired
+    @Lazy
+    MerchantLoansService merchantLoansService;
+
+    @Autowired
+    MileStoneProgramService mileStoneProgramService;
 
     @Value("${upi.nach.rollout.percent:10}")
     Integer upiNachRolloutPercent;
@@ -2897,5 +2925,275 @@ public class LoanDetailsServiceV2 {
         }
         return lendingApplicationKycDetails;
     }
+
+    public ApiResponse<?> getHomePageCardsDetails(Long merchantId) {
+        try {
+            HomepageCardsDetailsDTO responseDTO = new HomepageCardsDetailsDTO();
+            if(!homepageCardsEnabled){
+                responseDTO.setState(HomePageCardsState.CARD_NOT_APPLICABLE);
+                return new ApiResponse<>(responseDTO);
+            }
+
+            String homepageCardsCacheKey = LendingConstants.HOMEPAGE_CARD_CACHE_KEYWORD + merchantId;
+            Object homepageCardsCacheResponse = lendingCache.get(homepageCardsCacheKey);
+            if (Objects.nonNull(homepageCardsCacheResponse)) {
+                responseDTO = objectMapper.readValue((String) homepageCardsCacheResponse, HomepageCardsDetailsDTO.class);
+                log.info("Homepage card details responseDTO from cache for {}, {}", merchantId, responseDTO);
+                return new ApiResponse<>(responseDTO);
+            }
+
+            MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(merchantId);
+            BasicDetailsDto merchant = merchantDetailsDto.getMerchantDetail();
+            if (ObjectUtils.isEmpty(merchant)) {
+                return new ApiResponse<>(false, "Something went wrong");
+            }
+
+            //case:1 & case:2
+            LendingRiskVariablesSlave lendingRiskVariablesSlave = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if (!ObjectUtils.isEmpty(lendingRiskVariablesSlave)
+                    && Objects.nonNull(lendingRiskVariablesSlave.getFinalOffer()) && lendingRiskVariablesSlave.getFinalOffer() > 0
+                    && ObjectUtils.isEmpty(lendingRiskVariablesSlave.getExperianRejection())) {
+                responseDTO.setState(HomePageCardsState.CARD_LOAN_ELIGIBLE);
+                populateHomePageIframeResponseData(responseDTO, lendingRiskVariablesSlave.getFinalOffer(), null, null);
+            }else {
+                MileStoneEligibilityResponseDto rteEligibilityResponse = mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId)));
+                if(Boolean.TRUE.equals(rteEligibilityResponse.getMilStoneEligibility())) {
+                    responseDTO.setState(HomePageCardsState.CARD_RTE_ELIGIBLE);
+                    String targetDurationDays = RTEProgramType.SLIDER.name().equals(rteEligibilityResponse.getProgramType()) ? "30" : "60";
+                    populateHomePageIframeResponseData(responseDTO, null, targetDurationDays, null);
+                } else if (ObjectUtils.isEmpty(eligibleLoanDao.findTopByMerchantId(merchantId,Sort.by(Sort.Order.desc("id"))))) {
+                    //case:3
+                    responseDTO.setState(HomePageCardsState.CARD_LOAN_ELIGIBILITY_NOT_CHECKED);
+                    populateHomePageIframeResponseData(responseDTO, null, null, null);
+                } else{
+                    responseDTO.setState(HomePageCardsState.NO_CARD);
+                    populateHomePageIframeResponseData(responseDTO, null, null, null);
+                }
+            }
+
+            //case: 4 (same as case1)
+            if(!ObjectUtils.isEmpty(lendingRiskVariablesSlave)
+                    && Objects.nonNull(lendingRiskVariablesSlave.getRiskSegment()) && lendingRiskVariablesSlave.getRiskSegment().equals("REPEAT")
+            ){
+                responseDTO.setState(HomePageCardsState.CARD_LOAN_ELIGIBLE);
+                populateHomePageIframeResponseData(responseDTO, lendingRiskVariablesSlave.getFinalOffer(), null, null);
+            }
+
+            //case:6
+            MileStoneSlave inactiveMilestone = mileStoneDaoSlave.findByMerchantIdAndSessionStatus(merchantId, "IN_PROGRESS");
+            double mileStoneCompletePercent = getMileStoneCompletePercent(merchantId);
+            if (!ObjectUtils.isEmpty(inactiveMilestone)) {
+                responseDTO.setState(HomePageCardsState.CARD_RTE_ENROLLED);
+                populateHomePageIframeResponseData(responseDTO, mileStoneCompletePercent, null, null);
+            }
+
+            //case:7
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(lendingApplication) &&
+                    !Objects.equals(lendingApplication.getStatus(), "deleted") &&
+                    !Objects.equals(lendingApplication.getStatus(), "rejected") &&
+                    (ObjectUtils.isEmpty(lendingApplication.getManualKyc()) || ObjectUtils.isEmpty(lendingApplication.getNachStatus())) &&
+                    ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) &&
+                    Objects.equals(lendingApplication.getStatus(), "draft") &&
+                    Objects.equals(lendingApplication.getAgreement(), 0)){
+                responseDTO.setState(HomePageCardsState.CARD_APPLICATION_CREATED_BUT_NOT_COMPLETED);
+                populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+            }
+
+            //case:8
+            if(!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getId())){
+                LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails) &&
+                        Objects.equals(lendingApplicationDetails.getStage(), "ASSC_COMPLETED") &&
+                        Objects.equals(lendingApplication.getStatus(), "draft") &&
+                        Objects.equals(lendingApplication.getAgreement(), 0)) {
+                    responseDTO.setState(HomePageCardsState.CARD_AGREEMENT_NOT_SIGNED);
+                    populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+                }
+            }
+
+            //case:9
+            if(!ObjectUtils.isEmpty(lendingApplication) &&
+                    Objects.equals(lendingApplication.getAgreement(),1) &&
+                    !Objects.nonNull(lendingApplication.getNachStatus()) &&
+                    Objects.equals(lendingApplication.getStatus(),"pending_verification")
+            ){
+                responseDTO.setState(HomePageCardsState.CARD_AGREEMENT_SIGNED_BUT_NACH_NOT_SET);
+                populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+            }
+
+            //case:10
+            if(!ObjectUtils.isEmpty(lendingApplication) &&
+                    Objects.nonNull(lendingApplication.getNachStatus()) &&
+                    Objects.equals(lendingApplication.getStatus(),"pending_verification")
+            ){
+                responseDTO.setState(HomePageCardsState.CARD_VERIFICATION_IN_PROGRESS);
+                populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+            }
+
+            //case:11
+            if(!ObjectUtils.isEmpty(lendingApplication) &&
+                    Objects.equals(lendingApplication.getLmsStage(),"PENDING_RESUBMIT_DOCUMENT") &&
+                    Objects.equals(lendingApplication.getStatus(),"pending_verification")
+            ){
+                responseDTO.setState(HomePageCardsState.CARD_REUPLOAD_DOCUMENTS);
+                populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+            }
+
+            //case:12
+            if(!ObjectUtils.isEmpty(lendingApplication) &&
+                    Objects.nonNull(lendingApplication.getNbfcSendDate()) &&
+                    !Objects.nonNull(lendingApplication.getDisburseTimestamp()) &&
+                    Objects.equals(lendingApplication.getStatus(), "approved")
+            ){
+                responseDTO.setState(HomePageCardsState.CARD_DISBURSAL_PENDING);
+                populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+            }
+
+            //case:13
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            if(!ObjectUtils.isEmpty(lendingPaymentSchedule) &&
+                    Objects.nonNull(lendingPaymentSchedule.getEdiAmount()) && lendingPaymentSchedule.getEdiAmount() > 0 &&
+                    Objects.nonNull(lendingPaymentSchedule.getDueAmount()) && lendingPaymentSchedule.getDueAmount() > 0
+            ){
+                log.info("calculated DPD for merchant_id:{} in homepage: {}",merchantId, LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()));
+                if(LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount())>0) {
+                    responseDTO.setState(HomePageCardsState.CARD_AMOUNT_OVERDUE_DPD);
+                    populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, lendingPaymentSchedule.getEdiAmount());
+                }else {
+                    //case:15
+                    responseDTO.setState(HomePageCardsState.CARD_EDI_AUTO_DEBITED);
+                    populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, lendingPaymentSchedule.getEdiAmount());
+                }
+            }
+
+            //case:16
+            LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            if(!ObjectUtils.isEmpty(lendingPaymentSchedule1)){
+                List<LoanEligibilityDTO> topUpcheck = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                if(!ObjectUtils.isEmpty(topUpcheck)){
+                    responseDTO.setState(HomePageCardsState.CARD_TOPUP_LOAN_OFFER_AMOUNT);
+                    populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);
+                }
+            }
+
+            log.info("Homepage card details responseDTO for {}, {}", merchantId, responseDTO);
+            cacheHomePageBannerDetails(merchantId, responseDTO, homepageCardsCacheTtl);
+            return new ApiResponse<>(responseDTO);
+        } catch (Exception e) {
+            log.error("Error occurred while fetching homepage card details for merchantId: {} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ApiResponse<>(false, "Something Went Wrong while getting homepage card details.");
+    }
+
+    private void populateHomePageIframeResponseData(HomepageCardsDetailsDTO responseDTO, Double loanAmount, String targetDurationDays, Double ediAmount){
+        String deeplink = HomepageCardsConstants.DEEPLINK.replace("{{deeplink}}", homePageRedirectionDeeplink);
+        if(HomePageCardsState.CARD_LOAN_ELIGIBLE.equals(responseDTO.getState())){
+            //case:1
+            HomepageCardsConstants.cardLoanEligible(responseDTO, loanAmount);
+        }else if(HomePageCardsState.CARD_RTE_ELIGIBLE.equals(responseDTO.getState())){
+            //case:2
+            HomepageCardsConstants.cardRTEEligible(responseDTO, targetDurationDays);
+        }else if(HomePageCardsState.NO_CARD.equals(responseDTO.getState())) {
+            HomepageCardsConstants.noBanner(responseDTO);
+        }else if(HomePageCardsState.CARD_LOAN_ELIGIBILITY_NOT_CHECKED.equals(responseDTO.getState())){
+            //case:3
+            HomepageCardsConstants.cardLoanEligibilityNotChecked(responseDTO);
+        }else if(HomePageCardsState.CARD_RTE_ENROLLED.equals(responseDTO.getState())){
+            //case:6
+            HomepageCardsConstants.cardRTEEnrolled(responseDTO, loanAmount);
+        }else if(HomePageCardsState.CARD_APPLICATION_CREATED_BUT_NOT_COMPLETED.equals(responseDTO.getState())){
+            //case:7
+            HomepageCardsConstants.cardApplicationCreatedButNotCompleted(responseDTO, loanAmount);
+        }else if(HomePageCardsState.CARD_AGREEMENT_NOT_SIGNED.equals(responseDTO.getState())){
+            //case:8
+            HomepageCardsConstants.cardAgreementNotSigned(responseDTO, loanAmount);
+        }else if(HomePageCardsState.CARD_AGREEMENT_SIGNED_BUT_NACH_NOT_SET.equals(responseDTO.getState())){
+            //case:9
+            HomepageCardsConstants.cardAgreementSignedButNachNotSet(responseDTO, loanAmount);
+        }else if(HomePageCardsState.CARD_VERIFICATION_IN_PROGRESS.equals(responseDTO.getState())){
+            //case:10
+            HomepageCardsConstants.cardVerificationInProgress(responseDTO, loanAmount);
+        }else if (HomePageCardsState.CARD_REUPLOAD_DOCUMENTS.equals(responseDTO.getState())) {
+            //case:11
+            HomepageCardsConstants.cardReuploadDocuments(responseDTO, loanAmount);
+        } else if (HomePageCardsState.CARD_DISBURSAL_PENDING.equals(responseDTO.getState())) {
+            //case:12
+            HomepageCardsConstants.cardDisbursalPending(responseDTO, loanAmount);
+        }else if (HomePageCardsState.CARD_AMOUNT_OVERDUE_DPD.equals(responseDTO.getState())) {
+            //case:13
+            HomepageCardsConstants.cardAmountOverdueDPD(responseDTO, loanAmount, ediAmount);
+        }else if (HomePageCardsState.CARD_EDI_AUTO_DEBITED.equals(responseDTO.getState())) {
+            //case:15
+            HomepageCardsConstants.cardEDIAutoDebited(responseDTO, loanAmount, ediAmount);
+        }else if (HomePageCardsState.CARD_TOPUP_LOAN_OFFER_AMOUNT.equals(responseDTO.getState())) {
+            //case:16
+            HomepageCardsConstants.cardTopUpLoanOfferAmount(responseDTO, loanAmount);
+        }
+        responseDTO.setDeeplink(deeplink);
+    }
+
+    private void cacheHomePageBannerDetails(Long merchantId, HomepageCardsDetailsDTO homepageCardsDetailsDTO, int ttl){
+        try{
+            AddCacheDto addCacheDto = new AddCacheDto();
+            String key = LendingConstants.HOMEPAGE_CARD_CACHE_KEYWORD + merchantId;
+            addCacheDto.setKey(key);
+            addCacheDto.setValue(objectMapper.writeValueAsString(homepageCardsDetailsDTO));
+            addCacheDto.setTtl(ttl);
+            lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+            log.info("Homepage banner details cached with Key : {}", key);
+        } catch (Exception e) {
+            log.error("exception occured while caching loan details for {} {} {}!!", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    private double getMileStoneCompletePercent(Long merchantId){
+        BasicDetailsDto merchant = new BasicDetailsDto();
+        merchant.setId(merchantId);
+        try {
+            ApiResponse<MileStoneDashboardDetails> response = mileStoneProgramService.dashboardDetails(merchant);
+            if (response.isSuccess()) {
+                MileStoneDashboardDetails details = response.getData();
+                if (details != null && details.getMapList() != null) {
+                    double minCompletionPercent = 0.0;
+                    int minAchiveActiveDays = Integer.MAX_VALUE;
+                    int minAchiveUniquePayer = Integer.MAX_VALUE;
+                    for (MileStoneDashboardData milestoneData : details.getMapList()) {
+                        if (milestoneData.getAchieveMileStoneActiveDays() < minAchiveActiveDays) {
+                            minAchiveActiveDays = milestoneData.getAchieveMileStoneActiveDays();
+                        }
+
+                        if (milestoneData.getAchieveMileStoneUniquePayer() < minAchiveUniquePayer) {
+                            minAchiveUniquePayer = milestoneData.getAchieveMileStoneUniquePayer();
+                        }
+
+                        // Calculate completion percentage for Active Days
+                        double activeDaysPercent = milestoneData.getTargetActiveDays() > 0 && minAchiveActiveDays != Integer.MAX_VALUE
+                                ? (minAchiveActiveDays / (double) milestoneData.getTargetActiveDays()) * 100
+                                : 0.0;
+                        log.info("Active Days Completion %: {}", activeDaysPercent);
+
+                        // Calculate completion percentage for Unique Payers
+                        double uniquePayerPercent = milestoneData.getTargetUniquePayer() > 0 && minAchiveUniquePayer != Integer.MAX_VALUE
+                                ? (minAchiveUniquePayer / (double) milestoneData.getTargetUniquePayer()) * 100
+                                : 0.0;
+                        log.info("Unique Payer Completion %: {}", uniquePayerPercent);
+
+                        minCompletionPercent = Math.min(activeDaysPercent, uniquePayerPercent);
+                        log.info("Milestone Least Completion %: {}", minCompletionPercent);
+                    }
+                    return minCompletionPercent;
+                }else {
+                    log.info("No milestone data available.");
+                }
+            }else {
+                log.error("Error milestone response: {}", response.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("Exception occurred while calculating milestone completion percent for mid {} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return 0.0;
+    }
+
 
 }

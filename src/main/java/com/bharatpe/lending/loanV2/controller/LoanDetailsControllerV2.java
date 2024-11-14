@@ -181,6 +181,16 @@ public class LoanDetailsControllerV2 {
         return ResponseEntity.ok(loanDetailsServiceV2.getIframeDetails(merchant.getId(), client));
     }
 
+    @GetMapping(value = "/homepage/cards")
+    public ResponseEntity<ApiResponse<?>> getHomePageBannerDetails(@RequestParam Long merchantId) {
+        if (Objects.isNull(merchantId)) {
+            log.info("Incorrect request details");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        log.info("Fetching homepage cards details for merchantId: {}", merchantId);
+        return ResponseEntity.ok(loanDetailsServiceV2.getHomePageCardsDetails(merchantId));
+    }
+
     @PostMapping(value = "/iframeBannerConsumed")
     public ResponseEntity<ApiResponse<?>> iframeBannerConsumed(@RequestAttribute(required = true) BasicDetailsDto merchant, @Valid @RequestBody EligibilityIframeConsumptionDTO requestDto) {
         if (Objects.isNull(merchant) || Objects.isNull(merchant.getId())) {
