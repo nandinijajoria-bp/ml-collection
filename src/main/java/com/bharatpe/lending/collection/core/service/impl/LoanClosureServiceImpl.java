@@ -49,7 +49,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId) {
-        log.info("inside close loan and update lender for loanId {} ",loan.getId());
+        log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),orderId);
         loan = closeLoanAndUpdateStatus(loan);
         updateForeclosureAmountInfoLedgerId(lendingLedger, orderId,loan.getId());
         log.info("posting closure status to lender for loanId {} and loan-details {}",loan.getId(),loan);
@@ -57,16 +57,15 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     }
 
     private void updateForeclosureAmountInfoLedgerId(LendingLedger lendingLedger, Long orderId, Long loanId) {
-        ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
-        if(foreClosureAmountInfo != null && lendingLedger != null)
-        {
-            try {
+        try {
+            ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+            if(foreClosureAmountInfo != null && lendingLedger != null) {
                 log.info("going to update foreclosureamountinfo ledgerId for foreclosureamountinfo {} and ledger {}", foreClosureAmountInfo.getId(), lendingLedger.getId());
                 foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
                 foreClosureAmountInfoDao.save(foreClosureAmountInfo);
-            }catch (Exception e){
-                log.error("error occured while saving ledgerId for loanID {} in foreclosure amount info",loanId);
             }
+        } catch (Exception e){
+                log.error("error  occured while saving lending ledger {} for loanID {} orderID {} in foreclosure amount info error {} {}",lendingLedger,loanId,orderId,e.getMessage(),Arrays.asList(e.getStackTrace()));
         }
     }
 
