@@ -182,11 +182,7 @@ public class LoanDetailsControllerV2 {
     }
 
     @GetMapping(value = "/homepage/cards")
-    public ResponseEntity<ApiResponse<?>> getHomePageBannerDetails(@RequestParam Long merchantId) {
-        if (Objects.isNull(merchantId)) {
-            log.info("Incorrect request details");
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
-        }
+    public ResponseEntity<ApiResponse<?>> getHomePageBannerDetails(@RequestParam(required = true) Long merchantId) {
         log.info("Fetching homepage cards details for merchantId: {}", merchantId);
         return ResponseEntity.ok(loanDetailsServiceV2.getHomePageCardsDetails(merchantId));
     }

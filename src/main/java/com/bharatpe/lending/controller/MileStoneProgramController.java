@@ -76,11 +76,7 @@ public class MileStoneProgramController {
 
 
     @GetMapping(value = "/rte-eligibility-check")
-    public ApiResponse<Object>checkRteEligibility(@RequestParam Long merchantId) {
-        if (Objects.isNull(merchantId)) {
-            log.info("Incorrect request details");
-            return new ApiResponse<>(false, "Invalid request: merchantId is required");
-        }
+    public ApiResponse<Object>checkRteEligibility(@RequestParam(required = true) Long merchantId) {
         log.info("merchant id is: {}", merchantId);
         return mileStoneProgramService.checkRteEligibility(merchantId);
     }
