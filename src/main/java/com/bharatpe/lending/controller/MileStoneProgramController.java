@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 @RestController
 @RequestMapping("/milestone")
 @Slf4j
@@ -72,6 +74,12 @@ public class MileStoneProgramController {
          return mileStoneProgramService.programDetails(merchant);
     }
 
+
+    @GetMapping(value = "/rte-eligibility-check")
+    public ApiResponse<Object>checkRteEligibility(@RequestParam(required = true) Long merchantId) {
+        log.info("merchant id is: {}", merchantId);
+        return mileStoneProgramService.checkRteEligibility(merchantId);
+    }
 
 
     @GetMapping(value = "/evictCache")
