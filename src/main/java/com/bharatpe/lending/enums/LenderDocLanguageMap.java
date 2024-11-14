@@ -15,7 +15,9 @@ public enum LenderDocLanguageMap {
 
     LIQUILOANS_NBFC(Arrays.asList("HINDI","TAMIL","TELUGU","BENGALI","MALAYALAM","GUJARATI","MARATHI","KANNADA")),
 
-    PIRAMAL(Arrays.asList("HINDI","TAMIL","BENGALI","MALAYALAM","GUJARATI","MARATHI","KANNADA"));
+    PIRAMAL(Arrays.asList("HINDI","TAMIL","BENGALI","MALAYALAM","GUJARATI","MARATHI","KANNADA")),
+
+    MUTHOOT(Arrays.asList("HINDI","TAMIL","TELUGU","BENGALI","MALAYALAM","MARATHI","KANNADA"));
 
 
     private final List<String> languages;

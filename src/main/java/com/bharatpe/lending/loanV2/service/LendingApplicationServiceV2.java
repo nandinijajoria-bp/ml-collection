@@ -2989,7 +2989,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
             } else if(lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
-                filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + ".html";
+                filePath = "/templates/" + "KFS_NONP2P_MUTHOOT" + language + ".html";
             } else if(lender.equalsIgnoreCase(Lender.PAYU.name())) {
                 filePath = "/templates/" + "KFS_NONP2P_PAYU" + ".html";
             }else if(Lender.CREDITSAISON.name().equalsIgnoreCase(lender)) {
@@ -3150,7 +3150,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || lender.equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
                 filePath = getFilePathTrillionLoans(lendingApplication, penaltyDate, penaltyDateTrillionLoans, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, kfsDto.isForeclosureChargesRequired(), language);
             } else if (lender.equalsIgnoreCase(Lender.MUTHOOT.name())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT.html";
+                filePath = "/templates/SANCTION_LOAN_AGREEMENT_MUTHOOT" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.PAYU.name())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_PAYU.html";
             } else if (lender.equalsIgnoreCase(Lender.CREDITSAISON.name())) {
