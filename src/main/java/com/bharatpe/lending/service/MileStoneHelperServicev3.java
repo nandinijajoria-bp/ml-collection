@@ -182,15 +182,14 @@ public class MileStoneHelperServicev3 {
             put("program_type", program_type);
         }};
 
-        String experianRejectionReason;
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
         if(ObjectUtils.isEmpty(lendingRiskVariables)) {
-            experianRejectionReason = "LRV not found";
-        }else{
-            experianRejectionReason = ObjectUtils.isEmpty(responseDto.getExperianRejectionReason())
-                    ? "Experian Rejection reason not found"
-                    : responseDto.getExperianRejectionReason();
+            log.info("LRV not found for merchantId: {}", merchant.getId());
+            return;
         }
+        String experianRejectionReason = ObjectUtils.isEmpty(responseDto.getExperianRejectionReason())
+                ? "Experian Rejection reason not found"
+                : responseDto.getExperianRejectionReason();
 
         String eventValue = RTEProgramType.NEW_MERCHANT.name().equals(responseDto.getProgramType())
                 ? responseDto.getProgramType() + "_" + experianRejectionReason
@@ -599,13 +598,14 @@ public class MileStoneHelperServicev3 {
         responseDto.setPanCard(kycPancard);
         responseDto.setIsEligibleForReapply(true);
         responseDto.setDeepLinkUrl(deepLink);
+        String days = ObjectUtils.isEmpty(entity) ? String.valueOf(responseDto.getTargetDurationDays()) : String.valueOf(entity.getProgramDuration());
 
         if (bureauResponseDTO != null && bureauResponseDTO.getIsNTC() == Boolean.TRUE) {
             responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
-            responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), !StringUtils.isEmpty(entity.getProgramDuration()) ? String.valueOf(entity.getProgramDuration()) :""));
+            responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), days));
         } else {
             responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-            responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(),!StringUtils.isEmpty(entity.getProgramDuration()) ? String.valueOf(entity.getProgramDuration()) :""));
+            responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), days));
         }
 
         if (!ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
@@ -657,7 +657,7 @@ public class MileStoneHelperServicev3 {
             DSMileStoneResponse dsMileStoneResponse = dsHandler.fetchMileStoneDatav3(merchant.getId(), bureauScore, bbs, pinCodeColor, loanAmountOfMerchant);
             log.info("milestone data {} for merchantId: {}", dsMileStoneResponse, merchant.getId());
 
-            if (dsMileStoneResponse == null || dsMileStoneResponse.getProgram_type() == null || dsMileStoneResponse.getTarget().isEmpty() ) {
+            if (dsMileStoneResponse == null || dsMileStoneResponse.getProgram_type() == null || ObjectUtils.isEmpty(dsMileStoneResponse.getTarget_duration_days()) || dsMileStoneResponse.getTarget().isEmpty()) {
                 String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
                 Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
                 if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
@@ -671,6 +671,7 @@ public class MileStoneHelperServicev3 {
                 responseDto.setMilStoneEligibility(true);
                 responseDto.setProgramType(ObjectUtils.isEmpty(dsMileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : dsMileStoneResponse.getProgram_type());
                 responseDto.setMaxLimit(ObjectUtils.isEmpty(dsMileStoneResponse.getMax_limit()) ? null : dsMileStoneResponse.getMax_limit());
+                responseDto.setTargetDurationDays(dsMileStoneResponse.getTarget_duration_days());
             }
         }catch (Exception e) {
             log.error("Exception while calling merchantMileStone DS Api merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
