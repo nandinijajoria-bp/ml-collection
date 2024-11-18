@@ -2860,6 +2860,7 @@ public class LoanDetailsServiceV2 {
             }
             additionalLoanDetails.setInputs(inputs);
             additionalLoanDetails.setShowModal(!ObjectUtils.isEmpty(inputs));
+            log.info("get additional details response {} for lending application {}",additionalLoanDetails, lendingApplication.getId());
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(), FunnelEnums.StageId.ADDITIONAL_DETAILS_MODAL,
                     FunnelEnums.StageEvent.INITIATED, inputs.stream().map(AdditionalLoanDetailsDTO.Input::getInputType).collect(Collectors.joining(",")));
             return new ApiResponse<>(additionalLoanDetails);
@@ -2882,9 +2883,10 @@ public class LoanDetailsServiceV2 {
     public ApiResponse<?> saveAdditionalLoanDetails(BasicDetailsDto merchant, AdditionalLoanDetailsDTO loanDetails) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(loanDetails.getApplicationId(), merchant.getId());
+            log.info("additional details data received {} for lending application {}",loanDetails, loanDetails.getApplicationId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("lending application not found for {}", loanDetails.getApplicationId());
-                return new ApiResponse<>(false, "lending application not found for " + loanDetails.getApplicationId());
+                return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").errorCode("APP_NOT_FOUND").detailSaved(false).build());
             }
             LendingApplicationKycDetails lendingApplicationKycDetails = null;
             for (AdditionalLoanDetailsDTO.Input input : loanDetails.getInputs()) {
@@ -2900,11 +2902,12 @@ public class LoanDetailsServiceV2 {
             }
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(), FunnelEnums.StageId.ADDITIONAL_DETAILS_MODAL,
                     FunnelEnums.StageEvent.COMPLETED, null);
-            return new ApiResponse<>("Successfully saved additional loan details for applicationId " + lendingApplication.getId());
+            log.info("additional details successfully saved for lending application {}", loanDetails.getApplicationId());
+            return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("Successfully saved additional loan details for applicationId + lendingApplication.getId()").detailSaved(true).build());
         } catch (Exception e) {
-            log.error("exception in getting additional loan details for applicationId {} {}", loanDetails.getApplicationId(), Arrays.asList(e.getStackTrace()));
+            log.error("exception in saving additional loan details for applicationId {} {}", loanDetails.getApplicationId(), Arrays.asList(e.getStackTrace()));
         }
-        return new ApiResponse<>(false, "something went wrong while getting additional loan details");
+        return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").detailSaved(false).errorCode("DATA_NOT_SAVED").build());
     }
 
     private LendingApplicationKycDetails saveAdditionalKycDetails(Long applicationId, LendingApplicationKycDetails lendingApplicationKycDetails, AdditionalLoanDetailsDTO.Input input) {

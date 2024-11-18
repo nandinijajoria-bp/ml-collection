@@ -77,6 +77,9 @@ public class PayULeadService {
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
+    @Autowired
+    LendingGstDao lendingGstDao;
+
     @Value("${payu.channel.code:edi_bhp_01}")
     String payuChannelCode;
 
@@ -354,6 +357,24 @@ public class PayULeadService {
 
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
 
+        CKycResponseDto cKycResponseDto = kycUtils.getGstData(lenderAssociationDetailsRequestDto.getMerchantId());
+
+        log.info("cKycResponseDto in payu lead service for application Id - {} is - {}",lenderAssociationDetailsRequestDto.getApplicationId(), cKycResponseDto);
+
+        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+
+        if (ObjectUtils.isEmpty(lendingGstDetail)) {
+            lendingGstDetail = new LendingGstDetail();
+            lendingGstDetail.setMerchantId(lenderAssociationDetailsRequestDto.getMerchantId());
+            lendingGstDetail.setApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+        }
+
+        if(ObjectUtils.isEmpty(lendingGstDetail.getGstNumber())){
+            lendingGstDetail.setGstNumber(cKycResponseDto.getGstNumber());
+        }
+
+        lendingGstDao.save(lendingGstDetail);
+
         List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> applicantDataList = new ArrayList<>();
         PayUUpdateLeadRequestDTO.CompanyDetailsDTO companyDetails = PayUUpdateLeadRequestDTO.CompanyDetailsDTO.builder()
                 .companyName(lenderAssociationDetailsRequestDto.getLendingApplication().getBusinessName())
@@ -362,6 +383,7 @@ public class PayULeadService {
                 .entityType("Proprietorship")
                 .address(getAddress(lenderAssociationDetailsRequestDto,"company_address"))
                 .partnerVintage(getPartnerVintageDate(lendingRiskVariablesSnapshot.getVintage()))
+                .gstin(ObjectUtils.isEmpty(cKycResponseDto.getGstNumber()) ? null : cKycResponseDto.getGstNumber())
                 .build();
         applicantDataList.add(companyDetails);
         return applicantDataList;

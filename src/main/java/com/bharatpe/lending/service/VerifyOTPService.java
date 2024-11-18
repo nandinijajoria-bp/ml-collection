@@ -567,7 +567,7 @@ public class VerifyOTPService {
             if (Arrays.asList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
                 if(topupLoans.contains(lendingApplication.getLoanType())) {
                     LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), Lender.ABFL.name());
-                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                    if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
                         LenderAssociationStages nextStage =
                                 LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.SANCTION_WRAPPER);
                         lendingApplicationLenderDetails.setStage(nextStage.name());

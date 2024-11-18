@@ -239,7 +239,6 @@ public class PayUNachMandateService {
             PayUUpdateLeadRequestDTO payload = PayUUpdateLeadRequestDTO.builder()
                     .applicationId(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
                     .applicantDetails(getApplicantDetails(lenderAssociationDetailsDto))
-                    .companyDetails(getCompanyDetails(lenderAssociationDetailsDto))
                     .updatedAddress(true)
                     .build();
 
@@ -272,37 +271,6 @@ public class PayUNachMandateService {
 
         applicantDataList.add(applicantDetails);
         return applicantDataList;
-
-    }
-
-    private List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> getCompanyDetails(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
-
-        List<PayUUpdateLeadRequestDTO.CompanyDetailsDTO> companyDetailsList = new ArrayList<>();
-
-        PayUUpdateLeadRequestDTO.CompanyDetailsDTO companyDetails;
-
-        CKycResponseDto cKycResponseDto = kycUtils.getGstData(lenderAssociationDetailsRequestDto.getMerchantId());
-
-        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
-
-        if (ObjectUtils.isEmpty(lendingGstDetail)) {
-            lendingGstDetail = new LendingGstDetail();
-            lendingGstDetail.setMerchantId(lenderAssociationDetailsRequestDto.getMerchantId());
-            lendingGstDetail.setApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
-        }
-
-        if(ObjectUtils.isEmpty(lendingGstDetail.getGstNumber())){
-            lendingGstDetail.setGstNumber(cKycResponseDto.getGstNumber());
-        }
-
-        lendingGstDao.save(lendingGstDetail);
-
-        companyDetails = PayUUpdateLeadRequestDTO.CompanyDetailsDTO.builder()
-                .gstin(ObjectUtils.isEmpty(cKycResponseDto.getGstNumber()) ? null : cKycResponseDto.getGstNumber())
-                .build();
-
-        companyDetailsList.add(companyDetails);
-        return companyDetailsList;
 
     }
 
