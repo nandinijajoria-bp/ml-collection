@@ -97,7 +97,7 @@ public interface KfsConstants {
     String LENDER_CONTACT_EMAIL_CREDITSAISON = "emaad.khan@creditsaison-in.com";
     String LENDER_CONTACT_NUMBER_CREDITSAISON = "+91-7289000552";
     String LENDER_CORPORATE_NAME_SMFG = "SMFG India Credit Company Limited (formerly Fullerton India Credit Company Limited)";
-    String LENDER_BUSINESS_ADDRESS_SMFG = "3rd Floor, No - 165 Megh Towers, PH Road Maduravoyal, Chennai - 600 095";
+    String LENDER_BUSINESS_ADDRESS_SMFG = "Commerzone IT Park, Tower B, 1st Floor No.111, Mount Poonamallee Road, Porur, Chennai, Tamil Nadu. Pincode - 600116";
     String LENDER_CONTACT_NAME_SMFG = "Grievance Redressal Officer";
     String LENDER_CONTACT_EMAIL_SMFG = "GRO@smfgindia.com";
     String LENDER_CONTACT_NUMBER_SMFG = "022-69581104";
