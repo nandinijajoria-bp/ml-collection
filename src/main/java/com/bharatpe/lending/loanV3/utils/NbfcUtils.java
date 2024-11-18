@@ -103,6 +103,7 @@ public class NbfcUtils {
             lendingApplicationDetails.setApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setEdiModel(LoanUtil.getEdiModal(lendingApplication).name());
         }
+        lendingApplicationDetails.setLenderAssc(Boolean.FALSE);
         lendingApplicationDetails.setStage(LenderAssociationStages.LENDER_CHANGE.name());
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
         if (enableLenderChange) {
