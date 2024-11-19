@@ -980,7 +980,7 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
-            if(TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !loanUtil.isMerchantTrillionTopupEligible(lendingPaymentSchedule.getMerchantId(), trillionTopupRolloutPercent)) {
+            if(TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), trillionTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
                 log.info("TRILLIONLOANS Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }

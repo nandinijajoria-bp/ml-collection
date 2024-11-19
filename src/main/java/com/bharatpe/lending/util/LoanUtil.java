@@ -317,9 +317,6 @@ public class LoanUtil {
 	@Value("${excluded.error.codes}")
 	private String excludedErrorCodes;
 
-	@Value("${trillion.topup.application.max.count:-1}")
-	Integer trillionTopupApplicationMaxCount;
-
 	private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
 	@Value("${lender.aggregation.screens:}")
@@ -2453,22 +2450,6 @@ public class LoanUtil {
 		double	durationInDays = calculateDurationInDays(createdAt);
 		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
 		return false;
-	}
-
-
-	public Boolean isMerchantTrillionTopupEligible(Long merchantId, Integer percent) {
-
-		if (isInternalMerchant(merchantId)) return true;
-
-		if (trillionTopupApplicationMaxCount != -1) {
-			Integer count = lendingApplicationDao.findCountByLenderAndStatusInAndLoanType(LendingEnum.LENDER.TRILLIONLOANS.name(), "TOPUP");
-			if (count >= trillionTopupApplicationMaxCount) {
-				logger.info("Trillion TOPUP: Total lending application count exceeded: {}", count);
-				return false;
-			}
-		}
-
-		return easyLoanUtil.percentScaleUp(merchantId, percent);
 	}
 
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
