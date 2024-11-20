@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.gateway;
 
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 
@@ -84,10 +86,16 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.topup.approve.api:api/v3/lender/topup-approve}")
     String topupApproveUrl;
 
+    @Value("${http.payu.read.timeout:20000}")
+    int payuReadTimeout;
+
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
         try {
+            if(!ObjectUtils.isEmpty(nbfcRequestDto) && !ObjectUtils.isEmpty(nbfcRequestDto.getLender()) && Lender.PAYU.name().equalsIgnoreCase(nbfcRequestDto.getLender())){
+                return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NBFCResponseDTO.class, getUrl(lenderAssociationStage), payuReadTimeout);
+            }
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NBFCResponseDTO.class, getUrl(lenderAssociationStage));
         } catch (Exception e) {
             log.error("exception occurred while processing {} api call to nbfc for lender {} for {} {},{}", lenderAssociationStage.name(), nbfcRequestDto.getLender(), nbfcRequestDto, e.getMessage(), Arrays.asList(e.getStackTrace()));
