@@ -127,8 +127,8 @@ public class PayUUpdateLeadRequestDTO {
         @JsonProperty("date_of_incorporation")
         private String dateOfIncorporation;
 
-        @JsonProperty("gstin")
-        private String gstin;
+        @JsonProperty("gst")
+        private String gst;
 
         @JsonProperty("is_primary_company")
         private boolean isPrimaryCompany;

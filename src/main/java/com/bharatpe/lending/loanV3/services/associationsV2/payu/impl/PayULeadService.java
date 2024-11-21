@@ -383,7 +383,7 @@ public class PayULeadService {
                 .entityType("Proprietorship")
                 .address(getAddress(lenderAssociationDetailsRequestDto,"company_address"))
                 .partnerVintage(getPartnerVintageDate(lendingRiskVariablesSnapshot.getVintage()))
-                .gstin(ObjectUtils.isEmpty(cKycResponseDto.getGstNumber()) ? null : cKycResponseDto.getGstNumber())
+                .gst(ObjectUtils.isEmpty(cKycResponseDto.getGstNumber()) ? null : cKycResponseDto.getGstNumber())
                 .build();
         applicantDataList.add(companyDetails);
         return applicantDataList;
