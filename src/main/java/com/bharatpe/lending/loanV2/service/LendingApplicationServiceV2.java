@@ -60,6 +60,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.service.*;
@@ -101,6 +102,8 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -339,6 +342,10 @@ public class LendingApplicationServiceV2 {
     @Lazy
     @Autowired
     SmfgConfig smfgConfig;
+
+    @Lazy
+    @Autowired
+    DocUploadUtils docUploadUtils;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -2631,11 +2638,17 @@ public class LendingApplicationServiceV2 {
         }
         //KFS
         generateKfsDocument(lendingApplication, merchant, lendingKfs, null);
-        lendingKfs.setKfsSignedAt(dateTimeUtil.getCurrentDate());
-
         //Loan Agreement
         generateSanctionCumLoanAgreementDoc(lendingApplication, merchant, lendingKfs, null);
+
+        //For Appending SignedDetails in lender generated agreementDocs
+        if(Collections.singletonList(Lender.ABFL.name()).contains(lendingApplication.getLender())) {
+            generateAndAppendSignedDetails(lendingApplication, lendingKfs, merchant);
+        }
+
         lendingKfs.setSanctionLoanAgreementSignedAt(dateTimeUtil.getCurrentDate());
+        lendingKfs.setKfsSignedAt(dateTimeUtil.getCurrentDate());
+
 
         //Authorization Letter
         if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name()).contains(lendingApplication.getLender())){
@@ -4691,4 +4704,67 @@ public class LendingApplicationServiceV2 {
         }
     }
 
+    private void generateAndAppendSignedDetails(LendingApplication lendingApplication, LendingKfs lendingKfs, BasicDetailsDto merchant) {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            String html = "";
+            String filePath = "";
+            Date dateTime = dateTimeUtil.getCurrentDate();
+
+            data.put("borrower_name", merchant.getBeneficiaryName());
+            data.put("mobile_number_for_otp", merchant.getMobile());
+            data.put("platform", "BharatPe for Business");
+            data.put("ip_address", lendingApplication.getIp());
+            data.put("time_stamp", dateTime);
+            data.put("loan_id", lendingApplication.getExternalLoanId());
+            data.put("date", new SimpleDateFormat("dd-MM-yyyy").format(dateTime));
+            ApiResponse aadharAddressResponse = getAadhaarAddress(merchant, lendingApplication.getId());
+            if (aadharAddressResponse.isSuccess()) {
+                AadhaarAddressResponseDTO aadhaarAddressResponseDTO = (AadhaarAddressResponseDTO) aadharAddressResponse.getData();
+                if (!ObjectUtils.isEmpty(aadhaarAddressResponseDTO.getName())) {
+                    data.put("borrower_name", aadhaarAddressResponseDTO.getName());
+                }
+            }
+            filePath = "/templates/" + "SIGNED_DETAILS" + ".html";
+            log.info("file path for signed details doc: {}", filePath);
+            InputStream inputStream = this.getClass().getResourceAsStream(filePath);
+            Scanner scanner = new Scanner(inputStream).useDelimiter("\\A");
+            html = scanner.hasNext() ? scanner.next() : "";
+            for (Map.Entry<String, Object> entry : data.entrySet()) {
+                String key = "{{" + entry.getKey() + "}}";
+                String val = Objects.nonNull(entry.getValue()) ? entry.getValue().toString() : "";
+                html = html.replace(key, val);
+            }
+
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            InputStream htmlStringInputStream = new ByteArrayInputStream(html.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+
+            //Appending signed details in kfs doc
+            URL url1 = new URL(docUploadUtils.getS3PresignedUrlFromKey(lendingKfs.getKfsDocFile()));
+            URLConnection connection1 = url1.openConnection();
+            InputStream kfsStream = connection1.getInputStream();
+            String kfsUrl = docUploadUtils.mergeDocs(lendingApplication.getId(), kfsStream, inStream, lendingKfs.getKfsDocFile());
+            String kfsShortUrl = apiGatewayService.getShortUrl(kfsUrl);
+            if (kfsShortUrl == null || kfsShortUrl.isEmpty() || kfsShortUrl.trim().isEmpty())
+                throw new Exception("Unable to create short URL for KFS doc link for : " + lendingApplication.getId());
+
+            //Appending signed details in sanction doc
+            inStream = new ByteArrayInputStream(outStream.toByteArray());
+            URL url2 = new URL(docUploadUtils.getS3PresignedUrlFromKey(lendingKfs.getSanctionLoanAgreementDocFile()));
+            URLConnection connection2 = url2.openConnection();
+            InputStream sanctionStream = connection2.getInputStream();
+            String sanctionUrl = docUploadUtils.mergeDocs(lendingApplication.getId(), sanctionStream, inStream, lendingKfs.getSanctionLoanAgreementDocFile());
+            String sanctionShortUrl = apiGatewayService.getShortUrl(sanctionUrl);
+            if (sanctionShortUrl == null || sanctionShortUrl.isEmpty() || sanctionShortUrl.trim().isEmpty())
+                throw new Exception("Unable to create short URL for sanction doc link for : " + lendingApplication.getId());
+            lendingKfs.setSanctionLoanAgreementDocUrl(sanctionShortUrl);
+            lendingKfs.setKfsDocUrl(kfsShortUrl);
+        } catch (Exception e) {
+            log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
 }
