@@ -322,6 +322,9 @@ public class LoanUtil {
 	@Value("${lender.aggregation.screens:}")
 	String lenderAggregationScreens;
 
+	@Value("${api.token:}")
+	String apiToken;
+
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
 			return derogMerchants;
@@ -2485,6 +2488,10 @@ public class LoanUtil {
 			logger.error("Exception occurred while fetching aggregation screen for applicationId {} {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
 		}
 		return null;
+	}
+
+	public Boolean validateToken(String token){
+		return apiToken.equals(token);
 	}
 }
 

@@ -20,8 +20,10 @@ import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -31,6 +33,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.LendingPartnerOffersDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPartnerOffersSlave;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.LoanDetailsResponseDTO.LoanDetailsDTO;
@@ -75,7 +78,7 @@ public class LoanDetailsService {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@Autowired
-	LendingApplicationDao lendingApplicationDao;
+	private LendingApplicationDao lendingApplicationDao;
 
 	@Autowired
 	LendingGstDao lendingGstDao;
@@ -217,7 +220,14 @@ public class LoanDetailsService {
 	ExcessNachService excessNachService;
 	@Autowired
 	ForeClosureConfigDao foreClosureDao;
+	@Autowired
+	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
+	@Autowired
+	LendingRiskVariablesDaoSlave lendingRiskVariablesDaoSlave;
+
+	@Autowired
+	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
@@ -1588,5 +1598,46 @@ public class LoanDetailsService {
 					}).collect(Collectors.toList());
 		}
 		return null;
+	}
+
+	public ApplicationDataResponseDTO getApplicationData(Long merchantId){
+		LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+		LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+		String loanEligibility;
+		loanEligibility = !ObjectUtils.isEmpty(lendingRiskVariables) && !ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() >= 10000D ? LendingConstants.ELIGIBLE :LendingConstants.INELIGIBLE;
+		if (ObjectUtils.isEmpty(lendingApplication) || ApplicationStatus.DELETED.name().toLowerCase().equals(lendingApplication.getStatus())
+				|| ApplicationStatus.REJECTED.name().toLowerCase().equals(lendingApplication.getStatus())){
+			logger.info("open application not found for merchant:{}", merchantId);
+			return ApplicationDataResponseDTO.builder()
+					.merchantId(merchantId)
+					.loanEligibility(loanEligibility)
+					.callRequired("ELIGIBLE".equals(loanEligibility))
+					.loanSegment(!ObjectUtils.isEmpty(lendingRiskVariables)?lendingRiskVariables.getLoanSegment():null)
+					.build();
+		}
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		String viewState = ObjectUtils.isEmpty(lendingApplicationDetails)?null:lendingApplicationDetails.getApplicationViewState();
+		if(lendingRiskVariables.getUpdatedAt().after(lendingApplication.getUpdatedAt())){
+			return ApplicationDataResponseDTO.builder()
+					.merchantId(merchantId)
+					.applicationId(lendingApplication.getId())
+					.loanSegment(lendingRiskVariables.getLoanSegment())
+					.callRequired(!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()>10000D)
+					.loanEligibility(loanEligibility)
+					.applicationViewState(viewState)
+					.build();
+		}
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		return ApplicationDataResponseDTO.builder()
+				.applicationId(lendingApplication.getId())
+				.merchantId(merchantId)
+				.applicationStatus(lendingApplication.getStatus())
+				.applicationViewState(viewState)
+				.loanSegment(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)?lendingRiskVariablesSnapshot.getLoanSegment():null)
+				.loanEligibility(loanEligibility)
+				.callRequired((!ApplicationStatus.APPROVED.name().equals(lendingApplication.getNachStatus()))
+						&& (ApplicationStatus.DRAFT.name().toLowerCase().equals(lendingApplication.getStatus())
+						|| ApplicationStatus.PENDING_VERIFICATION.name().toLowerCase().equals(lendingApplication.getStatus())))
+				.build();
 	}
 }
