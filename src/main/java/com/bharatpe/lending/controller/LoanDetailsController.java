@@ -10,6 +10,7 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.Objects;
 import java.util.Optional;
 
 @RestController
@@ -58,8 +60,11 @@ public class LoanDetailsController {
 	MerchantService merchantService;
 
 //	 for testing - to be removed in future
-@Value("${lending.edi.model:7}")
-Integer lendingEdiModel;
+	@Value("${lending.edi.model:7}")
+	Integer lendingEdiModel;
+
+	@Autowired
+	private LoanUtil loanUtil;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestAttribute(required = false) String clientIp
@@ -311,5 +316,25 @@ Integer lendingEdiModel;
 	@RequestMapping(value="/foreclosure/tnc", method = RequestMethod.GET)
 	public  ResponseEntity<ForeClosureTncDTO> getForeClosureTnc(@RequestAttribute BasicDetailsDto merchant) {
 		return new ResponseEntity<>(loanDetailsService.getForeClosureTnc(merchant.getId()), HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/merchant/application/data",method = RequestMethod.GET)
+	public ResponseEntity<?> getApplicationData(@RequestParam(name = "merchantId") Long merchantId,
+												@RequestHeader(name = "token") String token){
+		if(!loanUtil.validateToken(token)){
+			logger.info("token {} for merchant {} is incorrect", token, merchantId);
+			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+		}
+
+		if (ObjectUtils.isEmpty(merchantId)){
+			return new ResponseEntity<>(new ResponseDTO(false, "merchantId is missing"), HttpStatus.BAD_REQUEST);
+		}
+		logger.info("get application data request for merchant:{}", merchantId);
+		ApplicationDataResponseDTO response = loanDetailsService.getApplicationData(merchantId);
+		logger.info("get application data response:{}", response);
+		if (Objects.nonNull(response)){
+			return new ResponseEntity<>(new ResponseDTO(true, null, response), HttpStatus.OK);
+		}
+		return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null), HttpStatus.BAD_REQUEST);
 	}
 }
