@@ -347,4 +347,42 @@ public class DocUploadUtils {
         return getS3PresignedUrlFromKey(key);
     }
 
+    public String mergeDocs(Long applicationId, InputStream inputStream1, InputStream inputStream2, String mergedFileName)
+            throws IOException, DocumentException {
+        /*
+            1. merge both file in new merged file using ipdf
+            3. delete file from local storage
+         */
+
+        log.info("Initiating merging of the inputStream for application id : {}", applicationId);
+        try {
+            // first PDF file
+            PdfReader reader1 = new PdfReader(inputStream1);
+            // second PDF file
+            PdfReader reader2 = new PdfReader(inputStream2);
+
+            log.info("Merging docs for application id: {}, reader1 : {}, reader2: {}", applicationId, reader1, reader2);
+            // Create the output file
+            Document document = new Document();
+            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/" + mergedFileName)));
+            copy.setCompressionLevel(9);
+            document.open();
+
+            // Merge the PDF files
+            copy.addDocument(reader1);
+            copy.addDocument(reader2);
+
+            // Close the document
+            document.close();
+            File mergedFile = new File("/data/" + mergedFileName);
+            s3BucketHandler.uploadFileToS3(mergedFile, bucket, mergedFileName);
+            String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
+            log.info("preSigned Url for merged docs of applicationId {} {}", applicationId, mergeDocumentPresignedUrl);
+            return mergeDocumentPresignedUrl;
+        } catch (IOException | DocumentException e) {
+            log.error("Error merging documents for application id: {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+            throw e; // Rethrow the exception to handle it in the caller method
+        }
+    }
+
 }
