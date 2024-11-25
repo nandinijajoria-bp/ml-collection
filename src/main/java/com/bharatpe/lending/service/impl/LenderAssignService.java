@@ -158,8 +158,14 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${lending.wildcard.lender.name:TRILLIONLOANS}")
     String lendingWildcardLenderName;
 
-    @Value("${muthoot.max.irr:37.0}")
+    @Value("${muthoot.max.irr:36.0}")
     Double muthootMaxIrr;
+
+    @Value("${piramal.max.irr:36.0}")
+    Double piramalMaxIrr;
+
+    @Value("${piramal.max.apr:48.0}")
+    Double piramalMaxApr;
 
     @Lazy
     @Autowired
@@ -183,7 +189,10 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${payu.rollout.percent:1}")
     Integer payuRolloutPercent;
 
-    @Value("${max.apr.eligible.lenders:CREDITSAISON,MUTHOOT}")
+    @Value("${max.irr.eligible.lenders:CREDITSAISON,MUTHOOT,PIRAMAL}")
+    String maxIrrEligibleLender;
+
+    @Value("${max.apr.eligible.lenders:PIRAMAL}")
     String maxAprEligibleLender;
 
     @Lazy
@@ -431,7 +440,11 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, Long vintage, Double summaryTpv) {
-        if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)) {
+        if(maxIrrEligibleLender.contains(lender) && maxIrrCheckFailed(lendingApplication, ediModel, lender)) {
+            log.info("skipping {} due to maxIrr checks failing for {}", lender, lendingApplication.getId());
+            return false;
+        }
+        if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)){
             log.info("skipping {} due to maxApr checks failing for {}", lender, lendingApplication.getId());
             return false;
         }
@@ -1154,18 +1167,38 @@ public class LenderAssignService implements ILenderAssignService {
         return null;
     }
 
-    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
-        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
-        Double maxApr = 0D;
+    private boolean maxIrrCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+        Double irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
+        log.info("IRR generated for application_id:{} IRR:{} and lender:{}", lendingApplication.getId(), irr, lender);
+        Double maxIrr = 0D;
         switch (lender) {
             case "CREDITSAISON":
-                maxApr = csConfig.getMaxIRR();
+                maxIrr = csConfig.getMaxIRR();
                 break;
             case "MUTHOOT":
-                maxApr = muthootMaxIrr;
+                maxIrr = muthootMaxIrr;
                 break;
             case "SMFG":
-                maxApr = smfgConfig.getMaxApr();
+                maxIrr = smfgConfig.getMaxApr();
+                break;
+            case "PIRAMAL":
+                maxIrr = piramalMaxIrr;
+                break;
+            default:
+                maxIrr = 0D;
+        }
+        return irr > maxIrr;
+    }
+
+
+    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+        Double insurancePremium = lendingApplicationServiceV2.getInsurancePremium(lendingApplication);
+        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee() - insurancePremium, ediModel.getNoOfEdiDaysInAWeek(), lender);
+        log.info("APR generated for application_id:{} IRR:{} and lender:{}", lendingApplication.getId(), apr, lender);
+        Double maxApr = 0D;
+        switch (lender) {
+            case "PIRAMAL":
+                maxApr = piramalMaxApr;
                 break;
             default:
                 maxApr = 0D;
