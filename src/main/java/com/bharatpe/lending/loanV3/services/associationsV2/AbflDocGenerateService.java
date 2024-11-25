@@ -166,7 +166,7 @@ public class AbflDocGenerateService {
             if (ObjectUtils.isEmpty(parentLendingApplication) || ObjectUtils.isEmpty(parentLendingApplication.getExternalLoanId())) {
                 throw new Exception("Unable to fetch parent application for applicationId: " + lendingPaymentSchedule.getApplicationId());
             }
-            abflRequestDto.setParentLanNo(parentLendingApplication.getExternalLoanId());
+            abflRequestDto.setParentLanNo(parentLendingApplication.getNbfcId());
             abflRequestDto.setParentLoanOutstandingAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
         }
 
