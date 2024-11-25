@@ -2619,7 +2619,7 @@ public class LendingApplicationServiceV2 {
         return lendingKfs;
     }
 
-    private Double getInsurancePremium(LendingApplication lendingApplication) {
+    public Double getInsurancePremium(LendingApplication lendingApplication) {
         LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
                 lendingApplication.getId(),
                 lendingApplication.getLender(),

@@ -60,6 +60,8 @@ public class TLBreRequestDto {
             private Object scienapticProperties;
             @JsonProperty("aggregate_id")
             private String aggregateId;
+            @JsonProperty("elig_comp_date")
+            private String eligCompDate;
         }
     }
 }
