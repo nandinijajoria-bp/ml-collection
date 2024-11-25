@@ -3,8 +3,10 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -48,6 +50,9 @@ public class TLBreService {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    LendingRiskVariablesDao lendingRiskVariablesDao;
 
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
@@ -155,8 +160,9 @@ public class TLBreService {
 
         try {
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-            if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
-                throw new RuntimeException("Lending Risk variable snapshot not found for application id: " + lendingApplication.getId());
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+            if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot) || ObjectUtils.isEmpty(lendingRiskVariables)) {
+                throw new RuntimeException("Lending Risk variable and/or snapshot not found for application id: " + lendingApplication.getId() +", merchant id: " + lendingApplication.getMerchantId());
             }
 
             MerchantAggregateData merchantAggregateData = merchantAggregateDataDao.findByMerchantIdAndAggregateId(lendingApplication.getMerchantId(), lendingRiskVariablesSnapshot.getAggregateId());
@@ -173,7 +179,7 @@ public class TLBreService {
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
                     .payload(TLBreRequestDto.builder()
-                            .values(getValues(lendingRiskVariablesSnapshot, lendingApplication, merchantAggregateData, cKycResponseDto))
+                            .values(getValues(lendingRiskVariables, lendingRiskVariablesSnapshot, lendingApplication, merchantAggregateData, cKycResponseDto))
                             .build())
                     .identifier(identifierMap)
                     .build();
@@ -183,7 +189,7 @@ public class TLBreService {
         return null;
     }
 
-    private TLBreRequestDto.Values getValues(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, LendingApplication lendingApplication, MerchantAggregateData merchantAggregateData, CKycResponseDto cKycResponseDto) throws IOException {
+    private TLBreRequestDto.Values getValues(LendingRiskVariables lendingRiskVariables, LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, LendingApplication lendingApplication, MerchantAggregateData merchantAggregateData, CKycResponseDto cKycResponseDto) throws IOException {
 
 
         LendingPaymentSchedule lastLoan = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusAndCreditLoanOrderByIdDesc(lendingApplication.getMerchantId(), "CLOSED", false);
@@ -231,6 +237,7 @@ public class TLBreService {
                         .sources(objectMapper.readTree(merchantAggregateData.getSources()))
                         .scienapticProperties(objectMapper.readTree(merchantAggregateData.getScienapticProperties()))
                         .aggregateId(merchantAggregateData.getAggregateId())
+                        .eligCompDate(lendingRiskVariables.getUpdatedAt().toString())
                         .build())
                 .build();
     }
