@@ -1187,14 +1187,13 @@ public class LenderAssignService implements ILenderAssignService {
             default:
                 maxIrr = 0D;
         }
-        return irr > maxIrr;
+        return irr >= maxIrr;
     }
 
 
     private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
-        Double insurancePremium = lendingApplicationServiceV2.getInsurancePremium(lendingApplication);
-        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee() - insurancePremium, ediModel.getNoOfEdiDaysInAWeek(), lender);
-        log.info("APR generated for application_id:{} IRR:{} and lender:{}", lendingApplication.getId(), apr, lender);
+        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), ediModel.getNoOfEdiDaysInAWeek(), lender);
+        log.info("APR generated for application_id:{} APR:{} and lender:{}", lendingApplication.getId(), apr, lender);
         Double maxApr = 0D;
         switch (lender) {
             case "PIRAMAL":
@@ -1203,7 +1202,7 @@ public class LenderAssignService implements ILenderAssignService {
             default:
                 maxApr = 0D;
         }
-        return apr > maxApr;
+        return apr >= maxApr;
     }
 
     public List<LenderAggregationResponseDto.LenderData> getLenderData(List<String> eligibleLenders, List<String> prevAssignedLenders, LendingApplication lendingApplication) {
