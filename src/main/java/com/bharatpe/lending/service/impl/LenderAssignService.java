@@ -302,6 +302,8 @@ public class LenderAssignService implements ILenderAssignService {
                             String lender = iterator.next().toUpperCase();
                             if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
                                 log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
+                                String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
                             }
@@ -313,6 +315,8 @@ public class LenderAssignService implements ILenderAssignService {
                                     funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
                                             FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                                     log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
+                                    String remarks = "Removing lender: " + lender + " from eligible as pincode: " + lendingRiskVariables.getPincode() + " not serviceable";
+                                    createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                     iterator.remove();
                                     continue;
                                 }
@@ -324,6 +328,8 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
                                 log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
+                                String remarks = "skipping " + lender + " due to merchant present in ABFL excluded merchants list : " + application.getId();
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
                             }
@@ -340,6 +346,8 @@ public class LenderAssignService implements ILenderAssignService {
 
                                 if (!isPanAadhaarLinked) {
                                     log.info("removing {} from eligible lenders since panAndAdhaar is not linked for applicationId: {} and merchantId : {}", lender, application.getId(), application.getMerchantId());
+                                    String remarks = "removing " + lender + " from eligible lenders since panAndAdhaar is not linked for applicationId: " + application.getId() + " and merchantId : " + application.getMerchantId();
+                                    createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                     iterator.remove();
                                     continue;
                                 }
@@ -348,21 +356,29 @@ public class LenderAssignService implements ILenderAssignService {
 
                             if (Lender.CAPRI.name().equalsIgnoreCase(lender) && summaryTpv < application.getEdi()) {
                                 log.info("skipping capri {} due to merchant edi is greater than summaryTpv {}", lender, application.getId());
+                                String remarks = "skipping capri  due to merchant edi: " + application.getEdi() + " is greater than summaryTpv: " + summaryTpv;
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
                             }
                             if (Arrays.asList(MUTHOOT.name(), PAYU.name()).contains(lender) && application.getLoanAmount() > tpvOffer) {
                                 log.info("skipping muthoot/payu for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
+                                String remarks = "skipping muthoot/payu for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + tpvOffer;
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
                             }
                             if (MUTHOOT.name().equalsIgnoreCase(lender) && application.getEdi() > 0.9 * summaryTpv) {
                                 log.info("skipping muthoot for application id : {} due to merchant loan edi amount is greater than 0.9 * summary_tpv {}", application.getId(), 0.9 * summaryTpv);
+                                String remarks = "skipping muthoot for application id : " + application.getId() + " due to merchant loan edi amount: " + application.getEdi() + " is greater than 0.9 * summary_tpv " + 0.9 * summaryTpv;
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
                             }
                             if (PAYU.name().equalsIgnoreCase(lender) && application.getEdi() > summaryTpv) {
                                 log.info("skipping payu for application id : {} due to merchant loan edi amount is greater than summary_tpv {}", application.getId(), summaryTpv);
+                                String remarks = "skipping payu for application id : " + application.getId() + " due to merchant loan edi amount: " + application.getEdi() + " is greater than summary_tpv " + summaryTpv;
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
                             }
@@ -377,6 +393,8 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
                                 log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
+                                String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();
+                                createAndSaveLendingAuditTrial(application, lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                             }
                         }
@@ -446,17 +464,23 @@ public class LenderAssignService implements ILenderAssignService {
         }
         if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)){
             log.info("skipping {} due to maxApr checks failing for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to maxApr checks failing for " + lendingApplication.getId();
+            createAndSaveLendingAuditTrial(lendingApplication, lender, "LENDER_REMOVED", remarks);
             return false;
         }
         if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
             String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
                 log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, lendingApplication.getId());
+                String remarks = "Enach bank mode is aadhar and " + lender + " application tenure is >= 12 months for " + lendingApplication.getId();
+                createAndSaveLendingAuditTrial(lendingApplication, lender, "LENDER_REMOVED", remarks);
                 return false;
             }
         }
         if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
             log.info("skipping {} due to minimum vintage checks failing for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to minimum vintage checks failing for " + lendingApplication.getId() + " because application EDI: " + lendingApplication.getEdi() + " is greater than 0.7 * summry Tpv " + 0.7 * summaryTpv;
+            createAndSaveLendingAuditTrial(lendingApplication, lender, "LENDER_REMOVED", remarks);
             return false;
         }
         return true;
@@ -501,6 +525,8 @@ public class LenderAssignService implements ILenderAssignService {
                 log.info("skipping lender {} due to negative category for {}", lender, lendingApplication.getId());
                 funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                         FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_CATEGORY, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                String remarks = "skipping lender " + lender + " due to lending business category status: " + lendingLenderBusinessCategory.getStatus() + " is inactive for " + lendingApplication.getId();
+                createAndSaveLendingAuditTrial(lendingApplication, lender, "LENDER_REMOVED", remarks);
                 return false;
             }
             else if ("ACTIVE".equalsIgnoreCase(lendingLenderBusinessCategory.getStatus())){
@@ -510,6 +536,8 @@ public class LenderAssignService implements ILenderAssignService {
                     funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                             FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_CATEGORY_AMOUNT_LIMIT, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     log.info("skipping {} due to breach of business category amount limit for {}", lender, lendingApplication.getId());
+                    String remarks = "skipping " + lender + " due to breach of business category amount limit: " + lendingLenderBusinessCategory.getMaxAmount() + "is less than lending application amount: " + lendingApplication.getLoanAmount() + " for " + lendingApplication.getId();
+                    createAndSaveLendingAuditTrial(lendingApplication, lender, "LENDER_REMOVED", remarks);
                     return false;
                 }
             }
@@ -867,24 +895,34 @@ public class LenderAssignService implements ILenderAssignService {
                 if (ageCheckLenderList.contains(rule.getLender()) && !ObjectUtils.isEmpty(age) && age != 0
                         && (age < 21 || age > 65)) {
                     log.info("age checks failed for {}", merchantId);
+                    String remarks = "age checks failed for " + merchantId + " Minimum = 21 and Maximum = 65";
+                    createAndSaveLendingAuditTrial(null, lender, "LENDER_REMOVED", remarks);
                     continue;
                 }
                 if (Lender.PIRAMAL.name().equalsIgnoreCase(lender) && vintage < thresholdVintage && (!loanUtil.isInternalMerchant(merchantId) || runInternalRules)){
                     log.info("Can't assign PIRAMAL as vintage {} is less than threshold vintage {}",vintage,thresholdVintage);
+                    String remarks = "Can't assign PIRAMAL as vintage " + vintage + " is less than threshold vintage " + thresholdVintage;
+                    createAndSaveLendingAuditTrial(null, lender, "LENDER_REMOVED", remarks);
                     continue;
                 }
                 if (MUTHOOT.name().equalsIgnoreCase(lender) && vintage < minimumMuthootVintage && (!loanUtil.isInternalMerchant(merchantId) || runInternalRules)){
                     log.info("Can't assign MUTHOOT as vintage {} is less than threshold vintage {}", vintage, minimumMuthootVintage);
+                    String remarks = "Can't assign MUTHOOT as vintage " + vintage + " is less than threshold vintage " + minimumMuthootVintage;
+                    createAndSaveLendingAuditTrial(null, lender, "LENDER_REMOVED", remarks);
                     continue;
                 }
                 if (Lender.CAPRI.name().equalsIgnoreCase(lender) && age > 65) {
                     log.info("Can't assign CAPRI as age is greater than 65 years {} for merchant id {}", age, merchantId);
+                    String remarks = "Can't assign CAPRI as age is greater than 65 years " + age + " for merchant id " + merchantId;
+                    createAndSaveLendingAuditTrial(null, lender, "LENDER_REMOVED", remarks);
                     continue;
                 }
 
                 log.info("adding {} to the eligible list for merchantId: {}", lender, merchantId);
                 if(Lender.PIRAMAL.name().equalsIgnoreCase(lender) && !loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, piramalRolloutPercentage)) {
                     log.info("removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
+                    String remarks = "removing " + lender + " from eligible list for merchantId : " + merchantId + " due to not in rollout percentage " + piramalRolloutPercentage;
+                    createAndSaveLendingAuditTrial(null, lender, "LENDER_REMOVED", remarks);
                     continue;
                 }
                 if(lenderRolloutFailedCheck(lender, merchantId)) {
@@ -1104,6 +1142,10 @@ public class LenderAssignService implements ILenderAssignService {
         boolean flag = false;
         if(Lender.ABFL.equals(lender)){
             flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
+            if (flag) {
+                String remarks = "skipping " + lender + " due to external loan id: " + lendingApplication.getExternalLoanId() + " is not present in lending application for " + lendingApplication.getId();
+                createAndSaveLendingAuditTrial(lendingApplication, lender.name(), "LENDER_REMOVED", remarks);
+            }
             if(ObjectUtils.isEmpty(merchantDetails)){
                 merchantDetails=merchantService.fetchMerchantDetails(lendingApplication.getMerchantId()).getMerchantDetail();
             }
@@ -1115,6 +1157,10 @@ public class LenderAssignService implements ILenderAssignService {
                 flag = false;
             } else{
                 flag =  responseDTO.getVariables().getMaxDpd6Months()>=30;
+                if (flag) {
+                    String remarks = "skipping " + lender + " due to max Dpd 6 months: " + responseDTO.getVariables().getMaxDpd6Months() + " is greater than 30 for " + lendingApplication.getId();
+                    createAndSaveLendingAuditTrial(lendingApplication, lender.name(), "LENDER_REMOVED", remarks);
+                }
             }
         }
         return flag;
@@ -1409,5 +1455,17 @@ public class LenderAssignService implements ILenderAssignService {
             return getLenderData(eligibleLenders, prevLenders, lendingApplication);
         }
         return null;
+    }
+
+    private void createAndSaveLendingAuditTrial(LendingApplication lendingApplication, String oldStatus, String type, String remarks) {
+        log.info("Entry getting created in Lending audit Trial");
+        LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+        lendingAuditTrial.setApplicationId(lendingApplication.getId());
+        lendingAuditTrial.setMerchantId(lendingApplication.getMerchantId());
+        lendingAuditTrial.setOldStatus(oldStatus);
+        lendingAuditTrial.setType(type);
+        lendingAuditTrial.setRemarks(remarks);
+        lendingAuditTrialDao.save(lendingAuditTrial);
+        log.info("Details getting saved in Lending audit Trial");
     }
 }
