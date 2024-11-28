@@ -90,6 +90,10 @@
         .bold {
             font-weight: bold;
         }
+
+        .font-none {
+            font-family: none !important;
+        }
     </style>
 </head>
 
@@ -140,7 +144,7 @@
             <td colspan="4" style="padding: 0px 5px;" class="width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left bold"> Loan Proposal/Account No. </p>
             </td>
-            <td colspan="3" style="padding: 0px 5px;" class="word-wrap width-70">
+            <td colspan="4" style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left">{{loan_id}}</p>
             </td>
         </tr>
@@ -816,7 +820,7 @@
     </div>
     <div style="margin: 20px 16px">
         <p class="fw400 text-left">
-            This Sanction Letter is valid up to 30 working days from the date of issue of this letter.
+            This Sanction Letter is valid to 30 days from the date of issue of this letter.
         </p>
     </div>
     <div style="margin: 20px 16px">
@@ -1096,13 +1100,15 @@
             <p style="margin: 6px 16px" class="fw400 ml10">
                 <span>2.15</span> Insurance (if applicable):
             <p style="margin: 6px 16px" class="fw400 ml10"><span>2.15.1</span>
-                At the request of the Borrower, the Lender may ﬁnance the premium of an insurance policy insuring
-                the Borrower against various risks including without limitation the risks of personal accident,
-                accidental hospitalization, payment of outstanding amount to the Lender and/or critical illness.
-                Such insurance premium paid by the Lender on behalf of the Borrower shall be deducted from the
-                Sanctioned Loan Amount granted herein and shall from part of the Loan. The insurance premium being a
-                part of Loan shall be remitted / disbursed by the Lender directly to such an insurance company and
-                such disbursement /remittance shall be deemed to be disbursement to the Borrower.
+                <span class="font-none">
+                    At the request of the Borrower, the Lender may ﬁnance the premium of an insurance policy insuring
+                    the Borrower against various risks including without limitation the risks of personal accident,
+                    accidental hospitalization, payment of outstanding amount to the Lender and/or critical illness.
+                    Such insurance premium paid by the Lender on behalf of the Borrower shall be deducted from the
+                    Sanctioned Loan Amount granted herein and shall from part of the Loan. The insurance premium being a
+                    part of Loan shall be remitted / disbursed by the Lender directly to such an insurance company and
+                    such disbursement /remittance shall be deemed to be disbursement to the Borrower.
+                </span>
             </p>
             <p style="margin: 6px 16px" class="fw400 ml10"><span>2.15.2</span>
                 The participation by the Borrower in any insurance product is optional and purely on a voluntary
@@ -1118,11 +1124,13 @@
                 Lender.
             </p>
             <p style="margin: 6px 16px" class="fw400 ml10"><span>2.15.4</span>
-                In case, Borrower has chosen an insurance cover as per clause 2.15.1 above, the Borrower agrees
-                that, the Lender shall have the right to appropriate insurance claim paid thereunder towards the
-                outstanding amount. If after such appropriation, there be any surplus leftover, it shall be paid to
-                the Borrower. If there is any deﬁcit, then the Borrower or its legal heirs or representative shall
-                be liable to pay entire deﬁcit forthwith.
+                <span class="font-none">
+                    In case, Borrower has chosen an insurance cover as per clause 2.15.1 above, the Borrower agrees
+                    that, the Lender shall have the right to appropriate insurance claim paid thereunder towards the
+                    outstanding amount. If after such appropriation, there be any surplus leftover, it shall be paid to
+                    the Borrower. If there is any deﬁcit, then the Borrower or its legal heirs or representative shall
+                    be liable to pay entire deﬁcit forthwith.
+                </span>
             </p>
             </p>
             <p style="margin: 6px 16px" class="fw400 ml10">
@@ -1875,7 +1883,7 @@
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">(years/months/days)</p>
             </td>
             <td colspan="4" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 10px 16px;" class="fw400 text-left">In case of top up-loan, the Parent Loan
+                <p style="margin: 10px 16px;" class="fw400 text-left">
                     {{tenure_of_loan_in_months}} months
                 </p>
             </td>

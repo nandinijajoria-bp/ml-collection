@@ -81,5 +81,6 @@ public class BreApiRequestDto {
         String bpVintage;
         Long shopPincode;
         String tpv;
+        String registeredBusinessName;
     }
 }

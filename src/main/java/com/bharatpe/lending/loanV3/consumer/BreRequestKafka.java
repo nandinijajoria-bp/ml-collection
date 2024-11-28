@@ -287,6 +287,7 @@ public class BreRequestKafka {
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
                                     .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : new DecimalFormat("#").format(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
                                     .shopPincode(lendingApplication.get().getPincode())
+                                    .registeredBusinessName(lendingApplication.get().getBusinessName())
                                     .build())
                     .build();
             log.info("breRequest payload {}", breRequestKafkaDto);
