@@ -29,7 +29,6 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.FileUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.DocumentException;
@@ -83,9 +82,6 @@ public class AbflDataUploadServiceUtil {
     LendingKfsDao lendingKfsDao;
 
     @Autowired
-    NbfcUtils nbfcUtils;
-
-    @Autowired
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
@@ -136,7 +132,6 @@ public class AbflDataUploadServiceUtil {
 
     @Value("${abfl.lender.doc.rollout.datetime:}")
     String lenderDocRolloutDateTime;
-
 
     @Autowired
     ABFLDigiSignService abflDigiSignService;
