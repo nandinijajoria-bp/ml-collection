@@ -11,7 +11,9 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -32,10 +34,14 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
     @Autowired
     private LendingApplicationDao lendingApplicationDao;
 
+    @Autowired
+    private LoanUtil loanUtil;
+
     @Override
     public LendingStateDTO<ReferenceStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+
         return lendingStateDTO;
     }
 
@@ -54,6 +60,10 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
             if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
                 referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
                 referenceStateDTO.setLender(lendingApplication.getLender());
+            }
+            if(!ObjectUtils.isEmpty(scopeDataArgs.getMerchant())) {
+                referenceStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));
+                referenceStateDTO.setMobile(scopeDataArgs.getMerchant().getMobile());
             }
 
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
