@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.valida
 
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLNachMandateRequestDto;
+import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLeadRequestV2Dto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -42,6 +43,15 @@ public class TLPayloadValidation {
                 || ObjectUtils.isEmpty(tlNachMandateRequestDto.getPeriodEndDate()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getDebitTypeEnum())
                 || ObjectUtils.isEmpty(tlNachMandateRequestDto.getDebitFrequencyEnum()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getAmount())
                 || ObjectUtils.isEmpty(tlNachMandateRequestDto.getMode()) || ObjectUtils.isEmpty(tlNachMandateRequestDto.getLeadId())
+        );
+    }
+
+    public boolean isInvalidUpdateLeadPayload(TLUpdateLeadRequestV2Dto tlUpdateLeadRequestV2Dto) {
+        return (ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto)
+                || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getLeadId()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getClientId())
+                || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getAccountNumber()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getIfscCode())
+                || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getAccountHolderName()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getBankName())
+                || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getBankAccountType()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getBeneficiaryType())
         );
     }
 }

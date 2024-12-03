@@ -89,6 +89,7 @@ public class InvokeSanctionWrapperService {
             if(Arrays.asList(Lender.MUTHOOT.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
             }
+
             MDC.clear();
         } catch (Exception e) {
             log.info("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
@@ -99,12 +100,10 @@ public class InvokeSanctionWrapperService {
     private List<String> checkTrillionRetryAndGetStageToBeInvokedInOrderList(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, List<String> stagesToBeInvokedInOrder) {
         boolean isTrillionRetry = !ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
 
-        if (isTrillionRetry && !ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus())) {
+        if (isTrillionRetry) {
             int retryApiIndex = stagesToBeInvokedInOrder.indexOf(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
             if (retryApiIndex >= 0) {
-                stagesToBeInvokedInOrder = stagesToBeInvokedInOrder.subList(retryApiIndex, stagesToBeInvokedInOrder.size());
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setSanctionStatus(null);
-                lendingApplicationLenderDetailsDao.save(lenderAssociationDetailsDto.getLendingApplicationLenderDetails());
+                return stagesToBeInvokedInOrder.subList(retryApiIndex, stagesToBeInvokedInOrder.size());
             }
         }
         return stagesToBeInvokedInOrder;
@@ -140,9 +139,9 @@ public class InvokeSanctionWrapperService {
             case "TRILLIONLOANS": {
                 if(loanUtilV3.isNonTLToTLTopup(lendingApplication.get()))
                     return Arrays.asList(LenderAssociationStages.TOPUP_UNDO_APPROVE.name(), LenderAssociationStages.TOPUP_DATA.name(),
-                            LenderAssociationStages.ADD_CHARGE.name(), LenderAssociationStages.TOPUP_APPROVE.name(), LenderAssociationStages.NACH_MANDATE.name());
+                            LenderAssociationStages.ADD_CHARGE.name(), LenderAssociationStages.TOPUP_APPROVE.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
                 else
-                    return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
+                    return Arrays.asList(LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
             }
             case "CAPRI":
             case "PAYU":

@@ -59,13 +59,13 @@ public class TLNachMandateService {
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         try {
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_PENDING.name());
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.NACH_MANDATE.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequest);
 
             NBFCRequestDTO<?> nachManadateRequest = getPayload(lenderAssociationDetailsRequest);
             if (ObjectUtils.isEmpty(nachManadateRequest)) {
                 log.info("error in nach mandate payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequest.getApplicationId());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
-                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.NACH_MANDATE.name());
                 commonService.manageApplicationState(lenderAssociationDetailsRequest);
                 return false;
             }

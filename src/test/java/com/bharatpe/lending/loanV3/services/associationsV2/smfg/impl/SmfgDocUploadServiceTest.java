@@ -87,7 +87,6 @@ public class SmfgDocUploadServiceTest {
 
         doReturn(nbfcResponseDTO).when(lenderAPIGateway).invokeStage(any(NBFCRequestDTO.class), eq(LenderAssociationStages.SELFIE_UPLOAD));
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doCallRealMethod().when(docUploadUtils).getFileBlob(any(DocType.class), any(CKycResponseDto.class), any(), any(), any());
 
@@ -114,7 +113,6 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.TRUE);
@@ -127,7 +125,6 @@ public class SmfgDocUploadServiceTest {
         doReturn("SuccessResponse").when(objectMapper).writeValueAsString(any(SmfgDocUploadResponseDto.class));
         doReturn(smfgDocUploadResponseDto).when(objectMapper).readValue(any(String.class), eq(SmfgDocUploadResponseDto.class));
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doCallRealMethod().when(docUploadUtils).getFileBlob(any(DocType.class), any(CKycResponseDto.class), any(), any(), any());
 
@@ -157,7 +154,6 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.FALSE);
@@ -187,14 +183,12 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.FALSE);
         doReturn("123").when(smfgconfig).getPartnerId();
         doReturn(nbfcResponseDTO).when(lenderAPIGateway).invokeStage(any(NBFCRequestDTO.class), eq(LenderAssociationStages.SELFIE_UPLOAD));
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
 
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "SELFIE");
@@ -222,7 +216,6 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.TRUE);
@@ -234,7 +227,6 @@ public class SmfgDocUploadServiceTest {
         doReturn(smfgDocUploadResponseDto).when(objectMapper).readValue(any(String.class), eq(SmfgDocUploadResponseDto.class));
 
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doCallRealMethod().when(docUploadUtils).getFileBlob(any(DocType.class), any(CKycResponseDto.class), any(), any(), any());
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "DIGILOCKER_AADHAAR_XML");
@@ -244,7 +236,7 @@ public class SmfgDocUploadServiceTest {
         verify(kycUtils, times(1)).getKycData(20000404L);
         verify(commonService, times(2)).manageApplicationState(lenderAssociationDetailsRequestDto);
     }
-    
+
     @Test
     public void invokeDocUploadAadharPdf_InvalidPayloadFailure() {
         LendingApplication lendingApplication = new LendingApplication();
@@ -264,13 +256,11 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.FALSE);
         doReturn(nbfcResponseDTO).when(lenderAPIGateway).invokeStage(any(NBFCRequestDTO.class), eq(LenderAssociationStages.AADHAR_UPLOAD));
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "DIGILOCKER_AADHAAR_XML");
 
@@ -278,7 +268,7 @@ public class SmfgDocUploadServiceTest {
         assertEquals(LenderAssociationStatus.AADHAR_UPLOAD_FAILED.name(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getKycStatus());
         verify(kycUtils, times(1)).getKycData(20000404L);
     }
-    
+
     @Test
     public void invokeDocUploadAadharPdf_APIFailure() {
         LendingApplication lendingApplication = new LendingApplication();
@@ -298,13 +288,11 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.FALSE);
         doReturn(nbfcResponseDTO).when(lenderAPIGateway).invokeStage(any(NBFCRequestDTO.class), eq(LenderAssociationStages.AADHAR_UPLOAD));
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doCallRealMethod().when(docUploadUtils).getFileBlob(any(DocType.class), any(CKycResponseDto.class), any(), any(), any());
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "DIGILOCKER_AADHAAR_XML");
@@ -312,7 +300,7 @@ public class SmfgDocUploadServiceTest {
         assertEquals(LenderAssociationStatus.AADHAR_UPLOAD_FAILED.name(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getKycStatus());
         verify(kycUtils, times(1)).getKycData(20000404L);
     }
-    
+
     @Test
     public void invokeDocUploadBusinessDoc_SuccessPslFlag() throws IOException {
         LendingApplication lendingApplication = new LendingApplication();
@@ -332,7 +320,6 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.TRUE);
@@ -345,7 +332,6 @@ public class SmfgDocUploadServiceTest {
         doReturn(smfgDocUploadResponseDto).when(objectMapper).readValue(any(String.class), eq(SmfgDocUploadResponseDto.class));
 
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doCallRealMethod().when(docUploadUtils).getFileBlob(any(DocType.class), any(CKycResponseDto.class), any(), any(), any());
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "BUSINESS_DOC");
@@ -393,7 +379,6 @@ public class SmfgDocUploadServiceTest {
         doReturn(lendingKfs).when(lendingKfsDao).findTop1ByApplicationIdAndLenderOrderByIdDesc(anyLong(), anyString());
         doReturn(cKycResponseDto).when(kycUtils).getPanData(anyLong());
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doReturn("mockUrl").when(docUploadUtils).getFileBlob(any(DocType.class), any(), any(LendingKfs.class), any(), any());
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "AUDIT_TRAIL_DOC");
@@ -420,7 +405,6 @@ public class SmfgDocUploadServiceTest {
         lenderAssociationDetailsRequestDto.setMerchantId(20000404L);
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         cKycResponseDto.setSelfieString("selfieString");
-        cKycResponseDto.setPoaPdf("poaPdf");
         cKycResponseDto.setPanName("Tarsem Singh");
         NBFCResponseDTO<Object> nbfcResponseDTO = new NBFCResponseDTO<>();
         nbfcResponseDTO.setSuccess(Boolean.TRUE);
@@ -433,7 +417,6 @@ public class SmfgDocUploadServiceTest {
         doReturn(smfgDocUploadResponseDto).when(objectMapper).readValue(any(String.class), eq(SmfgDocUploadResponseDto.class));
 
         doReturn(cKycResponseDto).when(kycUtils).getKycData(anyLong());
-        doCallRealMethod().when(docUploadUtils).getDocName(any(String.class));
         doCallRealMethod().when(docUploadUtils).getStatusForDocumentUpload(any(DocType.class), anyString());
         doCallRealMethod().when(docUploadUtils).getFileBlob(any(DocType.class), any(CKycResponseDto.class), any(), any(), any());
         boolean result = smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequestDto, "AUDIT_TRAIL_DOC");
@@ -443,5 +426,5 @@ public class SmfgDocUploadServiceTest {
         verify(kycUtils, times(1)).getKycData(20000404L);
         verify(commonService, times(2)).manageApplicationState(lenderAssociationDetailsRequestDto);
     }
-    
+
 }

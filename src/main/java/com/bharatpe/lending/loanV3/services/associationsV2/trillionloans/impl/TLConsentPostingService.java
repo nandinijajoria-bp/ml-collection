@@ -131,7 +131,7 @@ public class TLConsentPostingService {
                     .payload(TLConsentRequestDto.builder()
                             .clientId(Long.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId()))
                             .leadId(Long.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId()))
-                            .consentKey("BRE".equalsIgnoreCase(lendingApplicationLenderDetails.getStage()) ? "TRILLION_BUREAU_CKYC_CONSENT" : "TRILLION_AGREEMENT_CONSENT")
+                            .consentKey(ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()) ? "TRILLION_BUREAU_CKYC_CONSENT" : "TRILLION_AGREEMENT_CONSENT")
                             .ipAddress(lendingApplication.getIp())
                             .isAccepted(Boolean.TRUE)
                             .build())
@@ -143,13 +143,13 @@ public class TLConsentPostingService {
     }
 
     private String getLeadStatus(LendingApplicationLenderDetails lendingApplicationLenderDetails, Boolean success) {
-        if (success && "BRE".equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
+        if (success && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
             return LenderAssociationStatus.BRE_CONSENT_SUCCESS.name();
-        else if (!success && "BRE".equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
+        else if (!success && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
             return LenderAssociationStatus.BRE_CONSENT_FAILED.name();
-        else if (success && "ASSC_COMPLETED".equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
+        else if (success && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
             return LenderAssociationStatus.AGREEMENT_CONSENT_SUCCESS.name();
-        else if (!success && "ASSC_COMPLETED".equalsIgnoreCase(lendingApplicationLenderDetails.getStage()))
+        else if (!success && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getBreStatus()))
             return LenderAssociationStatus.AGREEMENT_CONSENT_FAILED.name();
         else
             return "";

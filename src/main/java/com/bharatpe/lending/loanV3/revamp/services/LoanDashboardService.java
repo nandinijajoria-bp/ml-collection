@@ -1193,6 +1193,11 @@ public class LoanDashboardService {
     private Double getAnnualROI(LendingApplicationSlave lendingApplicationSlave) {
         Double annualROI = null;
         try {
+            if(ObjectUtils.isEmpty(lendingApplicationSlave.getLender())){
+                log.info("Lender not found for application id: {}", lendingApplicationSlave.getId());
+                return annualROI;
+            }
+
             LendingApplicationLenderDetailsSlave lendingApplicationLenderDetailsSlave = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplicationSlave.getId(), "ACTIVE", lendingApplicationSlave.getLender());
 
             if(!ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave)){
@@ -1205,7 +1210,7 @@ public class LoanDashboardService {
             }
             log.info("AnnualROI--------> {} , applicationID: {}", annualROI, lendingApplicationSlave.getId());
         }catch (Exception ex){
-            log.error("Exception in fetching annual roi for applicationID {}", lendingApplicationSlave.getId());
+            log.error("Exception in fetching annual roi for applicationID {}, error: {}", lendingApplicationSlave.getId(), Arrays.asList(ex.getStackTrace()));
         }
 
         return annualROI;
