@@ -246,9 +246,6 @@ public class SmfgForeclosureServiceTest {
         lendingLedger.setDate(new Date());
         lendingLedger.setTerminalOrderId(null);
 
-        when(lendingApplicationDao.findById(applicationId)).thenReturn(Optional.of(lendingApplication));
-
-        when(smfgConfig.getLmsAppName()).thenReturn("appName");
         when(smfgConfig.getLmsAppPassword()).thenReturn("appPassword");
         when(smfgConfig.getLmsStaticIpAddress()).thenReturn("192.168.0.1");
         when(smfgConfig.getForeclosureTowards()).thenReturn("someTowards");
