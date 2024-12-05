@@ -2691,7 +2691,8 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public void generateSanctionCumLoanAgreementDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception{
+    public void generateSanctionCumLoanAgreementDoc(LendingApplication lendingApplication, BasicDetailsDto merchant,
+                                                    LendingKfs lendingKfs, Date dateTime) throws Exception {
         boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
                 lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
         if (generateLenderDoc) {
@@ -2700,57 +2701,124 @@ public class LendingApplicationServiceV2 {
         }
         String fileName = "";
         ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
-        if(apiResponse.success){
-            String sanctionCumLoanAgreementHtml = (String)apiResponse.data;
+        if (apiResponse.success) {
+            String sanctionCumLoanAgreementHtml = (String) apiResponse.data;
 
-            if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-                fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
-                ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
-                if (ObjectUtils.isEmpty(inStream)) {
-                    throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
-                }
+            // Call the helper method
+            fileName = (String) generateAndUploadSanctionLoanAgreementPdf(lendingApplication, sanctionCumLoanAgreementHtml, lendingKfs.getLender(), false);
 
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            } else {
-                fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-                ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
-                PdfDocument pdfDocument = new PdfDocument(writer);
-                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
-                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
-                            Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
-                        ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                        ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
-                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
-                        Header headerHandler = new Header(headerImageData);
-                        pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-
-                        Footer footerHandler = new Footer(footerImageData);
-//                      HeaderFooter headerFooterHandler = new HeaderFooter(headerImageData,footerImageData);
-                        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
-
-                    } else {
-                        ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                        Header headerHandler = new Header(logoImageData);
-                        pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-                    }
-                }
-                InputStream htmlStringInputStream = new ByteArrayInputStream(sanctionCumLoanAgreementHtml.getBytes(StandardCharsets.UTF_8));
-                HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
-                ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            }
-
+            // Get the URL for the file and generate a short link
             String sanctionCumLoanAgreementUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
             String shortUrl = apiGatewayService.getShortUrl(sanctionCumLoanAgreementUrl);
-            if(shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty())throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
-            else {
+            if (shortUrl == null || shortUrl.isEmpty() || shortUrl.trim().isEmpty()) {
+                throw new Exception("Unable to create short URL for Sanction Loan Agreement doc link for : " + lendingApplication.getId());
+            } else {
                 lendingKfs.setSanctionLoanAgreementDocFile(fileName);
                 lendingKfs.setSanctionLoanAgreementDocUrl(shortUrl);
             }
+        } else {
+            log.error("Unable to store Sanction Cum Loan Agreement pdf doc for applicationId : {}", lendingApplication.getId());
+            throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + lendingApplication.getId());
         }
-        else{
+    }
+
+    public Object generateAndUploadSanctionLoanAgreementPdf(LendingApplication lendingApplication,
+                                                                 String sanctionCumLoanAgreementHtml, String lender, boolean isForPdf) throws Exception {
+        String fileName = "";
+        if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+            fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
+            ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
+            if (ObjectUtils.isEmpty(inStream)) {
+                throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
+            }
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+        } else {
+            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
+            PdfDocument pdfDocument = new PdfDocument(writer);
+            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
+                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
+                    ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
+                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
+                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
+                    Header headerHandler = new Header(headerImageData);
+                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+
+                    Footer footerHandler = new Footer(footerImageData);
+                    pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
+                } else {
+                    ImageData logoImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
+                    Header headerHandler = new Header(logoImageData);
+                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
+                }
+            }
+
+            InputStream htmlStringInputStream = new ByteArrayInputStream(sanctionCumLoanAgreementHtml.getBytes(StandardCharsets.UTF_8));
+            HtmlConverter.convertToPdf(htmlStringInputStream, pdfDocument);
+
+            ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+        }
+        if (isForPdf) {
+            return s3BucketHandler.getObject(fileName, s3Bucket);
+        } else {
+            return fileName;
+        }
+    }
+
+    private LendingKfs getLendingKfs(LendingApplication lendingApplication, Boolean preSigned) {
+        LendingKfs lendingKfs = null;
+        try {
+            lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+            if (ObjectUtils.isEmpty(lendingKfs) || ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile())) {
+                DocType docType = DocType.LOAN_AGREEMENT;
+                Boolean success = associationServiceUtil.invokeDocsGenerateService(lendingApplication.getLender(), lendingApplication, docType, preSigned);
+                if (success) {
+                    lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+                }
+            }
+        } catch (Exception e) {
+            log.info("Exception in generating lender SanctionCumLoanAgreement document of {} for applicationId {} {}", lendingApplication.getLender(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return lendingKfs;
+    }
+
+    public String generateLenderSanctionCumLoanAgreementWithFileName(LendingApplication lendingApplication, Boolean preSigned) {
+        try {
+            LendingKfs lendingKfs = getLendingKfs(lendingApplication, preSigned);
+            if (!ObjectUtils.isEmpty(lendingKfs)) {
+                String fileName = preSigned ? lendingKfs.getSanctionLoanAgreementDocFile() : lendingKfs.getSignedSanctionDocFile();
+                if (!ObjectUtils.isEmpty(fileName)) {
+                    String lenderSanctionUrl = s3BucketHandler.getPreSignedPublicURL(fileName, s3Bucket);
+                    return fileName;
+                }
+            }
+            log.info("Unable to generate lender SanctionCumLoanAgreement document of {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+        } catch (Exception e) {
+            log.info("Exception in generating lender SanctionCumLoanAgreement document of {} for applicationId {} {}", lendingApplication.getLender(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+
+    public InputStream generateSanctionCumLoanAgreementDocAsPdf(LendingApplication lendingApplication, BasicDetailsDto merchant,
+                                                                String lender, Date dateTime) throws Exception {
+        boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
+                lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
+
+        if (generateLenderDoc) {
+            String fileName = generateLenderSanctionCumLoanAgreementWithFileName(lendingApplication, true);
+            InputStream inputStream = s3BucketHandler.getObject(fileName, s3Bucket);
+            return inputStream;
+        }
+        ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        if (apiResponse.success) {
+            String sanctionCumLoanAgreementHtml = (String) apiResponse.data;
+            return (InputStream) generateAndUploadSanctionLoanAgreementPdf(lendingApplication, sanctionCumLoanAgreementHtml, lender, true);
+        } else {
             log.error("Unable to store Sanction Cum Loan Agreement pdf doc for applicationId : {}", lendingApplication.getId());
             throw new Exception("Unable to generate Sanction Cum Loan Agreement pdf doc for applicationID" + lendingApplication.getId());
         }
@@ -4258,14 +4326,7 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> generateLenderSanctionCumLoanAgreement(LendingApplication lendingApplication, Boolean preSigned) {
         try {
-            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
-            if (ObjectUtils.isEmpty(lendingKfs) || ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile())) {
-                DocType docType = DocType.LOAN_AGREEMENT;
-                Boolean success = associationServiceUtil.invokeDocsGenerateService(lendingApplication.getLender(), lendingApplication, docType, preSigned);
-                if (success) {
-                    lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
-                }
-            }
+            LendingKfs lendingKfs = getLendingKfs(lendingApplication, preSigned);
             if (!ObjectUtils.isEmpty(lendingKfs)) {
                 String fileName = preSigned ? lendingKfs.getSanctionLoanAgreementDocFile() : lendingKfs.getSignedSanctionDocFile();
                 if (!ObjectUtils.isEmpty(fileName)) {
