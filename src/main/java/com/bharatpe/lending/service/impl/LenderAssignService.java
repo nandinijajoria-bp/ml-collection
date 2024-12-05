@@ -366,9 +366,16 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
-                            if (Arrays.asList(MUTHOOT.name(), PAYU.name()).contains(lender) && application.getLoanAmount() > tpvOffer) {
-                                log.info("skipping muthoot/payu for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
-                                String remarks = "skipping muthoot/payu for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + tpvOffer;
+                            if (Collections.singletonList(MUTHOOT.name()).contains(lender) && application.getLoanAmount() > (Math.round(tpvOffer / 1000) * 1000)) {
+                                log.info("skipping muthoot for application id : {} due to merchant loan amount {} is greater than tpvOffer {}", application.getLoanAmount(), application.getId(), (Math.round(tpvOffer / 1000) * 1000));
+                                String remarks = "skipping muthoot for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + (Math.round(tpvOffer / 1000) * 1000);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (Collections.singletonList(PAYU.name()).contains(lender) && application.getLoanAmount() > (Math.ceil(tpvOffer / 10000) * 10000)) {
+                                log.info("skipping payU for application id : {} due to merchant loan amount {} is greater than tpvOffer {}", application.getLoanAmount(), application.getId(), (Math.ceil(tpvOffer / 10000) * 10000));
+                                String remarks = "skipping payU for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + (Math.ceil(tpvOffer / 10000) * 10000);
                                 createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;

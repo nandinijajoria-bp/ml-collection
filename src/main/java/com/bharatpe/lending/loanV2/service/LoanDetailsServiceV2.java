@@ -2937,7 +2937,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "lending application not found for " + applicationId);
             }
 
-            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
             if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                 log.info("lending application kyc details not found for {}", applicationId);
                 return new ApiResponse<>(false, "lending application kyc details not found for " + applicationId);
