@@ -654,7 +654,7 @@ public class LendingApplicationServiceV2 {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
                 return new ApiResponse<>(false, "eligible loan not found");
             }
-            LendingApplication lendingApplication = saveLendingApplication(merchant, eligibleLoan, applicationRequest, null, addressValidationDto, isApplicableForAggregationFlow);
+            LendingApplication lendingApplication = saveLendingApplication(merchant,isPreApproved, eligibleLoan, applicationRequest, null, addressValidationDto, isApplicableForAggregationFlow);
             loanUtil.createApplicationSnapshot(lendingApplication, merchant);
 
             final boolean rejected = checkAndRejectPilotIdentifierApplication(lendingApplication);
@@ -738,7 +738,7 @@ public class LendingApplicationServiceV2 {
         lendingAuditTrialDao.save(lendingAuditTrial);
     }
 
-    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
+    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, Boolean isPreApproved, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
         LendingApplication lendingApplication = new LendingApplication();
         int processingFee;
         if (apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId())) {
@@ -812,7 +812,7 @@ public class LendingApplicationServiceV2 {
 //        lendingApplication.setLender("ABFL");
 //        lendingApplication = lendingApplicationDao.save(lendingApplication);
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
-        replicateApplicationData(lendingApplication);
+        replicateApplicationData(lendingApplication, isPreApproved);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
@@ -825,7 +825,7 @@ public class LendingApplicationServiceV2 {
         return lendingApplication;
     }
 
-    private void replicateApplicationData(LendingApplication lendingApplication) {
+    private void replicateApplicationData(LendingApplication lendingApplication, Boolean isPreApproved) {
         try {
             LendingApplication prevApplication = lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
             if (prevApplication != null) {
@@ -865,6 +865,9 @@ public class LendingApplicationServiceV2 {
                         replicateShopDocument.setLongitude(shopDocuments.getLongitude());
                         replicateShopDocument.setLatitude(shopDocuments.getLatitude());
                         replicateShopDocument.setStatus(shopDocuments.getStatus());
+                        if(isPreApproved) {
+                            replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
+                        }
                         lendingShopDocumentsDao.save(replicateShopDocument);
                     }
                 }
