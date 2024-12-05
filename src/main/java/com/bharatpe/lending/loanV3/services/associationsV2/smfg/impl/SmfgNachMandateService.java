@@ -95,7 +95,7 @@ public class SmfgNachMandateService {
 
     private NBFCRequestDTO<SmfgAppPushRequest> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
-        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender());
+        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationKycDetails) || ObjectUtils.isEmpty(lendingApplicationKycDetails.getEmail()) || ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())) {
             log.info("no father name / email found in kyc details for application id {}", lendingApplication.getId());
             return null;
