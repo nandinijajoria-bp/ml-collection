@@ -261,6 +261,7 @@ public class LenderAssignService implements ILenderAssignService {
         Long vintage = 0L;
         Double tpvOffer = 0D;
         String rejectedLenders = "";
+        Integer maxTenure = 0;
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
             riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
@@ -271,6 +272,10 @@ public class LenderAssignService implements ILenderAssignService {
             summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
             tpvOffer = Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D;
             rejectedLenders = Objects.nonNull(lendingRiskVariables.getRejectedLenders()) ? lendingRiskVariables.getRejectedLenders() : "";
+            maxTenure = Objects.nonNull(lendingRiskVariables.getTenure()) ? lendingRiskVariables.getTenure() : 0;
+        }
+        if(maxTenure != 0 && tpvOffer != 0D && !ObjectUtils.isEmpty(application.getTenureInMonths()) && application.getTenureInMonths() != 0) {
+            tpvOffer = (tpvOffer / maxTenure) * application.getTenureInMonths();
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
@@ -308,17 +313,28 @@ public class LenderAssignService implements ILenderAssignService {
                                 continue;
                             }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
-                                LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
-                                        lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
-                                );
-                                if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
-                                    funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
-                                            FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
-                                    log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
-                                    String remarks = "Removing lender: " + lender + " from eligible as pincode: " + lendingRiskVariables.getPincode() + " not serviceable";
-                                    createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                                    iterator.remove();
-                                    continue;
+
+                                boolean shouldCheckPincodeList = true;
+
+                                if (PAYU.name().equalsIgnoreCase(lender)) {
+                                    shouldCheckPincodeList = application.getLoanAmount() > 500000;
+                                    log.info("Inside payu pincode check : amount {} - shouldCheckPincodeList {} - applicationId {}", application.getLoanAmount(), shouldCheckPincodeList, application.getId());
+                                }
+
+                                if (shouldCheckPincodeList) {
+
+                                    LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
+                                            lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
+                                    );
+                                    if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
+                                        funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
+                                                FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                                        log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
+                                        String remarks = "Removing lender: " + lender + " from eligible as pincode: " + lendingRiskVariables.getPincode() + " not serviceable";
+                                        createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                        iterator.remove();
+                                        continue;
+                                    }
                                 }
                             }
                             if (!baseChecksPassedForLenders(application, lender, ediModel, vintage, summaryTpv)) {
@@ -361,9 +377,16 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
-                            if (Arrays.asList(MUTHOOT.name(), PAYU.name()).contains(lender) && application.getLoanAmount() > tpvOffer) {
-                                log.info("skipping muthoot/payu for application id : {} due to merchant loan amount is greater than tpvOffer {}", application.getId(), tpvOffer);
-                                String remarks = "skipping muthoot/payu for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + tpvOffer;
+                            if (Collections.singletonList(MUTHOOT.name()).contains(lender) && application.getLoanAmount() > (Math.round(tpvOffer / 1000) * 1000)) {
+                                log.info("skipping muthoot for application id : {} due to merchant loan amount {} is greater than tpvOffer {}", application.getLoanAmount(), application.getId(), (Math.round(tpvOffer / 1000) * 1000));
+                                String remarks = "skipping muthoot for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + (Math.round(tpvOffer / 1000) * 1000);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (Collections.singletonList(PAYU.name()).contains(lender) && application.getLoanAmount() > (Math.ceil(tpvOffer / 10000) * 10000)) {
+                                log.info("skipping payU for application id : {} due to merchant loan amount {} is greater than tpvOffer {}", application.getLoanAmount(), application.getId(), (Math.ceil(tpvOffer / 10000) * 10000));
+                                String remarks = "skipping payU for application id : " + application.getId() + " due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + (Math.ceil(tpvOffer / 10000) * 10000);
                                 createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
