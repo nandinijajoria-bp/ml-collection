@@ -496,8 +496,8 @@ public class PaymentService {
             if (request.getPayload().getSource() != null) {
                 order.setSource(request.getPayload().getSource().name());
             }
-            if (PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
-                order.setDescription(PaymentType.ADVANCE_EDI.name());
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) || PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
+                order.setDescription(paymentType);
             }
 
             order = loanPaymentOrderDao.save(order);
@@ -662,6 +662,11 @@ public class PaymentService {
             order.setOwnerId(activeLoan.getId());
             order.setAmount(Double.valueOf(amount));
             order.setStatus("INIT");
+
+            if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(request.getPayload().getPaymentType())) {
+                order.setDescription(PaymentType.FORECLOSURE.name());
+            }
+
             if (request.getPayload().getSource() != null) {
                 order.setSource(request.getPayload().getSource().name());
             }
