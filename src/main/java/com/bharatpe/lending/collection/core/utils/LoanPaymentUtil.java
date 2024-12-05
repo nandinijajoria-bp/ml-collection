@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.collection.core.constant.ExcessConstants.ExcessCollectionAdjustmentModeDescription;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
+import static com.bharatpe.lending.enums.Lender.*;
 
 @Service
 @Slf4j
@@ -29,7 +30,7 @@ public class LoanPaymentUtil {
 
     public static final String DEFAULT_LOAN_SETTLEMENT_MECHANISM = IPC.name();
     public static final String DEFAULT_EXCESS_ADJUSTED_DESCRPTION = "EXCESS_NACH_ADJUSTED";
-
+    private static final Set<String> NON_NPA_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(LDC.name(), MAMTA.name(), HINDON.name(), LIQUILOANS.name(), LIQUILOANS_NBFC.name(), LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name(), MAMTA0.name(), MAMTA1.name(), MAMTA2.name()));
 
     @Value("${is.new.payment.settlement.enabled:false}")
     public  boolean newPaymentSettlementModeAllowed;
@@ -49,12 +50,14 @@ public class LoanPaymentUtil {
     public static String getLoanSettlementMechanism(LendingPaymentSchedule loan) {
         log.info("getLoanSettlementMechanism for loanId: {} is {}", loan.getId(), loan.getSettlementMechanism());
 
-        int dpdCount = calculateDPD(loan.getEdiAmount(), loan.getDueAmount());
-        log.info("getLoanSettlementMechanism for loanId: {} dpd is  {}", loan.getId(), dpdCount);
+        if (!NON_NPA_SUPPORTED_LENDER.contains(loan.getNbfc())) {
+            int dpdCount = calculateDPD(loan.getEdiAmount(), loan.getDueAmount());
+            log.info("getLoanSettlementMechanism for loanId: {} dpd is  {}", loan.getId(), dpdCount);
 
-        if (dpdCount > 90 || (Objects.nonNull(loan.getSettleAllPrinciple()) && loan.getSettleAllPrinciple())) {
-            log.info("getLoanSettlementMechanism for loanId: {} is a NPA with dpd : {} and mechanism is {}  settlePrinciple {}", loan.getId(), dpdCount, NPA.name(), loan.getSettleAllPrinciple());
-            return NPA.name();
+            if (dpdCount > 90 || (Objects.nonNull(loan.getSettleAllPrinciple()) && loan.getSettleAllPrinciple())) {
+                log.info("getLoanSettlementMechanism for loanId: {} is a NPA with dpd : {} and mechanism is {}  settlePrinciple {}", loan.getId(), dpdCount, NPA.name(), loan.getSettleAllPrinciple());
+                return NPA.name();
+            }
         }
 
         String mechanism = getOrDefaultSettlementMechanismFromLoan(loan.getSettlementMechanism(), DEFAULT_LOAN_SETTLEMENT_MECHANISM);
@@ -94,7 +97,9 @@ public class LoanPaymentUtil {
     }
 
     public boolean checkIfNewSettlementAllowed(Date createdAt)  {
-        return newPaymentSettlementModeAllowed && checkNewPaymentEligibility(createdAt);
+        //LC-595 allow for all loan and lender
+        return true;
+        //return newPaymentSettlementModeAllowed && checkNewPaymentEligibility(createdAt);
     }
 
     public boolean checkNewPaymentEligibility(Date createdAt)  {
