@@ -238,6 +238,9 @@ public class SupportService {
 	@Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
+    @Value("${aws.s3.bucket.agreement:bharatpe-agreement}")
+    private String agreementBucket;
+
     @Value(("${bankstatement.enabled:false}"))
     boolean bankStatementEnabled;
 
@@ -1608,6 +1611,22 @@ public class SupportService {
     }
 
     public String getAgreement(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) throws IOException {
+        Map<String, Object> data = getData(lendingApplication, lender, basicDetailsDto);
+        String html = getAgreementHtml(data,lender);
+        String shortUrl = storeAgreement(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
+        String welcomeLetter = getWelcomeLetterHtml(data);
+        String welcomeLetterUrl = storeAgreement(lendingApplication,welcomeLetter,"welcome","Welcome_Letter_"+ lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
+        return shortUrl;
+    }
+
+    public InputStream getAgreementForPdf(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) throws IOException {
+        Map<String, Object> data = getData(lendingApplication, lender, basicDetailsDto);
+        String html = getAgreementHtml(data,lender);
+        InputStream file = storeAgreementAsPdf(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
+        return file;
+    }
+
+    private Map<String,Object> getData(LendingApplication lendingApplication,String lender,BasicDetailsDto basicDetailsDto) {
         Map<String,Object> data = new HashMap<>();
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(basicDetailsDto.getId());
         BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
@@ -1646,27 +1665,23 @@ public class SupportService {
         data.put("repayment",lendingApplication.getRepayment());
         data.put("panNumber",experian.getPancardNumber());
         data.put("lenderName", lendingApplication.getLender());
-
-        String html = getAgreementHtml(data,lender);
-        String shortUrl = storeAgreement(lendingApplication,html,"agreement","LoanAgreement_" + lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
-
-        String welcomeLetter = getWelcomeLetterHtml(data);
-        String welcomeLetterUrl = storeAgreement(lendingApplication,welcomeLetter,"welcome","Welcome_Letter_"+ lendingApplication.getMerchantId() + "_" + lendingApplication.getId() + ".pdf");
-
-        return shortUrl;
+        return data;
     }
 
-    public String storeAgreement(LendingApplication lendingApplication,String html,String type,String fileName) throws IOException {
+    public InputStream storeAgreementAsPdf(LendingApplication lendingApplication, String html, String type, String fileName) throws IOException {
+        storeAgreementHelper(lendingApplication, html, type, fileName, agreementBucket);
+        return s3BucketHandler.getObject(fileName, agreementBucket);
+    }
+
+
+    private void storeAgreementHelper(LendingApplication lendingApplication, String html, String type, String fileName, String s3Bucket) throws IOException {
         ByteArrayOutputStream outStream = new ByteArrayOutputStream();
         HtmlConverter.convertToPdf(html, outStream);
         ByteArrayInputStream inStream = new ByteArrayInputStream(outStream.toByteArray());
-//        String filename = "test.pdf";
-//        FileOutputStream output = new FileOutputStream(filename);
-//        output.write(outStream.toByteArray());
-//        output.close();
-        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, "bharatpe-agreement");
-        LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(),type);
-        if(loanAgreement == null){
+
+        s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+        LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), type);
+        if (loanAgreement == null) {
             loanAgreement = new LoanAgreement();
             loanAgreement.setMerchantId(lendingApplication.getMerchantId());
             loanAgreement.setApplicationId(lendingApplication.getId());
@@ -1674,13 +1689,68 @@ public class SupportService {
         loanAgreement.setType(type);
         loanAgreement.setAgreementName(fileName);
         loanAgreementDao.save(loanAgreement);
+    }
+
+    private String convertToBase64(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = inputStream.read(buffer)) != -1) {
+            byteArrayOutputStream.write(buffer, 0, bytesRead);
+        }
+        byte[] inputBytes = byteArrayOutputStream.toByteArray();
+        return Base64.getEncoder().encodeToString(inputBytes);
+    }
+
+    public ResponseDTO createSanctionCumLoanAgreement(Long applicationId) {
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+        if (!lendingApplication.isPresent()) {
+            logger.error("createSanctionCumLoanAgreement- Application not found");
+            return new ResponseDTO(false, "Application not found");
+        }
+        Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.get().getMerchantId());
+        if (ObjectUtils.isEmpty(basicDetailsDto)) {
+            logger.error("createSanctionCumLoanAgreement- Merchant details not found");
+            return new ResponseDTO(false, "Merchant details not found");
+        }
+        try {
+            LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            if (!ObjectUtils.isEmpty(lendingKfs)) {
+                if (lendingKfs.getLender().equals(lendingApplication.get().getLender())) {
+                    String sanctionAndLoanAgreementFileName = ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
+                    if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
+                        InputStream inputStream = s3BucketHandler.getObject(sanctionAndLoanAgreementFileName, bucket);
+                        return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
+                    } else {
+                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingKfs.getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
+                        return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
+                    }
+                } else {
+                    if (!ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())) {
+                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingApplication.get().getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
+                        return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
+                    }
+                }
+                return new ResponseDTO(false, "Error creating agreement");
+            }
+            InputStream inputStream = getAgreementForPdf(lendingApplication.get(), lendingApplication.get().getLender(), basicDetailsDto.get());
+            return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
+        } catch (Exception e) {
+            logger.error("Exception Occurred while creating agreement for application id: {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return new ResponseDTO(false, "Internal Server Error");
+    }
+
+    public String storeAgreement(LendingApplication lendingApplication, String html, String type, String fileName) throws IOException {
+        storeAgreementHelper(lendingApplication, html, type, fileName, "bharatpe-agreement");
+        LoanAgreement loanAgreement = loanAgreementDao.findByApplicationIdAndType(lendingApplication.getId(), type);
         String shortUrl = "";
         try {
             shortUrl = getShorturl(fileName, loanAgreement, "bharatpe-agreement");
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
-        return  shortUrl;
+        return shortUrl;
     }
 
     public String getShorturl(String fileName, LoanAgreement loanAgreement, String bucket) throws UnsupportedEncodingException {

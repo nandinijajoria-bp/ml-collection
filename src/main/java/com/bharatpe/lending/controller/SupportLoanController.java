@@ -86,6 +86,11 @@ public class SupportLoanController {
         return supportService.createAgreement(applicationId);
     }
 
+    @RequestMapping(value="/createSanctionCumLoanAgreement/{applicationId}", method = RequestMethod.POST, produces = "application/json")
+    public ResponseDTO createSanctionCumLoanAgreement(@PathVariable(value = "applicationId") Long applicationId) {
+        return supportService.createSanctionCumLoanAgreement(applicationId);
+    }
+
     @RequestMapping(value="/fetchBulkContacts/{fileName}", method = RequestMethod.POST, produces="application/json")
     public ResponseDTO fetchBulkContact(@PathVariable(value = "fileName") String fileName){
         logger.info("Fetching bulk contacts for File : {}", fileName);

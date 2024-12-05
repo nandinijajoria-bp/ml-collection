@@ -46,7 +46,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/fos/**","/fos/**", "/lending/adhaar_mask", "/lending/edi_schedule", "/lending/edi_schedule/v2", "/support/loan","/support/lenderchange",
 				"/lending/nach_refund","/support/lender","/lending/processing_fee_refund","/lending/payment/callback/**","/error","/","/actuator/prometheus",
 				"/enach/bulkNach","/lending/due_amount","/lending/payment/loan_settlement","/lending/payment/refund", "/support/fldg/**","/support" +
-				"/createAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
+				"/createAgreement/**","/support/createSanctionCumLoanAgreement/**","/lending/application/resubmit", "/support/nbfcRetry/**","/lending/getLatestLoanDetails", "/lending/pullPayment",
 				"/lending/pullPayment/**", "/experian","/experian/update","/experian/insert", "/lending/application", "/lending/first_loan_status",
 						"/lending/check_loan_status", "/support/cancelApplication",  "/lending/getLoanDashboardDetails", "/lending/nbfc/mamta/decision/callback",
 						"/assign/lender","/assign/rules", "/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility", "/lending/payment/ledger_entry",
