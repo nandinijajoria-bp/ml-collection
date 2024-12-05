@@ -261,6 +261,7 @@ public class LenderAssignService implements ILenderAssignService {
         Long vintage = 0L;
         Double tpvOffer = 0D;
         String rejectedLenders = "";
+        Integer maxTenure = 0;
         if(Objects.nonNull(lendingRiskVariables)){
             bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
             riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
@@ -271,6 +272,10 @@ public class LenderAssignService implements ILenderAssignService {
             summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
             tpvOffer = Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D;
             rejectedLenders = Objects.nonNull(lendingRiskVariables.getRejectedLenders()) ? lendingRiskVariables.getRejectedLenders() : "";
+            maxTenure = Objects.nonNull(lendingRiskVariables.getTenure()) ? lendingRiskVariables.getTenure() : 0;
+        }
+        if(maxTenure != 0 && tpvOffer != 0D && !ObjectUtils.isEmpty(application.getTenureInMonths()) && application.getTenureInMonths() != 0) {
+            tpvOffer = (tpvOffer / maxTenure) * application.getTenureInMonths();
         }
         String tenure = "%" + application.getTenureInMonths() + "%";
         try {
