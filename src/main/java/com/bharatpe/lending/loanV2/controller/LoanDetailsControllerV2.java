@@ -259,4 +259,14 @@ public class LoanDetailsControllerV2 {
     }
 
 
+    @GetMapping(value = "/merchant/docSkip")
+    public ResponseEntity<ApiResponse<?>> blDocSkip(@RequestAttribute BasicDetailsDto merchant,
+                                                  @RequestParam Boolean docSkip) {
+        if (Objects.isNull(merchant)) {
+            log.info("no merchant found");
+            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+        }
+        return ResponseEntity.ok(loanDetailsServiceV2.updateDocSkipData(merchant, docSkip));
+    }
+
 }

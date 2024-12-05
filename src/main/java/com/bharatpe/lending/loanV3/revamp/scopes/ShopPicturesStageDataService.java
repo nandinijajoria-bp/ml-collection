@@ -1,26 +1,23 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
-import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -55,6 +52,11 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
     @Autowired
     LoanUtil loanUtil;
 
+    @Value("${enable.bl.tagging:true}")
+    Boolean blTaggingEnabled;
+
+    @Value("${bl.eligible.lenders:IIFL}")
+    String blEligibleLendersList;
 
     @Override
     public LendingStateDTO<ShopPicturesStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -65,6 +67,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
 
         if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request().getResubmitReason())){
             lendingStateDTO.setLendingViewStates(LendingViewStates.SHOP_PICTURES_PAGE);
+        }
+        else if(LendingViewStates.BL_DOC_UPLOAD_PAGE.equals(lendingStateDTO.getLendingViewStates())) {
+            return lendingStateDTO;
         }
         else lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
         if(!lendingStateDTO.getData().getResubmitState()){
@@ -90,6 +95,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                 shopPicturesStateDTO.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
                 if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))){
                     return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
+                }
+                if(blTaggingEnabled && blEligibleLendersList.contains(lendingApplication.getLender()) && !lendingApplicationDetails.getIsDocSkip()) {
+                    return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.BL_DOC_UPLOAD_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
                 }
             }
             shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()));
