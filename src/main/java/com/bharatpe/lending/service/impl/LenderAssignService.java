@@ -313,17 +313,28 @@ public class LenderAssignService implements ILenderAssignService {
                                 continue;
                             }
                             if (lenderEligiblePincodeCheckList.contains(lender)) {
-                                LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
-                                        lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
-                                );
-                                if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
-                                    funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
-                                            FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
-                                    log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
-                                    String remarks = "Removing lender: " + lender + " from eligible as pincode: " + lendingRiskVariables.getPincode() + " not serviceable";
-                                    createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                                    iterator.remove();
-                                    continue;
+
+                                boolean shouldCheckPincodeList = true;
+
+                                if (PAYU.name().equalsIgnoreCase(lender)) {
+                                    shouldCheckPincodeList = application.getLoanAmount() > 500000;
+                                    log.info("Inside payu pincode check : amount {} - shouldCheckPincodeList {} - applicationId {}", application.getLoanAmount(), shouldCheckPincodeList, application.getId());
+                                }
+
+                                if (shouldCheckPincodeList) {
+
+                                    LenderEligiblePincodes lenderEligiblePincodes = lenderEligiblePincodesDao.findByLenderAndPincodeAndStatus(
+                                            lender, lendingRiskVariables.getPincode(), LenderEligiblePincodes.LenderEligiblePincodesStatus.ACTIVE
+                                    );
+                                    if (ObjectUtils.isEmpty(lenderEligiblePincodes)) {
+                                        funnelService.submitEventV3(application.getMerchantId(), null, application.getId(),
+                                                FunnelEnums.StageId.LENDER_ASSIGNMENT, FunnelEnums.StageEvent.LENDER_SKIPPED_NEGATIVE_PINCODE, lender, LoanDetailsConstant.FUNNEL_VERSION_TAG);
+                                        log.info("removing lender : {} from eligible as pincode : {} not serviceable", lender, lendingRiskVariables.getPincode());
+                                        String remarks = "Removing lender: " + lender + " from eligible as pincode: " + lendingRiskVariables.getPincode() + " not serviceable";
+                                        createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                        iterator.remove();
+                                        continue;
+                                    }
                                 }
                             }
                             if (!baseChecksPassedForLenders(application, lender, ediModel, vintage, summaryTpv)) {
