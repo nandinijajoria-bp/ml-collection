@@ -347,6 +347,12 @@ public class LendingApplicationServiceV2 {
     @Autowired
     DocUploadUtils docUploadUtils;
 
+    @Value("${enable.bl.tagging:true}")
+    Boolean blTaggingEnabled;
+
+    @Value("${bl.eligible.lenders:IIFL}")
+    String blEligibleLendersList;
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -3446,7 +3452,7 @@ public class LendingApplicationServiceV2 {
         data.put("repayment_mode", Lender.ABFL.name().equalsIgnoreCase(kfsDto.getLender()) ? "ACH" : "");
         data.put("pan_of_borrower", kycHandler.getPanNumber(merchant.getId()));
         data.put("upfront_charges", "NA");
-        data.put("loan_purpose",kfsDto.getLoanPurpose());
+        data.put("loan_purpose",(blTaggingEnabled && blEligibleLendersList.contains(kfsDto.getLender()) ? "Business loan" : kfsDto.getLoanPurpose()));
         data.put("smb_user_id", kfsDto.getSmbId());
         data.put("lead_id", kfsDto.getLeadId());
         data.put("offer_id",kfsDto.getOfferId());

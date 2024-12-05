@@ -105,6 +105,7 @@ public class LoanDetailsV3Response {
     private Double processingFee;
     private Integer attemptCount;
     private Boolean isAggregationFlowApplicable;
+    private String blDocUploadUrl;
 
     @Data
     @ToString
@@ -184,6 +185,10 @@ public class LoanDetailsV3Response {
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
 
+                case BL_DOC_UPLOAD_PAGE:
+                    setBLDocUploadStageResponse((BLDocUploadStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
                 default:
 
             }
@@ -408,6 +413,13 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLoanType(lenderAggregationResponseDto.getLoanType());
         loanDetailsV3Response.setPreviousLender(lenderAggregationResponseDto.getPreviousLender());
         loanDetailsV3Response.setRepeatLoan(lenderAggregationResponseDto.getRepeatLoan());
+    }
+
+    private static void setBLDocUploadStageResponse(BLDocUploadStateDTO blDocUploadStateDTO, LoanDetailsV3Response loanDetailsV3Response){
+        LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
+        applicationDetails.setApplicationId(blDocUploadStateDTO.getApplicationId());
+        loanDetailsV3Response.setBlDocUploadUrl(blDocUploadStateDTO.getDeeplink());
+        loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
 
     public static LoanDetailsV3Response populateResponseForRequestWithoutScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response) {

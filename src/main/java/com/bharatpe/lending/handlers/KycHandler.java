@@ -7,16 +7,15 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.common.util.RestUtils;
 import com.bharatpe.lending.constant.LendingConstants;
-import com.bharatpe.lending.dto.KycDoc;
-import com.bharatpe.lending.dto.KycDocResponseDTO;
-import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
-import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycDocResponse;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
+import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -674,4 +673,84 @@ public class KycHandler {
         }
         return null;
     }
+
+    public List<KycDoc> getBusinessDocs(Long merchantId) {
+        log.info("Fetching docs for merchantId: {}", merchantId);
+        try {
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchantId", merchantId);
+                put("docs", "BUSINESSDOCS");
+                put("imgRequire", true);
+                put("acceptRejected", false);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=BUSINESSDOCS&acceptRejected=false&imgRequire=true&returnMultipleSubDocTypes=true";
+            log.info("Get Doc request for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
+            log.info("Get Doc Response for merchantId: {}, {}", mapper.writeValueAsString(responseEntity.getBody()) ,merchantId);
+            if (Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().isStatus() && responseEntity.getBody().getData() != null) {
+                return responseEntity.getBody().getData().getDocs();
+            }
+        }catch (Exception e) {
+            log.error("Error occurred while getting docs for merchantId:{}", merchantId, e);
+        }
+        return null;
+    }
+
+
+    public Map<String,String> initiateKycForBusinessDoc(Long merchantId, InitiateKycBLDocUploadDTO initiateKycDTO, List<String> docTypes) {
+        log.info("Initiate kyc for merchant:{}", merchantId);
+        Map<String, String> responseObj = new HashMap<>();
+        try {
+            List<Map<String, String>> documents = new ArrayList<>();
+            for (String docType : docTypes) {
+                documents.add(new HashMap<String, String>(){{
+                    put("docType", "BUSINESSDOCS");
+                    put("subDocType", docType);
+                }});
+            }
+
+            Map<String, Object> businessDocuments = new HashMap<>();
+            businessDocuments.put("docs", documents);
+            businessDocuments.put("businessDocsSkip", true);
+
+            Map<String, Object> requestBody = new HashMap<String, Object>(){{
+                put("product", "LOAN");
+                put("merchantId", merchantId);
+                put("callBackUrl", initiateKycDTO.getCallBackUrl());
+                put("action", "BL_TAGGING");
+                put("documents", new ArrayList<>());
+                put("docUploadCountRequiredByProduct", initiateKycDTO.getDocUploadCountRequiredByProduct());
+                put("businessDocuments", businessDocuments);
+                put("referenceId", initiateKycDTO.getReferenceId());
+            }};
+            HttpHeaders headers = getApiHeaders(requestBody);
+            HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestBody, headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_INITIATE_URL;
+            log.info("Initiate Kyc API url : {} and request : {} for merchant:{}", url, request, merchantId);
+            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            log.info("Initiate Kyc response : {} for merchant:{}", responseEntity, merchantId);
+
+            if (Objects.nonNull(responseEntity.getBody())) {
+                JsonNode jsonNode =  mapper.readTree(responseEntity.getBody());
+                if (jsonNode != null) {
+                    if (jsonNode.has("requestorId")) {
+                        responseObj.put("ckycId", jsonNode.get("requestorId").asText());
+                    }
+                    if (jsonNode.has("businessDocsUploadUrl")) {
+                        responseObj.put("businessDocsUploadUrl", jsonNode.get("businessDocsUploadUrl").asText());
+                    }
+                    if (jsonNode.has("callBackUrl")){
+                        responseObj.put("callBackUrl", jsonNode.get("callBackUrl").asText());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            responseObj.put("message", "Error initiating KYC");
+            log.error("Exception in initiateKyc for merchant:{}, {}, {}", merchantId, e, Arrays.asList(e.getStackTrace()));
+        }
+        return responseObj;
+    }
+
 }

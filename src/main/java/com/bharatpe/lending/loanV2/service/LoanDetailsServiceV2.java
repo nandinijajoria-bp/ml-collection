@@ -3302,4 +3302,20 @@ public class LoanDetailsServiceV2 {
     }
 
 
+
+    public ApiResponse<?> updateDocSkipData(BasicDetailsDto merchant, Boolean docSkip) {
+        LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchant.getId());
+        if(ObjectUtils.isEmpty(lendingApplication)) {
+            log.info("No application found of merchantId: {}", merchant.getId());
+            return new ApiResponse<>(Boolean.FALSE, "Application not found");
+        }
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            log.info("Lending application details not found of merchantId: {}", merchant.getId());
+            return new ApiResponse<>(Boolean.FALSE, "Application details not found");
+        }
+        lendingApplicationDetails.setIsDocSkip(docSkip);
+        lendingApplicationDetailsDao.save(lendingApplicationDetails);
+        return new ApiResponse<>(Boolean.TRUE, "Doc skipped data updated successfully");
+    }
 }
