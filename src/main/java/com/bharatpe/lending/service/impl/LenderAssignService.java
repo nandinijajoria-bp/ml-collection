@@ -195,6 +195,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.apr.eligible.lenders:PIRAMAL}")
     String maxAprEligibleLender;
 
+    @Value("${max.pf.eligible.lenders:SMFG}")
+    String maxPfEligibleLender;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
@@ -492,7 +495,7 @@ public class LenderAssignService implements ILenderAssignService {
             return false;
         }
 
-        if(maxIrrEligibleLender.contains(lender) && maxPfCheckFailed(lendingApplication,lender)){
+        if(maxPfEligibleLender.contains(lender) && maxPfCheckFailed(lendingApplication,lender)){
             log.info("skipping {} due to maxPf checks failing for {}", lender, lendingApplication.getId());
             String remarks = "skipping " + lender + " due to maxPf checks failing for " + lendingApplication.getId();
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
