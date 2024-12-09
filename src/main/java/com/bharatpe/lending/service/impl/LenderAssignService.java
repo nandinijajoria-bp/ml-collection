@@ -492,7 +492,7 @@ public class LenderAssignService implements ILenderAssignService {
             return false;
         }
 
-        if(maxPfCheckFailed(lendingApplication,lender) ){
+        if(maxIrrEligibleLender.contains(lender) && maxPfCheckFailed(lendingApplication,lender)){
             log.info("skipping {} due to maxPf checks failing for {}", lender, lendingApplication.getId());
             String remarks = "skipping " + lender + " due to maxPf checks failing for " + lendingApplication.getId();
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
