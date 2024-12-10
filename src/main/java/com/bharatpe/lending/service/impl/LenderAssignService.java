@@ -1288,7 +1288,7 @@ public class LenderAssignService implements ILenderAssignService {
     private boolean maxPfCheckFailed(LendingApplication lendingApplication, String lender) {
         Double processingFee =  lendingApplication.getProcessingFee();
         Double loanAmount= lendingApplication.getLoanAmount();
-        log.info("PF generated for application_id:{} PF:{} and lender:{}", lendingApplication.getId(), pf, lender);
+        log.info("PF generated for application_id:{} PF:{} and lender:{}", lendingApplication.getId(), processingFee, lender);
         Double pfPercentage = (processingFee/loanAmount)*100D;
         Double maxPf = 0D;
         switch (lender) {
