@@ -141,6 +141,8 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
         EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
         eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
         eligibilityStateDTO.setExperian(experian);
+        //setting merchant Id
+        eligibilityStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
         if (eligibilityV3Service.eligibilityBaseChecksSuccess(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO)) {
             eligibilityV3Service.savePanPinData(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
         }

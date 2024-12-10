@@ -106,6 +106,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
         try {
             kfsStageResponseV3.setMobile(scopeDataArgs.getMerchant().getMobile());
             kfsStageResponseV3.setRepeatLoan(loanUtil.isRepeatLoan(scopeDataArgs.getMerchant().getId()));
+            kfsStageResponseV3.setMerchantId(scopeDataArgs.getMerchant().getId());
 
             LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -146,6 +147,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
 
             LoanApplicationDetailsV3 loanApplicationDetails = setApplicationDetails(lendingApplication);
             kfsStageResponseV3.setLoanApplication(loanApplicationDetails);
+
             return new LendingStateDTO<>(kfsStageResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
         } catch (Exception e) {
             log.error("Error while fetching KFS stage data for {}, {}, {}", scopeDataArgs.getMerchant().getMobile(),

@@ -13,6 +13,7 @@ public class KYCRTEDto {
     private KycStatus kycStatus;
     private String deepLink;
     private Boolean showKycPage;
+    private Long merchantId;
 
     public static KYCRTEDto from(KYCStateDTO kycStateDTO)
     {

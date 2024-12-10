@@ -35,6 +35,7 @@ public class PermissionStageDataService implements IStageDataService<PermissionS
     public LendingStateDTO<PermissionStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         PermissionStateDTO permissionStateDTO = new PermissionStateDTO();
         try {
+
             permissionStateDTO.setDummyMerchant(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()));
             LendingMerchantPermissions lendingMerchantPermissions = lendingMerchantPermissionsDao.findByMerchantId(scopeDataArgs.getMerchant().getId());
             if (null != lendingMerchantPermissions){
@@ -43,6 +44,7 @@ public class PermissionStageDataService implements IStageDataService<PermissionS
                 permissionStateDTO.setLocationPermissionDate(lendingMerchantPermissions.getLocationPermissionDate());
             }
             permissionStateDTO.setSuccess(true);
+            permissionStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
         } catch (Exception e) {
             log.error("error in getting reference stage data for {} : {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             permissionStateDTO.setErrorString(e.getMessage());

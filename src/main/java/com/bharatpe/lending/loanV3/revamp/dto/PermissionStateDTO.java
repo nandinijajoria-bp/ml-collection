@@ -19,5 +19,6 @@ public class PermissionStateDTO {
     private Boolean locationPermissionIsActive;
     private Date locationPermissionDate;
     private Boolean dummyMerchant;
+    private Long merchantId;
 
 }

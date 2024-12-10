@@ -72,11 +72,13 @@ public class ShopDetailsStageDataService implements IStageDataService<ShopDetail
             shopDetailsStateDTO.setBusinessName(lendingMerchantDetails.getBusinessName());
             shopDetailsStateDTO.setBusinessCategory(lendingMerchantDetails.getBusinessCategory());
             shopDetailsStateDTO.setBusinessSubCategory(lendingMerchantDetails.getBusinessSubCategory());
+            shopDetailsStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
         }
 
         Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
         if (experian != null) {
             shopDetailsStateDTO.setPincode(experian.getPincode() != null ? String.valueOf(experian.getPincode()) : null);
+
         }
 
         LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());

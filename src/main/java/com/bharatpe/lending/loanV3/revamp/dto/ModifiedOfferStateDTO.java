@@ -16,4 +16,5 @@ public class ModifiedOfferStateDTO {
     private Double interestRate;
     private Integer arrangerFee;
     private Double loanOffer;
+    private Long merchantId;
 }

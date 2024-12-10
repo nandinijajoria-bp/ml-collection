@@ -9,4 +9,5 @@ import lombok.*;
 @NoArgsConstructor
 public class TopupRejectionStateDTO {
     private Long applicationId;
+    private Long merchantId;
 }

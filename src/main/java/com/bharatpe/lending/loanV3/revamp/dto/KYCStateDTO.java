@@ -19,4 +19,5 @@ public class KYCStateDTO {
     private boolean isDummyMerchant;
     private String lender;
     private boolean lenderKycPipe;
+    private Long merchantId;
 }

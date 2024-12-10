@@ -25,9 +25,19 @@ public class LenderAggregationResponseDto {
     private String previousLender;
 
     private Boolean isRepeatLoan;
+    private String lender;
+    private Long merchantId;
 
     public Boolean getRepeatLoan() {
         return isRepeatLoan;
+    }
+
+    public String getLender() {
+        return lender;
+    }
+
+    public Long getMerchantId() {
+        return merchantId;
     }
 
     public void setRepeatLoan(Boolean repeatLoan) {
@@ -100,6 +110,14 @@ public class LenderAggregationResponseDto {
 
     public String getMessage() {
         return message;
+    }
+
+    public String setLender() {
+        return this.lender = lender;
+    }
+
+    public Long setMerchantId() {
+        return this.merchantId = merchantId;
     }
 
     public void setMessage(String message) {

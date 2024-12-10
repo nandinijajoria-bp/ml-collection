@@ -64,6 +64,7 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
         try {
+
             LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());
             if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
                 funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, null,
@@ -75,6 +76,8 @@ public class OfferStageDataService implements IStageDataService<EligibilityState
             }
 
             eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
+            //set merchant Id
+            eligibilityStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             eligibilityStateDTO.setAccountDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
             Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
             if (experian != null) {
