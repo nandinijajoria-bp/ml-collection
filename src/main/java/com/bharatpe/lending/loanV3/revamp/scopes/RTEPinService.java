@@ -31,6 +31,7 @@ public class RTEPinService implements IStageDataService<EligibilityStateDTO>{
         Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
         EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
         eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
+        eligibilityStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
 
         eligibilityStateDTO.setExperian(experian);
         if (eligibilityV3Service.eligibilityBaseChecksSuccess(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO)) {

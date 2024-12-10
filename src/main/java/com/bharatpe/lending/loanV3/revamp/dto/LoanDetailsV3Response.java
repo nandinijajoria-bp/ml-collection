@@ -207,6 +207,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setUpiAutoPayEligible(kfsStateDTO.getUpiAutoPayEligible());
         loanDetailsV3Response.setAgreementDone(kfsStateDTO.getAgreementDone());
         loanDetailsV3Response.setLender(kfsStateDTO.getLender());
+        loanDetailsV3Response.setMerchantId(kfsStateDTO.getMerchantId());
     }
 
     private static void setKycResponse(KYCStateDTO kycStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -216,6 +217,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setIsSelfieResumit(kycStateDTO.isSelfieResumit());
         loanDetailsV3Response.setLender(kycStateDTO.getLender());
         loanDetailsV3Response.setLenderKycPipe(kycStateDTO.isLenderKycPipe());
+        loanDetailsV3Response.setMerchantId(kycStateDTO.getMerchantId());
 
         LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
         applicationDetails.setLenderAssc(kycStateDTO.getLenderAssc());
@@ -228,6 +230,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setPincode(eligibilityStateDTO.getPincode());
         loanDetailsV3Response.setHasExperian(eligibilityStateDTO.isHasExperian());
         loanDetailsV3Response.setMerchantName(eligibilityStateDTO.getMerchantName());
+        loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
     }
 
 
@@ -237,6 +240,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setKycStatus(kycStateDTO.getKycStatus());
         loanDetailsV3Response.setKycDeeplink(kycStateDTO.getDeepLink());
         loanDetailsV3Response.setShowKycPage(kycStateDTO.getShowKycPage());
+        loanDetailsV3Response.setMerchantId(kycStateDTO.getMerchantId());
 
     }
 
@@ -253,6 +257,7 @@ public class LoanDetailsV3Response {
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
 
         loanDetailsV3Response.setLender(agreementStateDTO.getLender());
+        loanDetailsV3Response.setMerchantId(agreementStateDTO.getMerchantId());
         loanDetailsV3Response.setInterestRate(agreementStateDTO.getInterestRate());
         loanDetailsV3Response.setAnnualRoi(agreementStateDTO.getAnnualRoi());
         loanDetailsV3Response.setArrangerFee(agreementStateDTO.getArrangerFee());
@@ -265,7 +270,9 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEdiModelModified(agreementStateDTO.isEdiModelModified());
         loanDetailsV3Response.setRepayment(agreementStateDTO.getRepayment());
         loanDetailsV3Response.setAccountDetails(agreementStateDTO.getAccountDetails());
+
     }
+
 
     private static void setShopDetailsResponse(ShopDetailsStateDTO shopDetailsStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setDummyMerchant(shopDetailsStateDTO.isDummyMerchant());
@@ -281,6 +288,9 @@ public class LoanDetailsV3Response {
         applicationDetails.setRejectReason(shopDetailsStateDTO.getResubmitReason());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
         loanDetailsV3Response.setIsAggregationFlowApplicable(shopDetailsStateDTO.getIsAggregationFlowApplicable());
+        //setting merchnant id
+        loanDetailsV3Response.setMerchantId(shopDetailsStateDTO.getMerchantId());
+        loanDetailsV3Response.setLender(shopDetailsStateDTO.getLender());
 
         if(Objects.nonNull(shopDetailsStateDTO.getResubmitDone())){
             loanDetailsV3Response.setResubmitDone(shopDetailsStateDTO.getResubmitDone());
@@ -295,6 +305,7 @@ public class LoanDetailsV3Response {
         applicationDetails.setApplicationId(shopPicturesStateDTO.getApplicationId());
         applicationDetails.setLenderAssc(shopPicturesStateDTO.getLenderAssc());
         loanDetailsV3Response.setLoanApplication(applicationDetails);
+        loanDetailsV3Response.setMerchantId(shopPicturesStateDTO.getMerchantId());
     }
 
     private static void setApplicationStatusResponse(ApplicationStatusStateDTO applicationStatusStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -310,6 +321,7 @@ public class LoanDetailsV3Response {
 
         loanDetailsV3Response.setLoanApplication(applicationDetails);
         loanDetailsV3Response.setLender(applicationStatusStateDTO.getLender());
+        loanDetailsV3Response.setMerchantId(applicationStatusStateDTO.getMerchantId());
     }
 
     private static void setReferencesResponse(ReferenceStateDTO referenceStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -318,10 +330,12 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLender(referenceStateDTO.getLender());
         loanDetailsV3Response.setMerchantName(referenceStateDTO.getMerchantName());
         loanDetailsV3Response.setMobile(referenceStateDTO.getMobile());
+        loanDetailsV3Response.setMerchantId(referenceStateDTO.getMerchantId());
     }
 
     private static void setLenderEvaluationResponse(LenderEvaluationStateDTO lenderEvaluationStateDTO, LoanDetailsV3Response loanDetailsV3Response){
         loanDetailsV3Response.setLender(lenderEvaluationStateDTO.getLender());
+        loanDetailsV3Response.setMerchantId(lenderEvaluationStateDTO.getMerchantId());
     }
 
     private static void setPermissionResponse(PermissionStateDTO permissionStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -330,6 +344,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setSmsPermissionIsActive(permissionStateDTO.getSmsPermissionIsActive());
         loanDetailsV3Response.setLocationPermissionIsActive(permissionStateDTO.getLocationPermissionIsActive());
         loanDetailsV3Response.setLocationPermissionDate(permissionStateDTO.getLocationPermissionDate());
+        loanDetailsV3Response.setMerchantId(permissionStateDTO.getMerchantId());
     }
 
     private static void setOfferResponse(EligibilityStateDTO eligibilityStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -346,6 +361,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setIneligible(eligibilityStateDTO.getIneligible());
         loanDetailsV3Response.setOfferIncreased(eligibilityStateDTO.getOfferIncreased());
         loanDetailsV3Response.setPreviousFinalOffer(eligibilityStateDTO.getPreviousFinalOffer());
+        loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
@@ -365,6 +381,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setDummyMerchant(eligibilityStateDTO.getDummyMerchant());
         loanDetailsV3Response.setFullName(eligibilityStateDTO.getFullName());
         loanDetailsV3Response.setDob(eligibilityStateDTO.getDob());
+        loanDetailsV3Response.setMerchantId(eligibilityStateDTO.getMerchantId());
         if(Objects.nonNull(eligibilityStateDTO.getEligibilityExceptionFlag())) {
             loanDetailsV3Response.setEligibilityExceptionFlag(eligibilityStateDTO.getEligibilityExceptionFlag());
         }
@@ -384,6 +401,7 @@ public class LoanDetailsV3Response {
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
+        loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
@@ -397,6 +415,7 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setArrangerFee(modifiedOfferStateDTO.getArrangerFee());
         loanDetailsV3Response.setLoanOffer(modifiedOfferStateDTO.getLoanOffer());
         loanDetailsV3Response.setApplicationId(modifiedOfferStateDTO.getApplicationId());
+        loanDetailsV3Response.setMerchantId(modifiedOfferStateDTO.getMerchantId());
     }
 
     private static void setLenderAggregationResponse(LenderAggregationResponseDto lenderAggregationResponseDto, LoanDetailsV3Response loanDetailsV3Response){
@@ -413,6 +432,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLoanType(lenderAggregationResponseDto.getLoanType());
         loanDetailsV3Response.setPreviousLender(lenderAggregationResponseDto.getPreviousLender());
         loanDetailsV3Response.setRepeatLoan(lenderAggregationResponseDto.getRepeatLoan());
+        loanDetailsV3Response.setLender(lenderAggregationResponseDto.getLender());
+        loanDetailsV3Response.setMerchantId(lenderAggregationResponseDto.getMerchantId());
     }
 
     private static void setBLDocUploadStageResponse(BLDocUploadStateDTO blDocUploadStateDTO, LoanDetailsV3Response loanDetailsV3Response){

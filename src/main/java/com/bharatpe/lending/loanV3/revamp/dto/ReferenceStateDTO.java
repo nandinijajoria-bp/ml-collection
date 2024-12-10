@@ -18,5 +18,6 @@ public class ReferenceStateDTO {
     private String lender;
     private String merchantName;
     private String mobile;
+    private Long merchantId;
 
 }

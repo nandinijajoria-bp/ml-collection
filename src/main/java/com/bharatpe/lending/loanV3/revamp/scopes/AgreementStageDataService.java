@@ -147,6 +147,7 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 .tenure(lendingApplication.getTenure())
                 .ediAmount(lendingApplication.getEdi().intValue())
                 .ediCount(lendingApplication.getPayableDays().intValue())
+                .merchantId(scopeDataArgs.getMerchant().getId())
                 .ediModelModified(!ObjectUtils.isEmpty(lendingApplicationDetails) && Optional.ofNullable(lendingApplicationDetails.getEdiModelModified()).orElse(false))
                 .repayment(AgreementResponse.Repayment.builder()
                         .principal(lendingApplication.getLoanAmount())

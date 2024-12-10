@@ -78,6 +78,7 @@ public class ApplicationStatusStageDataService implements IStageDataService<Appl
     public LendingStateDTO<ApplicationStatusStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         ApplicationStatusStateDTO applicationStatusStateDTO = new ApplicationStatusStateDTO();
         try {
+            applicationStatusStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());

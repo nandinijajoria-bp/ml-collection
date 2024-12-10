@@ -33,6 +33,7 @@ public class AgreementStateDTO {
     private List<LoanInsuranceDTO> loanInsurances;
     private Boolean isInsured;
     private String externalLoanId;
+    private Long merchantId;
 
     @Data
     @ToString

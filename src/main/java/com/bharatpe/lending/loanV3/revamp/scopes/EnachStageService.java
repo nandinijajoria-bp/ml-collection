@@ -117,7 +117,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Override
     public LendingStateDTO<EnachStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         EnachStateDTO enachStateDTO=new EnachStateDTO();
-
+        enachStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
         if (loanUtil.reNachEnabledMerchants().contains(scopeDataArgs.getMerchant().getId()) ) {
             LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), "ACTIVE");
 
@@ -136,6 +136,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
 
         enachStateDTO.setLender(openApplication.getLender());
+
 
         Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setEnachDeeplink(getEnachDeeplink(openApplication,scopeDataArgs.getToken(),scopeDataArgs.getLoanDetailsV3Request().isIOS()));

@@ -12,4 +12,5 @@ public class LenderEvaluationStateDTO {
     private Boolean isRetryable;
     private boolean isTopup;
     private String lender;
+    private Long merchantId;
 }

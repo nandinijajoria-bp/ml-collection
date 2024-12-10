@@ -49,6 +49,7 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
     public LendingStateDTO<ReferenceStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         ReferenceStateDTO referenceStateDTO = new ReferenceStateDTO();
         try {
+            referenceStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             referenceStateDTO.setDummyMerchant(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()));
             if (ObjectUtils.isEmpty(scopeDataArgs.getApplicationId())) {
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
@@ -65,6 +66,7 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 referenceStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));
                 referenceStateDTO.setMobile(scopeDataArgs.getMerchant().getMobile());
             }
+
 
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
         } catch (Exception e) {
