@@ -1293,7 +1293,7 @@ public class LenderAssignService implements ILenderAssignService {
         Double maxPf = 0D;
         switch (lender) {
             case "SMFG":
-                maxPf = smfgConfig.getMaxPf();
+                maxPf = smfgConfig.getMaxProcessingFee();
                 break;
             default:
                 maxPf = 0D;
