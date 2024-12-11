@@ -1,0 +1,7 @@
+# This is the CODEOWNERS file for the Lending repository
+
+# Define global owners for all files in the repository
+* @himanshuupreti1994
+
+# Define owners for specific directories or files
+/src/ @himanshuupreti1994
