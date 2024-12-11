@@ -133,7 +133,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                 }
             }
 
-
+            lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.LENDER_EVALUATION_PAGE);
             return new LendingStateDTO<>(lenderEvaluationStateDTO , nextPage, LendingViewStates.LENDER_EVALUATION_PAGE);
         } catch (Exception e) {
