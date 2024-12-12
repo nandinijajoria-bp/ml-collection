@@ -75,6 +75,7 @@ public class PayUForeclosureService {
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PAYU.name());
             String paymentDate = DateTimeUtil.getDateInFormat(lendingLedger.getDate(), "yyyy-MM-dd");
+            String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             LinkedHashMap<String, Object> identifier = new LinkedHashMap<>();
             identifier.put("loanId", lendingApplicationLenderDetails.getLan());
             return  NBFCRequestDTO.builder()
@@ -84,7 +85,7 @@ public class PayUForeclosureService {
                     .payload(PayUForeclosureRequestDTO.builder()
                             .applicationId(lendingApplicationLenderDetails.getLeadId())
                             .loanId(Integer.valueOf(lendingApplicationLenderDetails.getLan()))
-                            .utr(lendingApplicationLenderDetails.getUtrNo())
+                            .utr(txnId)
                             .amount(lendingLedger.getAmount())
                             .paymentMode(payuPaymentModeMapping(lendingLedger.getAdjustmentMode()))
                             .referenceId(lendingLedger.getId().toString())
