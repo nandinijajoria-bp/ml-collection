@@ -26,6 +26,7 @@ public class MileStoneEligibilityResponseDto {
     private Integer maxLimit;
     private String experianRejectionReason;
     private int targetDurationDays;
+    private Long merchantId;
 
     @Data
     public static class ProgramActiveData {
