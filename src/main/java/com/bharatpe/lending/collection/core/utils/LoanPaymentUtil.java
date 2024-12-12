@@ -30,7 +30,7 @@ public class LoanPaymentUtil {
 
     public static final String DEFAULT_LOAN_SETTLEMENT_MECHANISM = IPC.name();
     public static final String DEFAULT_EXCESS_ADJUSTED_DESCRPTION = "EXCESS_NACH_ADJUSTED";
-    private static final Set<String> NON_NPA_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(LDC.name(), MAMTA.name(), HINDON.name(), LIQUILOANS.name(), LIQUILOANS_NBFC.name(), LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name(), MAMTA0.name(), MAMTA1.name(), MAMTA2.name()));
+    private static final Set<String> NON_NPA_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(LDC.name(), MAMTA.name(), HINDON.name(), LIQUILOANS.name(), LIQUILOANS_NBFC.name(), LIQUILOANS_P2P.name(), LIQUILOANS_P2P_OF.name(), MAMTA0.name(), MAMTA1.name(), MAMTA2.name(), PAYU.name(), SMFG.name()));
 
     @Value("${is.new.payment.settlement.enabled:false}")
     public  boolean newPaymentSettlementModeAllowed;

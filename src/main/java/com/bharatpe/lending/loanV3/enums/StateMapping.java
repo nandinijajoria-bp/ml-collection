@@ -13,6 +13,7 @@ public enum StateMapping {
     CH (Collections.singletonList("CHANDIGARH")),
     CT (Collections.singletonList("CHHATTISGARH")),
     DD (Collections.singletonList("DAMAN & DIU")),
+    DN (Arrays.asList("DADAR & NAGAR HAVELI", "DADAR AND NAGAR HAVELI" )),
     DL (Collections.singletonList("DELHI")),
     GA (Collections.singletonList("GOA")),
     GJ (Collections.singletonList("GUJARAT")),

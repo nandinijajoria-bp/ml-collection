@@ -338,6 +338,7 @@ public class PaymentService {
         Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
 
         Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(activeLoan.getMerchantId(), activeLoan.getId());
+        if (excessCollectionBalance == null) excessCollectionBalance = 0.0;
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         boolean isPayable = true;
         if(overdueDays < 2) {
@@ -349,7 +350,7 @@ public class PaymentService {
         data.setExcessBalance(excessCollectionBalance);
         if(Boolean.TRUE.equals(showForeClosureDetails)) {
             //show foreclosure details --
-            Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance);
+            int principalDueAmount = Math.max(loanUtil.getForeclosureAmount(activeLoan, excessCollectionBalance), 0);
             if (activeLoan.getTentativeClosingDate().before(new Date())) {
                 double totalPayable = activeLoan.getEdiAmount() * activeLoan.getEdiCount();
                 int extraAmount = (int)Math.ceil(totalPayable - (activeLoan.getPaidAmount() + principalDueAmount + advanceEdiAmount));
@@ -358,6 +359,7 @@ public class PaymentService {
                     principalDueAmount += extraAmount;//adding extra amount in foreclosure amount
                 }
             }
+            // this is the recorded in db and excess is added here just to record (net_payable + excess already available) = net foreclosure at our side
             double netForeclosureAtBp=principalDueAmount + advanceEdiAmount + excessCollectionBalance;
             data.setForeClosureAmountAtBp(netForeclosureAtBp);
 
@@ -368,7 +370,7 @@ public class PaymentService {
                 while (retry < 3) {
                     try {
                         netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
-                        if (netForeclosureAtLender != null) {
+                        if (netForeclosureAtLender != null) {  // skip retry
                             break;
                         }
                     }catch (Exception e) {
@@ -378,7 +380,7 @@ public class PaymentService {
                 }
                 if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
                 finalForeclosureAtLender = netForeclosureAtLender;
-                netForeclosureAtLender = netForeclosureAtLender - excessCollectionBalance;
+                netForeclosureAtLender = Math.max(netForeclosureAtLender - excessCollectionBalance, 0);
             }
             principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
             logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
@@ -411,6 +413,9 @@ public class PaymentService {
         data.setPaidPrinciple(paidPrinciple);
         data.setRepaymentAmount(activeLoan.getTotalPayableAmount());
         data.setPenaltyFee(penaltyFee);
+        data.setTotalDue(overdueAmount + penaltyFee);
+        data.setTotalExcessBalance(Math.min(excessCollectionBalance + advanceEdiAmount, data.getTotalDue()));
+        data.setNetPayable(Math.max(data.getTotalDue() - data.getTotalExcessBalance(), 0));  // this is for today's due
         logger.info("payment details data {} at for loan {}", data, activeLoan.getId());
         return new PaymentDetailsResponseDTO(data);
     }
@@ -747,7 +752,8 @@ public class PaymentService {
                 return "OK";
             }
             adjustLoanBalance(activeLoan.get(), request.getAmount(), request.getBankReferenceNumber(), order.getSource(),
-                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getTerminalOrderId(), order.getId());
+                    PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), null, request.getTerminalOrderId(), order.getId(),
+                    PaymentType.FORECLOSURE.name().equalsIgnoreCase(order.getDescription()));
             order.setBankRefNo(request.getBankReferenceNumber());
             order.setStatus("SUCCESS");
             loanPaymentOrderDao.save(order);
@@ -845,7 +851,8 @@ public class PaymentService {
                         order.setBankRefNo(request.getPaymentRefId());
 
                         adjustLoanBalance(activeLoan.get(), request.getPaymentAmount(), request.getPaymentRefId(), order.getSource(),
-                                PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId, order.getId());
+                                PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(order.getDescription()), accountType, terminalOrderId, order.getId(),
+                                PaymentType.FORECLOSURE.name().equalsIgnoreCase(order.getDescription()));
 
                     }
                 }
@@ -1109,7 +1116,7 @@ public class PaymentService {
     }
 
     private void adjustLoanBalance(LendingPaymentSchedule activeLoan, Double amount, String bankRefNo, String source,
-                                   boolean advanceEdi, String transferType, String terminalOrderId,Long orderId) {
+                                   boolean advanceEdi, String transferType, String terminalOrderId, Long orderId, boolean foreClosure) {
         logger.info("Adjusting Balance for loanId:{} and amount:{} and advanceEdi:{}", activeLoan.getId(), amount, advanceEdi);
         Integer principalDueAmount = loanUtil.getForeclosureAmount(activeLoan);
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
@@ -1136,6 +1143,7 @@ public class PaymentService {
                     .transferType("EXTERNAL".equalsIgnoreCase(transferType) ? CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : CollectionTransferTypeEnum.TRANSFER_BY_BP.name())
                     .bankRefNo(bankRefNo)
                     .terminalOrderId(terminalOrderId)
+                    .foreCloser(foreClosure)
                     .updateGlobalTxnlimit(true)
                     .build());
 
@@ -1795,7 +1803,8 @@ public class PaymentService {
                     loanPaymentOrderDao.save(loanPaymentOrder);
                 } else if (SUCCESS.name().equals(paymentStatus)) {
                     adjustLoanBalance(activeLoan.get(), loanPaymentOrder.getAmount(), null, loanPaymentOrder.getSource(),
-                            PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(loanPaymentOrder.getDescription()),"INTERNAL", null,loanPaymentOrder.getId());
+                            PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(loanPaymentOrder.getDescription()),"INTERNAL", null,loanPaymentOrder.getId(),
+                            PaymentType.FORECLOSURE.name().equalsIgnoreCase(loanPaymentOrder.getDescription()));
                     loanPaymentOrder.setStatus("SUCCESS");
                     loanPaymentOrderDao.save(loanPaymentOrder);
                 }

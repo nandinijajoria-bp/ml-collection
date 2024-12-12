@@ -32,6 +32,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
@@ -244,6 +245,9 @@ public class MerchantLoansService {
     @Value(("${topup.pilot.run.enabled.lenders:ABFL}"))
     String topupPilotRunEnabledLenders;
 
+    @Autowired
+    ExcessNachService excessNachService;
+
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
     static List<String> allowedRiskGroupsStp = Arrays.asList("R1", "R2");
@@ -444,6 +448,12 @@ public class MerchantLoansService {
                             loan.setPendingEdi(0D);
                         }
                     }
+                    Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(merchantId, loan.getLoanId());
+                    if (excessCollectionBalance == null) excessCollectionBalance = 0.0;
+
+                    loan.setTotalDue(loan.getDueAmount() + loan.getDuePenalty());
+                    loan.setTotalExcessBalance(Math.min(excessCollectionBalance, loan.getTotalDue()));
+                    loan.setNetPayable(Math.max(loan.getTotalDue() - loan.getTotalExcessBalance(), 0));
                 }
                 loan.setDpd(LoanUtil.calculateDPD(loan.getEdiAmount(), loan.getDueAmount()));
                 if (lendingLedger != null) {
