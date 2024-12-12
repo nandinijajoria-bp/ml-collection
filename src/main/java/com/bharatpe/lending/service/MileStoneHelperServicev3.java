@@ -112,6 +112,7 @@ public class MileStoneHelperServicev3 {
         responseDto.setShowRTELoansFlow(milestoneEasyLoanVisible);
 
         try {
+            responseDto.setMerchantId(merchant.getId());
             List<Long> rteEligibleMerchants = loanUtil.rteEligibleMerchant();
 
             List<MileStoneEntity> entityList = mileStoneDao.findByMerchantIdAndSessionStatus(merchant.getId(), RTESessionStatus.COMPLETED.name());

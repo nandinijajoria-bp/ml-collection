@@ -17,5 +17,6 @@ public class MileStoneDashboardDetails {
     private int targetUniquePayer;
     private int targetActiveDays;
     private boolean isWeeklyFlowUser;
+    private Long merchantId;
 
 }
