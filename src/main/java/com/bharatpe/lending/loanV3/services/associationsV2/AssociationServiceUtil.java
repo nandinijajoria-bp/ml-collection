@@ -83,6 +83,7 @@ public class AssociationServiceUtil {
     @Autowired
     MFKycService mfKycService;
 
+    @Lazy
     @Autowired
     MFBreService mfBreService;
 
