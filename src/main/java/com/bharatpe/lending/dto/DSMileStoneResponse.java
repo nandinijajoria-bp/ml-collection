@@ -24,8 +24,6 @@ public class DSMileStoneResponse {
     public ArrayList<Target> target;
 
     public total_target total_target;
-
-
     @Data
     public static class total_target {
         public int total_tpv;
