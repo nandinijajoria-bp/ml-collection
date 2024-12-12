@@ -310,8 +310,8 @@ public class PayULeadService {
                         .line2(address2)
                         .city(lendingApplication.getCity())
                         .locality(null)
-                        .state(cKycResponseDto.getState())
-                        .pincode(cKycResponseDto.getPincode())
+                        .state(lendingApplication.getState())
+                        .pincode(lendingApplication.getPincode().toString())
                         .ownershipIndicator("owned")
                         .addressType("OPERATING")
                         .build();
