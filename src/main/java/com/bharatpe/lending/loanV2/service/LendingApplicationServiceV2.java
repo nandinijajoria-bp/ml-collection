@@ -3114,27 +3114,27 @@ public class LendingApplicationServiceV2 {
 
             // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
             if (ObjectUtils.isEmpty(language)) {
-                return "/templates/TRILLIONLOANS_NEW/KFS_TRILLION_PC_v2.html";
+                language = "";
+//                return "/templates/TRILLIONLOANS_NEW/KFS_TRILLION_PC_v3.html";
             }
-
-            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
-                log.info("Generating KFS for Trillionloans for application: {} before Penalty", lendingApplication);
-                return (foreclousureChargeApplicable) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html";
-            }
-            log.info("Generating KFS for Trillionloans for application: {} after Penalty", lendingApplication);
-            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/KFS_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/KFS_TRILLION_PC_PENALTY_v2" + language + ".html";
-
+//            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
+//                log.info("Generating KFS for Trillionloans for application: {} before Penalty", lendingApplication);
+//                return (foreclousureChargeApplicable) ? "/templates/TRILLION/KFS_TRILLION_PC_v2" + language +".html" : "/templates/KFS_TRILLION_PC_v2"+ language +".html";
+//            }
+//            log.info("Generating KFS for Trillionloans for application: {} after Penalty", lendingApplication);
+//            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/KFS_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/KFS_TRILLION_PC_PENALTY_v2" + language + ".html";
+            return "/templates/TRILLIONLOANS_NEW/KFS_TRILLION_PC_v3" + language + ".html";
         } else if (ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.equals(type)) {
-
             // adding the explicit condition to segregate new doc (MLI-612) till we get all vernac docs
             if (ObjectUtils.isEmpty(language)) {
-                return "/templates/TRILLIONLOANS_NEW/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2.html";
+                language = "";
+//                return "/templates/TRILLIONLOANS_NEW/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v3.html";
             }
-
-            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
-                return (foreclousureChargeApplicable) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
-            }
-            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_v2" + language + ".html";
+//            if (Objects.nonNull(lendingApplication.getCreatedAt()) && lendingApplication.getCreatedAt().before(penaltyDateTrillionLoans)) {
+//                return (foreclousureChargeApplicable) ? "/templates/TRILLION/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html" : "/templates/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v2"+ language +".html";
+//            }
+//            return (foreclousureChargeApplicable) ? "/templates/TRILLIONLOANS/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_FC_v2" + language + ".html" : "/templates/TRILLIONLOANS/TRILLIONLOANS_PENALTY/SANCTION_LOAN_AGREEMENT_TRILLION_PC_Penalty_v2" + language + ".html";
+            return "/templates/TRILLIONLOANS_NEW/SANCTION_LOAN_AGREEMENT_TRILLION_PC_v3" + language + ".html";
         }
         return null;
     }

@@ -103,6 +103,8 @@ public class CreditSaisonConfig {
                 return "UT";
             case TS:
                 return "TL";
+            case BR:
+                return "BH";
             default:
                 return StateMapping.getStateEnum(state).name();
         }
