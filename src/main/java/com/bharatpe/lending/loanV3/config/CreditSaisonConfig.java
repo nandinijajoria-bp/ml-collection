@@ -77,6 +77,7 @@ public class CreditSaisonConfig {
     private String foreclosureTag = "FORECLOSURE";
     private String foreclosureModeOfPay = "ONLINE";
     private Double maxIRR=30.0;
+    private Double maxApr=45.0;
 
 
     private Double income = 100000D;
@@ -102,6 +103,8 @@ public class CreditSaisonConfig {
                 return "UT";
             case TS:
                 return "TL";
+            case BR:
+                return "BH";
             default:
                 return StateMapping.getStateEnum(state).name();
         }

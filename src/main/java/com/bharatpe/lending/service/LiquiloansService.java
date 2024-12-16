@@ -1695,7 +1695,7 @@ public class LiquiloansService {
             if(!flag) {
                 constructBharatPeEDISchedule(paymentSchedule);
             }
-        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON", "SMFG").contains(paymentSchedule.getNbfc()))  {
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "SMFG").contains(paymentSchedule.getNbfc()))  {
             boolean success = constructLenderEDISchedule(paymentSchedule);
             if(!success) {
                 logger.info("creating bharatPe edi schedule as failed to create lender edi schedule for {}", paymentSchedule.getApplicationId());

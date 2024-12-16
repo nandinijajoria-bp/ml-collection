@@ -483,6 +483,8 @@ public class LenderAssignService implements ILenderAssignService {
     public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, Long vintage, Double summaryTpv) {
         if(maxIrrEligibleLender.contains(lender) && maxIrrCheckFailed(lendingApplication, ediModel, lender)) {
             log.info("skipping {} due to maxIrr checks failing for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to maxIrr checks failing for " + lendingApplication.getId();
+            createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
         if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)){
@@ -1267,6 +1269,9 @@ public class LenderAssignService implements ILenderAssignService {
         switch (lender) {
             case "PIRAMAL":
                 maxApr = piramalMaxApr;
+                break;
+            case "CREDITSAISON":
+                maxApr = csConfig.getMaxApr();
                 break;
             default:
                 maxApr = 0D;

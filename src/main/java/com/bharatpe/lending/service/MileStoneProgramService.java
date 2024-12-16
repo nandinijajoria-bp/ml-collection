@@ -335,6 +335,7 @@ public class MileStoneProgramService {
     public ApiResponse<MileStoneDashboardDetails> dashboardDetails(BasicDetailsDto merchant) {
 
         MileStoneDashboardDetails mileStoneDashboardDetails = new MileStoneDashboardDetails();
+        mileStoneDashboardDetails.setMerchantId(merchant.getId());
 
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchant.getId());
 

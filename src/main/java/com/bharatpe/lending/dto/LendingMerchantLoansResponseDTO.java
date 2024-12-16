@@ -162,6 +162,9 @@ public class LendingMerchantLoansResponseDTO {
         private long ediDays;
         private double nachBounceAmount;
         private Double annualRoi;
+        private double totalDue;
+        private double totalExcessBalance;
+        private double netPayable;
 
         public Loan() {
         }
