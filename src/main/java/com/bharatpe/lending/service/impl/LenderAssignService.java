@@ -195,6 +195,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.apr.eligible.lenders:PIRAMAL}")
     String maxAprEligibleLender;
 
+    @Value("${max.pf.eligible.lenders:}")
+    String maxPfEligibleLender;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
