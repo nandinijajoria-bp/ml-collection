@@ -245,6 +245,7 @@ public class BreRequestKafka {
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
             Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId());
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -265,7 +266,7 @@ public class BreRequestKafka {
                                                                     .firstName(converterUtils.parseNameData(nameAndDobDetailsDto.getFirstName()))
                                                                     .gender("FEMALE".equalsIgnoreCase(cKycResponseDto.getGender()) ? "F" : "M")
                                                                     .lastName(converterUtils.parseNameData(nameAndDobDetailsDto.getLastName()))
-                                                                    .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                                                                    .mobile(mobile)
                                                                     .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(lendingApplication.get().getPincode())

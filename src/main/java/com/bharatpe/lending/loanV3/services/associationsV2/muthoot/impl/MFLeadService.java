@@ -122,13 +122,14 @@ public class MFLeadService {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsDto.getCKycResponseDto();
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
                     .lender(LendingEnum.LENDER.MUTHOOT.name())
                     .payload(MFCreateLeadRequestDTO.builder()
                             .customerID(customerID)
-                            .mobile(kycUtils.getMobileFromKycData(cKycResponseDto))
+                            .mobile(mobile)
                             .build())
                     .build();
         } catch (Exception e) {

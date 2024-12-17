@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV2.handlers;
 
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.dto.BureauDataResponseDTO;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -143,4 +145,29 @@ public class BureauHandler {
         }
         return null;
     }
+
+    public BureauDataResponseDTO getBureauData(Long merchantId, String mobile) {
+        log.info("Get bureau data for merchantId :{}", merchantId);
+        StringBuilder queryParams = new StringBuilder("?mobile=").append(mobile);
+        String url =  BUREAU_BASE_URL + "/bureau/data" + queryParams;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpEntity<Map<String, String>> request = new HttpEntity<>(new HashMap<>(), headers);
+        log.info("Get bureau data for request: {} for merchant : {}, Url :{}", request, merchantId, url);
+        try {
+            ResponseEntity<BureauDataResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, BureauDataResponseDTO.class);
+            log.info("response entity from get bureau data for merchantId : {}, {}", merchantId, responseEntity);
+
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && !ObjectUtils.isEmpty(responseEntity.getBody())) {
+                log.info("Get bureau data response: {} for merchantId : {}", responseEntity.getBody(), merchantId);
+                return responseEntity.getBody();
+            }
+        } catch (ResourceAccessException ex) {
+            log.info("Exception getting bureau data for merchantId: {} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        } catch (Exception e) {
+            log.error("Exception getting bureau data for merchantId: {} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
 }

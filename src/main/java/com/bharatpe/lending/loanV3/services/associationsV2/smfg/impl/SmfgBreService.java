@@ -145,6 +145,7 @@ public class SmfgBreService {
         }
         Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
         PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(lendingApplication.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
+        String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         try {
             SmfgAppPushRequest smfgAppPushRequest = SmfgAppPushRequest.builder()
                     .partnerapplicationid(lendingApplication.getExternalLoanId())
@@ -155,7 +156,7 @@ public class SmfgBreService {
                             .firstname(nameAndDobDetailsDto.getFirstName())
                             .middlename(nameAndDobDetailsDto.getMiddleName())
                             .lastname(nameAndDobDetailsDto.getLastName())
-                            .mobilenumber(kycUtils.getMobileFromKycData(cKycResponseDto))
+                            .mobilenumber(mobile)
                             .producttype(smfgConfig.getProductType())
                             .currentpincode(lendingApplication.getPincode())
                             .pep(smfgConfig.getPep())
