@@ -599,7 +599,6 @@ public class LiquiloansService {
                 postPayoutAuditDto.setExternalLoanId(lendingApplication.getExternalLoanId());
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-                savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             basicDetailsDto = basicDetailsDtoOptional.get();
@@ -638,7 +637,6 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-                savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
 
@@ -655,7 +653,6 @@ public class LiquiloansService {
                     postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                     kafkaAudit.setData(postPayoutAuditDto);
                     pushKafkaAudit(kafkaAudit);
-                    savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
 
@@ -670,7 +667,6 @@ public class LiquiloansService {
                     postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                     kafkaAudit.setData(postPayoutAuditDto);
                     pushKafkaAudit(kafkaAudit);
-                    savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
 
@@ -747,7 +743,6 @@ public class LiquiloansService {
                 if (tenativeLoanEndDate == null) {
                     postPayoutResponseDto.setStatus("FAILED");
                     postPayoutResponseDto.setMessage("unable to compute tentative closing date");
-                    savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
                 lendingPaymentSchedule.setTentativeClosingDate(tenativeLoanEndDate);
@@ -777,7 +772,6 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-                savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
             else {
@@ -787,7 +781,6 @@ public class LiquiloansService {
                     postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                     kafkaAudit.setData(postPayoutAuditDto);
                     pushKafkaAudit(kafkaAudit);
-                    savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
 
@@ -803,7 +796,6 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-                savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
             }
         } catch (Exception e) {
@@ -821,7 +813,6 @@ public class LiquiloansService {
             postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
             kafkaAudit.setData(postPayoutAuditDto);
             pushKafkaAudit(kafkaAudit);
-            savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
         long diffInDisbursalDates = 0;
@@ -853,7 +844,6 @@ public class LiquiloansService {
                 postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
                 kafkaAudit.setData(postPayoutAuditDto);
                 pushKafkaAudit(kafkaAudit);
-                savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
                 return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
             }
         }
