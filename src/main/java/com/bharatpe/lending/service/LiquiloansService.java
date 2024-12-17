@@ -1020,10 +1020,13 @@ public class LiquiloansService {
         Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
         Double dueInterest = lendingPaymentSchedule.getDueInterest();
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
+        Date nextEdiDate = null;
+
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
 //            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
             if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) ? 1 : 0)))
                 break;
+
             if (lendingEDISchedule.getInstallmentNumber() <= offset)
                 continue;
             dueAmount+= lendingEDISchedule.getTotalEdi();
@@ -1035,15 +1038,19 @@ public class LiquiloansService {
                     -lendingEDISchedule.getInterest(), -0D,
                     0D, null);
             lendingLedgerList.add(lendingLedger);
+            nextEdiDate = lendingEDISchedule.getDate();
         }
         lendingPaymentSchedule.setDueAmount(dueAmount);
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  lendingLedgerList.size());
+
+        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
+
         List<LendingLedger> lendingLedger = lendingLedgerDao.saveAll(lendingLedgerList);
         if(backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc())) {
-            Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
-            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
             nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
             lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         }
