@@ -13,6 +13,8 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.ExternalPaymentLinkRequest;
+import com.bharatpe.lending.common.dto.ExternalPaymentLinkResponse;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
@@ -59,6 +61,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import org.apache.commons.codec.binary.Hex;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
@@ -83,8 +86,12 @@ import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.annotation.PostConstruct;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -116,6 +123,9 @@ public class APIGatewayService {
     Integer upiPercent;
     @Autowired
     LendingHmacCalculator lendingHmacCalculator;
+
+    @Autowired
+    LendingInternalClientDao lendingInternalClientDao;
 
     @Autowired
     AesEncryptionUtil aesEncryptionUtil;
@@ -230,11 +240,16 @@ public class APIGatewayService {
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
+    private final String PAYMENT_LINK = "/lms/api/external/v1/payment_link";
+
     @Value("${bpnach.endpoint}")
     public String bpnachEndpoint;
 
     @Value("${nbfc.service.base.url}")
     public String nbfcServiceBaseUrl;
+
+    @Value("${lms.backend.host}")
+    String lmsBackendHost;
 
     private static String clientSecret;
 
@@ -3122,5 +3137,50 @@ public class APIGatewayService {
             logger.error("Error occurred while getting Scenaptic bureau-consent for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public ExternalPaymentLinkResponse savePaymentLink(ExternalPaymentLinkRequest externalPaymentLinkRequest) {
+        try {
+            LendingInternalClient internalClient = lendingInternalClientDao.findByClientName("CN");
+            String payload = getPayload(externalPaymentLinkRequest);
+            String hash = calculateHmacHex(payload, internalClient.getSecret());
+            logger.info("getPaymentLink- hmac hash: {}", hash);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Client", "CN");
+            headers.set("X-Signature", hash);
+
+            HttpEntity<ExternalPaymentLinkRequest> request = new HttpEntity(externalPaymentLinkRequest, headers);
+
+            long startTime = System.currentTimeMillis();
+            RestTemplate restTemplate = new RestTemplate();
+            logger.info("getPaymentLink- Request: {}, URL {}", request, lmsBackendHost + PAYMENT_LINK);
+            ResponseEntity<ExternalPaymentLinkResponse> responseEntity = restTemplate.exchange(lmsBackendHost + PAYMENT_LINK, HttpMethod.POST, request, ExternalPaymentLinkResponse.class);
+            logger.info("getPaymentLink- Response: {}, response time: {}", mapper.writeValueAsString(responseEntity.getBody()), (System.currentTimeMillis() - startTime));
+            return responseEntity.getBody();
+        } catch (Exception ex) {
+            logger.info("Exception while getting payment link: {}, {}", externalPaymentLinkRequest.getAccountId(), externalPaymentLinkRequest.getCustomerId(), ex);
+        }
+        return null;
+    }
+
+    private String getPayload(Object object) throws JsonProcessingException {
+        ObjectMapper objectMap = new ObjectMapper();
+        return objectMap.writeValueAsString(object);
+    }
+
+    private static String calculateHmacHex(String payload, String secret) {
+        SecretKeySpec keySpec = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+        Mac mac = null;
+        try {
+            mac = Mac.getInstance("HmacSHA256");
+            mac.init(keySpec);
+            byte[] result = mac.doFinal(payload.getBytes());
+            return Hex.encodeHexString(result);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException("Exception hashing payload", e);
+        }
     }
 }
