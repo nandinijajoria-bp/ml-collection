@@ -490,12 +490,13 @@ public class KycUtils {
             try {
                 if ("GST_NO".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setGstNumber(doc.getDocIdentifier());
+                    cKycResponseDto.setName(doc.getName());
                 }
             } catch (Exception e) {
                 log.error("error in processing kyc doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
             }
         }
-        log.info("ckyc response {}", cKycResponseDto);
+        log.info("gst no ckyc response {} for merchant id {}", cKycResponseDto, merchantId);
         return cKycResponseDto;
     }
 }

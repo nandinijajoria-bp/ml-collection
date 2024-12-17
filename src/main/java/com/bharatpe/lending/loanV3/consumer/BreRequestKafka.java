@@ -287,7 +287,7 @@ public class BreRequestKafka {
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
                                     .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : new DecimalFormat("#").format(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
                                     .shopPincode(lendingApplication.get().getPincode())
-                                    .registeredBusinessName(!ObjectUtils.isEmpty(lendingApplication.get().getBusinessName()) ? lendingApplication.get().getBusinessName() : cKycResponseDto.getName())
+                                    .registeredBusinessName(getRegisteredBusinessName(lendingApplication.get(), cKycResponseDto))
                                     .build())
                     .build();
             log.info("breRequest payload {}", breRequestKafkaDto);
@@ -314,5 +314,13 @@ public class BreRequestKafka {
             }
         }
         return false;
+    }
+
+    private String getRegisteredBusinessName(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
+        CKycResponseDto gstResponseDTO = kycUtils.getGstData(lendingApplication.getMerchantId());
+        if(!ObjectUtils.isEmpty(gstResponseDTO) && !ObjectUtils.isEmpty(gstResponseDTO.getName())) {
+            return gstResponseDTO.getName();
+        }
+        return cKycResponseDto.getName();
     }
 }
