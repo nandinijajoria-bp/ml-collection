@@ -23,6 +23,7 @@ public class LeadPayloadValidation {
     }
 
     public boolean isInValidUpdateLeadPayload(MFUpdateLeadRequestDTO requestDTO) {
+        log.info("MFUpdateLeadRequestDTO: {}", requestDTO);
         return (ObjectUtils.isEmpty(requestDTO)
                 || ObjectUtils.isEmpty(requestDTO.getMandateDetails())
                 || ObjectUtils.isEmpty(requestDTO.getMandateDetails().getNpciTxnID())

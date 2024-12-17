@@ -295,42 +295,21 @@ public class MFLeadService {
     private MFUpdateLeadRequestDTO.MandateDetails getMandateDetails(LendingApplication lendingApplication) {
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         MFUpdateLeadRequestDTO.MandateDetails mandateDetails = null;
-        if (lendingApplicationDetails.getIsNachSkip()) {
-            MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), LendingEnum.LENDER.MUTHOOT.name());
-            if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
-                mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
-                        .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
-                        .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
-                        .accountType(ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getAccountType()) ? "savings" : merchantNachDetailsResponseDTO.getAccountType().toLowerCase())
-                        .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
-                        .bankName(merchantNachDetailsResponseDTO.getBankName())
-                        .mandateAmount(merchantNachDetailsResponseDTO.getNachAmount())
-                        .mandateType("E_MANDATE")
-                        .vendor(merchantNachDetailsResponseDTO.getProvider())
-                        .vendorDocID(merchantNachDetailsResponseDTO.getProviderUmrn())
-                        .npciTxnID(merchantNachDetailsResponseDTO.getNpciTxnId())
-                        .build();
-            }
-        } else {
-            BharatPeEnachResponseDTO bharatPeEnachResponseDTO = enachHandler.findByMerchantIdAndApplicationId(lendingApplication.getMerchantId(), lendingApplication.getId());
-            final MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(lendingApplication.getMerchantId(), Arrays.asList(
-                    Constants.MerchantUtil.Scope.BANK_DETAIL,
-                    Constants.MerchantUtil.Scope.MERCHANT_USER
-            ));
-            if (!ObjectUtils.isEmpty(bharatPeEnachResponseDTO) && !ObjectUtils.isEmpty(merchantDetailsDto)) {
-                mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
-                        .accountNumber(merchantDetailsDto.getBankDetail().getAccountNumber())
-                        .accountHolderName(merchantDetailsDto.getBankDetail().getBeneficiaryName())
-                        .accountType(ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail().getAccountType()) ? "savings" : merchantDetailsDto.getBankDetail().getAccountType().toLowerCase())
-                        .ifsc(merchantDetailsDto.getBankDetail().getIfsc())
-                        .bankName(merchantDetailsDto.getBankDetail().getBankName())
-                        .mandateAmount(bharatPeEnachResponseDTO.getAmount())
-                        .mandateType("E_MANDATE")
-                        .vendor(bharatPeEnachResponseDTO.getEnachProvider())
-                        .vendorDocID(bharatPeEnachResponseDTO.getProviderUmrn())
-                        .npciTxnID(bharatPeEnachResponseDTO.getNpciTxnId())
-                        .build();
-            }
+        Long ownerId = Boolean.TRUE.equals(lendingApplicationDetails.getIsNachSkip()) ? null : lendingApplication.getId();
+        MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findByMerchantIdAndApplicationIdAndLender(lendingApplication.getMerchantId(), ownerId, lendingApplication.getLender());
+        if (!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO)) {
+            mandateDetails = MFUpdateLeadRequestDTO.MandateDetails.builder()
+                    .accountNumber(merchantNachDetailsResponseDTO.getAccountNumber())
+                    .accountHolderName(merchantNachDetailsResponseDTO.getBeneficiaryName())
+                    .accountType(ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getAccountType()) ? "savings" : merchantNachDetailsResponseDTO.getAccountType().toLowerCase())
+                    .ifsc(merchantNachDetailsResponseDTO.getIfscCode())
+                    .bankName(merchantNachDetailsResponseDTO.getBankName())
+                    .mandateAmount(merchantNachDetailsResponseDTO.getNachAmount())
+                    .mandateType("E_MANDATE")
+                    .vendor(merchantNachDetailsResponseDTO.getProvider())
+                    .vendorDocID(merchantNachDetailsResponseDTO.getProviderUmrn())
+                    .npciTxnID(!ObjectUtils.isEmpty(merchantNachDetailsResponseDTO.getNpciTxnId()) ? merchantNachDetailsResponseDTO.getNpciTxnId() : merchantNachDetailsResponseDTO.getProviderUmrn())
+                    .build();
         }
         if (ObjectUtils.isEmpty(mandateDetails)) {
             throw new RuntimeException("mandateDetails not found for merchantId or applicationId");
