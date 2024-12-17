@@ -8,9 +8,7 @@ import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
-import com.bharatpe.lending.common.dto.KafkaAudit;
-import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
@@ -33,6 +31,7 @@ import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
@@ -921,7 +920,23 @@ public class LiquiloansService {
                 logger.info("sending loan flag status in populatePostPayoutSchedule for merchantId : {}",merchantId);
                 sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, lendingPaymentSchedule.getStatus());
         }
+        savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+    }
+
+    private void savePaymentLink(String merchantId, String externalLoanId) {
+        try {
+            ExternalPaymentLinkRequest externalPaymentLinkRequest = new ExternalPaymentLinkRequest();
+            externalPaymentLinkRequest.setAccountId(externalLoanId);
+            externalPaymentLinkRequest.setCustomerId(merchantId);
+            externalPaymentLinkRequest.setSendCommunication(false);
+            executorService.execute(() -> {
+                ExternalPaymentLinkResponse response = apiGatewayService.savePaymentLink(externalPaymentLinkRequest);
+                logger.info("Payment Link Response Received: {}", response.getPaymentLink());
+            });
+        } catch (Exception e) {
+            logger.error("Error occurred while fetching payment link", e);
+        }
     }
 
     private void publishLoanInsuranceEvent(LendingApplication lendingApplication, LoanDashboardApiVersion loanDashboardApiVersion) {
