@@ -195,6 +195,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.apr.eligible.lenders:PIRAMAL}")
     String maxAprEligibleLender;
 
+    @Value("${max.pf.eligible.lenders:}")
+    String maxPfEligibleLender;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
@@ -486,6 +489,14 @@ public class LenderAssignService implements ILenderAssignService {
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
+
+        if(maxPfEligibleLender.contains(lender) && maxPfCheckFailed(lendingApplication,lender)){
+            log.info("skipping {} due to maxPf checks failing for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to maxPf checks failing for " + lendingApplication.getId();
+            createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+            return false;
+        }
+
         if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
             String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
@@ -1265,6 +1276,22 @@ public class LenderAssignService implements ILenderAssignService {
                 maxApr = 0D;
         }
         return apr > maxApr;
+    }
+
+    private boolean maxPfCheckFailed(LendingApplication lendingApplication, String lender) {
+        Double processingFee =  lendingApplication.getProcessingFee();
+        Double loanAmount= lendingApplication.getLoanAmount();
+        log.info("PF generated for application_id:{} PF:{} and lender:{}", lendingApplication.getId(), processingFee, lender);
+        Double pfPercentage = (processingFee/loanAmount)*100D;
+        Double maxPf = 0D;
+        switch (lender) {
+            case "SMFG":
+                maxPf = smfgConfig.getMaxProcessingFee();
+                break;
+            default:
+                maxPf = 0D;
+        }
+        return pfPercentage > maxPf;
     }
 
     public List<LenderAggregationResponseDto.LenderData> getLenderData(List<String> eligibleLenders, List<String> prevAssignedLenders, LendingApplication lendingApplication) {
