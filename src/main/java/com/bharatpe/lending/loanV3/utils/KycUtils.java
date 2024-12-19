@@ -152,7 +152,11 @@ public class KycUtils {
         }
         BureauDataResponseDTO bureauDataResponse = bureauHandler.getBureauData(merchantId, cKycResponseDto.getMobile());
         if(!ObjectUtils.isEmpty(bureauDataResponse) && !ObjectUtils.isEmpty(bureauDataResponse.getBureauMobile())) {
-            cKycResponseDto.setBureauMobile(bureauDataResponse.getBureauMobile());
+            String bureauMobile = bureauDataResponse.getBureauMobile();
+            if(bureauMobile.length() == 12) {
+                bureauMobile = bureauMobile.substring(2);
+            }
+            cKycResponseDto.setBureauMobile(bureauMobile);
         }
         log.info("ckyc response {}", cKycResponseDto);
         return cKycResponseDto;
@@ -336,9 +340,13 @@ public class KycUtils {
             cKycResponseDto.setPanDob(panFetchKYCResponseDto.getData().getDateOfBirth());
             cKycResponseDto.setGender(panFetchKYCResponseDto.getData().getGender());
         }
-        BureauDataResponseDTO bureauMaskedMobile = bureauHandler.getBureauData(merchantId, cKycResponseDto.getMobile());
-        if(!ObjectUtils.isEmpty(bureauMaskedMobile) && !ObjectUtils.isEmpty(bureauMaskedMobile.getBureauMobile())) {
-            cKycResponseDto.setBureauMobile(bureauMaskedMobile.getBureauMobile());
+        BureauDataResponseDTO bureauDataResponse = bureauHandler.getBureauData(merchantId, cKycResponseDto.getMobile());
+        if(!ObjectUtils.isEmpty(bureauDataResponse) && !ObjectUtils.isEmpty(bureauDataResponse.getBureauMobile())) {
+            String bureauMobile = bureauDataResponse.getBureauMobile();
+            if(bureauMobile.length() == 12) {
+                bureauMobile = bureauMobile.substring(2);
+            }
+            cKycResponseDto.setBureauMobile(bureauMobile);
         }
         log.info("ckyc response for Pan data {}", cKycResponseDto);
         return cKycResponseDto;
