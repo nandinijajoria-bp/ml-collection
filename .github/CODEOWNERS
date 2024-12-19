@@ -7,4 +7,4 @@
 
 # Order is important; the last matching pattern takes the most precedence. When someone opens a pull request that only modifies java files, only @java-owner
 # and not the global owner(s) will be requested for a review.
-*.java  @ashishbp @yogenderyadavBP @nehamittal12 @Tanugoyal08 @sachinarora865 @Srinivaspe #This is an inline comment.
+*.java  @ashishbp @yogenderyadavBP @nehamittal12 @Tanugoyal08 @sachinarora865 @Srinivaspe
