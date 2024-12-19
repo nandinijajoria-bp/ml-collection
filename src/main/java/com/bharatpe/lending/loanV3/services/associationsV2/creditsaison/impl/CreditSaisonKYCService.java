@@ -118,6 +118,7 @@ public class CreditSaisonKYCService {
             identifiers.put("adharXML", cKycResponseDto.getPoaString());
             identifiers.put("selfie", cKycResponseDto.getSelfieString());
             identifiers.put("partnerLoanId", lendingApplication.getExternalLoanId());
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName(csConfig.getLendingProduct())
@@ -153,7 +154,7 @@ public class CreditSaisonKYCService {
                                             .contacts(Arrays.asList(
                                                     CreditSasionKYCRequestDTO.LinkedIndividual.Contact.builder()
                                                             .type(csConfig.getContactTypePhone())
-                                                            .value(kycUtils.getMobileFromKycData(cKycResponseDto))
+                                                            .value(mobile)
                                                             .typeCode(csConfig.getContactTypeCodeMobile())
                                                             .priority(csConfig.getPriority5())
                                                             .build()
