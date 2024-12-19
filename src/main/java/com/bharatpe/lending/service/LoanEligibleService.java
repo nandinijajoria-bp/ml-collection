@@ -242,8 +242,8 @@ public class LoanEligibleService {
         tenureDetails.setRepaymentAmount(eligibleLoan.getRepayment());
         tenureDetails.setEdiCount(eligibleLoan.getEdiCount());
         tenureDetails.setTenureInMonths(eligibleLoan.getTenureInMonths());
-        tenureDetails.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId()));
-        tenureDetails.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount()-eligibleLoan.getProcessingFee(), eligibleLoan.getMerchantId()));
+        tenureDetails.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId(), null));
+        tenureDetails.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount()-eligibleLoan.getProcessingFee(), eligibleLoan.getMerchantId(), null));
         return tenureDetails;
     }
 

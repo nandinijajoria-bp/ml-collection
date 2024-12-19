@@ -114,7 +114,7 @@ public abstract class LendingApplicationServiceV3Base {
             }
             return new ApiResponse<>(false,"open draft lending application not found");
         }
-        if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
+        if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
             return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus);
         }
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());

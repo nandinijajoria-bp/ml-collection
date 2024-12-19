@@ -92,8 +92,8 @@ public class NbfcUtils {
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
-        if(Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-            log.info("restricting lender change for ABFL Topup application : {}", lendingApplication.getId());
+        if(Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            log.info("restricting lender change for {} Topup application : {}",lendingApplication.getLender(), lendingApplication.getId());
             return;
         }
 

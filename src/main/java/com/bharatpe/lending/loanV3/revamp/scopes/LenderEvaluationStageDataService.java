@@ -97,7 +97,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
             LendingViewStates nextPage = LendingViewStates.LENDER_EVALUATION_PAGE;
-            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
                 lenderEvaluationStateDTO.setTopup(true);
                 lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());

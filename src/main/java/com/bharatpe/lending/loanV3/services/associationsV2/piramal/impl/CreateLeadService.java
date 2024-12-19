@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
@@ -42,10 +43,8 @@ public class CreateLeadService {
     @Autowired
     CommonService commonService;
 
-
     @Autowired
     ObjectMapper objectMapper;
-
 
     @Autowired
     CreateLeadPayloadValidationLayer createLeadPayloadValidationLayer;
@@ -110,6 +109,7 @@ public class CreateLeadService {
             applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto, isEligibleForLenderKyc));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
                             .partnerApplicationId(lenderAssociationDetailsDto.getLendingApplication().getExternalLoanId())
+                            .productId("BRTPE")
                             .entityType("INDIVIDUAL")
                             .primaryApplicantDetail(
                                     CreateLeadRequestDTO.PrimaryApplicantDetail.builder()
@@ -131,8 +131,16 @@ public class CreateLeadService {
                                     .loanProductType("PERSONAL_LOAN")
                                     .build())
                             .build();
+            if (LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) {
+                createLeadRequestDTO.setProductId("BPETU");
+                createLeadRequestDTO.setLocationInformation(CreateLeadRequestDTO.LocationInformation.builder()
+                        .latitude(lendingApplication.getLatitude())
+                        .longitude(lendingApplication.getLongitude())
+                        .timeStamp(lendingApplication.getCreatedAt()).build());
+            }
             log.info("create lead request dto: {} for applicationId: {}", createLeadRequestDTO, lendingApplication.getId());
-            return NbfcRequestDto.builder().applicationId(lenderAssociationDetailsDto.getApplicationId()).payload(createLeadRequestDTO).lender(Lender.PIRAMAL.name()).productName("LENDING").build();
+            return NbfcRequestDto.builder().applicationId(lenderAssociationDetailsDto.getApplicationId()).payload(createLeadRequestDTO).lender(Lender.PIRAMAL.name()).productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType())).build();
         } catch (Exception e) {
             log.info("exception occurred while create lead request dto formation for applicationId: {} {} {}", e.getMessage(), lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
         }

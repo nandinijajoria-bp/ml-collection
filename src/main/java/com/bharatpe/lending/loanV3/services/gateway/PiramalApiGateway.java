@@ -57,6 +57,9 @@ public class PiramalApiGateway extends ILenderGateway {
     @Value("${nbfc.eKyc.status.api:api/v3/lender/eKyc-status-check}")
     String nbfcEKycStatusUrl;
 
+    @Value("${nbfc.rps.api:api/v3/lender/foreclosure-details}")
+    String nbfcForeclosureFetchUrl;
+
     @Override
     public NbfcResponseDto invokeStage(NbfcRequestDto nbfcRequestDto, LenderAssociationStages.PiramalAssociationStages piramalAssociationStages) {
         try {
@@ -98,6 +101,8 @@ public class PiramalApiGateway extends ILenderGateway {
                 return nbfcBaseUrl + nbfcEKycUrl;
             case "EKYC_STATUS":
                 return nbfcBaseUrl + nbfcEKycStatusUrl;
+            case "GET_FORECLOSURE_DETAILS":
+                return nbfcBaseUrl + nbfcForeclosureFetchUrl;
             default:
                 return null;
         }

@@ -2593,9 +2593,9 @@ public class LendingApplicationServiceV2 {
                     .leadId(lendingApplicationLenderDetails.getLeadId())
                     .build();
 
-            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
-                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingPaymentSchedule.getNbfc())){
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
                     throw new Exception("Unable to fetch parent loan details");
                 }
@@ -2871,44 +2871,31 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    public Double getApr(Integer ediCount,Double edi, Double amountToCalculateAprOn, Long merchantId){
-        try{
+    public Double getApr(Integer ediCount, Double edi, Double amountToCalculateAprOn, Long merchantId, String lender) {
+        try {
             Double guess = 0.01;
             ArrayList<Double> values = new ArrayList<>();
-//        CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId);
-//        List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
-//        if(ObjectUtils.isEmpty(ediSchedule)){
-//            log.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
-//            return null;
-//        }
-            values.add(0-amountToCalculateAprOn);
-            for(int i = 0; i < ediCount; i++){
-//            if(ediSchedule.get(i).getSerialNumber() == 0)continue;
+            values.add(0 - amountToCalculateAprOn);
+            for (int i = 0; i < ediCount; i++) {
                 values.add(new Double(edi));
-//            if((i+1) < ediSchedule.size()){
-//                long diff = Math.abs(dateTimeUtil.getDateDiffInDays(ediSchedule.get(i).getDate(), ediSchedule.get(i+1).getDate()));
-//                if(diff == 2){
-//                    values.add(0.0);
-//                }
-//            }
             }
-//            values.add(0.0);
-//        int tenureInDays = values.size() - 1;
             Double apr = 0.0;
             double[] valuesDouble = new double[values.size()];
-            for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
+            for (int i = 0; i < values.size(); i++) valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear=360;
+            int daysInYear = 360;
+            if(!ObjectUtils.isEmpty(lender) && "PIRAMAL".equalsIgnoreCase(lender)){
+                daysInYear = 365;
+            }
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
-            if(apr.isNaN()){
+            if (apr.isNaN()) {
                 log.info("APR : {}", apr);
                 return null;
             }
             log.info("APR : {}", apr);
             return apr * 100;
-        }
-        catch(Exception e){
-            log.error("Unable to calculate APR for merchant:{}",merchantId);
+        } catch (Exception e) {
+            log.error("Unable to calculate APR for merchant:{}", merchantId);
         }
         return null;
     }
@@ -3632,6 +3619,26 @@ public class LendingApplicationServiceV2 {
                 data.put("topup_loan_clause_display_prop", "none");
             }
         }
+
+        if(Lender.PIRAMAL.name().equalsIgnoreCase(kfsDto.getLender())) {
+            LendingApplication parentLendingApplication = lendingApplicationDao.findByExternalLoanId(kfsDto.getParentLoanBplId());
+
+            if (kfsDto.isTopUpLoan()) {
+                data.put("parent_loan_amount", parentLendingApplication.getLoanAmount());
+                data.put("parent_lan_no", parentLendingApplication.getNbfcId());
+                data.put("foreclosure_amount", kfsDto.getLenderForeclosureAmount());
+                data.put("foreclosure_amount_in_words", getAmountInWords(kfsDto.getLenderForeclosureAmount().toString()));
+                data.put("topup_loan_clause_display_prop", "block");
+                data.put("topup_loan_na_clause_display_prop", "none");
+            } else {
+                data.put("parent_loan_amount", "NA");
+                data.put("parent_lan_no", "NA");
+                data.put("foreclosure_amount", "NA");
+                data.put("topup_loan_clause_display_prop", "none");
+                data.put("topup_loan_na_clause_display_prop", "block");
+            }
+        }
+
 
         if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender())) {
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(kfsDto.getApplicationId());

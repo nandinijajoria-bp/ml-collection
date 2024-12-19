@@ -14,23 +14,23 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.PostPayoutRequestDto;
 import com.bharatpe.lending.dto.PostPayoutResponseDto;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV3.dto.DrawdownCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.CreateLoanCallbackDTO;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalDisbursalResponse;
 import com.bharatpe.lending.loanV3.enums.DisbursalStatus;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.service.LiquiloansService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.io.IOException;
 import java.util.*;
 
 @Service
@@ -55,6 +55,9 @@ public class PiramalLoanCallbackService {
 
     @Value("${handle.failed.disbursal:false}")
     Boolean handleFailedDisbursal;
+
+    @Autowired
+    CommonService commonService;
 
 
     public ApiResponse createLoanCallback(NbfcResponseDto nbfcResponseDto) {
@@ -129,6 +132,13 @@ public class PiramalLoanCallbackService {
         if (piramalDisbursalResponse.getDisbursementSuccessful()) {
             return handleSuccessCallback(nbfcResponseDto, piramalDisbursalResponse, lendingApplicationLenderDetails, lendingApplication);
         }
+        if (lendingApplication.get().getLoanType().equalsIgnoreCase(LoanType.TOPUP.name())) {
+                LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = LenderAssociationDetailsRequestDto.builder()
+                        .applicationId(lendingApplication.get().getId()).merchantId(lendingApplication.get().getMerchantId())
+                        .lendingApplication(lendingApplication.get()).lendingApplicationLenderDetails(lendingApplicationLenderDetails).build();
+                commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
+                markPreviousLoanActive(lendingApplication.get());
+        }
         lendingApplicationLenderDetails.setLan(piramalDisbursalResponse.getLoanAccountNumber());
         lendingApplicationLenderDetails.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_HARD_FAILED.name());
         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
@@ -187,6 +197,26 @@ public class PiramalLoanCallbackService {
             lendingApplication.get().setSendToNbfc("YES");
             lendingApplication.get().setNbfcSendDate(Calendar.getInstance().getTime());
             lendingApplicationDao.save(lendingApplication.get());
+        }
+    }
+
+    private void markPreviousLoanActive(LendingApplication lendingApplication) {
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+        LendingPaymentSchedule prevLendingPaymentSchedule = null;
+        if (!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getPrevAppId())) {
+            prevLendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(lendingApplicationDetails.getPrevAppId());
+        }
+        prevLendingPaymentSchedule = ObjectUtils.isEmpty(prevLendingPaymentSchedule) ? liquiloansService.updatePreviousLoan(lendingApplication) : prevLendingPaymentSchedule;
+        if (ObjectUtils.isEmpty(prevLendingPaymentSchedule)) {
+            log.error("Previous LPS not found for application id : {}", lendingApplication.getId());
+            throw new RuntimeException("Previous LPS not found for application id: " + lendingApplication.getId());
+        }
+        if ("INACTIVE_TOPUP".equalsIgnoreCase(prevLendingPaymentSchedule.getStatus()) && "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType())) {
+            log.info("Marking previous loan as active for application id: {}, prev application id: {}", lendingApplication.getId(), prevLendingPaymentSchedule.getApplicationId());
+            prevLendingPaymentSchedule.setStatus("ACTIVE");
+            lendingPaymentScheduleDao.save(prevLendingPaymentSchedule);
+        } else {
+            log.info("Prev application id: {} is in {} status", prevLendingPaymentSchedule.getApplicationId(), prevLendingPaymentSchedule.getStatus());
         }
     }
 }

@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
@@ -184,7 +185,8 @@ public class PiramalDocumentUploadService {
                 .build());
 
         log.info("document upload dto for applicationId: {} {}", documentUploadDTO, lenderAssociationDetailsDto.getApplicationId());
-        return NbfcRequestDto.builder().productName("LENDING").payload(documentUploadDTO).lender(Lender.PIRAMAL.name()).applicationId(lenderAssociationDetailsDto.getApplicationId()).build();
+        return NbfcRequestDto.builder().productName("LENDING").payload(documentUploadDTO).lender(Lender.PIRAMAL.name()).applicationId(lenderAssociationDetailsDto.getApplicationId())
+                .topup(LoanType.TOPUP.name().equals(lenderAssociationDetailsDto.getLendingApplication().getLoanType())).build();
     }
 
     private String getFileBlob(DocType fileBlob, CKycResponseDto cKycResponseDto, LendingKfs lendingKfs, LendingShopDocuments lendingShopDocument) {
@@ -226,7 +228,12 @@ public class PiramalDocumentUploadService {
                 return false;
             }
             log.info("request body {}", new ObjectMapper().writeValueAsString(documentUploadDTO));
-            NbfcRequestDto docUploadDto = NbfcRequestDto.builder().productName("LENDING").payload(documentUploadDTO).lender(LendingEnum.LENDER.PIRAMAL.name()).applicationId(lendingApplication.getId()).build();
+            NbfcRequestDto docUploadDto = NbfcRequestDto.builder()
+                    .topup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()))
+                    .productName("LENDING").payload(documentUploadDTO)
+                    .lender(LendingEnum.LENDER.PIRAMAL.name())
+                    .applicationId(lendingApplication.getId())
+                    .build();
             NbfcResponseDto nbfcResponseDto = iLenderGateway.invokeStage(docUploadDto, LenderAssociationStages.PiramalAssociationStages.DOC_UPLOAD);
             log.info("docUpload response from nbfc for docTYpe: {} {} with applicationId: {}", nbfcResponseDto, docType, lendingApplication.getId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {

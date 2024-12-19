@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingGstDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.piramal.CreateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
@@ -76,6 +77,7 @@ public class UpdateLeadAdditionalDataService {
                 .applicationId(lendingApplication.getId())
                 .payload(createLeadRequestDTO)
                 .lender("PIRAMAL")
+                .topup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()))
                 .productName("LENDING")
                 .build();
     }
@@ -96,13 +98,13 @@ public class UpdateLeadAdditionalDataService {
     private CreateLeadRequestDTO.AuditTrailInformation createAuditTrailList(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
         List<CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList> auditTrailLists = new ArrayList<>();
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList agreementAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
-                .auditCode("BRTPE_AGREEMENT_CONSENT")
+                .auditCode(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) ? "BPETU_AGREEMENT_CONSENT" : "BRTPE_AGREEMENT_CONSENT")
                 .auditName("By clicking on I Agree, I accept the Key Facts Statement, Sanction and loan agreement, Privacy Policy and Terms & Conditions of LSP")
                 .ipAddress(lendingApplication.getIp())
                 .timeStamp(DateTimeUtil.getDateInFormat(lendingApplication.getAgreementAt(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                 .build();
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList privacyPolicyAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
-                .auditCode("BRTPE_PRIVACY_POLICY_CONSENT")
+                .auditCode(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) ? "BPETU_PRIVACY_POLICY_CONSENT" : "BRTPE_PRIVACY_POLICY_CONSENT")
                 .auditName("Please read our Privacy policy and Terms & Conditions")
                 .ipAddress(lendingApplication.getIp())
                 .timeStamp(DateTimeUtil.getDateInFormat(lendingApplication.getAgreementAt(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))

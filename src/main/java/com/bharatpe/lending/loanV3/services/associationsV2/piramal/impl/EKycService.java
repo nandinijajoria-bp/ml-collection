@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
@@ -120,15 +121,16 @@ public class EKycService {
                     .applicationId(lenderAssociationDetailsRequest.getLendingApplication().getId())
                     .lender(lenderAssociationDetailsRequest.getLendingApplication().getLender())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equals(lenderAssociationDetailsRequest.getLendingApplication().getLoanType()))
                     .payload(PEKycRequestDTO.builder()
-                            .source("BRTPE")
+                            .source(LoanType.TOPUP.name().equals(lenderAssociationDetailsRequest.getLendingApplication().getLoanType()) ? "BPETU" : "BRTPE")
                             .inputIdType("DIGILOCKER_AADHAAR_XML")
                             .phone(lenderAssociationDetailsRequest.getCKycResponseDto().getMobile())
                             .kycUrl(eKycRedirectionUrl)
                             .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
                             .applicantReferenceId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId())
                             .kycType("OKYC_DIGILOCKER")
-                            .productId("BRTPE")
+                            .productId(LoanType.TOPUP.name().equals(lenderAssociationDetailsRequest.getLendingApplication().getLoanType()) ? "BPETU" : "BRTPE")
                             .build())
                     .build();
             return nbfcRequestDto;
@@ -237,12 +239,13 @@ public class EKycService {
                     .lender(lendingApplication.getLender())
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()))
                     .payload(
                             PEKycStatusCheckRequestDTO.builder()
                                     .leadId(existingLendingApplicationLenderDetails.getLeadId())
                                     .applicantReferenceId(existingLendingApplicationLenderDetails.getCccId())
                                     .kycType("OKYC_DIGILOCKER")
-                                    .productId("BRTPE")
+                                    .productId(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) ? "BPETU" : "BRTPE")
                                     .build())
                     .build();
             NbfcResponseDto nbfcResponseDTO = lenderGateway.invokeStage(payload, LenderAssociationStages.PiramalAssociationStages.EKYC_STATUS);
