@@ -65,6 +65,7 @@ public class LoanDetailsConstant {
     public static String SECOND_TAT_BREACH_PHASE = "Money will get transferred in the next few days.";
     public static String INVALID_CASE = "Money will get transferred in the next few days.";
 
+    public static String UNDERWRITING_MASKED_MOBILE_EXCEPTION="CALL_MASKED_MOBILE_FLOW";
 
 }
 

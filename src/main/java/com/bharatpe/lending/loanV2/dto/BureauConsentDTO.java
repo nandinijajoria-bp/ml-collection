@@ -31,5 +31,6 @@ public class BureauConsentDTO {
         String created_at;
         String source;
         String mobile;
+        String bureau_mobile;
     }
 }

@@ -59,6 +59,9 @@ public class StageServiceFactory {
     @Autowired
     BLDocUploadStageDataService blDocUploadStageDataService;
 
+    @Autowired
+    MaskedMobileStageService maskedMobileStageService;
+
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
@@ -95,6 +98,8 @@ public class StageServiceFactory {
                 return modifiedOfferStageService;
             case BL_DOC_UPLOAD_PAGE:
                 return blDocUploadStageDataService;
+            case MASKED_MOBILE:
+                return maskedMobileStageService;
             default:
                 return null;
         }
