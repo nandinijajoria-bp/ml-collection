@@ -321,6 +321,6 @@ public class BreRequestKafka {
         if(!ObjectUtils.isEmpty(gstResponseDTO) && !ObjectUtils.isEmpty(gstResponseDTO.getName())) {
             return gstResponseDTO.getName();
         }
-        return cKycResponseDto.getName();
+        return cKycResponseDto.getPanName();
     }
 }
