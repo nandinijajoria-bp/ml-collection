@@ -1778,14 +1778,15 @@ public class APIGatewayService {
             logger.info("exception in fetching reponse for bureau :{} {}", exception.getMessage(), exception.getResponseBodyAsString());
             try {
                 XmlMapper xmlMapper = new XmlMapper();
-                ScenapticResponseDTO scenapticResponseDTO =  xmlMapper.readValue(exception.getResponseBodyAsString(), ScenapticResponseDTO.class);
-                logger.info(" scenapticResponseDTO {}",scenapticResponseDTO.toString());
-                GlobalLimitResponse globalLimitResponse = new GlobalLimitResponse();
-                globalLimitResponse.setSuccess(scenapticResponseDTO.getSuccess());
-                globalLimitResponse.setMessage(scenapticResponseDTO.getMessage());
-                globalLimitResponse.setErrorCode(scenapticResponseDTO.getErrorCode());
-                globalLimitResponse.setData(scenapticResponseDTO.getData());
-                return globalLimitResponse;
+                if (exception.getResponseBodyAsString().contains(LoanDetailsConstant.UNDERWRITING_MASKED_MOBILE_EXCEPTION)){
+                    MaskedGlobalLimitResponse maskedGlobalLimitResponse = xmlMapper.readValue(exception.getResponseBodyAsString(), MaskedGlobalLimitResponse.class);
+                    logger.info("masked mobile scenapticResponseDTO {}",maskedGlobalLimitResponse.toString());
+                    return GlobalLimitResponse.form(maskedGlobalLimitResponse);
+                }else{
+                    ScenapticResponseDTO scenapticResponseDTO =  xmlMapper.readValue(exception.getResponseBodyAsString(), ScenapticResponseDTO.class);
+                    logger.info("scenapticResponseDTO {}",scenapticResponseDTO.toString());
+                    return GlobalLimitResponse.form(scenapticResponseDTO);
+                }
             } catch (IOException | IllegalArgumentException e) {
                 logger.error("Exception in parsing responseBody string : {} {} ", e.getMessage(), e);
             }
@@ -3113,6 +3114,7 @@ public class APIGatewayService {
             put("source", LendingConstants.LENDING_SOURCE);
             put("bureau_consent", !bureauConsentDTO.isConsent_expired());
             put("merchant_id", bureauConsentDTO.getMerchantId());
+            put("bureau_mobile", bureauConsentDTO.getBureau_mobile());
         }};
 
         String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent?" + "merchant_id=" + bureauConsentDTO.getMerchantId();

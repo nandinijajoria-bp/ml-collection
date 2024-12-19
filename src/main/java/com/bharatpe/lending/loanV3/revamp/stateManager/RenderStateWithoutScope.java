@@ -15,8 +15,12 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.exception.BureauCallMaskedApiException;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.KYCStageDataService;
@@ -148,6 +152,10 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
 //            log.info("permission doesn't exist {}", scopeDataArgs);
 //            return loanDetailsV3Response;
 //        }
+        if (showMaskedMobilePage(scopeDataArgs, loanDetailsV3Response)) {
+            log.info("masked mobile page {}", scopeDataArgs);
+            return loanDetailsV3Response;
+        }
         if (showOfferPage(scopeDataArgs,loanDetailsV3Response)) {
             log.info("eligibility exist {}", scopeDataArgs);
             return loanDetailsV3Response;
@@ -243,6 +251,35 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
                 return lendingStateDTO;
             }
             scopeDataArgs.setEligibilityStateDTO(eligibilityStateDTO);
+        }
+        return lendingStateDTO;
+    }
+
+    public boolean showMaskedMobilePage(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+        log.info("checking for masked mobile for {}", scopeDataArgs.getMerchant().getId());
+        LendingStateDTO<MaskedMobileDTO> lendingStateDTO = maskedMobileWorkflow(scopeDataArgs);
+        return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
+    }
+
+    private LendingStateDTO<MaskedMobileDTO> maskedMobileWorkflow(ScopeDataArgs scopeDataArgs) {
+        LendingStateDTO<MaskedMobileDTO> lendingStateDTO = null;
+
+        if(ObjectUtils.isEmpty(scopeDataArgs.getOpenApplication())) {
+            try {
+                EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
+                eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
+                GlobalLimitResponse scienapticGlobalLimit  = eligibilityV3Service.requestForEligibility(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
+                if(!ObjectUtils.isEmpty(scienapticGlobalLimit)
+                        && !ObjectUtils.isEmpty(scienapticGlobalLimit.getData())
+                        && LoanDetailsConstant.UNDERWRITING_MASKED_MOBILE_EXCEPTION.equalsIgnoreCase(scienapticGlobalLimit.getErrorCode())
+                        && !ObjectUtils.isEmpty(scienapticGlobalLimit.getData().getMaskedMobiles())
+                ) {
+                    lendingStateDTO = new LendingStateDTO<>();
+                    lendingStateDTO.setScopeState(LendingViewStates.MASKED_MOBILE);
+                }
+            } catch (BureauCallMaskedApiException e) {
+                log.error("bureau call masked api ex {}", e);
+            }
         }
         return lendingStateDTO;
     }

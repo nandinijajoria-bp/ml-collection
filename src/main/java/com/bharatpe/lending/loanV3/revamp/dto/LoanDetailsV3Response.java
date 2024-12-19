@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Data
 @AllArgsConstructor
@@ -106,6 +105,8 @@ public class LoanDetailsV3Response {
     private Integer attemptCount;
     private Boolean isAggregationFlowApplicable;
     private String blDocUploadUrl;
+    private List<String> maskedMobileList;
+    private boolean retryLimitExhausted;
 
     @Data
     @ToString
@@ -125,6 +126,10 @@ public class LoanDetailsV3Response {
                     return loanDetailsV3Response;
                 case PAN_PIN_PAGE:
                     setPanPinResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+                case MASKED_MOBILE:
+                    setMaskedMobile((MaskedMobileDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case AGREEMENT_PAGE:
@@ -196,6 +201,11 @@ public class LoanDetailsV3Response {
             log.error("Exception while casting data for {} {} {}", lendingStateDTO, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return loanDetailsV3Response;
+    }
+
+    private static void setMaskedMobile(MaskedMobileDTO maskedMobileDTO, LoanDetailsV3Response loanDetailsV3Response) {
+        loanDetailsV3Response.setMaskedMobileList(maskedMobileDTO.getMaskedMobileList());
+        loanDetailsV3Response.setRetryLimitExhausted(maskedMobileDTO.isRetryLimitExhausted());
     }
 
     private static void setKfsResponse(KFSStateDTO kfsStateDTO, LoanDetailsV3Response loanDetailsV3Response){
