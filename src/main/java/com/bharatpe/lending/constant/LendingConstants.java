@@ -103,6 +103,11 @@ public interface LendingConstants {
 
 	String PAN_VERIFICATION_VERSION="v2";
 
+	String PENALTY_FEE = "PENALTY FEE";
+	String NACH_BOUNCE_PENALTY_FEE = "NACH BOUNCE PENALTY FEE";
+	String PENALTY_TXN_TYPE = "Penalty";
+	String NACH_BOUNCE_TXN_TYPE = "NACH Bounce";
+
 	Map<String , List<String>> ResubmitReasonMap = new HashMap<String , List<String>>() {{
 		put("SHOP_PHOTO", Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
 		put("SHOP_INFERED_DISTANCE",  Arrays.asList("SHOP_PHOTO","SHOP_INFERED_DISTANCE", "SHOP_OPERATIONAL"));
@@ -111,6 +116,11 @@ public interface LendingConstants {
 		put("SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME", Arrays.asList("BUSINESS_NAME","SHOP_BOARD_NOT_MATCHING_BUSINESS_NAME"));
 		put("SHOP_ADDRESS_INCORRECT", Collections.singletonList("SHOP_ADDRESS_INCORRECT"));
 		put("INCORRECT_SELFIE", Collections.singletonList("INCORRECT_SELFIE"));
+	}};
+
+	HashMap<String, String> LedgerDescriptionTxnType = new HashMap<String, String>() {{
+		put(PENALTY_FEE, PENALTY_TXN_TYPE);
+		put(NACH_BOUNCE_PENALTY_FEE, NACH_BOUNCE_TXN_TYPE);
 	}};
 
 	String NONE_LENDER = "NONE";
