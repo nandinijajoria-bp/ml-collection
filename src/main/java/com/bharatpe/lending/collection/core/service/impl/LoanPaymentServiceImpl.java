@@ -360,6 +360,22 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             return false;
         }
         Integer principalDueAmount = getForeclosureAmount(loan);
+
+        // case 1 (-ve/0 foreclosure) -  we already have sufficient fund no need for additional payment
+        //                                     any upcoming payment will lead to unwanted foreclosure
+        // Case 2 - (foreclosure < loan due) - we have some excess amount and if someone paying due will
+        //                                     foreclose un-intentionally
+        // case 3 - due_amount == foreclosure - can't do anything ....
+        if (principalDueAmount <= 0 || principalDueAmount < loan.getDueAmount()) {
+            return false;
+        }
+
+        // there will be some pending txn before release this description field wasn't populated
+        // will enable this check later in some days
+//        if (!payment.isForeCloser()) {
+//            return false;
+//        }
+
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(loan);
         double amount = payment.getOtherAmount();
         if (principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {

@@ -24,6 +24,7 @@ public class TopupRejectionStageDataService implements IStageDataService{
     @Override
     public LendingStateDTO<TopupRejectionStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         TopupRejectionStateDTO topupRejectionStateDTO = new TopupRejectionStateDTO();
+        topupRejectionStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
         try {
             if(ObjectUtils.isEmpty(scopeDataArgs.getApplicationId())){
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_ID_MISSING.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_ID_MISSING.getErrorMessage());

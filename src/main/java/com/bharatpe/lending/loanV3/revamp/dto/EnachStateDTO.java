@@ -28,4 +28,5 @@ public class EnachStateDTO {
     private String nachSessionMode;
     private boolean isTopup;
     private String lender;
+    private Long merchantId;
 }

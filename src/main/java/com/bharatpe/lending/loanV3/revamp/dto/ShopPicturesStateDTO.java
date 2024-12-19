@@ -14,4 +14,5 @@ public class ShopPicturesStateDTO {
     private String lender;
     private Boolean lenderKycPipe;
     private Boolean lenderAssc;
+    private Long merchantId;
 }

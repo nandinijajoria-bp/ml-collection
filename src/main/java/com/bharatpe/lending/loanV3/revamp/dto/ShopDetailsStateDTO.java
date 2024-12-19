@@ -20,5 +20,6 @@ public class ShopDetailsStateDTO {
     private boolean resubmitState = false;
     private String lender;
     private Boolean isAggregationFlowApplicable;
+    private Long merchantId;
 
 }

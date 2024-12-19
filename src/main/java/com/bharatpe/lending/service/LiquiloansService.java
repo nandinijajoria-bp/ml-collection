@@ -8,9 +8,7 @@ import com.bharatpe.common.utils.NotificationUtil;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
-import com.bharatpe.lending.common.dto.KafkaAudit;
-import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.LiquiloansDirectDisbursalRawResponse;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
@@ -33,6 +31,7 @@ import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.dto.ResponseDTO;
 import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
@@ -921,7 +920,23 @@ public class LiquiloansService {
                 logger.info("sending loan flag status in populatePostPayoutSchedule for merchantId : {}",merchantId);
                 sherlocLoanStatusChangeService.pushLoanStatusChangeEventToKafka(merchantId, lendingPaymentSchedule.getStatus());
         }
+        savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+    }
+
+    private void savePaymentLink(String merchantId, String externalLoanId) {
+        try {
+            ExternalPaymentLinkRequest externalPaymentLinkRequest = new ExternalPaymentLinkRequest();
+            externalPaymentLinkRequest.setAccountId(externalLoanId);
+            externalPaymentLinkRequest.setCustomerId(merchantId);
+            externalPaymentLinkRequest.setSendCommunication(false);
+            executorService.execute(() -> {
+                ExternalPaymentLinkResponse response = apiGatewayService.savePaymentLink(externalPaymentLinkRequest);
+                logger.info("Payment Link Response Received: {}", response.getPaymentLink());
+            });
+        } catch (Exception e) {
+            logger.error("Error occurred while fetching payment link", e);
+        }
     }
 
     private void publishLoanInsuranceEvent(LendingApplication lendingApplication, LoanDashboardApiVersion loanDashboardApiVersion) {
@@ -1020,10 +1035,13 @@ public class LiquiloansService {
         Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
         Double dueInterest = lendingPaymentSchedule.getDueInterest();
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
+        Date nextEdiDate = null;
+
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
 //            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
             if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) ? 1 : 0)))
                 break;
+
             if (lendingEDISchedule.getInstallmentNumber() <= offset)
                 continue;
             dueAmount+= lendingEDISchedule.getTotalEdi();
@@ -1035,15 +1053,19 @@ public class LiquiloansService {
                     -lendingEDISchedule.getInterest(), -0D,
                     0D, null);
             lendingLedgerList.add(lendingLedger);
+            nextEdiDate = lendingEDISchedule.getDate();
         }
         lendingPaymentSchedule.setDueAmount(dueAmount);
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  lendingLedgerList.size());
+
+        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
+
         List<LendingLedger> lendingLedger = lendingLedgerDao.saveAll(lendingLedgerList);
         if(backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc())) {
-            Date nextEdiDate = lendingPaymentSchedule.getNextEdiDate();
-            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
             nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
             lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         }
@@ -1695,7 +1717,7 @@ public class LiquiloansService {
             if(!flag) {
                 constructBharatPeEDISchedule(paymentSchedule);
             }
-        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON", "SMFG").contains(paymentSchedule.getNbfc()))  {
+        } else if (!ObjectUtils.isEmpty(paymentSchedule) && Arrays.asList("USFB", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "SMFG").contains(paymentSchedule.getNbfc()))  {
             boolean success = constructLenderEDISchedule(paymentSchedule);
             if(!success) {
                 logger.info("creating bharatPe edi schedule as failed to create lender edi schedule for {}", paymentSchedule.getApplicationId());

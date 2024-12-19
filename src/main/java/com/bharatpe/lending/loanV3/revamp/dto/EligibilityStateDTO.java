@@ -59,5 +59,6 @@ public class EligibilityStateDTO {
     private String fullName;
     private String dob;
     private Long refreshCountDownMinutes;
+    private Long merchantId;
 
 }

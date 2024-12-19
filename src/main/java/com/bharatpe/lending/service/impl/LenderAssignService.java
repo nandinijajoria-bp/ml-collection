@@ -345,13 +345,6 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
-                            if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
-                                log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
-                                String remarks = "skipping " + lender + " due to merchant present in ABFL excluded merchants list : " + application.getId();
-                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                                iterator.remove();
-                                continue;
-                            }
 
                             if(!aadhaarSeedingStatusCheckLenders.isEmpty() && aadhaarSeedingStatusCheckLenders.contains(lender)) {
 
@@ -486,6 +479,8 @@ public class LenderAssignService implements ILenderAssignService {
     public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, Long vintage, Double summaryTpv) {
         if(maxIrrEligibleLender.contains(lender) && maxIrrCheckFailed(lendingApplication, ediModel, lender)) {
             log.info("skipping {} due to maxIrr checks failing for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to maxIrr checks failing for " + lendingApplication.getId();
+            createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
         if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)){
@@ -512,8 +507,8 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
         if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
-            log.info("skipping {} due to minimum vintage checks failing for {}", lender, lendingApplication.getId());
-            String remarks = "skipping " + lender + " due to minimum vintage checks failing for " + lendingApplication.getId() + " because application EDI: " + lendingApplication.getEdi() + " is greater than 0.7 * summry Tpv " + 0.7 * summaryTpv;
+            log.info("skipping {} due to EDI amount greater than 0.7 * summary Tpv for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " for " + lendingApplication.getId() + " due to EDI amount greater than 0.7 * summary Tpv " + 0.7 * summaryTpv;
             createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
@@ -1175,11 +1170,6 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Running additional checks for lender:{}", lender);
         boolean flag = false;
         if(Lender.ABFL.equals(lender)){
-            flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
-            if (flag) {
-                String remarks = "skipping " + lender + " due to external loan id: " + lendingApplication.getExternalLoanId() + " is not present in lending application for " + lendingApplication.getId();
-                createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender.name(), "LENDER_REMOVED", remarks);
-            }
             if(ObjectUtils.isEmpty(merchantDetails)){
                 merchantDetails=merchantService.fetchMerchantDetails(lendingApplication.getMerchantId()).getMerchantDetail();
             }
@@ -1278,6 +1268,9 @@ public class LenderAssignService implements ILenderAssignService {
         switch (lender) {
             case "PIRAMAL":
                 maxApr = piramalMaxApr;
+                break;
+            case "CREDITSAISON":
+                maxApr = csConfig.getMaxApr();
                 break;
             default:
                 maxApr = 0D;

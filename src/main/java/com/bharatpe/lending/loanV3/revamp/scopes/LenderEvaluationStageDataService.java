@@ -83,12 +83,16 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         LenderEvaluationStateDTO lenderEvaluationStateDTO = new LenderEvaluationStateDTO();
+
         try {
+            lenderEvaluationStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             if(ObjectUtils.isEmpty(scopeDataArgs.getApplicationId())){
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_ID_MISSING.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_ID_MISSING.getErrorMessage());
             }
             LendingApplication lendingApplication = lendingApplicationDao.findById(scopeDataArgs.getApplicationId()).orElse(null);
+
             if(ObjectUtils.isEmpty(lendingApplication)) {
+
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
@@ -98,6 +102,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                 lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
                 if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                    lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
                     if(Arrays.asList(LenderAssociationStatus.BRE_FAILED.name(), LenderAssociationStatus.RISK_FAILED.name()).contains(lendingApplicationLenderDetails.getBreStatus())) {
                         log.info("marking application rejected and lendingApplicationLenderDetails INACTIVE as BRE_FAILED for applicationId: {}, lender: {}", lendingApplication.getId(), lendingApplication.getLender());
                         lendingApplication.setStatus("rejected");

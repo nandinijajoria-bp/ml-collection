@@ -118,6 +118,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
     public LendingStateDTO<KYCStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+        initiateKycResponse.setMerchantId(scopeDataArgs.getMerchant().getId());
         if (ObjectUtils.isEmpty(lendingApplication)) {
             log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());

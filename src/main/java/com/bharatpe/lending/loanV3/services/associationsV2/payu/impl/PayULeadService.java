@@ -136,13 +136,14 @@ public class PayULeadService {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsDto.getCKycResponseDto();
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         try {
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
                     .lender(lendingApplication.getLender())
                     .payload(PayUCreateLeadRequestDTO.builder()
                             .pan(cKycResponseDto.getPanNumber())
-                            .mobile(kycUtils.getMobileFromKycData(cKycResponseDto))
+                            .mobile(mobile)
                             .channelCode(payuChannelCode)
                             .externalRefId(lendingApplication.getExternalLoanId())
                             .entityType("Proprietorship")
@@ -310,8 +311,8 @@ public class PayULeadService {
                         .line2(address2)
                         .city(lendingApplication.getCity())
                         .locality(null)
-                        .state(cKycResponseDto.getState())
-                        .pincode(cKycResponseDto.getPincode())
+                        .state(lendingApplication.getState())
+                        .pincode(lendingApplication.getPincode().toString())
                         .ownershipIndicator("owned")
                         .addressType("OPERATING")
                         .build();

@@ -96,6 +96,9 @@ public class KycRequestKafka {
     @Value("${abfl.topup.kyc.retry.count:2}")
     Integer abflTopupKycRetryCount;
 
+    @Value("${abfl.kyc.reusability.enabled:false}")
+    Boolean abflKycReusabilityEnabled;
+
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
@@ -259,6 +262,7 @@ public class KycRequestKafka {
             String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String name = nameAndDobDetailsDto.getFullName();
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             KycRequestApiDto kycRequestApiDto = KycRequestApiDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -287,7 +291,7 @@ public class KycRequestKafka {
                             .declaredState(ObjectUtils.isEmpty(cKycResponseDto.getState()) ? "" : cKycResponseDto.getState().toUpperCase())
                             .declaredPincode(Integer.valueOf(cKycResponseDto.getPincode()))
                             .cccId(lendingApplicationLenderDetails.getCccId())
-                            .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                            .mobile(mobile)
                             .gender("F".equalsIgnoreCase(cKycResponseDto.getGender()) ? "Female" : "Male")
                             .nsdlName(converterUtils.parseNameData(name).trim())
                             .nsdlPan(cKycResponseDto.getPanNumber())
@@ -330,24 +334,26 @@ public class KycRequestKafka {
 
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())
                     && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getKycStatus())) {
-                boolean kycValid = invokeKycValidity(lendingApplication.get(), lendingApplicationLenderDetails);
-                if(kycValid) {
-                    lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
-                    LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.get().getLender()),LenderAssociationStages.KYC);
-                    lendingApplicationLenderDetails.setStage(nextStage.name());
-                    lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
-                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                    loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
-                    if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender())) {
-                        final LendingApplication finalLendingApplication = lendingApplication.get();
-                        new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
+                if(abflKycReusabilityEnabled) {
+                    boolean kycValid = invokeKycValidity(lendingApplication.get(), lendingApplicationLenderDetails);
+                    if (kycValid) {
+                        lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
+                        LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC);
+                        lendingApplicationLenderDetails.setStage(nextStage.name());
+                        lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
+                        if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender())) {
+                            final LendingApplication finalLendingApplication = lendingApplication.get();
+                            new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
+                        }
+                        nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(), lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
+                                LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC));
+                        log.info("kyc completed for the application {} ", lendingApplication.get().getId());
+                        return;
                     }
-                    nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),lendingApplication.get().getLender(), LenderAssociationStages.KYC.name(),
-                            LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC));
-                    log.info("kyc completed for the application {} ", lendingApplication.get().getId());
-                    return;
+                    log.info("marking kycStatus KYC_RETRY for topup application as kyc validity resulted in failure for  {}", lendingApplication.get().getId());
                 }
-                log.info("marking kycStatus KYC_RETRY for topup application as kyc validity resulted in failure for  {}", lendingApplication.get().getId());
                 lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.KYC_PAGE);

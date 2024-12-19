@@ -81,7 +81,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
     @Override
     public LendingStateDTO<ShopPicturesStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
+
         try {
+            shopPicturesStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
@@ -111,6 +113,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
                 shopPicturesStateDTO.setResubmitState(true);
             }
+
             return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.SHOP_PICTURES_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
         } catch (Exception e) {
             log.info("Error while fetching KFS stage data for {}, {}, {}", scopeDataArgs.getMerchant().getMobile(),

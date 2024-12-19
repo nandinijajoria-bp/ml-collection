@@ -8,7 +8,6 @@ import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.entity.LmsFieldValues;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -20,6 +19,8 @@ import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.dto.BureauDataResponseDTO;
+import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
 import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.PoaXmlDTO;
@@ -99,6 +100,9 @@ public class KycUtils {
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
 
+    @Autowired
+    BureauHandler bureauHandler;
+
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
         Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchantId);
@@ -145,6 +149,14 @@ public class KycUtils {
             } catch (Exception e) {
                 log.info("error in processing kyc doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
             }
+        }
+        BureauDataResponseDTO bureauDataResponse = bureauHandler.getBureauData(merchantId, cKycResponseDto.getMobile());
+        if(!ObjectUtils.isEmpty(bureauDataResponse) && !ObjectUtils.isEmpty(bureauDataResponse.getBureauMobile())) {
+            String bureauMobile = bureauDataResponse.getBureauMobile();
+            if(bureauMobile.length() == 12) {
+                bureauMobile = bureauMobile.substring(2);
+            }
+            cKycResponseDto.setBureauMobile(bureauMobile);
         }
         log.info("ckyc response {}", cKycResponseDto);
         return cKycResponseDto;
@@ -328,6 +340,14 @@ public class KycUtils {
             cKycResponseDto.setPanDob(panFetchKYCResponseDto.getData().getDateOfBirth());
             cKycResponseDto.setGender(panFetchKYCResponseDto.getData().getGender());
         }
+        BureauDataResponseDTO bureauDataResponse = bureauHandler.getBureauData(merchantId, cKycResponseDto.getMobile());
+        if(!ObjectUtils.isEmpty(bureauDataResponse) && !ObjectUtils.isEmpty(bureauDataResponse.getBureauMobile())) {
+            String bureauMobile = bureauDataResponse.getBureauMobile();
+            if(bureauMobile.length() == 12) {
+                bureauMobile = bureauMobile.substring(2);
+            }
+            cKycResponseDto.setBureauMobile(bureauMobile);
+        }
         log.info("ckyc response for Pan data {}", cKycResponseDto);
         return cKycResponseDto;
     }
@@ -490,12 +510,13 @@ public class KycUtils {
             try {
                 if ("GST_NO".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setGstNumber(doc.getDocIdentifier());
+                    cKycResponseDto.setName(doc.getName());
                 }
             } catch (Exception e) {
                 log.error("error in processing kyc doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
             }
         }
-        log.info("ckyc response {}", cKycResponseDto);
+        log.info("gst no ckyc response {} for merchant id {}", cKycResponseDto, merchantId);
         return cKycResponseDto;
     }
 }

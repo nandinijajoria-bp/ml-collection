@@ -112,6 +112,8 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
         }
         LenderAggregationResponseDto responseDto = new LenderAggregationResponseDto();
         responseDto.setLenders(lenderData);
+        responseDto.setLender(lendingApplication.getLender());
+        responseDto.setMerchantId(scopeDataArgs.getMerchant().getId());
         responseDto.setEdi(lendingApplication.getEdi().intValue());
         responseDto.setApplicationId(lendingApplication.getId());
         responseDto.setTenure(lendingApplication.getTenure());

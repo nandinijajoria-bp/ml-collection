@@ -5,11 +5,18 @@ import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.codec.binary.Hex;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
@@ -110,5 +117,21 @@ public class CommonUtil {
                         .allMatch(c -> c == mobile.charAt(i)));
     }
 
+    public String calculateHmacHex(String payload, String secret) {
+        SecretKeySpec keySpec = new SecretKeySpec(secret.getBytes(), "HmacSHA256");
+        Mac mac = null;
+        try {
+            mac = Mac.getInstance("HmacSHA256");
+            mac.init(keySpec);
+            byte[] result = mac.doFinal(payload.getBytes());
+            return Hex.encodeHexString(result);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new RuntimeException("Exception hashing payload", e);
+        }
+    }
 
+    public String getPayload(Object object) throws JsonProcessingException {
+        ObjectMapper objectMap = new ObjectMapper();
+        return objectMap.writeValueAsString(object);
+    }
 }

@@ -97,6 +97,7 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
     public LendingStateDTO<KYCRTEDto> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         KYCRTEDto initiateKycResponse = new KYCRTEDto();
         try {
+            initiateKycResponse.setMerchantId(scopeDataArgs.getMerchant().getId());
             KycStatus doc = kycHandler.getPanStatus(scopeDataArgs.getMerchant().getId());
             log.info("kycStatus is {}",doc);
             if (!ObjectUtils.isEmpty(doc) && (!"APPROVED".equalsIgnoreCase(doc.toString()))) {
@@ -114,11 +115,13 @@ public class KYCRouteToEligibilityService implements IStageDataService<KYCRTEDto
             }
             initiateKycResponse.setKycStatus(doc);
             initiateKycResponse.setShowKycPage(false);
+
             String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + scopeDataArgs.getMerchant().getId();
             Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
             if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
                 lendingCache.delete(mileStoneCacheKey);
             }
+
             return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY,
                     LendingViewStates.KYC_ROUTE_TO_ELIGIBILITY);
 

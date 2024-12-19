@@ -13,6 +13,8 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dto.ExternalPaymentLinkRequest;
+import com.bharatpe.lending.common.dto.ExternalPaymentLinkResponse;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
@@ -53,6 +55,7 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -118,6 +121,9 @@ public class APIGatewayService {
     LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
+    LendingInternalClientDao lendingInternalClientDao;
+
+    @Autowired
     AesEncryptionUtil aesEncryptionUtil;
 
 //    @Autowired
@@ -146,6 +152,9 @@ public class APIGatewayService {
 
     @Autowired
     S3BucketHandler s3BucketHandler;
+
+    @Autowired
+    CommonUtil commonUtil;
 
     @Autowired
     DocKycDetailsDaoMaster docKycDetailsDaoMaster;
@@ -230,11 +239,16 @@ public class APIGatewayService {
 
     private final String NBFC_URL = "https://api-nbfc.bharatpe.in/api/v1/loan";
 
+    private final String PAYMENT_LINK = "/lms/api/external/v1/payment_link";
+
     @Value("${bpnach.endpoint}")
     public String bpnachEndpoint;
 
     @Value("${nbfc.service.base.url}")
     public String nbfcServiceBaseUrl;
+
+    @Value("${lms.backend.host}")
+    String lmsBackendHost;
 
     private static String clientSecret;
 
@@ -3120,6 +3134,33 @@ public class APIGatewayService {
             logger.info("Scenaptic bureau-consent Api timed out for merchantId:{} {} {}", bureauConsentDTO.getMerchantId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         } catch (Exception e) {
             logger.error("Error occurred while getting Scenaptic bureau-consent for merchant:{} {} {}", bureauConsentDTO.getMerchantId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public ExternalPaymentLinkResponse savePaymentLink(ExternalPaymentLinkRequest externalPaymentLinkRequest) {
+        try {
+            LendingInternalClient internalClient = lendingInternalClientDao.findByClientName("CN");
+            String payload = commonUtil.getPayload(externalPaymentLinkRequest);
+            String hash = commonUtil.calculateHmacHex(payload, internalClient.getSecret());
+            logger.info("getPaymentLink- hmac hash: {}", hash);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("X-Client", "CN");
+            headers.set("X-Signature", hash);
+
+            HttpEntity<ExternalPaymentLinkRequest> request = new HttpEntity(externalPaymentLinkRequest, headers);
+
+            long startTime = System.currentTimeMillis();
+            RestTemplate restTemplate = new RestTemplate();
+            logger.info("getPaymentLink- Request: {}, URL {}", request, lmsBackendHost + PAYMENT_LINK);
+            ResponseEntity<ExternalPaymentLinkResponse> responseEntity = restTemplate.exchange(lmsBackendHost + PAYMENT_LINK, HttpMethod.POST, request, ExternalPaymentLinkResponse.class);
+            logger.info("getPaymentLink- Response: {}, response time: {}", mapper.writeValueAsString(responseEntity.getBody()), (System.currentTimeMillis() - startTime));
+            return responseEntity.getBody();
+        } catch (Exception ex) {
+            logger.info("Exception while getting payment link: {}, {}", externalPaymentLinkRequest.getAccountId(), externalPaymentLinkRequest.getCustomerId(), ex);
         }
         return null;
     }

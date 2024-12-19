@@ -245,6 +245,7 @@ public class BreRequestKafka {
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
             Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId());
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -265,7 +266,7 @@ public class BreRequestKafka {
                                                                     .firstName(converterUtils.parseNameData(nameAndDobDetailsDto.getFirstName()))
                                                                     .gender("FEMALE".equalsIgnoreCase(cKycResponseDto.getGender()) ? "F" : "M")
                                                                     .lastName(converterUtils.parseNameData(nameAndDobDetailsDto.getLastName()))
-                                                                    .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                                                                    .mobile(mobile)
                                                                     .middleName(converterUtils.parseNameData(nameAndDobDetailsDto.getMiddleName()))
                                                                     .panNumber(cKycResponseDto.getPanNumber())
                                                                     .pincode(lendingApplication.get().getPincode())
@@ -287,7 +288,7 @@ public class BreRequestKafka {
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
                                     .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : new DecimalFormat("#").format(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
                                     .shopPincode(lendingApplication.get().getPincode())
-                                    .registeredBusinessName(!ObjectUtils.isEmpty(lendingApplication.get().getBusinessName()) ? lendingApplication.get().getBusinessName() : cKycResponseDto.getName())
+                                    .registeredBusinessName(getRegisteredBusinessName(lendingApplication.get(), cKycResponseDto))
                                     .build())
                     .build();
             log.info("breRequest payload {}", breRequestKafkaDto);
@@ -314,5 +315,13 @@ public class BreRequestKafka {
             }
         }
         return false;
+    }
+
+    private String getRegisteredBusinessName(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
+        CKycResponseDto gstResponseDTO = kycUtils.getGstData(lendingApplication.getMerchantId());
+        if(!ObjectUtils.isEmpty(gstResponseDTO) && !ObjectUtils.isEmpty(gstResponseDTO.getName())) {
+            return gstResponseDTO.getName();
+        }
+        return cKycResponseDto.getPanName();
     }
 }
