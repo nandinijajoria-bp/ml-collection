@@ -3041,7 +3041,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
             boolean vernacularDocLanguageDisabled = false;
-            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
                 vernacularDocLanguageDisabled = true;
             }
 
@@ -3185,7 +3185,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
             boolean vernacularDocLanguageDisabled = false;
-            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 vernacularDocLanguageDisabled = true;
             }
 
@@ -4186,7 +4186,7 @@ public class LendingApplicationServiceV2 {
             String language = "";
 
             boolean vernacularDocLanguageDisabled = false;
-            if(Lender.ABFL.name().equalsIgnoreCase(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 vernacularDocLanguageDisabled = true;
             }
             if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
