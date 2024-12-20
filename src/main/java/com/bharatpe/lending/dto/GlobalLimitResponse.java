@@ -48,6 +48,8 @@ public class GlobalLimitResponse {
         private Double previousFinalOffer;
         private String offerIncreased;
         private Long refreshCountDownMinutes;
+        private List<String> maskedMobiles;
+        private String mobile;
 
     }
 
@@ -67,5 +69,26 @@ public class GlobalLimitResponse {
         private Integer ediCount;
         private Double processingFee;
         private Double clubV2Amount;
+    }
+
+    public static GlobalLimitResponse form(MaskedGlobalLimitResponse maskedGlobalLimitResponse){
+        GlobalLimitResponse globalLimitResponse = new GlobalLimitResponse();
+        globalLimitResponse.setSuccess(maskedGlobalLimitResponse.isSuccess());
+        globalLimitResponse.setMessage(maskedGlobalLimitResponse.getMessage());
+        globalLimitResponse.setErrorCode(maskedGlobalLimitResponse.getErrorCode());
+
+        Data data1 =  new Data();
+        data1.setMaskedMobiles(maskedGlobalLimitResponse.getData().getMaskedMobiles());
+        globalLimitResponse.setData(data1);
+        return globalLimitResponse;
+    }
+
+    public static GlobalLimitResponse form(ScenapticResponseDTO scenapticResponseDTO){
+        GlobalLimitResponse globalLimitResponse = new GlobalLimitResponse();
+        globalLimitResponse.setSuccess(scenapticResponseDTO.getSuccess());
+        globalLimitResponse.setMessage(scenapticResponseDTO.getMessage());
+        globalLimitResponse.setErrorCode(scenapticResponseDTO.getErrorCode());
+        globalLimitResponse.setData(scenapticResponseDTO.getData());
+        return globalLimitResponse;
     }
 }

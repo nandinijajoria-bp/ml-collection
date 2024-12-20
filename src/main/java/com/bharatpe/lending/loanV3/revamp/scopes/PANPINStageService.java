@@ -7,8 +7,10 @@ import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingPancardDetailsDao;
+import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingPancardDetails;
+import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
@@ -18,6 +20,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +30,6 @@ import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.Objects;
 
 @Component
 @Slf4j
@@ -56,6 +58,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
 
     @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
+
+    @Autowired
+    APIGatewayService apiGatewayService;
 
     @Override
     public LendingStateDTO<EligibilityStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
@@ -146,6 +151,21 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
         if (eligibilityV3Service.eligibilityBaseChecksSuccess(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO)) {
             eligibilityV3Service.savePanPinData(scopeDataArgs.getLoanDetailsV3Request(), eligibilityStateDTO);
         }
+
+        GlobalLimitResponse scenapticGlobalLimit = apiGatewayService.getScenapticGlobalLimit(scopeDataArgs.getMerchant().getId(),
+                null,scopeDataArgs.getLoanDetailsV3Request().getAppVersion(),
+                false, false,false,
+                null,false, EligibilityRequestSource.EASY_LOANS);
+        if(!ObjectUtils.isEmpty(scenapticGlobalLimit)
+                && !ObjectUtils.isEmpty(scenapticGlobalLimit.getData())
+                && LoanDetailsConstant.UNDERWRITING_MASKED_MOBILE_EXCEPTION.equalsIgnoreCase(scenapticGlobalLimit.getErrorCode())
+                && !ObjectUtils.isEmpty(scenapticGlobalLimit.getData().getMaskedMobiles())
+        ){
+            return new LendingStateDTO<>(eligibilityStateDTO,
+                    LendingViewStates.MASKED_MOBILE, LendingViewStates.PAN_PIN_PAGE);
+
+        }
+
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = new LendingStateDTO<>(eligibilityStateDTO, LendingViewStates.OFFER_PAGE, LendingViewStates.PAN_PIN_PAGE);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());
         if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){

@@ -49,5 +49,9 @@ public class LoanDashboardResponse {
     private String offerIncreased;
     private Long refreshCountDownMinutes;
 
+    //only if the merchant is in masked mobile flow
+    private Boolean isMaskedMobileCase;
+
+
 }
 

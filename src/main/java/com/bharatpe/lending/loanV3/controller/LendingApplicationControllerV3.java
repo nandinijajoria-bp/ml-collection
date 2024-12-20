@@ -4,6 +4,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
+import com.bharatpe.lending.loanV3.services.MaskedMobileOtpService;
 import com.bharatpe.lending.loanV3.services.ModifyStageService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -28,6 +29,9 @@ public class LendingApplicationControllerV3 {
 
     @Autowired
     PiramalGetLoanDetails piramalGetLoanDetails;
+
+    @Autowired
+    MaskedMobileOtpService maskedMobileOtpService;
 
     @Autowired
     public LendingApplicationControllerV3(@Qualifier("lendingApplicationServiceV3Impl") LendingApplicationServiceV3Base lendingApplicationServiceV3,
@@ -112,4 +116,25 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.ok(response);
     }
 
+    //masked/sendOtp
+    @PostMapping ("masked/sendOtp")
+    ResponseEntity<?> sendMaskedOtp(@RequestBody Map<String, String> map, @RequestAttribute BasicDetailsDto merchant){
+        log.info("masked sendOtp request : {}", map);
+        if (ObjectUtils.isEmpty(merchant) || ObjectUtils.isEmpty(map) || !map.containsKey("bureauMobile")){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(false,"required parameters are missing"));
+        }
+        ApiResponse<?> response = maskedMobileOtpService.sendOTP(merchant, map);
+        return ResponseEntity.ok(response);
+    }
+
+    //masked/verifyOtp --> check if the use has exhusted the otp limit --> show the error page.
+    @PostMapping ("masked/verifyOtp")
+    ResponseEntity<?> verifyMaskedOtp(@RequestBody Map<String, String> map, @RequestAttribute BasicDetailsDto merchant){
+        log.info("masked sendOtp request : {}", map);
+        if (ObjectUtils.isEmpty(merchant) || ObjectUtils.isEmpty(map) || !map.containsKey("bureauMobile") || !map.containsKey("otp")){
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(false,"required parameters are missing"));
+        }
+        ApiResponse<?> response = maskedMobileOtpService.verifyOTP(merchant, map);
+        return ResponseEntity.ok(response);
+    }
 }

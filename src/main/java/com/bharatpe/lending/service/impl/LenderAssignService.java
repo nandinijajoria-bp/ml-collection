@@ -195,6 +195,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.apr.eligible.lenders:PIRAMAL}")
     String maxAprEligibleLender;
 
+    @Value("${max.pf.eligible.lenders:}")
+    String maxPfEligibleLender;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
@@ -342,13 +345,6 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
-                            if (Lender.ABFL.name().equals(lender) && loanUtil.abflExcludedMerchants().contains(application.getMerchantId())) {
-                                log.info("skipping {} due to merchant present in exclusion list : {}", lender, application.getId());
-                                String remarks = "skipping " + lender + " due to merchant present in ABFL excluded merchants list : " + application.getId();
-                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                                iterator.remove();
-                                continue;
-                            }
 
                             if(!aadhaarSeedingStatusCheckLenders.isEmpty() && aadhaarSeedingStatusCheckLenders.contains(lender)) {
 
@@ -493,6 +489,14 @@ public class LenderAssignService implements ILenderAssignService {
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
+
+        if(maxPfEligibleLender.contains(lender) && maxPfCheckFailed(lendingApplication,lender)){
+            log.info("skipping {} due to maxPf checks failing for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to maxPf checks failing for " + lendingApplication.getId();
+            createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+            return false;
+        }
+
         if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
             String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
             if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
@@ -503,8 +507,8 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
         if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
-            log.info("skipping {} due to minimum vintage checks failing for {}", lender, lendingApplication.getId());
-            String remarks = "skipping " + lender + " due to minimum vintage checks failing for " + lendingApplication.getId() + " because application EDI: " + lendingApplication.getEdi() + " is greater than 0.7 * summry Tpv " + 0.7 * summaryTpv;
+            log.info("skipping {} due to EDI amount greater than 0.7 * summary Tpv for {}", lender, lendingApplication.getId());
+            String remarks = "skipping " + lender + " for " + lendingApplication.getId() + " due to EDI amount greater than 0.7 * summary Tpv " + 0.7 * summaryTpv;
             createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
@@ -1168,11 +1172,6 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("Running additional checks for lender:{}", lender);
         boolean flag = false;
         if(Lender.ABFL.equals(lender)){
-            flag = ObjectUtils.isEmpty(lendingApplication.getExternalLoanId());
-            if (flag) {
-                String remarks = "skipping " + lender + " due to external loan id: " + lendingApplication.getExternalLoanId() + " is not present in lending application for " + lendingApplication.getId();
-                createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender.name(), "LENDER_REMOVED", remarks);
-            }
             if(ObjectUtils.isEmpty(merchantDetails)){
                 merchantDetails=merchantService.fetchMerchantDetails(lendingApplication.getMerchantId()).getMerchantDetail();
             }
@@ -1279,6 +1278,22 @@ public class LenderAssignService implements ILenderAssignService {
                 maxApr = 0D;
         }
         return apr > maxApr;
+    }
+
+    private boolean maxPfCheckFailed(LendingApplication lendingApplication, String lender) {
+        Double processingFee =  lendingApplication.getProcessingFee();
+        Double loanAmount= lendingApplication.getLoanAmount();
+        log.info("PF generated for application_id:{} PF:{} and lender:{}", lendingApplication.getId(), processingFee, lender);
+        Double pfPercentage = (processingFee/loanAmount)*100D;
+        Double maxPf = 0D;
+        switch (lender) {
+            case "SMFG":
+                maxPf = smfgConfig.getMaxProcessingFee();
+                break;
+            default:
+                maxPf = 0D;
+        }
+        return pfPercentage > maxPf;
     }
 
     public List<LenderAggregationResponseDto.LenderData> getLenderData(List<String> eligibleLenders, List<String> prevAssignedLenders, LendingApplication lendingApplication) {

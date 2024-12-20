@@ -855,6 +855,9 @@ public class LoanDashboardService {
             log.info("Eligibility not found for merchant:{}", merchant.getId());
             boolean eligibilityErrorFlag = false;
             if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+                if (LendingConstants.CALL_MASKED_MOBILE_FLOW.equals(globalLimitResponse.getErrorCode())) {
+                    loanDashboardResponse.setIsMaskedMobileCase(true);
+                }
                 eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
                 if(!eligibilityErrorFlag) {
                     loanDashboardResponse.setEligibilityExceptionFlag(false);
