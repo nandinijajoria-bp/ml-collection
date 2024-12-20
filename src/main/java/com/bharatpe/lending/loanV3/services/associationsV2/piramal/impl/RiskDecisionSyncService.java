@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
@@ -82,7 +81,6 @@ public class RiskDecisionSyncService {
                 .payload(leadRequest)
                 .lender("PIRAMAL")
                 .productName("LENDING")
-                .topup(LoanType.TOPUP.name().equals(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType()))
                 .build();
     }
 }
