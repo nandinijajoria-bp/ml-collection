@@ -755,7 +755,7 @@ public class SignAgreementService {
 
 		if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
 			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
-		} else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(prevLendingSchedule.getNbfc())) {
+		} else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(prevLendingSchedule.getNbfc())) {
 			previousAmount = loanUtil.getForeClosureAmountForLender(prevLendingSchedule);
 			if(previousAmount <= 0){
 				logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
@@ -856,7 +856,7 @@ public class SignAgreementService {
 //			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 
 			response.put("application_id", newApplication.getId());
-			if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.ABFL.name()).contains(newApplication.getLender())) {
+			if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(newApplication.getLender())) {
 				String loanId = "BPL" +  new SimpleDateFormat("ddMMyy").format(new Date()) + newApplication.getId();
 				newApplication.setExternalLoanId(loanId);
 				lendingApplicationDao.save(newApplication);
@@ -877,8 +877,7 @@ public class SignAgreementService {
 		lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
 		lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
-		LendingViewStates currentViewState = Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(newApplication.getLender()) ? LendingViewStates.LENDER_EVALUATION_PAGE : LendingViewStates.ENACH_PAGE;
-		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), currentViewState);
+		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
 
 		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
 		response.put("success", true);
@@ -958,5 +957,17 @@ public class SignAgreementService {
 			return false;
 		}
 		return true;
+	}
+
+	private LendingViewStates getTopupViewState(Lender lender){
+		switch (lender){
+			case ABFL:
+			case TRILLIONLOANS:
+				return LendingViewStates.LENDER_EVALUATION_PAGE;
+			case PIRAMAL:
+				return LendingViewStates.KYC_PAGE;
+			default:
+				return LendingViewStates.ENACH_PAGE;
+		}
 	}
 }

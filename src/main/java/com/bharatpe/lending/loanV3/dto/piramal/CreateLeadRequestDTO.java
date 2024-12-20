@@ -21,7 +21,8 @@ public class CreateLeadRequestDTO {
          String entityType;
          String productId;
          PrimaryApplicantDetail primaryApplicantDetail;
-        AdditionalInformation additionalInformation;
+         AdditionalInformation additionalInformation;
+         LocationInformation locationInformation;
 
          @Data
          @AllArgsConstructor
@@ -200,6 +201,51 @@ public class CreateLeadRequestDTO {
             String loanSegment;
             Integer monthlyNFI;
             Integer bharatpeVintage;
+            String piramalExistingLoanNo;
+            String piramalExistingLeadId;
+            Double percentPaidThroughQr;
+            Integer existingLoanMaxDpd;
+            Integer topUpCount;
+            Double existingLoanOutStandingAmount;
+            Double existingLoanOutStandingPrincipal;
+            Integer existingLoanCurrentDpd;
+            String loanDetailsDate;
+            PartnerVerificationDetails partnerVerificationDetails;
+
+        }
+
+        @Data
+        @AllArgsConstructor
+        @NoArgsConstructor
+        @Builder
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static class PartnerVerificationDetails {
+            SelfieLiveliness selfieLiveliness;
+        }
+
+        @Data
+        @AllArgsConstructor
+        @NoArgsConstructor
+        @Builder
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static class SelfieLiveliness {
+            String mode;
+            String verificationType;
+            Double score;
+            String verificationStatus;
+            String serviceProvider;
+        }
+
+
+        @Data
+        @AllArgsConstructor
+        @NoArgsConstructor
+        @Builder
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static class LocationInformation {
+             String latitude;
+             String longitude;
+             Date timeStamp;
         }
  }
 

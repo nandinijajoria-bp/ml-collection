@@ -147,7 +147,13 @@
             <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
                 <p style="margin: 6px 16px;" class="fw400 text-left">100 % upfront subject to deduction of
                     fees/charges in
-                    Column 10</p>
+                    Column 11</p>
+
+                <p style="margin: 6px 16px; display: {{topup_loan_clause_display_prop}};"
+                   class="fw400 text-left">*In case of top up-loan, the Parent Loan Amount will be closed. From
+                    the Sanctioned Loan Amount, an amount equivalent to Parent Loan Outstanding will be
+                    disbursed towards closure of the Parent Loan Amount. The amount utilized towards closure of
+                    Parent Loan shall be treated as disbursal to the Borrower.</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -211,7 +217,41 @@
             </td>
         </tr>
         <tr class="width-100">
-            <td class="bold text-center width-6">7</td>
+            <td rowspan="3" class="bold text-center">7</td>
+            <td colspan="4" rowspan="3" class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-justify">In case of Top up-</p>
+                <p style="margin: 6px 16px;" class="fw400 text-justify">
+                    *In case of top up-loan, the Parent Loan Amount will be closed. From the Sanctioned Loan
+                    Amount, an amount equivalent to Parent Loan Outstanding will be disbursed towards closure of
+                    the Parent Loan Amount. The amount utilized towards closure of Parent Loan shall be treated
+                    as disbursal to the Borrower
+                </p>
+            </td>
+            <td colspan="3" class="width-24">
+                <p style="margin: 6px 16px;">Parent Loan Amount</p>
+            </td>
+            <td colspan="3" class="width-24">{{parent_loan_amount}}</td>
+            <td colspan="2" class="width-24"></td>
+        </tr>
+
+        <tr class="width-100">
+            <td colspan="3" class="width-24">
+                <p style="margin: 6px 16px;">Parent LAN No. </p>
+            </td>
+            <td colspan="3" class="width-24">{{parent_lan_no}}</td>
+            <td colspan="2" class="width-24"></td>
+        </tr>
+
+        <tr class="width-100">
+            <td colspan="3" class="width-24">
+                <p style="margin: 6px 16px;">Parent Loan Outstanding </p>
+            </td>
+            <td colspan="3" class="width-24">{{foreclosure_amount}}</td>
+            <td colspan="2" class="width-24"></td>
+        </tr>
+
+        <tr class="width-100">
+            <td class="bold text-center width-6">8</td>
             <td colspan="6" style="padding: 0px 5px;" class="width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">Rate of Interest (%) and type</p>
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">(fixed/floating/hybrid)</p>
@@ -223,7 +263,7 @@
             </td>
         </tr>
         <tr class="width-100">
-            <td class="bold text-center width-6">8</td>
+            <td class="bold text-center width-6">9</td>
             <td colspan="12" class="bold text-left width-100">
                 <p style="margin: 6px 16px;">Additional Information in case of Floating rate of interest</p>
             </td>
@@ -299,7 +339,7 @@
         </tr>
 
         <tr class="width-100">
-            <td class="bold text-center width-6">9</td>
+            <td class="bold text-center width-6">10</td>
             <td colspan="6" style="padding: 0px 5px;" class="width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">Repayment Mode </p>
             </td>
@@ -336,7 +376,7 @@
             </td>
         </tr>
         <tr class="width-100">
-            <td class="bold text-center width-6">10</td>
+            <td class="bold text-center width-6">11</td>
             <td colspan="12" class="bold text-left width-100">
                 <p style="margin: 6px 16px;">Fees / Charges </p>
             </td>
@@ -476,7 +516,7 @@
             </td>
         </tr>
         <tr class="width-100">
-            <td class="bold text-center width-6">11</td>
+            <td class="bold text-center width-6">12</td>
             <td colspan="6" style="padding: 0px 5px;" class="width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">Annual Percentage Rate </p>
             </td>
@@ -485,7 +525,7 @@
             </td>
         </tr>
         <tr class="width-100">
-            <td class="bold text-center width-6">12</td>
+            <td class="bold text-center width-6">13</td>
             <td colspan="12" class="bold text-left width-100">
                 <p style="margin: 6px 16px;">Details of Contingent Charges (in Rupees or %, as applicable)</p>
             </td>
@@ -497,7 +537,8 @@
                     delayed payment </p>
             </td>
             <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">24% per annum i.e., 2% p.m. plus applicable taxes, on default of EMI from the date of default till the date of actual payment</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">24% per annum i.e., 2% p.m. plus applicable taxes,
+                    on default of EMI from the date of default till the date of actual payment</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -670,8 +711,10 @@
             <td style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">For Lender</p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">Ms. Hetal Parihar</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">6th Floor, Amiti Building, Agastya Corporate Park, Kamani Junction,</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">Opp. Fire Station, LBS Marg, Kurla (W) Mumbai MH400070.</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">6th Floor, Amiti Building, Agastya Corporate Park,
+                    Kamani Junction,</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Opp. Fire Station, LBS Marg, Kurla (W) Mumbai
+                    MH400070.</p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">E-mail: nodal.officer@piramal.com</p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">Contact Number: 022-71740555</p>
 
@@ -684,13 +727,14 @@
                     a.m. to 7:00 pm</p>
                 <p style="margin: 16px;" class="fw400 text-left">If compliant remains unresolved for 30
                     days, the Borrower may escalate to RBI Complaints portal at <a
-                            href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a> </p>
+                            href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a></p>
             </td>
         </tr>
         <tr class="width-100">
             <td class="text-center width-6">5</td>
             <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Whether the loan in future may be, subject to transfer to other regulated entity or securitization </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Whether the loan in future may be, subject to
+                    transfer to other regulated entity or securitization </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left">Yes</p>
@@ -706,12 +750,16 @@
         <tr class="width-100">
             <td class="text-center width-6">(i)</td>
             <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Cooling off/look-up period (as per the board approved policy of the Lender) during which borrower shall not be charged any penalty on foreclosure/prepayment of the loan </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Cooling off/look-up period (as per the board
+                    approved policy of the Lender) during which borrower shall not be charged any penalty on
+                    foreclosure/prepayment of the loan </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left">3 days from the disbursal of the Loan
                 </p>
-                <p style="margin: 16px 16px 6px;" class="fw400 text-left">*Please note proportionate interest & other charges (other than pre-payment/foreclosure charges) will be levied during the Cooling Off period.</p>
+                <p style="margin: 16px 16px 6px;" class="fw400 text-left">*Please note proportionate interest & other
+                    charges (other than pre-payment/foreclosure charges) will be levied during the Cooling Off
+                    period.</p>
             </td>
         </tr>
 
@@ -737,20 +785,25 @@
         <tr class="width-100">
             <td class="text-center width-6">(iv)</td>
             <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Details of LSP acting as recovery agent and authorized to approach the borrower  </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Details of LSP acting as recovery agent and
+                    authorized to approach the borrower </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left">Resilient Digi Services Private Limited
                 </p>
                 <br>
-                <p style="margin: 6px 16px;" class="fw400 text-left">*Please note that Recovery Agent has been authorized by the Lender to contact for default in repayments. Kindly make payment on or before Due Date
+                <p style="margin: 6px 16px;" class="fw400 text-left">*Please note that Recovery Agent has been
+                    authorized by the Lender to contact for default in repayments. Kindly make payment on or before Due
+                    Date
                 </p>
             </td>
         </tr>
         </tbody>
     </table>
 
-    <p style="margin: 6px 16px" class="fw400 mb20"> *For more detailed information, please refer to the Sanction Letter & Loan Agreement for the loan facility. This Key Fact Statement needs to be read along with the Sanction Letter & Loan Agreement.</p>
+    <p style="margin: 6px 16px" class="fw400 mb20"> *For more detailed information, please refer to the Sanction Letter
+        & Loan Agreement for the loan facility. This Key Fact Statement needs to be read along with the Sanction Letter
+        & Loan Agreement.</p>
     <br/>
     <br/>
     <br/>
@@ -770,7 +823,8 @@
         <tr class="width-100">
             <td class="text-center width-6">1</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Sanctioned Loan amount (in Rupees) (Sl no. 3 of the KFS template – Part 1)</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Sanctioned Loan amount (in Rupees) (Sl no. 3 of
+                    the KFS template – Part 1)</p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}</p>
@@ -779,7 +833,8 @@
         <tr class="width-100">
             <td class="text-center width-6">2</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Loan Term (in years/ months/ days) (Sl No.5 of the KFS template – Part 1) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Loan Term (in years/ months/ days) (Sl No.5 of the
+                    KFS template – Part 1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}} days</p>
@@ -788,7 +843,8 @@
         <tr class="width-100">
             <td class="text-center width-6">a)</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> No. of instalments for payment of principal, in case of non- equated periodic loans </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> No. of instalments for payment of principal, in
+                    case of non- equated periodic loans </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">-</p>
@@ -824,7 +880,8 @@
         <tr class="width-100">
             <td class="text-center width-6">c)</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">No. of instalments for payment of capitalised interest, if any </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">No. of instalments for payment of capitalised
+                    interest, if any </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">NA</p>
@@ -845,7 +902,8 @@
         <tr class="width-100">
             <td class="text-center width-6">3</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Interest rate type (fixed or floating or hybrid) (Sl No. 7 of the KFS template – Part 1) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Interest rate type (fixed or floating or hybrid)
+                    (Sl No. 7 of the KFS template – Part 1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">Fixed</p>
@@ -854,7 +912,8 @@
         <tr class="width-100">
             <td class="text-center width-6">4</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">Rate of Interest (Sl No. 7 of the KFS template – Part 1)</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rate of Interest (Sl No. 7 of the KFS template –
+                    Part 1)</p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} %</p>
@@ -863,7 +922,8 @@
         <tr class="width-100">
             <td class="text-center width-6">5</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Total Interest Amount to be charged during the entire tenor of the loan as per the rate prevailing on sanction date (in Rupees) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Total Interest Amount to be charged during the
+                    entire tenor of the loan as per the rate prevailing on sanction date (in Rupees) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
@@ -875,13 +935,15 @@
                 <p style="margin: 6px 16px;" class="fw400 text-left"> Fee/ Charges payable (in Rupees) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}} + {{insurance_premium}} (A+B) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}} +
+                    {{insurance_premium}} (A+B) </p>
             </td>
         </tr>
         <tr class="width-100">
             <td class="text-center width-6">A</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Payable to the RE (Sl No.8A of the KFS template-Part 1) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Payable to the RE (Sl No.8A of the KFS
+                    template-Part 1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
@@ -890,7 +952,8 @@
         <tr class="width-100">
             <td class="text-center width-6">B</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">Payable to third-party routed through RE (Sl No.8B of the KFS template – Part 1) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Payable to third-party routed through RE (Sl No.8B
+                    of the KFS template – Part 1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
@@ -908,7 +971,8 @@
         <tr class="width-100">
             <td class="text-center width-6">8</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Total amount to be paid by the borrower (sum of 1 and 5) (in Rupees) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Total amount to be paid by the borrower (sum of 1
+                    and 5) (in Rupees) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">₹
@@ -918,7 +982,8 @@
         <tr class="width-100">
             <td class="text-center width-6">9</td>
             <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> Annual Percentage rate- Effective annualized interest rate (in percentage)10 (Sl No.11 of the KFS template-Part 1) </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left"> Annual Percentage rate- Effective annualized
+                    interest rate (in percentage)10 (Sl No.11 of the KFS template-Part 1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
                 <p style="margin: 6px 16px;" class="fw400 text-left">{{apr}} %</p>
@@ -948,8 +1013,8 @@
         </tbody>
     </table>
 
-    <br />
-    <br />
+    <br/>
+    <br/>
     <div style="page-break-inside: avoid !important">
         <h3 class="text-center">
             <span class="underline bold">Detailed Repayment Schedule</span>
@@ -987,9 +1052,9 @@
             </tbody>
         </table>
     </div>
-    <br />
-    <br />
-    <br />
+    <br/>
+    <br/>
+    <br/>
 
     <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
            style="page-break-inside: avoid !important">

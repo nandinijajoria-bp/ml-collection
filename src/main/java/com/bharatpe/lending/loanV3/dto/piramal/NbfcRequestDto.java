@@ -17,4 +17,5 @@ public class NbfcRequestDto<T> {
         String productName;
         Long applicationId;
         T payload;
+        Boolean topup;
 }
