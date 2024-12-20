@@ -134,6 +134,7 @@ public interface LendingConstants {
 
 	String ELIGIBLE = "ELIGIBLE";
 	String INELIGIBLE = "INELIGIBLE";
+	String CALL_MASKED_MOBILE_FLOW="CALL_MASKED_MOBILE_FLOW";
 }
 
 
