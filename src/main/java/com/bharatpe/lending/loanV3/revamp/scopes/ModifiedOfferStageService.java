@@ -62,7 +62,7 @@ public class ModifiedOfferStageService implements IStageDataService<ModifiedOffe
             double initialDisbursalAmountWithoutProcessingFee = lendingApplication1.getDisbursalAmount() + lendingApplication1.getProcessingFee();
             double  processingFeeRate = lendingApplication1.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
             double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
-            Double apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication1.getPayableDays()),lendingApplication1.getEdi(), lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() - processingFee, lendingApplication1.getMerchantId());
+            Double apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication1.getPayableDays()),ediAmount, lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() - processingFee, lendingApplication1.getMerchantId());
            ModifiedOfferStateDTO modifiedOfferStateDTO = ModifiedOfferStateDTO.builder().
                    loanOffer(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt())
                    .interestRate(lendingApplication1.getInterestRate())
