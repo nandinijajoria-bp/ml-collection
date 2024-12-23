@@ -338,7 +338,12 @@ public class PaymentService {
         Integer overdueDays = (activeLoan.getDueAmount().intValue()/activeLoan.getEdiAmount().intValue());
 
         Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(activeLoan.getMerchantId(), activeLoan.getId());
-        if (excessCollectionBalance == null) excessCollectionBalance = 0.0;
+        if (excessCollectionBalance == null) {
+            excessCollectionBalance = 0.0;
+        }   else {
+            excessCollectionBalance = Math.floor(excessCollectionBalance);
+        }
+
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(activeLoan);
         boolean isPayable = true;
         if(overdueDays < 2) {
@@ -1136,7 +1141,7 @@ public class PaymentService {
 
             loanPaymentService.adjustMoney(activeLoan, LoanPaymentDetailDTO.builder()
                     .adjustExcessNach(false)
-                    .otherAmount(amount)
+                    .otherAmount(LoanPaymentUtil.roundOffAmountIfRequired(activeLoan.getNbfc(), amount))
                     .orderId(orderId)
                     .description(getDescription(bankRefNo, false, false))
                     .source(StringUtils.hasLength(source) ? source : "UPI")

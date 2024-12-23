@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.collection.core.constant.ExcessConstants.ExcessCollectionAdjustmentModeDescription;
+import static com.bharatpe.lending.collection.core.constant.RepaymentConstants.NON_DECIMAL_SUPPORTED_LENDER;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.enums.Lender.*;
 
@@ -177,5 +178,18 @@ public class LoanPaymentUtil {
     public boolean excessCollectionCommunicationSmsRequired(String source) {
         // currently there is only nach template is defined... define sms identifier before adding here
         return "BHARATPE_NACH".equalsIgnoreCase(source) || "EXCESS_NACH_ADJUSTED".equalsIgnoreCase(source);
+    }
+
+    public static double roundOffAmountIfRequired(String lender, double amount) {
+        if (checkIfRoundOffRequired(lender)) return removeDecimalValueFromAmount(amount);
+
+        return amount;
+    }
+
+    public static boolean checkIfRoundOffRequired(String lender) {
+        return NON_DECIMAL_SUPPORTED_LENDER.contains(lender);
+    }
+    public static double removeDecimalValueFromAmount(double amount) {
+        return Math.floor(amount);
     }
 }
