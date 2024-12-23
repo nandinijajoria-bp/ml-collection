@@ -2,8 +2,11 @@ package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingGstDetail;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingBBSDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingBBS;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
@@ -12,8 +15,12 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.enums.StateMapping;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
@@ -72,6 +79,15 @@ public class UpdateLeadService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     @Transactional
     public Boolean updateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
@@ -102,39 +118,81 @@ public class UpdateLeadService {
     }
 
     private NbfcRequestDto getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
-
-        LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
-        LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
-        LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
-        LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchantId());
-        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
-        List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
-        applicant.add(getApplicantDetails(lendingApplication, lendingBBS, lendingGstDetail, lenderAssociationDetailsRequestDto, lendingApplicationKycDetails));
-        int vintage = (int)Math.ceil(Optional.ofNullable(lendingRiskVariablesSnapshot.getVintage()).orElse(0L)/30.0);
-        if (defaultVintageAssignment && loanUtil.isInternalMerchant(lenderAssociationDetailsRequestDto.getMerchantId())){
-            vintage = internalMerchantVinatge;
+        try {
+            LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
+            LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+            LendingBBS lendingBBS = lendingBBSDao.findByMerchantId(lendingApplication.getMerchantId());
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+            List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
+            applicant.add(getApplicantDetails(lendingApplication, lendingBBS, lendingGstDetail, lenderAssociationDetailsRequestDto, lendingApplicationKycDetails));
+            int vintage = (int) Math.ceil(Optional.ofNullable(lendingRiskVariablesSnapshot.getVintage()).orElse(0L) / 30.0);
+            if (defaultVintageAssignment && loanUtil.isInternalMerchant(lenderAssociationDetailsRequestDto.getMerchantId())) {
+                vintage = internalMerchantVinatge;
+            }
+            CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
+                    .leadId(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadId())
+                    .partnerApplicationId((lendingApplication.getExternalLoanId()))
+                    .applicantsDetail(applicant)
+                    .additionalInformation(CreateLeadRequestDTO.AdditionalInformation.builder()
+                            .applicantProfile("VENDOR")
+                            .loanSegment(lendingRiskVariablesSnapshot.getRiskSegment().name())
+                            .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
+                            .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
+                            .total60DaysTPV(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2)
+                            .monthlyNFI(lendingRiskVariablesSnapshot.getMonthlyNfi().intValue())
+                            .bharatpeVintage(vintage)
+                            .build())
+                    .auditTrailInformation(createAuditTrailList(lendingApplication, lendingApplicationKycDetails))
+                    .build();
+            if (LoanType.TOPUP.name().equals(lendingApplication.getLoanType())) {
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                if (ObjectUtils.isEmpty(lendingPaymentSchedule) || !Lender.PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                    throw new Exception("Unable to fetch active parent loan details for merchantId: " + lendingApplication.getMerchantId());
+                }
+                LendingApplication parentLendingApplication = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId()).orElse(null);
+                if (ObjectUtils.isEmpty(parentLendingApplication) || !Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    throw new Exception("Unable to fetch active parent application details for merchantId: " + lendingApplication.getMerchantId());
+                }
+                Integer topupCount = lendingApplicationDao.findDisbursedApplicationCountForMerchantIdAndLenderAndLoan("PIRAMAL", lendingApplication.getMerchantId(), "TOPUP");
+                LendingApplicationLenderDetails parentLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(parentLendingApplication.getId(), "ACTIVE", parentLendingApplication.getLender());
+                CreateLeadRequestDTO.AdditionalInformation additionalInformation = createLeadRequestDTO.getAdditionalInformation();
+                additionalInformation.setPiramalExistingLoanNo(parentLendingApplication.getNbfcId());
+                additionalInformation.setPiramalExistingLeadId(parentLendingApplicationLenderDetails.getLeadId());
+                additionalInformation.setPercentPaidThroughQr(loanUtil.getAmountPaidThroughQrPer(lendingPaymentSchedule));
+                additionalInformation.setExistingLoanMaxDpd(loanUtil.getMaxDpdInLastLoan(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule));
+                additionalInformation.setTopUpCount(topupCount + 1); // +1 for this application (piramal counts this application as well)
+                additionalInformation.setExistingLoanOutStandingAmount(lendingPaymentSchedule.getDueAmount());
+                additionalInformation.setExistingLoanOutStandingPrincipal(lendingPaymentSchedule.getDuePrinciple());
+                additionalInformation.setExistingLoanCurrentDpd(LoanUtil.calculateDPD(lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getEdiAmount()));
+                additionalInformation.setLoanDetailsDate(DateTimeUtil.getDateInGMTFormat(new Date(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"));
+                if (!ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getCKycResponseDto()) && !ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getCKycResponseDto().getSelfieLivelinessScore())) {
+                    additionalInformation.setPartnerVerificationDetails(CreateLeadRequestDTO.PartnerVerificationDetails.builder()
+                            .selfieLiveliness(CreateLeadRequestDTO.SelfieLiveliness.builder()
+                                    .mode("ACTIVE")
+                                    .score(lenderAssociationDetailsRequestDto.getCKycResponseDto().getSelfieLivelinessScore())
+                                    .verificationStatus("PASS")
+                                    .serviceProvider("")
+                                    .build()).build());
+                    createLeadRequestDTO.setAdditionalInformation(additionalInformation);
+                }
+                createLeadRequestDTO.setLocationInformation(CreateLeadRequestDTO.LocationInformation.builder()
+                        .latitude(lendingApplication.getLatitude())
+                        .longitude(lendingApplication.getLongitude())
+                        .timeStamp(lendingApplication.getCreatedAt()).build());
+                createLeadRequestDTO.setProductId("BPETU");
+            }
+            return NbfcRequestDto.builder()
+                    .applicationId(lenderAssociationDetailsRequestDto.getApplicationId())
+                    .payload(createLeadRequestDTO)
+                    .lender("PIRAMAL")
+                    .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()))
+                    .build();
+        } catch (Exception e) {
+            log.error("piramal couldn't create update lead payload {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getLocalizedMessage(), Arrays.asList(e.getStackTrace()));
+            return null;
         }
-        CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
-                .leadId(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadId())
-                .partnerApplicationId((lendingApplication.getExternalLoanId()))
-                .applicantsDetail(applicant)
-                .additionalInformation(CreateLeadRequestDTO.AdditionalInformation.builder()
-                        .applicantProfile("VENDOR")
-                        .loanSegment(lendingRiskVariablesSnapshot.getRiskSegment().name())
-                        .pincodeColor(lendingRiskVariablesSnapshot.getPincodeColor().name())
-                        .riskGroup(lendingRiskVariablesSnapshot.getRiskGroup())
-                        .total60DaysTPV(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2)
-                        .monthlyNFI(lendingRiskVariablesSnapshot.getMonthlyNfi().intValue())
-                        .bharatpeVintage(vintage)
-                        .build())
-                .auditTrailInformation(createAuditTrailList(lendingApplication, lendingApplicationKycDetails))
-                .build();
-        return NbfcRequestDto.builder()
-                .applicationId(lenderAssociationDetailsRequestDto.getApplicationId())
-                .payload(createLeadRequestDTO)
-                .lender("PIRAMAL")
-                .productName("LENDING")
-                .build();
     }
 
     private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(LendingApplication lendingApplication, LendingBBS lendingBBS, LendingGstDetail lendingGstDetail,
@@ -171,14 +229,14 @@ public class UpdateLeadService {
     private CreateLeadRequestDTO.AuditTrailInformation createAuditTrailList(LendingApplication lendingApplication, LendingApplicationKycDetails lendingApplicationKycDetails) {
         List<CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList> auditTrailLists = new ArrayList<>();
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList cibilAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
-                .auditCode("BRTPE_BUREAU_CONSENT")
+                .auditCode(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? "BPETU_BUREAU_CONSENT" : "BRTPE_BUREAU_CONSENT")
                 .auditName("I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus")
                 .ipAddress(lendingApplication.getIp())
                 .timeStamp(DateTimeUtil.getDateInFormat(lendingApplication.getCreatedAt(), "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                 .build();
         auditTrailLists.add(cibilAuditTrail);
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList kycAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
-                .auditCode("BRTPE_OKYC_CONSENT")
+                .auditCode(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? "BPETU_OKYC_CONSENT" : "BRTPE_OKYC_CONSENT")
                 .auditName(" I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners")
                 .ipAddress(lendingApplication.getIp())
                 .timeStamp(DateTimeUtil.getDateInFormat(
@@ -188,7 +246,7 @@ public class UpdateLeadService {
         auditTrailLists.add(kycAuditTrail);
 
         CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList addressAuditTrail = CreateLeadRequestDTO.AuditTrailInformation.AuditTrailList.builder()
-                .auditCode("BRTPE_PERMADDR_CONSENT")
+                .auditCode(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? "BPETU_PERMADDR_CONSENT" : "BRTPE_PERMADDR_CONSENT")
                 .auditName("I undertake that my current address is same as mentioned in the submitted KYC documents")
                 .ipAddress(lendingApplication.getIp())
                 .timeStamp(DateTimeUtil.getDateInFormat(

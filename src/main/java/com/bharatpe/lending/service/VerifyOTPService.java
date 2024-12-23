@@ -798,10 +798,10 @@ public class VerifyOTPService {
 
             if ("LDC".equalsIgnoreCase(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeclosureAmountForLdc(activeLoan);
-            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(activeLoan.getNbfc())) {
+            } else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(),Lender.PIRAMAL.name()).contains(activeLoan.getNbfc())) {
                 previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
                 if(previousAmount <= 0){
-                    throw new RuntimeException("Error getting ABFL foreclosure details");
+                    throw new RuntimeException(String.format("Error getting %s foreclosure details", activeLoan.getNbfc()));
                 }
             } else previousAmount = loanUtil.getForeclosureAmount(activeLoan);
 
@@ -820,26 +820,6 @@ public class VerifyOTPService {
 
             lendingApplicationDao.save(lendingApplication);
 
-            if (!Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingApplication.getLender())) {
-                logger.info("setting up loan status INACTIVE for loanId {}", activeLoan.getId());
-                activeLoan.setStatus("INACTIVE_TOPUP");
-                lendingPaymentScheduleDao.save(activeLoan);
-                logger.info("active loan marked as INACTIVE_TOP_UP for loanid {}",activeLoan.getId());
-            }
-
-            /*if (!Lender.LDC.toString().equalsIgnoreCase(activeLoan.getNbfc()) && !Lender.LIQUILOANS_NBFC.toString().equalsIgnoreCase(activeLoan.getNbfc())
-                && !Lender.ABFL.name().equalsIgnoreCase(activeLoan.getNbfc())) {
-                ledgerAdjustmentForTopup(activeLoan, lendingApplication, previousAmount);
-            }
-            else{
-                // TODO Need to skip this for abfl topup in case repayment of old active loan
-                // flow for LDC topup loans on liquiloan_nbfc
-
-                // we mark the loan inactive here so that we stop the further collection of amount on this loan
-                // and once the topup is successfully created on liquiloans we can mark this loan as closed with appropriate ledger entries
-                activeLoan.setStatus("INACTIVE_TOPUP");
-                lendingPaymentScheduleDao.save(activeLoan);
-            }*/
         } catch (Exception ex) {
             logger.error("Exception IN TOPUP LOANS Ledger for application:{} {}", lendingApplication.getId(), Arrays.asList(ex.getStackTrace()));
             return false;
