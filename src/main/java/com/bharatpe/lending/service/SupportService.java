@@ -22,6 +22,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.LoanInsuranceConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
@@ -72,6 +73,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
+import static com.bharatpe.lending.constant.LendingConstants.LedgerDescriptionTxnType;
 
 @Service
 public class SupportService {
@@ -1057,7 +1059,7 @@ public class SupportService {
                         Map<String, Object> lendingLedgerDetail = new HashMap<>();
                         lendingLedgerDetail.put("createdAt", lendingLedger1.getDate() == null ? lendingLedger1.getCreatedAt().toString() : lendingLedger1.getDate().toString());
                         lendingLedgerDetail.put("id", lendingLedger1.getId());
-                        lendingLedgerDetail.put("transactionType", Objects.isNull(lendingLedger1.getAdjustmentMode()) ? "EDI": lendingLedger1.getAdjustmentMode());
+                        lendingLedgerDetail.put("transactionType", getLedgerTransactionType(lendingLedger1));
                         if(lendingLedger1.getAmount() < 0){
                             Double ediAmount = lendingLedger1.getAmount();
                             dueAmount += -1* ediAmount;
@@ -1139,6 +1141,13 @@ public class SupportService {
             supportLoanResponseDTO.setApplicationHistory(applicationHistoryList);
         }
         return supportLoanResponseDTO;
+    }
+
+    private Object getLedgerTransactionType(LendingLedger lendingLedger) {
+        if(!ObjectUtils.isEmpty(lendingLedger.getPenalty()) && lendingLedger.getPenalty() < 0){
+            return LedgerDescriptionTxnType.getOrDefault(lendingLedger.getDescription(), lendingLedger.getDescription());
+        }
+        return Objects.isNull(lendingLedger.getAdjustmentMode()) ? "EDI": lendingLedger.getAdjustmentMode();
     }
 
     public InsuranceDetailsDTO findInsuranceForApplication(LendingApplicationSlave application) {

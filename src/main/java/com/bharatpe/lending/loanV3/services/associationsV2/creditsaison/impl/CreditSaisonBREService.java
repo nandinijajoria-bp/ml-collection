@@ -131,7 +131,7 @@ public class CreditSaisonBREService {
         identifiers.put("partnerLoanId", lendingApplication.getExternalLoanId());
         try {
             Double sixtyDaysTpv = ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getSummaryTpv()) ? 0D : lendingRiskVariablesSnapshot.getSummaryTpv() * 60;
-
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName(csConfig.getLendingProduct())
@@ -159,7 +159,7 @@ public class CreditSaisonBREService {
                                                             CreditSasionBRERequestDTO.LinkedIndividual.Contact.builder()
                                                                     .countryCode(csConfig.getCountryCode())
                                                                     .notify(csConfig.getNotifyTrue())
-                                                                    .value(kycUtils.getMobileFromKycData(cKycResponseDto))
+                                                                    .value(mobile)
                                                                     .type(csConfig.getContactTypePhone())
                                                                     .typeCode(csConfig.getContactTypeCodeMobile().toUpperCase())
                                                                     .priority(String.valueOf(csConfig.getPriority5()))

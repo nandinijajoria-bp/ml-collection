@@ -222,12 +222,13 @@ public class LoanDetailsControllerV2 {
     public ResponseEntity<ApiResponse<?>> updateConsent(@RequestAttribute BasicDetailsDto merchant,
                                                         @RequestParam(required = false) String pancard,
                                                         @RequestParam(required = false) Integer pinCode,
-                                                        @RequestParam(required = false) Boolean consent) {
+                                                        @RequestParam(required = false) Boolean consent,
+                                                        @RequestParam(required = false) String bureauMobile) {
         if (Objects.isNull(merchant)) {
             log.info("no merchant found");
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
-        return ResponseEntity.ok(loanDetailsServiceV2.updateConsent(merchant, pancard, pinCode, consent));
+        return ResponseEntity.ok(loanDetailsServiceV2.updateConsent(merchant, pancard, pinCode, consent, bureauMobile));
     }
 
     @GetMapping(value = "/merchant/eligibility")

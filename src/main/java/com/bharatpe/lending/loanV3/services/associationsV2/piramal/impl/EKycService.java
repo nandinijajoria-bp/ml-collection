@@ -116,6 +116,8 @@ public class EKycService {
 
     private NbfcRequestDto getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         try {
+            CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             NbfcRequestDto nbfcRequestDto = NbfcRequestDto.builder()
                     .applicationId(lenderAssociationDetailsRequest.getLendingApplication().getId())
                     .lender(lenderAssociationDetailsRequest.getLendingApplication().getLender())
@@ -123,7 +125,7 @@ public class EKycService {
                     .payload(PEKycRequestDTO.builder()
                             .source("BRTPE")
                             .inputIdType("DIGILOCKER_AADHAAR_XML")
-                            .phone(lenderAssociationDetailsRequest.getCKycResponseDto().getMobile())
+                            .phone(mobile)
                             .kycUrl(eKycRedirectionUrl)
                             .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
                             .applicantReferenceId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getCccId())

@@ -129,13 +129,14 @@ public class TLCreateClientService {
     }
 
     private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
+        String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         return TLCreateClientRequestDto.ClientDetails.builder()
                 .firstName(kycUtils.getFirstName(cKycResponseDto))
                 .middleName(kycUtils.getMiddleName(cKycResponseDto))
                 .lastName(kycUtils.getLastName(cKycResponseDto))
                 .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
                 .gender(kycUtils.getGender(cKycResponseDto.getGender()))
-                .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                .mobileNo(mobile)
                 .externalId(lendingApplication.getExternalLoanId())
                 .build();
     }

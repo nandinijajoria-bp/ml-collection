@@ -106,6 +106,7 @@ public class CreateLeadService {
             String firstName = nameAndDobDetailsDto.getFirstName();
             String middleName = nameAndDobDetailsDto.getMiddleName();
             String lastName = nameAndDobDetailsDto.getLastName();
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             List<CreateLeadRequestDTO.ApplicantsDetail> applicant = new ArrayList<>();
             applicant.add(getApplicantDetails(cKycResponseDto, nameAndDobDetailsDto, isEligibleForLenderKyc));
             CreateLeadRequestDTO createLeadRequestDTO = CreateLeadRequestDTO.builder()
@@ -116,7 +117,7 @@ public class CreateLeadService {
                                             .firstName(firstName)
                                             .middleName(middleName)
                                             .lastName(ObjectUtils.isEmpty(lastName) ? firstName : lastName)
-                                            .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                                            .mobileNo(mobile)
                                             .build()
                             )
                             .applicantsDetail(applicant)
@@ -140,6 +141,7 @@ public class CreateLeadService {
     }
 
     private CreateLeadRequestDTO.ApplicantsDetail getApplicantDetails(CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto, Boolean isEligibleForLenderKyc) {
+        String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         CreateLeadRequestDTO.ApplicantsDetail applicantsDetail = CreateLeadRequestDTO.ApplicantsDetail.builder()
                 .applicant(CreateLeadRequestDTO.ApplicantsDetail.Applicant.builder()
                         .firstName(nameAndDobDetailsDto.getFirstName())
@@ -153,7 +155,7 @@ public class CreateLeadService {
                         .gender(ObjectUtils.isEmpty(cKycResponseDto.getGender()) ? "OTHERS" : getGender(cKycResponseDto.getGender()))
                         .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy", "yyyy-MM-dd'T'HH:mm:ss.000'Z'"))
                         .salutation(getGender(cKycResponseDto.getGender()).equalsIgnoreCase("FEMALE") ? "MRS" : "MR")
-                        .mobileNo(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                        .mobileNo(mobile)
                         .panCardDetail(CreateLeadRequestDTO.ApplicantsDetail.Applicant.PanCardDetail.builder()
                                 .name(nameAndDobDetailsDto.getFirstName())
                                 .panCardNo(cKycResponseDto.getPanNumber())

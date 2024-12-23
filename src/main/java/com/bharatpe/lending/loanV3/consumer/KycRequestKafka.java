@@ -262,6 +262,7 @@ public class KycRequestKafka {
             String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String name = nameAndDobDetailsDto.getFullName();
+            String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             KycRequestApiDto kycRequestApiDto = KycRequestApiDto.builder()
                     .applicationId(applicationId)
                     .lender(lendingApplication.get().getLender())
@@ -290,7 +291,7 @@ public class KycRequestKafka {
                             .declaredState(ObjectUtils.isEmpty(cKycResponseDto.getState()) ? "" : cKycResponseDto.getState().toUpperCase())
                             .declaredPincode(Integer.valueOf(cKycResponseDto.getPincode()))
                             .cccId(lendingApplicationLenderDetails.getCccId())
-                            .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
+                            .mobile(mobile)
                             .gender("F".equalsIgnoreCase(cKycResponseDto.getGender()) ? "Female" : "Male")
                             .nsdlName(converterUtils.parseNameData(name).trim())
                             .nsdlPan(cKycResponseDto.getPanNumber())

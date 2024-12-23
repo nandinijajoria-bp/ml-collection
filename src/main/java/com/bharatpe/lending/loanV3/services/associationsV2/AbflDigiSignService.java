@@ -16,6 +16,7 @@ import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.FileUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.Document;
@@ -25,6 +26,7 @@ import com.itextpdf.text.pdf.PdfReader;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -69,6 +71,10 @@ public class AbflDigiSignService {
     @Value("${aws.s3.bucket}")
     private String bucket;
 
+    @Lazy
+    @Autowired
+    KycUtils kycUtils;
+
     private static final String CURRENT_DIR = Paths.get("").toAbsolutePath().toString();
 
     public AbflDigiSignResponseDTO invokeDigiSign(Long applicationId, LendingApplication lendingApplication) {
@@ -111,7 +117,11 @@ public class AbflDigiSignService {
             throw new RuntimeException("DIGI sign: error in fetching merchant details for ABFL DigiSign API");
         }
         String mergedURL = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(lendingKfs.getKfsDocFile(),bucket);
-
+        CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.getMerchantId());
+        String mobile = null;
+        if(!ObjectUtils.isEmpty(cKycResponseDto)) {
+            mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
+        }
         return AbflDigiSignRequestDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender("ABFL")
@@ -121,7 +131,7 @@ public class AbflDigiSignService {
                         .accountId(lendingApplication.getExternalLoanId())
                         .unsigned_merged_pdf(mergedURL)
                         .merged_pdf_flag(Boolean.TRUE)
-                        .mobile_number(merchantDetailsDto.getMerchantDetail().getMobile().substring(2))
+                        .mobile_number(ObjectUtils.isEmpty(mobile) ? merchantDetailsDto.getMerchantDetail().getMobile().substring(2) : mobile)
                         .build())
                 .build();
         } catch (Exception exception) {

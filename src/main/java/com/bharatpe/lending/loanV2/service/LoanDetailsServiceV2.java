@@ -2677,7 +2677,8 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(bureauConsentDTO);
     }
 
-    public ApiResponse<BureauConsentDTO.Data> updateConsent(BasicDetailsDto merchant, String pancard, Integer pinCode,Boolean consent) {
+    public ApiResponse<BureauConsentDTO.Data> updateConsent(BasicDetailsDto merchant, String pancard, Integer pinCode,Boolean consent,
+                                                            String bureauMobile) {
         Experian experian = experianDao.getByMerchantId(merchant.getId());
         if (Objects.isNull(consent)) {
             consent = Boolean.TRUE;
@@ -2697,9 +2698,13 @@ public class LoanDetailsServiceV2 {
                 .merchantId(merchant.getId())
                 .mobile(merchant.getMobile())
                 .consent_expired(!consent)
+                .bureau_mobile(bureauMobile)
                 .build();
         BureauConsentDTO.Data consentResponse = apiGatewayService.updateConsent(bureauConsentDTO);
         if (Objects.nonNull(consentResponse)) {
+            if(!ObjectUtils.isEmpty(bureauMobile)) {
+                return new ApiResponse<>(consentResponse);
+            }
             if (!consentResponse.isConsent_expired()) {
                 String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + bureauConsentDTO.getMerchantId();
                 log.info("deleting cached key of loan dashboard api for merchant: {}",bureauConsentDTO.getMerchantId());
