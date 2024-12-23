@@ -22,6 +22,8 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoanReceiptRequestDTO {
 
+    private String productId;
+
     private String loanAccountNumber;
 
     private BigDecimal paymentAmount;

@@ -266,9 +266,8 @@ public class LendingApplicationController {
 	@RequestMapping(value="/loan/topup", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<?> signAgreementForTopup(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp,  @RequestBody CreateApplicationRequestForTopupDTO requestDTO) {
 		requestDTO.setIp(clientIp);
-		logger.info("singAgreement request : {}",requestDTO);
+		logger.info("singAgreement request {} for merchant id : {}", requestDTO, merchant.getId());
 		Map<String, Object> response = signAgreementService.createNewApplicationAndSendOTPForTopup(merchant, requestDTO);
-//		logger.info("signAgreement response : {}", resp);
 		return new ResponseEntity<>(new ApiResponse<>(response), HttpStatus.OK);
 	}
 
