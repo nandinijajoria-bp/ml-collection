@@ -20,6 +20,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Arrays;
+
 @Service
 @Slf4j
 public class CommonService {
@@ -58,7 +60,7 @@ public class CommonService {
 
     public void manageApplicationStateAndModifyLender(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LenderAssociationStatus lenderAssociationStatus) {
         manageApplicationState(lenderAssociationDetailsDto);
-        if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLender()))
+        if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender()))
             manageApplicationStateAndRejectApplication(lenderAssociationDetailsDto);
         else
             modfifyApplicationLender(lenderAssociationDetailsDto, lenderAssociationStatus);

@@ -2493,5 +2493,30 @@ public class LoanUtil {
 	public Boolean validateToken(String token){
 		return apiToken.equals(token);
 	}
+
+	public Double getAmountPaidThroughQr(LendingPaymentSchedule lendingPaymentSchedule) {
+		return lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
+	}
+
+	public Double getAmountPaidThroughQrPer(LendingPaymentSchedule lendingPaymentSchedule) {
+		Double settlementAmount = getAmountPaidThroughQr(lendingPaymentSchedule);
+		if (!ObjectUtils.isEmpty(settlementAmount) && !ObjectUtils.isEmpty(settlementAmount)) {
+			return (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
+		}
+		return 0D;
+	}
+
+	public Double getAmountPaidThroughQr(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+		return lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
+	}
+
+	public Double getAmountPaidThroughQrPer(LendingPaymentScheduleSlave lendingPaymentSchedule) {
+		Double settlementAmount = getAmountPaidThroughQr(lendingPaymentSchedule);
+		if (!ObjectUtils.isEmpty(settlementAmount) && !ObjectUtils.isEmpty(settlementAmount)) {
+			return (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
+		}
+		return 0D;
+	}
+
 }
 
