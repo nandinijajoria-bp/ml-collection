@@ -1,0 +1,9 @@
+# Each line is a file pattern followed by one or more owners.
+
+# These owners will be the default owners for everything in the repo. Unless a later match takes precedence,
+#  @ashishbp, @yogenderyadavBP, @nehamittal12, @Tanugoyal08, @sachinarora865, @Srinivaspe will be requested for review when someone opens a pull request.
+* @ashishbp @yogenderyadavBP @nehamittal12 @Tanugoyal08 @sachinarora865 @Srinivaspe
+
+# Order is important; the last matching pattern takes the most precedence. When someone opens a pull request that only modifies java files, only @java-owner
+# and not the global owner(s) will be requested for a review.
+*.java  @ashishbp @yogenderyadavBP @nehamittal12 @Tanugoyal08 @sachinarora865 @Srinivaspe
