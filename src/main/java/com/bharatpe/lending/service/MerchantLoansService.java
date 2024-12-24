@@ -32,6 +32,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
@@ -43,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -52,6 +54,7 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
@@ -242,6 +245,9 @@ public class MerchantLoansService {
     @Value("${toup.min.qrpaidRatio.moreThan12MonthsTenure:54}")
     Double topupMinQrPaidRatioForMoreThan12MonthsTenure;
 
+    @Value("${piramal.topup.rollout.percent:}")
+    Integer piramalTopupRolloutPercent;
+
     @Value(("${topup.pilot.run.enabled.lenders:ABFL}"))
     String topupPilotRunEnabledLenders;
 
@@ -253,6 +259,28 @@ public class MerchantLoansService {
     static List<String> allowedRiskGroupsStp = Arrays.asList("R1", "R2");
 
     private final DecimalFormat df = new DecimalFormat("#.##");
+
+    @Value("${piramal.topup.rejection.banner.tat:5}")
+    Long piramalTopupRejectionBannerTat;
+
+    @Value("${topup.disabled.startTime:22:00}")
+    String topupDisabledStartTimeString;
+
+    @Value("${topup.disabled.endTime:10:00}")
+    String topupDisabledEndTimeString;
+
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Value("${piramal.max.irr:36.0}")
+    Double piramalMaxIrr;
+
+    @Value("${piramal.max.apr:48.0}")
+    Double piramalMaxApr;
+
+    @Value("${piramal.topup.max.current.dpd:1}")
+    Long piramalTopupMaxCurrentDpd;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -647,8 +675,15 @@ public class MerchantLoansService {
                         }
                         funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
-                    if(Arrays.asList(ABFL.name(), TRILLIONLOANS.name()).contains(lendingPaymentSchedule.getNbfc())) {
+                    if(Arrays.asList(ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())) {
                         responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId()));
+                    }
+                    if(Arrays.asList(PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())) {
+                        LocalTime now = LocalTime.now();
+                        LocalTime topupDisabledStartTime = LocalTime.parse(topupDisabledStartTimeString);
+                        LocalTime topupDisabledEndTime = LocalTime.parse(topupDisabledEndTimeString);
+                        Boolean isTimeBasedTopupDisabled = now.isAfter(topupDisabledStartTime) && now.isBefore(topupDisabledEndTime);
+                        responseDTO.setTimeBasedTopupDisabled(isTimeBasedTopupDisabled);
                     }
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
@@ -691,6 +726,9 @@ public class MerchantLoansService {
                         return Boolean.TRUE;
                     } else if(TRILLIONLOANS.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < trillionTopupRejectionBannerTat) {
                         log.info("TRILLIONLOANS topup application rejected for merchantId : {} less than {} minutes ago", merchantId, trillionTopupRejectionBannerTat);
+                        return Boolean.TRUE;
+                    } else if(PIRAMAL.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < piramalTopupRejectionBannerTat) {
+                        log.info("PIRAMAL topup application rejected for merchantId : {} less than {} minutes ago", merchantId, piramalTopupRejectionBannerTat);
                         return Boolean.TRUE;
                     }
                 }
@@ -1000,11 +1038,16 @@ public class MerchantLoansService {
                 return eligiblity;
             }
 
+            if(PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), piramalTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                log.info("PIRAMAL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                return eligiblity;
+            }
+
             if(topupPilotRunEnabledLenders.contains(lendingPaymentSchedule.getNbfc())){
                 LenderTopupEligibility lenderTopupEligibility = lenderTopupEligibilityDao.findTopupEligibilityFromLender(
                         lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
-                if(ObjectUtils.isEmpty(lenderTopupEligibility)){
-                    log.info("Merchant not eligible from lender ABFL for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+                if (ObjectUtils.isEmpty(lenderTopupEligibility)) {
+                    log.info("Merchant not eligible from lender {} for merchantId: {}",lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
             }
@@ -1093,6 +1136,10 @@ public class MerchantLoansService {
                 BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
                 if (maxDpd.intValue() > 30) {
                     logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+                if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && maxDpd.intValue() > 15) {
+                    logger.info("Merchant Dpd Greater than 15 merchant:{} for lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
                     return eligiblity;
                 }
 
@@ -1210,6 +1257,12 @@ public class MerchantLoansService {
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 EligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
+
+                if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
+                    log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
@@ -1295,28 +1348,6 @@ public class MerchantLoansService {
             logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchantId());
             double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
 
-            //Double eligibleAmount = 0D;
-//            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId());
-//            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-//                logger.info("Global limit for merchant:{} is {}", lendingPaymentSchedule.getMerchantId(), globalLimitResponse.getData().getGlobalLimit());
-//                eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
-//            }
-//            if (eligibleAmount.equals(0D)) {
-//                logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
-//                return eligiblity;
-//            }
-//            if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
-//                if (ediPaidRatio < 65D) {
-//                    logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
-//                    eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
-//                }
-//                int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-//                if (eligibleAmount - posAmount < 10000) {
-//                    logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
-//                    return eligiblity;
-//                }
-//            }
-
             Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
             List<EligibleLoan> eligibleLoanList = null;
@@ -1370,6 +1401,12 @@ public class MerchantLoansService {
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 EligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
+
+                if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
+                    log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
+
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
                 loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
@@ -1396,53 +1433,6 @@ public class MerchantLoansService {
                 eligiblity.add(loanEligibilityDTO);
             }
 
-//            List<LendingCategories> lendingCategories = lendingCategoryDao.getByMasterCategoryForConstruct1("TOPUP");
-//            LoanCalculationUtil.LoanBreakupDetail breakup;
-//            AvailableLoan availableLoan = new AvailableLoan();
-//            availableLoan.setAmount(eligibleAmount);
-
-//            for (LendingCategories category : lendingCategories) {
-
-//                breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, category, "TOPUP");
-//                EligibleLoan eligibleLoan = new EligibleLoan();
-//                eligibleLoan.setMerchantId(lendingPaymentSchedule.getMerchantId());
-//                eligibleLoan.setExperianId(experian.getId());
-//                eligibleLoan.setTenure(category.getPayableConverter());
-//                eligibleLoan.setStatus("ACTIVE");
-//                eligibleLoan.setAmount(eligibleAmount);
-//                eligibleLoan.setCategory(category.getCategory());
-//                eligibleLoan.setEdi(breakup.getEdi());
-//                eligibleLoan.setIoEdi(breakup.getIoEdi());
-//                eligibleLoan.setRepayment(breakup.getRepayment());
-//                eligibleLoan.setLoanConstruct(breakup.getConstruct());
-//                eligibleLoan.setLoanType("TOPUP");
-//                eligibleLoanDao.save(eligibleLoan);
-
-//                double prevLoanUnpaidAmount = (lendingPaymentSchedule.getLoanAmount() - lendingPaymentSchedule.getPaidPrinciple()) + lendingPaymentSchedule.getDueInterest();
-//                LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
-//                loanEligibilityDTO.setPrevLoanUnpaidAmount((int) prevLoanUnpaidAmount);
-//                loanEligibilityDTO.setDisbursementAmount(breakup.getDisbursementAmount());
-//                loanEligibilityDTO.setProcessingFee(breakup.getProcessingFee());
-//                loanEligibilityDTO.setInterestRate(breakup.getEffectiveInterestRate());
-//                loanEligibilityDTO.setAmount(breakup.getLoanAmount());
-//                loanEligibilityDTO.setCategory(category.getCategory());
-//                loanEligibilityDTO.setInterestAmount(breakup.getTotalInterestAmount());
-//                loanEligibilityDTO.setEdi(breakup.getEdi());
-//                loanEligibilityDTO.setRepayment(breakup.getRepayment());
-//                loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
-//                loanEligibilityDTO.setConstruct(breakup.getConstruct());
-//                loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
-//                loanEligibilityDTO.setType(breakup.getType());
-//                loanEligibilityDTO.setOptionEnable(true);
-//                loanEligibilityDTO.setPrincipleEdiTenure(breakup.getPrincipleEdiTenure());
-//                loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getDisbursementAmount() - (int) prevLoanUnpaidAmount);
-//                loanEligibilityDTO.setLoanType("TOPUP");
-//                loanEligibilityDTO.setEdiCount(category.getPayableDays());
-//                eligiblity.add(loanEligibilityDTO);
-//            }
-
-
-//            int deleteNonTopup = eligibleLoanDao.deleteNonTopUp(lendingPaymentSchedule.getMerchantId());
         } catch (Exception e) {
             logger.info("Exception occurred while existing topup rule engine for merchantId: {}", lendingPaymentSchedule.getMerchantId());
         }
@@ -1694,7 +1684,7 @@ public class MerchantLoansService {
         double previousAmount = 0;
         if ("LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
             previousAmount = loanUtil.getForeclosureAmountForLdc(lendingPaymentSchedule);
-        } else if (Arrays.asList(ABFL.name(), TRILLIONLOANS.name()).contains(lendingPaymentSchedule.getNbfc())) {
+        } else if (Arrays.asList(ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())) {
             previousAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
             if (previousAmount <= 0) {
                 String error = String.format("Error getting foreclosure details for %s %s with loanId %s", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getId());
@@ -1705,4 +1695,62 @@ public class MerchantLoansService {
         }
         return previousAmount;
     }
+
+    private boolean maxIrrCheckFailed(Integer ediCount, Double ediAmount, Double loanAmount, Long merchantId, String lender) {
+        Double irr = lendingApplicationServiceV2.getApr(ediCount, ediAmount, loanAmount, merchantId, lender);
+        log.info("IRR generated for merchant id :{} IRR:{} and lender:{}", merchantId, irr, lender);
+        Double maxIrr = 0D;
+        switch (lender) {
+            case "PIRAMAL":
+                maxIrr = piramalMaxIrr;
+                break;
+            default:
+                maxIrr = 0D;
+        }
+        return irr > maxIrr;
+    }
+
+
+    private boolean maxAprCheckFailed(Integer ediCount, Double ediAmount, Double loanAmount, Double processingFee, Long merchantId, String lender) {
+        Double apr = lendingApplicationServiceV2.getApr(ediCount, ediAmount, loanAmount - processingFee, merchantId, lender);
+        log.info("APR generated for merchant id:{} APR:{} and lender:{}", merchantId, apr, lender);
+        Double maxApr = 0D;
+        switch (lender) {
+            case "PIRAMAL":
+                maxApr = piramalMaxApr;
+                break;
+            default:
+                maxApr = 0D;
+        }
+        return apr > maxApr;
+    }
+
+    private boolean additionalTopupChecksFailed(LendingPaymentScheduleSlave lendingPaymentSchedule, EligibleLoan eligibleLoan) {
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
+        double vintage = !ObjectUtils.isEmpty(lendingRiskVariables.getVintage()) ? lendingRiskVariables.getVintage() : 0D;
+        Double amountPaidThroughQrPer = loanUtil.getAmountPaidThroughQrPer(lendingPaymentSchedule);
+        int currentDPD = LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount());
+        if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && maxIrrCheckFailed(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc())) {
+            logger.info("max irr check failed for merchant id {}, lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
+            return true;
+        }
+        if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && maxAprCheckFailed(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), Double.valueOf(eligibleLoan.getProcessingFee()), lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc())) {
+            logger.info("max apr check failed for merchant id {}, lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
+            return true;
+        }
+        if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && vintage < 90) {
+            logger.info("vintage check failed for merchant id {}, lender {} : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), vintage);
+            return true;
+        }
+        if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && currentDPD > piramalTopupMaxCurrentDpd) {
+            logger.info("dpd check failed for merchant id {}, lender {} : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), currentDPD);
+            return true;
+        }
+        if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && amountPaidThroughQrPer < 40) {
+            logger.info("amt paid through qr check failed for merchant id {}, lender {} : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), amountPaidThroughQrPer);
+            return true;
+        }
+        return false;
+    }
+
 }
