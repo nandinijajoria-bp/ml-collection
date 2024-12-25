@@ -1544,6 +1544,12 @@ public class PaymentService {
             LendingApplicationLenderDetails lendingApplicationLenderDetails =
                     lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(activeLoan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
 
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(activeLoan.getApplicationId());
+            if(!lendingApplication.isPresent()) {
+                logger.error("no lending application record found for application id {}", activeLoan.getApplicationId());
+                throw new RuntimeException("no lending application record found for the app " + activeLoan.getApplicationId());
+            }
+
             String adjustmentMode = PaymentAdjustmentModesPiramal.valueOf(lendingLedger.getAdjustmentMode()).getAdjustedModeEquivalent();
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
@@ -1559,6 +1565,7 @@ public class PaymentService {
             allocationDetails.add(LoanReceiptRequestDTO.AllocationDetail.builder().allocationItem("P").paidAmount(lendingLedger.getPrinciple()).build());
             allocationDetails.add(LoanReceiptRequestDTO.AllocationDetail.builder().allocationItem("I").paidAmount(lendingLedger.getInterest()).build());
 
+            loanReceiptRequestDTO.setProductId(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())? "BPETU" : "BRTPE");
             loanReceiptRequestDTO.setLoanAccountNumber(lendingApplicationLenderDetails.getLan());
 
             BigDecimal amount = BigDecimal.valueOf(lendingLedger.getAmount());
@@ -1571,6 +1578,7 @@ public class PaymentService {
             loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
 
             NbfcRequestDto<LoanReceiptRequestDTO> dtoNbfcRequestDto = new NbfcRequestDto<>();
+            dtoNbfcRequestDto.setTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()));
             dtoNbfcRequestDto.setLender("PIRAMAL");
             dtoNbfcRequestDto.setApplicationId(activeLoan.getApplicationId());
             dtoNbfcRequestDto.setProductName("LENDING");
