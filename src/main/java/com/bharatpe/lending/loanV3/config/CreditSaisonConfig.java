@@ -83,6 +83,9 @@ public class CreditSaisonConfig {
     private Double income = 100000D;
 
     private Integer rolloutPercent = 1;
+    private Integer maxLengthAddressLine1 = 255;
+    private Integer maxLengthAddressLine2 = 509;
+    private Integer minLengthAddressLine1 = 0;
 
 
 

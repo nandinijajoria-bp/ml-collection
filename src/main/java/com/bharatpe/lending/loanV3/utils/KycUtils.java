@@ -377,6 +377,14 @@ public class KycUtils {
                         cKycResponseDto.setPoAXml(ConverterUtils.convertXmlToBase64String(poaXml));
                         cKycResponseDto.setPoaString(poaXml);
                         cKycResponseDto.setCareOf(poa.getCo());
+                        cKycResponseDto.setLm(poa.getLm());
+                        cKycResponseDto.setVtc(poa.getVtc());
+                        cKycResponseDto.setHouse(poa.getHouse());
+                        cKycResponseDto.setStreet(poa.getStreet());
+                        cKycResponseDto.setLoc(poa.getLoc());
+                        cKycResponseDto.setPo(poa.getPo());
+                        cKycResponseDto.setSubdist(poa.getSubdist());
+                        cKycResponseDto.setDist(poa.getDist());
                         savePoaDetailsForLenderKyc(applicationId, cKycResponseDto);
                     }
                 }

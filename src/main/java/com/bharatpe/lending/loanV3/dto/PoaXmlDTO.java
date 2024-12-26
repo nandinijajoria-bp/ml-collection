@@ -80,6 +80,8 @@ public class PoaXmlDTO {
        String state;
        String subdist;
        String vtc;
+       String lm;
+       String street;
     }
 
 }
