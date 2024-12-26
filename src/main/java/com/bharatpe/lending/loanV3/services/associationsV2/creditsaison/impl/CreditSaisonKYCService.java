@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl;
 
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -21,7 +23,6 @@ import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionCallbac
 import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionKYCResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
-import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,8 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -51,13 +54,13 @@ public class CreditSaisonKYCService {
     ObjectMapper objectMapper;
 
     @Autowired
-    ConverterUtils converterUtils;
-
-    @Autowired
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
 
     @Lazy
     @Autowired
@@ -70,6 +73,9 @@ public class CreditSaisonKYCService {
                 log.info("CS: Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
+
+            LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lenderAssociationDetailsDto.getLendingApplication().getId(), lenderAssociationDetailsDto.getLendingApplication().getLender());
+
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStages.KYC.name());
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
@@ -77,7 +83,7 @@ public class CreditSaisonKYCService {
 
             lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
 
-            NBFCRequestDTO kycRequestPayload = getKycRequestPayload(lenderAssociationDetailsDto);
+            NBFCRequestDTO kycRequestPayload = getKycRequestPayload(lenderAssociationDetailsDto, lendingApplicationKycDetails);
 
             if (Objects.isNull(kycRequestPayload)) {
                 log.info("CS: error in KYC payload of CreditSaison for applicationId: {}", lendingApplication.getId());
@@ -107,7 +113,7 @@ public class CreditSaisonKYCService {
 
     }
 
-    private NBFCRequestDTO getKycRequestPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+    private NBFCRequestDTO getKycRequestPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LendingApplicationKycDetails lendingApplicationKycDetails) {
         LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsDto.getCKycResponseDto();
         try {
@@ -148,9 +154,12 @@ public class CreditSaisonKYCService {
                                                 .fullName(cKycResponseDto.getName())
                                                 .dob(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy",  "yyyy-MM-dd"))
                                                 .birthCountry(csConfig.getCountry())
-                                                .fatherName(csConfig.getFathersName())
+                                                .fatherName((!ObjectUtils.isEmpty(lendingApplicationKycDetails)
+                                                        && !ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName()))
+                                                        ? lendingApplicationKycDetails.getFatherName()
+                                                        : csConfig.getFathersName())
                                                 .build())
-                                            .addresses(getAddress(cKycResponseDto))
+                                            .addresses(getAddress(cKycResponseDto, lendingApplication.getId(), lendingApplication.getMerchantId()))
                                             .contacts(Arrays.asList(
                                                     CreditSasionKYCRequestDTO.LinkedIndividual.Contact.builder()
                                                             .type(csConfig.getContactTypePhone())
@@ -260,21 +269,35 @@ public class CreditSaisonKYCService {
         );
     }
 
-    public List<CreditSasionKYCRequestDTO.LinkedIndividual.Address> getAddress(CKycResponseDto cKycResponseDto) {
-        String address = converterUtils.parseData(cKycResponseDto.getAddress());
+    public List<CreditSasionKYCRequestDTO.LinkedIndividual.Address> getAddress(CKycResponseDto cKycResponseDto, Long applicationId, Long merchantId) {
+
+        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoAXml(), merchantId, cKycResponseDto, applicationId);
+
+        String address = Stream.of(
+                        poa.getHouse(),
+                        poa.getStreet(),
+                        poa.getLoc(),
+                        poa.getLm(),
+                        poa.getPo(),
+                        poa.getSubdist(),
+                        poa.getDist()
+                )
+                .filter(value -> value != null && !value.isEmpty())
+                .collect(Collectors.joining(","));
+
         int addressSize = address.length();
         String address1 = "", address2 = null;
-        if (addressSize <= 255) {
-            address1 = address;
+        if (addressSize <= csConfig.getMaxLengthAddressLine1()) {
+            address1 = poa.getAddress();
         } else {
-            address1 = address.substring(0, 255);
-            address2 = address.substring(255, 509);
+            address1 = poa.getAddress().substring(csConfig.getMinLengthAddressLine1(), csConfig.getMaxLengthAddressLine1());
+            address2 = poa.getAddress().substring(csConfig.getMaxLengthAddressLine1(), csConfig.getMaxLengthAddressLine2());
         }
         CreditSasionKYCRequestDTO.LinkedIndividual.Address currentAddress = CreditSasionKYCRequestDTO.LinkedIndividual.Address.builder()
                 .type(csConfig.getCurrentAddressType())
                 .line1(address1)
                 .line2(address2)
-                .city(cKycResponseDto.getCity())
+                .city(poa.getCity())
                 .state(csConfig.getState(cKycResponseDto.getState()))
                 .country(csConfig.getCountry())
                 .pinCode(cKycResponseDto.getPincode())
@@ -285,7 +308,7 @@ public class CreditSaisonKYCService {
                 .type(csConfig.getPermanentAddressType())
                 .line1(address1)
                 .line2(address2)
-                .city(cKycResponseDto.getCity())
+                .city(poa.getCity())
                 .state(csConfig.getState(cKycResponseDto.getState()))
                 .country(csConfig.getCountry())
                 .pinCode(cKycResponseDto.getPincode())

@@ -38,4 +38,12 @@ public class CKycResponseDto {
     Double bankBenePanNameMatchPer; // Bank Beneficiary Name vs PAN Name Match
     String gstNumber;
     String bureauMobile;
+    String lm;
+    String vtc;
+    String house;
+    String street;
+    String loc;
+    String po;
+    String subdist;
+    String dist;
 }

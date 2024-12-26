@@ -496,16 +496,6 @@ public class LenderAssignService implements ILenderAssignService {
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
-
-        if (Lender.PIRAMAL.name().equalsIgnoreCase(lender)) {
-            String enachMode = loanUtil.getEnachBankMode(lendingApplication.getMerchantId()).getMode();
-            if ("ADHAAR".equalsIgnoreCase(enachMode) && lendingApplication.getTenureInMonths() >= 12) {
-                log.info("only adhaar mode available for nach by bank, skipping {} for {}", lender, lendingApplication.getId());
-                String remarks = "Enach bank mode is aadhar and " + lender + " application tenure is >= 12 months for " + lendingApplication.getId();
-                createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
-                return false;
-            }
-        }
         if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
             log.info("skipping {} due to EDI amount greater than 0.7 * summary Tpv for {}", lender, lendingApplication.getId());
             String remarks = "skipping " + lender + " for " + lendingApplication.getId() + " due to EDI amount greater than 0.7 * summary Tpv " + 0.7 * summaryTpv;
