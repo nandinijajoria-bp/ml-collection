@@ -294,6 +294,9 @@ public class LiquiloansService {
 
     @Value("${sameDayEdiAdjusment.eligible.lenders:}")
     String sameDayEdiAdjustmentEligibleLenders;
+
+    @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
+    String pdpPartialRollout;
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -848,7 +851,8 @@ public class LiquiloansService {
             }
         }
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = Optional.empty();
-        if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)) {
+        if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) ||
+                (pdpPartialRollout.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent))) {
             lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
             if (lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())) {
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
