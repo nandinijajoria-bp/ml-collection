@@ -12,10 +12,9 @@ import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
-
-import java.util.HashMap;
 
 
 @Service
@@ -35,6 +34,10 @@ public class PiramalGetLoanDetails {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Value("${piramal.custom.read.timeout:20000}")
+    int piramalCustomReadTimeout;
+
 
     public PiramalGetLoanResponseDto getLoanDetails(Long  applicationId) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PIRAMAL.name());
@@ -77,7 +80,7 @@ public class PiramalGetLoanDetails {
         nbfcRequestDto.setApplicationId(applicationId);
         nbfcRequestDto.setPayload(getLeadRequestDto);
         nbfcRequestDto.setTopup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
-        NbfcResponseDto nbfcResponseDto = iLenderGateway.invokeStage(nbfcRequestDto,LenderAssociationStages.PiramalAssociationStages.GET_FORECLOSURE_DETAILS);
+        NbfcResponseDto nbfcResponseDto = iLenderGateway.invokeStage(nbfcRequestDto,LenderAssociationStages.PiramalAssociationStages.GET_FORECLOSURE_DETAILS, piramalCustomReadTimeout);
         try {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 return objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()),PiramalGetForeclosureResponseDTO.class);
