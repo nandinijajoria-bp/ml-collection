@@ -82,7 +82,7 @@ public class NbfcLenderGateway extends APIGatewayService {
             clientHttpRequestFactory.setReadTimeout(customReadTimeOut);
             RestTemplate restTemplateWithTimeOut = new RestTemplate(clientHttpRequestFactory);
             ResponseEntity<String> responseEntity = restTemplateWithTimeOut.postForEntity( requestUrl, request, String.class);
-            log.info("custom invoke response for {} invokation {}", requestUrl, responseEntity);
+            log.info("custom invoke response for {} invocation {}", requestUrl, responseEntity);
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.hasBody()) {
                 V response = objectMapper.readValue(responseEntity.getBody(),responseType);
                 return response;

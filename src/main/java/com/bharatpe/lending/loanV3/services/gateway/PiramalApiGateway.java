@@ -1,10 +1,7 @@
 package com.bharatpe.lending.loanV3.services.gateway;
 
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.loanV3.dto.DocUploadApiRequestDto;
-import com.bharatpe.lending.loanV3.dto.DocUploadApiResponse;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
-import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,9 +12,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Slf4j
 @Service
@@ -107,4 +102,15 @@ public class PiramalApiGateway extends ILenderGateway {
                 return null;
         }
     }
+
+    @Override
+    public NbfcResponseDto invokeStage(NbfcRequestDto nbfcRequestDto, LenderAssociationStages.PiramalAssociationStages piramalAssociationStages, int customReadTimeout) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NbfcResponseDto.class, getUrl(piramalAssociationStages), customReadTimeout);
+        } catch (JsonProcessingException e) {
+            log.error("exception occurred while processing {} api call to nbfc for piramal with custom timeout for {} {}", piramalAssociationStages.name(), nbfcRequestDto, e.getMessage());
+        }
+        return null;
+    }
+
 }
