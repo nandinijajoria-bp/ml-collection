@@ -1,6 +1,5 @@
 package com.bharatpe.lending.service.impl;
 
-import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
@@ -14,11 +13,9 @@ import com.bharatpe.lending.common.service.ILenderAssignService;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
-import com.bharatpe.lending.dto.VerifyPanCardResponseDto;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
@@ -32,9 +29,7 @@ import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
-import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -90,19 +85,7 @@ public class LenderAssignService implements ILenderAssignService {
     String topupLenders;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
-
-    @Autowired
     EasyLoanUtil easyLoanUtil;
-
-    @Value("${abfl.rollout.percent:10}")
-    Integer rolloutAbflPercent;
-
-    @Value("${age.check.lenders}")
-    String ageCheckLenders;
-
-    @Autowired
-    APIGatewayService apiGatewayService;
 
     @Autowired
     BureauHandler bureauHandler;
@@ -118,18 +101,6 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${lender.eligible.pincode.check:PIRAMAL}")
     List<String> lenderEligiblePincodeCheckList;
-
-    @Autowired
-    DateTimeUtil dateTimeUtil;
-
-    @Autowired
-    AssignmentRuleUtils assignmentRuleUtils;
-
-    @Value("${thresholdVinatage:151}")
-    Integer thresholdVintage;
-
-    @Value("${default.muthoot.minimum.vintage:180}")
-    Integer minimumMuthootVintage;
 
     @Value("${default.assign.abfl:false}")
     boolean defaultAssignAbfl;
@@ -302,7 +273,7 @@ public class LenderAssignService implements ILenderAssignService {
             boolean isPanAadhaarLinkedStatusChecked = false;
 
             if(!ObjectUtils.isEmpty(ruleList)) {
-                lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), vintage, application.getId());
+                lenders = getLenderList(ruleList, ediModel, application.getLender(), application.getMerchantId(), application.getId());
                 try {
                     if (!CollectionUtils.isEmpty(lenders)) {
                         ListIterator<String> iterator = lenders.listIterator();
@@ -895,48 +866,19 @@ public class LenderAssignService implements ILenderAssignService {
         return "Application Not Found.";
     }
 
-    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId, Long vintage, Long applicationId){
+    List<String> getLenderList(List<LenderAssignmentRules> lenderAssignmentRules, EdiModel ediModel, String assignedLender, Long merchantId, Long applicationId){
         log.info("Assigned Lender: {}  EdiModel: {}", assignedLender, ediModel );
         List<String> eligibleLenders = new ArrayList<>();
-        List<String> ageCheckLenderList = Arrays.asList(ageCheckLenders.split(","));
-        Integer age = apiGatewayService.getMerchantAge(merchantId);
         log.info("lender assignment rules: {}", lenderAssignmentRules);
         log.info("is internal merchant {}", loanUtil.isInternalMerchant(merchantId));
         for(LenderAssignmentRules rule:lenderAssignmentRules){
             String lender = rule.getLender();
             log.info("running skip check for lender {} for  {}", lender, merchantId);
             if(ObjectUtils.isEmpty(ediModel) || ediModel.name().equals(LenderOffDays.valueOf(lender).getEdiModel().name())){
-                // in case lender is to be changed.
                 if(!ObjectUtils.isEmpty(assignedLender) && rule.getLender().equals(assignedLender)){
                     log.info("lender change workflow, skip {} for {}", lender, merchantId);
                     continue;
                 }
-                if (ageCheckLenderList.contains(rule.getLender()) && !ObjectUtils.isEmpty(age) && age != 0
-                        && (age < 21 || age > 65)) {
-                    log.info("age checks failed for {}", merchantId);
-                    String remarks = "age checks failed for " + merchantId + " Minimum = 21 and Maximum = 65";
-                    createAndSaveLendingAuditTrial(applicationId, merchantId, lender, "LENDER_REMOVED", remarks);
-                    continue;
-                }
-                if (Lender.PIRAMAL.name().equalsIgnoreCase(lender) && vintage < thresholdVintage && (!loanUtil.isInternalMerchant(merchantId) || runInternalRules)){
-                    log.info("Can't assign PIRAMAL as vintage {} is less than threshold vintage {}",vintage,thresholdVintage);
-                    String remarks = "Can't assign PIRAMAL as vintage " + vintage + " is less than threshold vintage " + thresholdVintage;
-                    createAndSaveLendingAuditTrial(applicationId, merchantId, lender, "LENDER_REMOVED", remarks);
-                    continue;
-                }
-                if (MUTHOOT.name().equalsIgnoreCase(lender) && vintage < minimumMuthootVintage && (!loanUtil.isInternalMerchant(merchantId) || runInternalRules)){
-                    log.info("Can't assign MUTHOOT as vintage {} is less than threshold vintage {}", vintage, minimumMuthootVintage);
-                    String remarks = "Can't assign MUTHOOT as vintage " + vintage + " is less than threshold vintage " + minimumMuthootVintage;
-                    createAndSaveLendingAuditTrial(applicationId, merchantId, lender, "LENDER_REMOVED", remarks);
-                    continue;
-                }
-                if (Lender.CAPRI.name().equalsIgnoreCase(lender) && age > 65) {
-                    log.info("Can't assign CAPRI as age is greater than 65 years {} for merchant id {}", age, merchantId);
-                    String remarks = "Can't assign CAPRI as age is greater than 65 years " + age + " for merchant id " + merchantId;
-                    createAndSaveLendingAuditTrial(applicationId, merchantId, lender, "LENDER_REMOVED", remarks);
-                    continue;
-                }
-
                 log.info("adding {} to the eligible list for merchantId: {}", lender, merchantId);
                 if(Lender.PIRAMAL.name().equalsIgnoreCase(lender) && !loanUtil.isInternalMerchant(merchantId) && !easyLoanUtil.percentScaleUp(merchantId, piramalRolloutPercentage)) {
                     log.info("removing {} from eligible list for merchantId : {} due to not in rollout percentage {}", lender, merchantId, piramalRolloutPercentage);
