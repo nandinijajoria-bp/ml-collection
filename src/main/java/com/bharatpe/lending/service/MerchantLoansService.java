@@ -682,7 +682,7 @@ public class MerchantLoansService {
                         LocalTime now = LocalTime.now();
                         LocalTime topupDisabledStartTime = LocalTime.parse(topupDisabledStartTimeString);
                         LocalTime topupDisabledEndTime = LocalTime.parse(topupDisabledEndTimeString);
-                        Boolean isTimeBasedTopupDisabled = now.isAfter(topupDisabledStartTime) && now.isBefore(topupDisabledEndTime);
+                        Boolean isTimeBasedTopupDisabled = now.isAfter(topupDisabledStartTime) || now.isBefore(topupDisabledEndTime);
                         responseDTO.setTimeBasedTopupDisabled(isTimeBasedTopupDisabled);
                     }
                 } catch (Exception e) {
