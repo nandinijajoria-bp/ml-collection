@@ -756,7 +756,7 @@ public class LiquiloansService {
                 }
 
                 if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)
-                        && prevLendingPaymentSchedule.getStatus().equalsIgnoreCase("INACTIVE_TOPUP")) {
+                        && Arrays.asList("INACTIVE_TOPUP", "ACTIVE").contains(prevLendingPaymentSchedule.getStatus())) {
                     try {
                         logger.info("while closing loan for previous loan for id {}",lendingApplication.getId());
                         verifyOTPService.closePreviousLoanAfterSuccessfulTopupCreation(lendingApplication.getId());
