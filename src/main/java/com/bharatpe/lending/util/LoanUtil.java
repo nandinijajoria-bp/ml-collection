@@ -2438,15 +2438,20 @@ public class LoanUtil {
 	}
 
 	public double fetchExtraEdiInterestCollectionForPerpetualDpdLoan(Long lpsId){
+		LendingLedger lendingLedger = fetchAdvanceEdi(lpsId);
+		if(!ObjectUtils.isEmpty(lendingLedger)){
+			return Math.abs(lendingLedger.getInterest());
+		}
+		return 0d;
+	}
+
+	public LendingLedger fetchAdvanceEdi(Long lpsId) {
 		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
 		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
 			logger.info("checking for collection of extra interest for perpetual dpd loan id : {}", lendingPaymentScheduleLendingCommon.get().getId());
-			LendingLedger lendingLedger = lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, DateTimeUtil.getCurrentDayStartTime());
-			if(!ObjectUtils.isEmpty(lendingLedger)){
-				return Math.abs(lendingLedger.getInterest());
-			}
+			return lendingLedgerDao.findAdvanceEdiDueOfPerpetualDpdLoan(lpsId, DateTimeUtil.getCurrentDayStartTime());
 		}
-		return 0d;
+		return null;
 	}
 
 	private boolean checkLoanCoolOffPeriod(Date createdAt) {
