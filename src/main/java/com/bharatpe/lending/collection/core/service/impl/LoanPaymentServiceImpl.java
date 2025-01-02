@@ -23,6 +23,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.CreditConstants;
+import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -30,7 +31,6 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
-import com.bharatpe.lending.service.PaymentService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +49,7 @@ import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.TRANSFER_BY_BP;
+import static com.bharatpe.lending.enums.Lender.PIRAMAL;
 
 
 @Service
@@ -63,6 +64,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     public static final String LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH = "EXCESS_NACH";
 
     public static final String EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX = "_adjust_";
+
+    public static final List<String> WAIVER_LIST = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
 
     @Autowired
     LendingPrepaymentDao lendingPrepaymentDao;
@@ -80,6 +83,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     LoanForeClosureChargesDao loanForeClosureChargesDao;
+    @Autowired
+    LendingLedgerDao lendingLedgerDao;
 
     @Autowired
     AdjustLoanBalanceByIPCServiceImpl adjustLoanBalanceByIPCService;
@@ -130,7 +135,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
         List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
         if (Objects.nonNull(payment.getSource()) && waiverList.contains(payment.getSource()) &&
-                (loan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || loan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+                (loan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || loan.getNbfc().equalsIgnoreCase(PIRAMAL.name()))) {
             List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
             Double excessCollectionBalance = 0D;
             for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
@@ -359,6 +364,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             log.info("loan already closed. {}", loan);
             return false;
         }
+
+        if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
+            checkAndAdjustPdpdInterestIfRequired(loan);
+        }
+
+
         Integer principalDueAmount = getForeclosureAmount(loan);
 
         // case 1 (-ve/0 foreclosure) -  we already have sufficient fund no need for additional payment
@@ -383,6 +394,93 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             return "CLOSED".equalsIgnoreCase(loan.getStatus());
         }
         return false;
+    }
+
+    private void checkAndAdjustPdpdInterestIfRequired(LendingPaymentSchedule loan) {
+        LendingLedger ledger = loanUtil.fetchAdvanceEdi(loan.getId());
+        double advanceInterest = (ledger == null) ? 0 : Math.abs(ledger.getInterest());
+
+        // not pdpd loan or round-off
+        if (advanceInterest < 1) return;
+
+        adjustAdvanceInterest(loan, advanceInterest, ledger);
+    }
+    private void adjustAdvanceInterest(LendingPaymentSchedule loan, double advanceInterest, LendingLedger negativeLedger) {
+        // chances of partial payment of advance edi
+        // assume advance interest is = 100 Rs and out of which 40 Rs is paid remaining 60 Rs
+        // special case interest is = 100 Rs and paid is 100 then remaining is zero
+        // knock off the remaining portion of advance interest ( eg - 60 Rs)
+        double adjustableInterest = Math.min(loan.getDueInterest(), advanceInterest);
+        log.info("adjustAdvanceInterest# is started for adjustableInterest:{} loanId:{}  loan:{}", adjustableInterest, loan.getId(), loan);
+        loan.setDueInterest(Math.max(loan.getDueInterest() - adjustableInterest, 0));
+        loan.setDueAmount(Math.max(loan.getDueAmount() - adjustableInterest, 0));
+        log.info("adjustAdvanceInterest#  for amount :{} loanId {}  loan :{}", adjustableInterest, loan.getId(), loan);
+
+        // if some part of future interest is paid then we have update that amount
+        double advanceInterestPaid = Math.max(advanceInterest - adjustableInterest, 0);
+        log.info("adjustAdvanceInterest# advanceInterestPaid :{}", advanceInterestPaid);
+        adjustAdvanceInterestToPrinciple(loan, advanceInterestPaid, negativeLedger);
+
+        if (negativeLedger.getAmount() < 0 && adjustableInterest > 0) {
+            PaymentCalculation paymentAdjusted = PaymentCalculation.builder()
+                    .used(adjustableInterest)
+                    .principleSettled(0)
+                    .interestSettled(adjustableInterest)
+                    .chargesSettled(0)
+                    .build();
+            ledgerAdjustmentService.createLendingLedger(loan, paymentAdjusted, "FUTURE_EDI_INTEREST_WAIVER", "EXCEPTION", "TRANSFER_BY_BP", null);
+        }
+    }
+
+    private double adjustAdvanceInterestToPrinciple(LendingPaymentSchedule loan, double paidInterest, LendingLedger negativeLedger) {
+        List<LendingLedger> advanceLedgerList = lendingLedgerDao.findAdvanceEdiLedgerList(loan.getId(), DateTimeUtil.getCurrentDayStartTime());
+        double positiveTargetAmount = paidInterest;
+        // sorted id is necessary
+        for (LendingLedger _ledger : advanceLedgerList) {
+            if (_ledger.getAmount() > 0 && positiveTargetAmount > 0) {
+                if ((StringUtils.hasLength(_ledger.getAdjustmentMode()) && WAIVER_LIST.contains(_ledger.getAdjustmentMode()))
+                        || StringUtils.isEmpty(_ledger.getTerminalOrderId())) {
+                    continue;
+                }
+
+                double adjustableInterest = Math.max(Math.min(_ledger.getInterest(), positiveTargetAmount), 0);
+                _ledger.setInterest(_ledger.getInterest() - adjustableInterest);
+                loan.setPaidInterest(loan.getPaidInterest() -  adjustableInterest);
+
+                _ledger.setPrinciple(_ledger.getPrinciple() + adjustableInterest);
+                loan.setPaidPrinciple(loan.getPaidPrinciple() + adjustableInterest);
+
+                updateLendingCollectionAudit(_ledger);
+                lendingLedgerDao.save(_ledger);
+
+                positiveTargetAmount -= adjustableInterest;
+                if (positiveTargetAmount <= 0) break;
+            }
+        }
+
+        double adjustedInterest = Math.max(paidInterest - positiveTargetAmount, 0);
+        if (negativeLedger.getAmount() < 0 && adjustedInterest > 0) {
+            log.info("ledger before future interest adjustment {}", negativeLedger);
+            negativeLedger.setPrinciple(negativeLedger.getPrinciple() - adjustedInterest); // -ve - (+ve) = addition
+            negativeLedger.setInterest(negativeLedger.getInterest() + adjustedInterest);   // -ve + ve = subtract
+            lendingLedgerDao.save(negativeLedger);
+            log.info("ledger after future interest adjustment {}", negativeLedger);
+        }
+
+        log.info("adjustAdvanceInterestToPrinciple targetAmount:{} actualAdjusted:{} and notAdjusted:{}", paidInterest, adjustedInterest, positiveTargetAmount);
+        return positiveTargetAmount;
+    }
+
+    private void updateLendingCollectionAudit(LendingLedger ledger) {
+        LendingCollectionAudit lca = lendingCollectionAuditDao.findByLedgerID(ledger.getId(), 1);
+        log.info("updateLendingCollectionAudit ledgeId :{}, lca:{}", ledger.getId(), lca);
+
+        if (lca != null && lca.getAmount() > 0) {
+            lca.setPrinciple(ledger.getPrinciple());
+            lca.setInterest(ledger.getInterest());
+            lendingCollectionAuditDao.save(lca);
+            log.info("updateLendingCollectionAudit  updated ledgeId :{}, lca:{}", ledger.getId(), lca);
+        }
     }
 
     private void foreCloseLoan(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism, Integer principalDueAmount, Integer ediHolidayInterestAmount) {
