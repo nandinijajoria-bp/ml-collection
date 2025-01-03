@@ -1937,7 +1937,7 @@ public class LiquiloansService {
             }
             Date parsedDate = null;
             Double totalInterestPayable = 0D;
-            for (int arr_i = 1; arr_i < abflTopupRpsResponseDTO.getData().getData().getInstallments().size(); arr_i++) {
+            for (int arr_i = 0; arr_i < abflTopupRpsResponseDTO.getData().getData().getInstallments().size(); arr_i++) {
                 AbflTopupRpsResponseDTO.Installment loanSchedule = abflTopupRpsResponseDTO.getData().getData().getInstallments().get(arr_i);
                 LendingEDISchedule currentSchedule = new LendingEDISchedule();
                 parsedDate = parseDate(loanSchedule.getDueDate(), "dd-MM-yyyy");
