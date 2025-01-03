@@ -1,6 +1,5 @@
 package com.bharatpe.lending.loanV3.services.gateway;
 
-import com.bharatpe.lending.common.dto.RepaymentRequestDto;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.loanV3.dto.*;
@@ -142,9 +141,9 @@ public class AbflApiGateway extends INbfcLenderGateway {
         return null;
     }
 
-    public AbflTopupRpsResponseDTO fetchRepaymentSchedule(AbflTopupRpsRequestDTO abflTopupRpsRequest) {
+    public AbflRpsResponseDTO fetchRepaymentSchedule(AbflRpsRequestDTO abflTopupRpsRequest) {
         try {
-            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(abflTopupRpsRequest), AbflTopupRpsResponseDTO.class,nbfcBaseUrl+nbfcRpsUrl);
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(abflTopupRpsRequest), AbflRpsResponseDTO.class,nbfcBaseUrl+nbfcRpsUrl);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while processing repayment schedule api call to nbfc svc for {}",abflTopupRpsRequest, e);
         }
