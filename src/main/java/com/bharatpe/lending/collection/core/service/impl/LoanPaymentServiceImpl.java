@@ -365,9 +365,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             return false;
         }
 
-        if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
-            checkAndAdjustPdpdInterestIfRequired(loan);
-        }
+//        if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
+//            checkAndAdjustPdpdInterestIfRequired(loan);
+//        }
 
 
         Integer principalDueAmount = getForeclosureAmount(loan);
