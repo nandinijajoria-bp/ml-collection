@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
+import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.entity.*;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
@@ -29,6 +30,7 @@ import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
+import com.bharatpe.lending.util.EntityToDtoConvertorUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 import static com.bharatpe.lending.constant.LendingConstants.*;
@@ -65,6 +68,9 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
+    LendingLenderPricingDao lendingLenderPricingDao;
 
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
@@ -217,6 +223,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     SmfgConfig smfgConfig;
 
+    @Value("${lender.apr.enable_new_logic:true}")
+    private boolean enableNewLenderAprLogic;
+
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
         return null;
@@ -226,33 +235,22 @@ public class LenderAssignService implements ILenderAssignService {
         refreshDisbursalLimitsForLender();
         // Ensure rule util here: todo
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
-        Double bureauScore = 0D;
-        String riskSegment = "";
-        String riskGroupLike = null;
-        String pincodeColor = null;
-        Boolean isGstOffer = null;
-        Double summaryTpv = 0D;
-        Long vintage = 0L;
-        Double tpvOffer = 0D;
-        String rejectedLenders = "";
-        Integer maxTenure = 0;
-        if(Objects.nonNull(lendingRiskVariables)){
-            bureauScore = Objects.nonNull(lendingRiskVariables.getBureauScore()) ? lendingRiskVariables.getBureauScore() : 0D;
-            riskSegment = Objects.nonNull(lendingRiskVariables.getRiskSegment()) ? "%" + lendingRiskVariables.getRiskSegment() + "%" : "";
-            riskGroupLike = Objects.nonNull(lendingRiskVariables.getRiskGroup()) ? "%" + lendingRiskVariables.getRiskGroup() + "%" : "";
-            pincodeColor = Objects.nonNull(lendingRiskVariables.getPincodeColor()) ? "%"+lendingRiskVariables.getPincodeColor().name() + "%" : "";
-            isGstOffer = Objects.nonNull(lendingRiskVariables.getGstAffectedOffer())? lendingRiskVariables.getGstAffectedOffer() : Boolean.FALSE;
-            vintage = Objects.nonNull(lendingRiskVariables.getVintage())? lendingRiskVariables.getVintage() : 0L;
-            summaryTpv = Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D;
-            tpvOffer = Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D;
-            rejectedLenders = Objects.nonNull(lendingRiskVariables.getRejectedLenders()) ? lendingRiskVariables.getRejectedLenders() : "";
-            maxTenure = Objects.nonNull(lendingRiskVariables.getTenure()) ? lendingRiskVariables.getTenure() : 0;
-        }
+        RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
+
+        int maxTenure = riskVariables.getMaxTenure();
+        double tpvOffer = riskVariables.getTpvOffer();
+        double summaryTpv = riskVariables.getSummaryTpv();
+
         if(maxTenure != 0 && tpvOffer != 0D && !ObjectUtils.isEmpty(application.getTenureInMonths()) && application.getTenureInMonths() != 0) {
             tpvOffer = (tpvOffer / maxTenure) * application.getTenureInMonths();
+
         }
-        String tenure = "%" + application.getTenureInMonths() + "%";
         try {
+            double bureauScore = riskVariables.getBureauScore();
+            String riskSegment = riskVariables.getRiskSegment();
+            String riskGroupLike = riskVariables.getRiskGroupLike();
+            String pincodeColor = ObjectUtils.isEmpty(lendingRiskVariables.getPincodeColor()) ? "" : "%" + lendingRiskVariables.getPincodeColor().name() + "%";
+            String tenure = "%" + application.getTenureInMonths() + "%";
             log.info("Lender assignment parameters -> bureau:{}, loanType:{}, tenure:{}, loanAmount:{}, riskGroup:{}, pincodeColor:{}", bureauScore, riskSegment, application.getTenure(),
                     application.getLoanAmount(), riskGroupLike, pincodeColor);
             List<String> lenders = new ArrayList<>();
@@ -279,7 +277,7 @@ public class LenderAssignService implements ILenderAssignService {
                         ListIterator<String> iterator = lenders.listIterator();
                         while (iterator.hasNext()) {
                             String lender = iterator.next().toUpperCase();
-                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                            if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
                                 log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
                                 String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();
                                 createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
@@ -311,7 +309,7 @@ public class LenderAssignService implements ILenderAssignService {
                                     }
                                 }
                             }
-                            if (!baseChecksPassedForLenders(application, lender, ediModel, vintage, summaryTpv)) {
+                            if (!baseChecksPassedForLenders(application, lender, ediModel, riskVariables)) {
                                 log.info("base checks failed, skipping {} for {}", lender, application.getId());
                                 iterator.remove();
                                 continue;
@@ -381,7 +379,7 @@ public class LenderAssignService implements ILenderAssignService {
                                 log.info("skipping {} due to business category check failure for {}", lender, application.getId());
                                 iterator.remove();
                             }
-                            if (rejectedLenders.contains(loanUtil.getLenderRejectedMapping(lender))) {
+                            if (riskVariables.getRejectedLenders().contains(loanUtil.getLenderRejectedMapping(lender))) {
                                 log.info("skipping {} due to lender in rejected lender list for {}", lender, application.getId());
                                 String remarks = "skipping " + lender + " due to lender in rejected lender list in lending risk variables for " + application.getId();
                                 createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
@@ -410,7 +408,7 @@ public class LenderAssignService implements ILenderAssignService {
                 }
             }
             if (!isApplicableForAggregation){
-                decidedLender = getLender(application, lenders, ediModel, isGstOffer, riskSegment.substring(1, riskSegment.length()-1));
+                decidedLender = getLender(application, lenders, ediModel, riskVariables.getIsGstOffer(), riskSegment.substring(1, riskSegment.length()-1));
                 log.info("lender to be assigned: {} {}", decidedLender, application.getId());
             }
             try {
@@ -447,14 +445,14 @@ public class LenderAssignService implements ILenderAssignService {
         return false;
     }
 
-    public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, Long vintage, Double summaryTpv) {
+    public boolean baseChecksPassedForLenders(LendingApplication lendingApplication, String lender, EdiModel ediModel, RiskVariablesDTO riskVariables) {
         if(maxIrrEligibleLender.contains(lender) && maxIrrCheckFailed(lendingApplication, ediModel, lender)) {
             log.info("skipping {} due to maxIrr checks failing for {}", lender, lendingApplication.getId());
             String remarks = "skipping " + lender + " due to maxIrr checks failing for " + lendingApplication.getId();
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
-        if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender)){
+        if(maxAprEligibleLender.contains(lender) && maxAprCheckFailed(lendingApplication, ediModel, lender, riskVariables)){
             log.info("skipping {} due to maxApr checks failing for {}", lender, lendingApplication.getId());
             String remarks = "skipping " + lender + " due to maxApr checks failing for " + lendingApplication.getId();
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
@@ -467,9 +465,9 @@ public class LenderAssignService implements ILenderAssignService {
             createAndSaveLendingAuditTrial(lendingApplication.getId(),lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
-        if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * summaryTpv) {
+        if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * riskVariables.getSummaryTpv()) {
             log.info("skipping {} due to EDI amount greater than 0.7 * summary Tpv for {}", lender, lendingApplication.getId());
-            String remarks = "skipping " + lender + " for " + lendingApplication.getId() + " due to EDI amount greater than 0.7 * summary Tpv " + 0.7 * summaryTpv;
+            String remarks = "skipping " + lender + " for " + lendingApplication.getId() + " due to EDI amount greater than 0.7 * summary Tpv " + 0.7 * riskVariables.getSummaryTpv();
             createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
@@ -591,6 +589,7 @@ public class LenderAssignService implements ILenderAssignService {
                         EdiModel updatedEdiModel= LendingConstants.NONE_LENDER.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
                         updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
                         lendingApplicationDao.save(application);
+                        updateOfferDetails(application, decidedLender);
                         return application;
                     }
                 }
@@ -628,6 +627,7 @@ public class LenderAssignService implements ILenderAssignService {
             saveLenderChangeAudit(application, decidedLender, application.getLender());
             String oldLender = application.getLender();
             application.setLender(decidedLender);
+            updateOfferDetails(application, decidedLender);
             EdiModel updatedEdiModel= LendingConstants.NONE_LENDER.equalsIgnoreCase(decidedLender) ? null : LenderOffDays.valueOf(decidedLender).getEdiModel();
             updateOfferDetailsInApplication(application,updatedEdiModel, oldLender);
             return lendingApplicationDao.save(application);
@@ -954,6 +954,7 @@ public class LenderAssignService implements ILenderAssignService {
                     EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
                     String oldLender = application.get().getLender();
                     application.get().setLender(decidedLender);
+                    updateOfferDetails(application.get(), decidedLender);
                     lendingApplicationDao.save(application.get());
                     updateOfferDetailsInApplication(application.get(), ediModel, oldLender);
                     return Lender.valueOf(decidedLender);
@@ -967,6 +968,7 @@ public class LenderAssignService implements ILenderAssignService {
                 String oldLender = application.get().getLender();
                 String newLender = assignFallackLender(application.get(), ediModel);
                 application.get().setLender(newLender);
+                updateOfferDetails(application.get(), newLender);
                 lendingApplicationDao.save(application.get());
                 updateOfferDetailsInApplication(application.get(),ediModel, oldLender);
                 return Lender.valueOf(newLender);
@@ -1195,7 +1197,10 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
 
-    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+        if (Boolean.TRUE.equals(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) && enableNewLenderAprLogic) {
+            return maxAprCheckFailedV2(lendingApplication, ediModel, lender, riskVariables);
+        }
         Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), ediModel.getNoOfEdiDaysInAWeek(), lender);
         log.info("APR generated for application_id:{} APR:{} and lender:{}", lendingApplication.getId(), apr, lender);
         Double maxApr = 0D;
@@ -1228,12 +1233,33 @@ public class LenderAssignService implements ILenderAssignService {
         return pfPercentage > maxPf;
     }
 
+    private boolean maxAprCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+        BigDecimal maxApr = BigDecimal.ZERO;
+        double processingFee = lendingApplication.getProcessingFee();
+        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorOrderByUpdatedAtDesc(
+                riskVariables.getRiskSegment(), riskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender, riskVariables.getPincodeColor().name()
+        );
+
+        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+            maxApr = BigDecimal.valueOf(lendingLenderPricing.getApr());
+            processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+        }
+        if (ObjectUtils.isEmpty(maxApr)) {
+            maxApr = BigDecimal.valueOf(0);
+        }
+
+        Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender);
+
+        return BigDecimal.valueOf(apr).compareTo(maxApr) > 0;
+    }
+
     public List<LenderAggregationResponseDto.LenderData> getLenderData(List<String> eligibleLenders, List<String> prevAssignedLenders, LendingApplication lendingApplication) {
         try {
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
             LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
             if(!ObjectUtils.isEmpty(eligibleLenders)) {
                 refreshDisbursalLimitsForLender();
-                List<LendingLenderQuota> lenderLimits = new ArrayList<>();
+                List<LendingLenderQuota> lenderLimits;
                 lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, lendingApplication.getLoanAmount());
                 eligibleLenders.clear();
                 log.info("lender limits : {}", lenderLimits);
@@ -1252,15 +1278,30 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("previous lenders:{}", prevAssignedLenders);
 
             for (String lender : eligibleLenders) {
+                LendingLenderPricing lendingLenderPricing = null;
+                if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
+                    lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
+                            lendingRiskVariables.getPincodeColor().name());
+                }
                 if (Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender)) {
                     continue;
                 }
                 log.info("adding lender {} to list", lender);
+                Double apr;
+                Double irr;
+                if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
+                    apr = lendingLenderPricing.getApr();
+                    irr = lendingLenderPricing.getIrr();
+                }
+                else{
+                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
                 lenderData.setLenderName(lender);
-                lenderData.setApr(lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender));
-                lenderData.setIrr(lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender));
+                lenderData.setApr(apr);
+                lenderData.setIrr(irr);
                 lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
                 lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender)));
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(Lender.valueOf(lender)));
@@ -1398,6 +1439,7 @@ public class LenderAssignService implements ILenderAssignService {
         String oldLender = lendingApplication.getLender();
         lendingApplication.setLender(lender.name());
         lendingApplicationDao.save(lendingApplication);
+        updateOfferDetails(lendingApplication, lender.name());
         log.info("assigning lender:{} for application:{}", lender, lendingApplication.getId());
         LendingLenderQuota lendingLenderQuota = lenderDisbursalLimitsDao.findByLender(lender.name());
         if(!ObjectUtils.isEmpty(lendingLenderQuota)) {
@@ -1448,6 +1490,30 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("Details getting saved in Lending audit Trial");
         } catch (Exception e) {
             log.info("Exception in saving lender remove log for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+    }
+    public void updateOfferDetails(LendingApplication lendingApplication, String newLender){
+        if(!loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) return;
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name());
+        if(!ObjectUtils.isEmpty(lendingLenderPricing)){
+            Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
+            Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+            Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+            Double repayment = ediAmount * payableDays;
+            Double processingFee = Math.ceil((lendingLenderPricing.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
+
+            log.info("Values to set for lender {} : payableDays : {} , interestAmt : {} , ediAmount : {} , repayment : {} , processingFee : {}", newLender, payableDays, interestAmt, ediAmount, repayment, processingFee);
+
+            lendingApplication.setProcessingFee(processingFee);
+            lendingApplication.setInterestRate(lendingLenderPricing.getInterestRate());
+            lendingApplication.setEdi(ediAmount);
+            lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-lendingApplication.getProcessingFee());
+            lendingApplication.setRepayment(repayment);
+
+            log.info("Values set for lender {} : interest rate {}, edi {}, disbursal {}", newLender, lendingApplication.getInterestRate(), lendingApplication.getEdi(), lendingApplication.getDisbursalAmount());
+            lendingApplicationDao.save(lendingApplication);
         }
     }
 }

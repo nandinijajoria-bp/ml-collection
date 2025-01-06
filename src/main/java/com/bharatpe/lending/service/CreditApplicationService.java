@@ -21,11 +21,11 @@ package com.bharatpe.lending.service;
 //import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-//import com.bharatpe.common.dao.EligibleLoanDao;
+//import com.bharatpe.common.dao.LendingEligibleLoanDao;
 //import com.bharatpe.common.dao.ExperianDao;
 //import com.bharatpe.common.dao.LendingCitiesDao;
 //import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
-//import com.bharatpe.common.entities.EligibleLoan;
+//import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 //import com.bharatpe.common.entities.Experian;
 //import com.bharatpe.common.entities.LendingCities;
 //import com.bharatpe.common.entities.MerchantSummarySnapshot;
@@ -74,7 +74,7 @@ public class CreditApplicationService {
 ////	MerchantDao merchantDao;
 //
 //	@Autowired
-//	EligibleLoanDao eligibleLoanDao;
+//	LendingEligibleLoanDao eligibleLoanDao;
 //
 //	@Autowired
 //	BharatPeOtpHandler bharatPeOtpHandler;
@@ -132,7 +132,7 @@ public class CreditApplicationService {
 //
 //		}
 //		else {
-//			List<EligibleLoan> eligibleLoans = new ArrayList<>();
+//			List<LendingEligibleLoan> eligibleLoans = new ArrayList<>();
 //			List<AvailableLoanSlave> availableLoan = new ArrayList<>();
 //			if (EXPERIAN_ENABLED) {
 //				eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchantId, creditApplicationRequest.getCategory());
@@ -229,7 +229,7 @@ public class CreditApplicationService {
 //		return creditApplication;
 //	}
 //
-//	private CreditApplication createApplication(BasicDetailsDto merchant, EligibleLoan eligibleLoan, CreditApplicationRequestDTO creditApplicationRequest) {
+//	private CreditApplication createApplication(BasicDetailsDto merchant, LendingEligibleLoan eligibleLoan, CreditApplicationRequestDTO creditApplicationRequest) {
 //		CreditApplication creditApplication = new CreditApplication();
 //		 //LendingCategories lendingCategory = lendingCategoryDao.findByCategory(eligibleLoan.getCategory()).get(0);
 //

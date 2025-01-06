@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
@@ -116,6 +117,20 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/modified/offer/details")
+    ResponseEntity<?> getModifiedOfferDetails (@RequestParam(name = "applicationId") Long applicationId, @RequestAttribute BasicDetailsDto merchant) {
+        if (ObjectUtils.isEmpty(applicationId) || ObjectUtils.isEmpty(merchant)) {
+            log.info("Required params are missing");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+        ModifiedOfferResponseDto responseDto = lendingApplicationServiceV3.modifiedOfferDetails(applicationId, merchant.getId());
+        ApiResponse<ModifiedOfferResponseDto> apiResponse = new ApiResponse<>(true, responseDto, "success");
+        log.info("response:{}", responseDto);
+        if (ObjectUtils.isEmpty(responseDto)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        }
+        return ResponseEntity.ok(apiResponse);
+    }
     //masked/sendOtp
     @PostMapping ("masked/sendOtp")
     ResponseEntity<?> sendMaskedOtp(@RequestBody Map<String, String> map, @RequestAttribute BasicDetailsDto merchant){

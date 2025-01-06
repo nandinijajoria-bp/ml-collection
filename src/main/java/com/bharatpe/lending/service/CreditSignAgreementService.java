@@ -188,12 +188,12 @@ public class CreditSignAgreementService {
 //        CreditApplication newApplication = new CreditApplication();
 //        CreditApplicationAddress newApplicationAddress = new CreditApplicationAddress();
 //        if (EXPERIAN_ENABLED) {
-//            List<EligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
+//            List<LendingEligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndCategory(merchant.getId(), selectedCategory);
 //            if (eligibleLoans == null || eligibleLoans.isEmpty()) {
 //                logger.error("No availabel loan found with merchant id {} and loan category {}", merchant.getId(), selectedCategory);
 //                return response;
 //            }
-//            EligibleLoan eligibleLoan = eligibleLoans.get(0);
+//            LendingEligibleLoan eligibleLoan = eligibleLoans.get(0);
 //
 //            if (!"TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getStatus())))) {
 //                logger.info("Last loan not closed for merchant ID {}", merchant.getId());

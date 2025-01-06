@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
@@ -132,7 +133,7 @@ public class LoanDetailsService {
 	LendingPartnerOffersDaoSlave lendingPartnerOffersDaoSlave;
 
 	@Autowired
-	EligibleLoanDao eligibleLoanDao;
+	LendingEligibleLoanDao eligibleLoanDao;
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
@@ -785,8 +786,8 @@ public class LoanDetailsService {
 
 	private LoanEligibilityDTO createEligibilty(Long merchantId) {
 		try {
-			//EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
-			EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
+			//LendingEligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+			LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantId(merchantId, Sort.by(Sort.Direction.DESC,"amount"));
 			if (eligibleLoan != null) {
 				//LendingCategories lendingCategories = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 				AvailableLoan availableLoan = new AvailableLoan();

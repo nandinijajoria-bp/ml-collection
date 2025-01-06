@@ -3,9 +3,10 @@ package com.bharatpe.lending.service;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.dao.LoanSurveyDao;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LoanSurvey;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -33,7 +34,7 @@ public class LoanSurveyService {
     LendingCategoryDao lendingCategoryDao;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
+    LendingEligibleLoanDao eligibleLoanDao;
 
     public LoanSurveyHeaderDto getSurveyMerchantHeader(BasicDetailsDto merchant) {
         if(merchant == null) return null;
@@ -41,7 +42,7 @@ public class LoanSurveyService {
         String amount;
         String interestRate;
         LendingApplication loanApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
-        EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchant.getId());
+        LendingEligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchant.getId());
         if (loanApplication == null && eligibleLoan == null) {
             return LoanSurveyHeaderDto.builder()
                     .success(false)
