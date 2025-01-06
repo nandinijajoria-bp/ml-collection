@@ -365,10 +365,6 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             return false;
         }
 
-//        if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
-//            checkAndAdjustPdpdInterestIfRequired(loan);
-//        }
-
 
         Integer principalDueAmount = getForeclosureAmount(loan);
 
@@ -443,6 +439,8 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     continue;
                 }
 
+                if ("SETTLEMENT".equalsIgnoreCase(_ledger.getAdjustmentMode()) || LoanPaymentUtil.isExcessAdjustmentEntry(_ledger.getTerminalOrderId())) continue;
+
                 double adjustableInterest = Math.max(Math.min(_ledger.getInterest(), positiveTargetAmount), 0);
                 _ledger.setInterest(_ledger.getInterest() - adjustableInterest);
                 loan.setPaidInterest(loan.getPaidInterest() -  adjustableInterest);
@@ -486,6 +484,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void foreCloseLoan(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism, Integer principalDueAmount, Integer ediHolidayInterestAmount) {
         double amount = payment.getOtherAmount();
         if (principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {  //foreClosure
+            if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
+                checkAndAdjustPdpdInterestIfRequired(loan);
+            }
+
             LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(loan.getMerchantId(), loan.getId());
             double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
             double excessCollectionBalance = 0;
