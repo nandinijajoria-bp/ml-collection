@@ -48,7 +48,6 @@ import java.util.Objects;
 @Slf4j
 public class NbfcUtils {
 
-    @Lazy
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
