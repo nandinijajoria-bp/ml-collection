@@ -1,13 +1,19 @@
 package com.bharatpe.lending.loanV3.services;
 
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingLenderPricing;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -15,6 +21,7 @@ import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingOfferModificationSnapshotDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -83,6 +90,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     LendingOfferModificationSnapshotDao lendingOfferModificationSnapshotDao;
 
+    @Autowired
+    private LendingEligibleLoanDao eligibleLoanDao;
+
     @Lazy
     @Autowired
     KycUtils kycUtils;
@@ -97,6 +107,12 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Value("${ekyc.status.check.enabled.lenders:}")
     String eKycStatusCheckEnabledLenders;
+
+    @Autowired
+    LendingLenderPricingDao lendingLenderPricingDao;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -117,6 +133,7 @@ public abstract class LendingApplicationServiceV3Base {
         if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
             return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus);
         }
+
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
             return new ApiResponse<>(false,"lending application details not found");
@@ -159,13 +176,31 @@ public abstract class LendingApplicationServiceV3Base {
 
         } else {
             if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
+                // check if interest rate is lower ??
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
+                    Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+                    if(eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()){
+                        log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());
+                        return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                                .isRoiDecreased(true)
+                                .lender(currentDraftApplication.getLender())
+                                .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                                .stage(LenderAssociationStages.COMPLETED)
+                                .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                                .lender(currentDraftApplication.getLender())
+                                .build());
+                    }
+                }
+                log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .isRoiDecreased(false)
                         .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                         .stage(LenderAssociationStages.COMPLETED)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
                         .lender(currentDraftApplication.getLender())
                         .build());
             } else if (LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                log.info("Lender assoc at BRE for applicationId {}", currentDraftApplication.getId());
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getBreStatus()).orElse(LenderAssociationStatus.BRE_PENDING.name())))
                         .stage(LenderAssociationStages.BRE)
@@ -173,6 +208,7 @@ public abstract class LendingApplicationServiceV3Base {
                         .lender(currentDraftApplication.getLender())
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                log.info("Lender assoc at KYC for applicationId {}", currentDraftApplication.getId());
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
                 if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
                     lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
@@ -586,5 +622,63 @@ public abstract class LendingApplicationServiceV3Base {
         }
         return new ApiResponse<>(false, "something went wrong");
     }
+
+    public ModifiedOfferResponseDto modifiedOfferDetails(Long applicationId, Long merchantId){
+        if(!loanUtil.isLenderPricingApplicableMerchant(merchantId)){
+            log.info("pricing flow not applicable for merchant:{}", merchantId);
+            return null;
+        }
+
+        try{
+            ModifiedOfferResponseDto modifiedOfferResponseDto = new ModifiedOfferResponseDto();
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if(ObjectUtils.isEmpty(lendingApplication)){
+                log.info("application:{} not found for merchant:{}", applicationId, merchantId);
+                return null;
+            }
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+
+            if(!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId())){
+                log.info("offerId not found for application:{}", applicationId);
+                Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+                if(eligibleLoan.isPresent()){
+                    log.info("eligible loan not found for id :{}", lendingApplicationDetails.getOfferId());
+                    DecimalFormat df = new DecimalFormat("#.##");
+//                    df.setRoundingMode(RoundingMode.DOWN);
+                    ModifiedOfferResponseDto.OfferDetails oldOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
+                            eligibleLoan.get().getAmount()
+                            ,eligibleLoan.get().getEdi().doubleValue(),
+                            eligibleLoan.get().getRateOfInterest(),
+                            eligibleLoan.get().getProcessingFee().doubleValue(),
+                            eligibleLoan.get().getRepayment().doubleValue(),
+                            eligibleLoan.get().getAmount() - eligibleLoan.get().getProcessingFee(),
+                            eligibleLoan.get().getApr(),
+                            eligibleLoan.get().getIrr(),
+                            eligibleLoan.get().getEdiCount(), eligibleLoan.get().getTenureInMonths());
+                    ModifiedOfferResponseDto.OfferDetails newOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
+                            lendingApplication.getLoanAmount(),
+                            lendingApplication.getEdi(),
+                            lendingApplication.getInterestRate(),
+                            lendingApplication.getProcessingFee(),
+                            lendingApplication.getRepayment(),
+                            lendingApplication.getDisbursalAmount(),
+                            Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),lendingApplication.getEdi(),lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), merchantId, lendingApplication.getLender()))),
+                            Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),lendingApplication.getEdi(),lendingApplication.getLoanAmount(),merchantId, lendingApplication.getLender()))),
+                            lendingApplication.getPayableDays().intValue(),
+                            lendingApplication.getTenureInMonths()
+                            );
+
+                    modifiedOfferResponseDto.setOldOffer(oldOfferDetails);
+                    modifiedOfferResponseDto.setNewOffer(newOfferDetails);
+                    return modifiedOfferResponseDto;
+                }
+        }
+        return null;
+    } catch (Exception ex){
+            log.error("Exception occurred:{}, {} for application:{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()), applicationId);
+        }
+            return null;
+        }
 
 }

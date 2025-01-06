@@ -2,7 +2,6 @@ package com.bharatpe.lending.util;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.MerchantScoreSnapshotDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
@@ -181,7 +180,7 @@ public class LoanUtil {
 	LendingShopDocumentsDao lendingShopDocumentsDao;
 
 	@Autowired
-	EligibleLoanDao eligibleLoanDao;
+	LendingEligibleLoanDao eligibleLoanDao;
 
 	@Autowired
 	MerchantSummaryHandler merchantSummaryHandler;
@@ -324,6 +323,12 @@ public class LoanUtil {
 
 	@Value("${api.token:}")
 	String apiToken;
+
+	@Autowired
+	LendingLenderPricingDao lendingLenderPricingDao;
+
+	@Value("${lender.pricing.eligible.merchants:}")
+	private String lenderPricingEligibleMerchants;
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1568,7 +1573,7 @@ public class LoanUtil {
 	}
 
 
-	public EligibleLoan calculateLoanBreakup(
+	public LendingEligibleLoan calculateLoanBreakup(
 			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
 			Double version, boolean skipEligibleLoanDbEntryCreation
 	) {
@@ -1578,9 +1583,9 @@ public class LoanUtil {
 
 		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
 		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
-		List<EligibleLoan> eligibleLoanList = new ArrayList<>();
+		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
 
-		EligibleLoan eligibleLoan = EligibleLoan.builder()
+		LendingEligibleLoan eligibleLoan = LendingEligibleLoan.builder()
 				.loanType(loanType)
 				.offerType(offerType)
 				.amount(amount)
@@ -1602,7 +1607,7 @@ public class LoanUtil {
 				.clubV2Amount(tenureDetail.getClubV2Amount())
 				.processingFeeRate(tenureDetail.getProcessingFee())
 				.build();
-		EligibleLoan sevenDayEligibleLoanOffer = EligibleLoan.builder()
+		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
 				.loanType(loanType)
 				.offerType(offerType)
 				.amount(amount)
@@ -2499,6 +2504,42 @@ public class LoanUtil {
 		return apiToken.equals(token);
 	}
 
+	public boolean isLenderPricingApplicableMerchant(Long merchantId){
+		return !StringUtils.isEmpty(lenderPricingEligibleMerchants) && lenderPricingEligibleMerchants.contains(String.valueOf(merchantId));
+	}
+
+	public MaxPricingValuesDTO getMaxPricingValues(LendingRiskVariables lendingRiskVariables, Integer tenure){
+		String riskSegment = lendingRiskVariables.getRiskSegment();
+		String riskGroup = lendingRiskVariables.getRiskGroup();
+		String pincodeColor = lendingRiskVariables.getPincodeColor().name();
+		String rejectedLenders = lendingRiskVariables.getRejectedLenders();
+		LendingLenderPricingDao.MaxValuesDto maxValuesDto= null;
+		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
+
+		if (StringUtils.isEmpty(rejectedLenders)) {
+			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColor(riskSegment, riskGroup, tenure, pincodeColor);
+		} else {
+			Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
+			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList);
+
+		}
+		if(ObjectUtils.isEmpty(maxValuesDto)
+		|| ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
+				|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
+				|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
+				|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
+			logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
+			return null;
+		}
+		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
+		maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
+		maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
+		maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
+		maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
+		logger.info("fetched max pricing values -> {}", maxPricingValuesDTO);
+		return maxPricingValuesDTO;
+	}
+
 	public Double getAmountPaidThroughQr(LendingPaymentSchedule lendingPaymentSchedule) {
 		return lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
 	}
@@ -2510,7 +2551,6 @@ public class LoanUtil {
 		}
 		return 0D;
 	}
-
 	public Double getAmountPaidThroughQr(LendingPaymentScheduleSlave lendingPaymentSchedule) {
 		return lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
 	}

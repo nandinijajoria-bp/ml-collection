@@ -7,7 +7,9 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.dao.LoanAttributionDao;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LoanAttribution;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
@@ -62,7 +64,7 @@ public class FosService {
     ExperianDao experianDao;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
+    LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -194,7 +196,7 @@ public class FosService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             logger.info("Payment Schedule:{}", lendingPaymentSchedule);
@@ -329,7 +331,7 @@ public class FosService {
 //                responseDTO.setData(data);
 //                return responseDTO;
 //            }
-//            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+//            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
 //            LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
 //            if ((eligibleLoan == null && lendingApplication == null) || !isFosTaskEnabled) {
 //                loanData.put("eligible", Boolean.FALSE);

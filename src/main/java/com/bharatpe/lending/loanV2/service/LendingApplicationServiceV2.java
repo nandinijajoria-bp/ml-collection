@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
@@ -10,9 +9,11 @@ import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.AddLeadRequestNimbusDto;
+import com.bharatpe.lending.common.dto.MaxPricingValuesDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
@@ -146,7 +147,7 @@ public class LendingApplicationServiceV2 {
     LoanUtil loanUtil;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
+    LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
     LendingCategoryDao lendingCategoryDao;
@@ -347,6 +348,8 @@ public class LendingApplicationServiceV2 {
     @Autowired
     DocUploadUtils docUploadUtils;
 
+    @Autowired
+    LendingLenderPricingDao lendingLenderPricingDao;
     @Value("${enable.bl.tagging:true}")
     Boolean blTaggingEnabled;
 
@@ -654,7 +657,7 @@ public class LendingApplicationServiceV2 {
                     return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
                 }
             }
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
+            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
 //            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (Objects.isNull(eligibleLoan)) {
                 log.info("eligible loan not available for merchant:{} and category:{}", merchant.getId(), applicationRequest.getCategory());
@@ -744,13 +747,34 @@ public class LendingApplicationServiceV2 {
         lendingAuditTrialDao.save(lendingAuditTrial);
     }
 
-    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, Boolean isPreApproved, EligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
+    private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, Boolean isPreApproved, LendingEligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
         LendingApplication lendingApplication = new LendingApplication();
         int processingFee;
+        MaxPricingValuesDTO maxPricingValuesDTO = null;
+        if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
+            maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, eligibleLoan.getTenureInMonths());
+        }
         if (apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId())) {
             processingFee = 0;
-        } else {
+        } else if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
+            processingFee = (int) Math.ceil(maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100);
+        }
+        else {
             processingFee = eligibleLoan.getProcessingFee();
+        }
+        if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
+            eligibleLoan.setRateOfInterest(maxPricingValuesDTO.getMaxInterestRate());
+            Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
+            Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+            Double repayment = ediAmount * eligibleLoan.getEdiCount();
+            eligibleLoan.setProcessingFee(processingFee);
+            eligibleLoan.setRepayment(repayment.intValue());
+            eligibleLoan.setEdi(ediAmount.intValue());
+            eligibleLoan.setIrr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId(), null));
+            eligibleLoan.setApr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount() - processingFee, eligibleLoan.getMerchantId(), null));
+            log.info("eligibleLoan values -> {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest());
+            eligibleLoanDao.save(eligibleLoan);
         }
 
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
@@ -760,7 +784,7 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        lendingApplication.setProcessingFee(Double.valueOf(processingFee));
+        lendingApplication.setProcessingFee((double) processingFee);
         lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
@@ -798,6 +822,9 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setLenderAssc(false);
         lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
+        if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
+            lendingApplicationDetails.setOfferId(eligibleLoan.getId());
+        }
         lendingApplicationDetailsDao.save(lendingApplicationDetails);
         if(isApplicableForAggregationFlow) {
             loanDetailsV3Service.saveApplicationViewState(null,lendingApplication.getId(), LendingViewStates.LENDER_AGGREGATION);
@@ -1137,7 +1164,7 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(agreementResponse);
     }
 
-    private List<EligibleLoan> fetchEligibleLoansForCreateApplication(Long merchantId, String category, String offerType) {
+    private List<LendingEligibleLoan> fetchEligibleLoansForCreateApplication(Long merchantId, String category, String offerType) {
         if ("CUSTOM".equalsIgnoreCase(offerType) && !"SMALL_TICKET2".equalsIgnoreCase(category)) {
             return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
         }
@@ -2899,6 +2926,16 @@ public class LendingApplicationServiceV2 {
         }
         return null;
     }
+
+//    Double getApr(String segment, String riskGroup, Integer tenureInMonths, String lender){
+//        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(segment, riskGroup, tenureInMonths, lender);
+//        return ObjectUtils.isEmpty(lendingLenderPricing)?null:lendingLenderPricing.getApr();
+//    }
+//
+//    Double getIrr(String segment, String riskGroup, Integer tenureInMonths, String lender){
+//        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(segment, riskGroup, tenureInMonths, lender);
+//        return ObjectUtils.isEmpty(lendingLenderPricing)?null:lendingLenderPricing.getIrr();
+//    }
 
     public void generateKfsDocument(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
         boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?

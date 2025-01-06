@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.bharatpe.common.entities.AvailableLoan;
-import com.bharatpe.common.entities.EligibleLoan;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.common.entities.LendingCategories;
 import com.bharatpe.common.utils.CurrencyUtils;
 import com.bharatpe.lending.common.slave.entity.AvailableLoanSlave;

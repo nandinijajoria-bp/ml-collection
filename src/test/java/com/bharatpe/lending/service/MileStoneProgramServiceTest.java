@@ -4,7 +4,7 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.entities.EligibleLoan;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
@@ -815,7 +815,7 @@ public class MileStoneProgramServiceTest {
         Experian experian = new Experian();
         experian.setPincode(2001017);
 
-        EligibleLoan eligibleLoan = new EligibleLoan();
+        LendingEligibleLoan eligibleLoan = new LendingEligibleLoan();
         eligibleLoan.setCreatedAt(new Date());
 
         Eligibility eligibility = new Eligibility();

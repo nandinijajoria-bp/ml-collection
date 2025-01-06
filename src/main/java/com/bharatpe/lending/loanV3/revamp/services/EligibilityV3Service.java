@@ -1,13 +1,13 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
-import com.bharatpe.common.entities.EligibleLoan;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -74,7 +74,7 @@ public class EligibilityV3Service {
     IEdiModelAssignment iEdiModelAssignment;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
+    LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
     DateTimeUtil dateTimeUtil;
@@ -225,7 +225,7 @@ public class EligibilityV3Service {
             log.info("not picking offer from eligible loan for {}", eligibilityStateDTO.getMerchant().getId());
             return;
         }
-        EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(eligibilityStateDTO.getMerchant().getId());
+        LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(eligibilityStateDTO.getMerchant().getId());
         Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
         log.info("merchant is: {} clubV2 member: {}", eligibilityStateDTO.getMerchant().getId(), eligibilityStateDTO.getClubV2Member());
         Eligibility eligibility = null;
@@ -266,7 +266,7 @@ public class EligibilityV3Service {
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
-            EligibleLoan eligibleLoan = loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId(), skipEligibleLoanDbEntryCreation);
+            LendingEligibleLoan eligibleLoan = loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId(), skipEligibleLoanDbEntryCreation);
             eligibility = loanDetailsServiceV2.createEligibility(eligibleLoan, eligibilityStateDTO.getMerchant().getId());
         }
         if (eligibility != null) {
@@ -288,7 +288,7 @@ public class EligibilityV3Service {
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", eligibilityStateDTO.getMerchant().getId());
-            EligibleLoan eligibleLoan = loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId(), true);
+            LendingEligibleLoan eligibleLoan = loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, null, eligibilityStateDTO.getMerchant().getId(), true);
             eligibility = loanDetailsServiceV2.createEligibility(eligibleLoan, eligibilityStateDTO.getMerchant().getId());
         }
         if (eligibility != null) {
