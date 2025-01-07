@@ -28,7 +28,7 @@ public class EntityToDtoConvertorUtil {
 
             Set<String> rejectedLenders = new HashSet<>();
             if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-                rejectedLenders.addAll(Arrays.asList(lendingRiskVariables.getRejectedLenders().split(",")));
+                rejectedLenders.addAll(Arrays.asList(lendingRiskVariables.getRejectedLenders().split("\\\\s*,\\\\s*")));
             }
             riskVariablesDTO.setRejectedLenders(rejectedLenders);
 
