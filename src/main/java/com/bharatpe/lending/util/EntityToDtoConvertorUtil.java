@@ -2,11 +2,13 @@ package com.bharatpe.lending.util;
 
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.dto.RiskVariablesDTO;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -28,7 +30,10 @@ public class EntityToDtoConvertorUtil {
 
             Set<String> rejectedLenders = new HashSet<>();
             if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-                rejectedLenders.addAll(Arrays.asList(lendingRiskVariables.getRejectedLenders().split("\\\\s*,\\\\s*")));
+                List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));\
+                if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
+                    rejectedLendersArray.forEach(l -> rejectedLenders.add(l.trim()));
+                }
             }
             riskVariablesDTO.setRejectedLenders(rejectedLenders);
 
