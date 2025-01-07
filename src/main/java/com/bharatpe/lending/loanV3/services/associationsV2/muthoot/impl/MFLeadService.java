@@ -263,32 +263,11 @@ public class MFLeadService {
     private List<MFUpdateLeadRequestDTO.Consent> getConsents(LendingApplication lendingApplication) {
         List<MFUpdateLeadRequestDTO.Consent> consents = new ArrayList<>();
         consents.add(MFUpdateLeadRequestDTO.Consent.builder()
-                .type("CKYC")
+                .type("HYBRID_CONSENT")
                 .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
                 .ipAddress(lendingApplication.getIp())
                 .url("")
-                .body("I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners")
-                .build());
-        consents.add(MFUpdateLeadRequestDTO.Consent.builder()
-                .type("TNC")
-                .ipAddress(lendingApplication.getIp())
-                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
-                .url("")
-                .body("By clicking on “I Agree”, I accept the Key Facts Statement, Sanction and loan agreement, pricing details (i.e., “APR”) and Privacy Policy and Terms & Conditions of LSP")
-                .build());
-        consents.add(MFUpdateLeadRequestDTO.Consent.builder()
-                .type("BUREAU")
-                .ipAddress(lendingApplication.getIp())
-                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
-                .url("")
-                .body("I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus")
-                .build());
-        consents.add(MFUpdateLeadRequestDTO.Consent.builder()
-                .type("PRIVACY_POLICY")
-                .ipAddress(lendingApplication.getIp())
-                .timestamp(String.valueOf(lendingApplication.getCreatedAt().getTime()))
-                .url("")
-                .body("Please read our Privacy policy and Terms & Conditions")
+                .body("CKYC - I agree to sharing my KYC information with Bharatpe’s lending and other financial services partners; BUREAU - I agree to avail the loan facilitation services offered by Resilient Digi Services Private Limited (RDSPL) through RBI registered NBFC/Banks and further authorize and appoint RDSPL as my authorized agent to receive my credit information from credit information companies such as Experian, CRIF High Mark etc. subject to the terms and conditions. I hereby also agree to the lending partner of RDSPL to obtain my credit information from the credit bureaus; PRIVACY_POLICY - Please read our Privacy policy and Terms & Conditions; TNC - By clicking on I Agree, I accept the Key Facts Statement, Sanction and loan agreement, Privacy Policy and Terms & Conditions of LSP")
                 .build());
         return consents;
     }

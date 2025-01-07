@@ -5,8 +5,9 @@ import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.loanV3.dto.AbflTopupRpsRequestDTO;
-import com.bharatpe.lending.loanV3.dto.AbflTopupRpsResponseDTO;
+import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.dto.AbflRpsRequestDTO;
+import com.bharatpe.lending.loanV3.dto.AbflRpsResponseDTO;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
@@ -34,7 +35,7 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
     LenderGatewayFactory lenderGatewayFactory;
 
     @Override
-    public AbflTopupRpsResponseDTO invoke(Long applicationId, Map args) {
+    public AbflRpsResponseDTO invoke(Long applicationId, Map args) {
         try {
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
             if (!lendingApplication.isPresent()) {
@@ -47,9 +48,9 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
                 log.info("no lender assc record found for {}", applicationId);
                 return null;
             }
-            AbflTopupRpsRequestDTO rpsRequestDTO = createPayload(lendingApplication.get());
+            AbflRpsRequestDTO rpsRequestDTO = createPayload(lendingApplication.get());
             INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(rpsRequestDTO.getLender());
-            AbflTopupRpsResponseDTO responseDTO = apiGatewayV3.fetchRepaymentSchedule(rpsRequestDTO);
+            AbflRpsResponseDTO responseDTO = apiGatewayV3.fetchRepaymentSchedule(rpsRequestDTO);
             if (ObjectUtils.isEmpty(responseDTO)) {
                 log.info("error while fetching repayment schedule for applicationId {}", applicationId);
             }
@@ -60,13 +61,13 @@ public class AbflRepaymentScheduleService implements ILenderAssociationService {
         }
     }
 
-    private AbflTopupRpsRequestDTO createPayload(LendingApplication lendingApplication) {
-        return AbflTopupRpsRequestDTO.builder()
+    private AbflRpsRequestDTO createPayload(LendingApplication lendingApplication) {
+        return AbflRpsRequestDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .productName("LENDING")
                 .lender("ABFL")
-                .topup(true)
-                .payload(AbflTopupRpsRequestDTO.Payload.builder()
+                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
+                .payload(AbflRpsRequestDTO.Payload.builder()
                         .accountId(lendingApplication.getExternalLoanId())
                         .lanNumber(lendingApplication.getNbfcId())
                         .txnId(UUID.randomUUID().toString()).build())

@@ -41,9 +41,8 @@ import com.bharatpe.lending.enums.LendingPayoutType;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.loanV3.dto.AbflTopupRpsResponseDTO;
+import com.bharatpe.lending.loanV3.dto.AbflRpsResponseDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
-import com.bharatpe.lending.loanV3.dto.AbflDigiSignResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
@@ -51,7 +50,6 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
-import com.bharatpe.lending.loanV3.services.associations.ABFLDigiSignService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
 import com.bharatpe.lending.util.Finance;
@@ -1711,11 +1709,11 @@ public class LiquiloansService {
             if(!flag) {
                 constructBharatPeEDISchedule(paymentSchedule);
             }
-        } else if ("ABFL".equalsIgnoreCase(paymentSchedule.getNbfc()) && LoanType.TOPUP.name().equalsIgnoreCase(paymentSchedule.getLoanApplication().getLoanType())) {
+        } else if ("ABFL".equalsIgnoreCase(paymentSchedule.getNbfc())) {
             boolean flag;
             int retry = 0;
             do {
-                flag = constructAbflTopupEDISchedule(paymentSchedule);
+                flag = constructAbflEDISchedule(paymentSchedule);
                 retry++;
             } while (!flag && retry < 5);
             if(!flag) {
@@ -1909,7 +1907,7 @@ public class LiquiloansService {
         }
     }
 
-    public Boolean constructAbflTopupEDISchedule(LendingPaymentSchedule paymentSchedule) {
+    public Boolean constructAbflEDISchedule(LendingPaymentSchedule paymentSchedule) {
         try {
             List<LendingEDISchedule> scheduleList = lendingEDIScheduleDao.findByLendingPaymentSchedule(paymentSchedule);
             if (scheduleList != null && !scheduleList.isEmpty()) {
@@ -1917,15 +1915,15 @@ public class LiquiloansService {
                 return false;
             }
             logger.info("Creating EDI schedule for Loan ID {}.", paymentSchedule.getId());
-            AbflTopupRpsResponseDTO abflTopupRpsResponseDTO = new AbflTopupRpsResponseDTO();
+            AbflRpsResponseDTO abflRpsResponseDTO = new AbflRpsResponseDTO();
             ILenderAssociationService iLenderAssociationService =
                     lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.RPS.name()).getLenderAssociationService(Lender.ABFL.name());
             if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                Object abflTopupRpsResponse = iLenderAssociationService.invoke(paymentSchedule.getLoanApplication().getId(), new HashMap<>());
-                abflTopupRpsResponseDTO = objectMapper.convertValue(abflTopupRpsResponse, AbflTopupRpsResponseDTO.class);
-                logger.info("response from abfl repayment schedule api for application id : {} is : {}", paymentSchedule.getLoanApplication().getId(), abflTopupRpsResponse);
+                Object abflRpsResponse = iLenderAssociationService.invoke(paymentSchedule.getLoanApplication().getId(), new HashMap<>());
+                abflRpsResponseDTO = objectMapper.convertValue(abflRpsResponse, AbflRpsResponseDTO.class);
+                logger.info("response from abfl repayment schedule api for application id : {} is : {}", paymentSchedule.getLoanApplication().getId(), abflRpsResponse);
             }
-            if (ObjectUtils.isEmpty(abflTopupRpsResponseDTO)) {
+            if (ObjectUtils.isEmpty(abflRpsResponseDTO)) {
                 logger.info("failure response from abfl repayment schedule api");
                 return false;
             }
@@ -1937,8 +1935,8 @@ public class LiquiloansService {
             }
             Date parsedDate = null;
             Double totalInterestPayable = 0D;
-            for (int arr_i = 0; arr_i < abflTopupRpsResponseDTO.getData().getData().getInstallments().size(); arr_i++) {
-                AbflTopupRpsResponseDTO.Installment loanSchedule = abflTopupRpsResponseDTO.getData().getData().getInstallments().get(arr_i);
+            for (int arr_i = 0; arr_i < abflRpsResponseDTO.getData().getData().getInstallments().size(); arr_i++) {
+                AbflRpsResponseDTO.Installment loanSchedule = abflRpsResponseDTO.getData().getData().getInstallments().get(arr_i);
                 LendingEDISchedule currentSchedule = new LendingEDISchedule();
                 parsedDate = parseDate(loanSchedule.getDueDate(), "dd-MM-yyyy");
                 currentSchedule.setDate(parsedDate);

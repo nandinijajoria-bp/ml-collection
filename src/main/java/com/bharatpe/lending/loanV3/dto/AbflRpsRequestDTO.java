@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
-public class AbflTopupRpsRequestDTO {
+public class AbflRpsRequestDTO {
     String lender;
     Long applicationId;
     Payload payload;
