@@ -21,6 +21,7 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -50,6 +51,12 @@ public class MFKycService {
 
     @Autowired
     AssociationServiceUtil associationServiceUtil;
+
+    @Value("${muthoot.udyam.registration.link:}")
+    String muthootUdyamRegistrationLink;
+
+    @Value("${muthoot.udyam.registration.enabled.for.all.merchants:false}")
+    Boolean muthootUdyamRegistrationEnabledForAllMerchants;
 
     @Transactional
     public boolean invokeKyc(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -143,6 +150,10 @@ public class MFKycService {
                     }
                     if ("PROCESSING".equalsIgnoreCase(kycCallbackResponseDTO.getData().getStatus()) && ("TRIGGER_IDENTITY_CHECKS".equalsIgnoreCase(kycCallbackResponseDTO.getData().getAction()) || "TRIGGER_IDENTITY_CHECK".equalsIgnoreCase(kycCallbackResponseDTO.getData().getAction()))) {
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getStatus(kycCallbackResponseDTO).name());
+                        if(muthootUdyamRegistrationEnabledForAllMerchants || !ObjectUtils.isEmpty(kycCallbackResponseDTO.getData().getOutputVariables()) && "N".equalsIgnoreCase(kycCallbackResponseDTO.getData().getOutputVariables().getUdyamStatus())) {
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setNbfcKycAsyncId(muthootUdyamRegistrationLink);
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
+                        }
                         commonService.manageApplicationState(lenderAssociationDetailsRequest);
                         invokeNextStage(lenderAssociationDetailsRequest, kycCallbackResponseDTO);
                         return true;

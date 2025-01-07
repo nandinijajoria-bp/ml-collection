@@ -1,8 +1,10 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -383,6 +385,20 @@ public class DocUploadUtils {
             log.error("Error merging documents for application id: {} {}", applicationId, Arrays.asList(e.getStackTrace()));
             throw e; // Rethrow the exception to handle it in the caller method
         }
+    }
+
+    public Boolean isUdyamRegistrationRequired(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+         if(LendingEnum.LENDER.MUTHOOT.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+             return LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus());
+         }
+         return false;
+    }
+
+    public String getUdyamRegistrationLink(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+        if(LendingEnum.LENDER.MUTHOOT.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+            return lendingApplicationLenderDetails.getNbfcKycAsyncId();
+        }
+        return null;
     }
 
 }

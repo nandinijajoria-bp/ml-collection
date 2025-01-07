@@ -107,6 +107,8 @@ public class LoanDetailsV3Response {
     private String blDocUploadUrl;
     private List<String> maskedMobileList;
     private boolean retryLimitExhausted;
+    private Boolean udyamRegistrationRequired;
+    private String udyamRegistrationLink;
 
     @Data
     @ToString
@@ -332,6 +334,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLoanApplication(applicationDetails);
         loanDetailsV3Response.setLender(applicationStatusStateDTO.getLender());
         loanDetailsV3Response.setMerchantId(applicationStatusStateDTO.getMerchantId());
+        loanDetailsV3Response.setUdyamRegistrationRequired(applicationStatusStateDTO.getUdyamRegistrationRequired());
+        loanDetailsV3Response.setUdyamRegistrationLink(applicationStatusStateDTO.getUdyamRegistrationLink());
     }
 
     private static void setReferencesResponse(ReferenceStateDTO referenceStateDTO, LoanDetailsV3Response loanDetailsV3Response){
