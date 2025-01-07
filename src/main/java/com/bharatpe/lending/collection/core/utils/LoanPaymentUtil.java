@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.collection.core.constant.ExcessConstants.ExcessCollectionAdjustmentModeDescription;
 import static com.bharatpe.lending.collection.core.constant.RepaymentConstants.NON_DECIMAL_SUPPORTED_LENDER;
+import static com.bharatpe.lending.collection.core.service.impl.LoanPaymentServiceImpl.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.enums.Lender.*;
 
@@ -191,5 +192,9 @@ public class LoanPaymentUtil {
     }
     public static double removeDecimalValueFromAmount(double amount) {
         return Math.floor(amount);
+    }
+
+    public static boolean isExcessAdjustmentEntry(String terminalOrderId) {
+        return StringUtils.hasLength(terminalOrderId) && terminalOrderId.contains(EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX);
     }
 }

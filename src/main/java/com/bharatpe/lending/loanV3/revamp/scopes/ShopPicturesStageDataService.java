@@ -3,8 +3,10 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -58,6 +61,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
     @Value("${bl.eligible.lenders:IIFL}")
     String blEligibleLendersList;
 
+    @Autowired
+    LendingShopDocumentsDao lendingShopDocumentsDao;
+
     @Override
     public LendingStateDTO<ShopPicturesStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ShopPicturesStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -70,6 +76,8 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
         }
         else if(LendingViewStates.BL_DOC_UPLOAD_PAGE.equals(lendingStateDTO.getLendingViewStates())) {
             return lendingStateDTO;
+        }else if (!hasShopPictureAndShopStockImageByMerchantIdAndApplicationId(lendingStateDTO.getData().getMerchantId(),lendingStateDTO.getData().getApplicationId())) {
+            log.info("one picture is missing of shop for merchantId : {} and applicationId : {}",lendingStateDTO.getData().getMerchantId(),lendingStateDTO.getData().getMerchantId());
         }
         else lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
         if(!lendingStateDTO.getData().getResubmitState()){
@@ -94,12 +102,19 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                     lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
                 log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
-                shopPicturesStateDTO.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
-                if(LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))){
-                    return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
-                }
-                if(blTaggingEnabled && blEligibleLendersList.contains(lendingApplication.getLender()) && !lendingApplicationDetails.getIsDocSkip()) {
-                    return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.BL_DOC_UPLOAD_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
+                if (!hasShopPictureAndShopStockImageByMerchantIdAndApplicationId(lendingApplication.getId(),scopeDataArgs.getMerchant().getId())) {
+                    log.info("already, one picture is missing of shop for merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+                }else {
+                    log.info("both shop image for merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+                    shopPicturesStateDTO.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
+                    if (LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))) {
+                        log.info("LENDER_CHANGE, merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+                        return new LendingStateDTO<>(shopPicturesStateDTO, LendingViewStates.LENDER_AGGREGATION, LendingViewStates.SHOP_PICTURES_PAGE);
+                    }
+                    if (blTaggingEnabled && blEligibleLendersList.contains(lendingApplication.getLender()) && !lendingApplicationDetails.getIsDocSkip()) {
+                        log.info("blTaggingEnabled & BL_DOC_UPLOAD_PAGE, merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+                        return new LendingStateDTO<>(shopPicturesStateDTO, LendingViewStates.BL_DOC_UPLOAD_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
+                    }
                 }
             }
             shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()));
@@ -113,12 +128,31 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
                 shopPicturesStateDTO.setResubmitState(true);
             }
-
+            log.info("last line print");
             return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.SHOP_PICTURES_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
         } catch (Exception e) {
             log.info("Error while fetching KFS stage data for {}, {}, {}", scopeDataArgs.getMerchant().getMobile(),
                     e.getMessage(), Arrays.asList(e.getStackTrace()));
             throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(),LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
         }
+    }
+
+    /**
+     * Checks if the lending shop documents for the given merchant and application are valid.
+     * A valid set of documents is defined by the following criteria:
+     * <ul>
+     *     <li>There must be at least 2 documents in total.</li>
+     *     <li>At least one document must have the proof type "shop-front".</li>
+     *     <li>At least one document must have the proof type "shop-stock".</li>
+     * </ul>
+     *
+     * @param merchantId the ID of the merchant whose documents are being checked.
+     * @param applicationId the ID of the application for which the documents are being checked.
+     * @return {@code true} if the lending shop documents are valid (i.e., meet the above criteria),
+     *         otherwise {@code false}.
+     */
+    public boolean hasShopPictureAndShopStockImageByMerchantIdAndApplicationId(Long merchantId, Long applicationId) {
+        log.info("Shop Picture And Shop Stock Image by merchantId : {} and applicationId : {}",merchantId,applicationId);
+     return lendingShopDocumentsDao.hasValidProofTypes(merchantId, applicationId) == 1;
     }
 }

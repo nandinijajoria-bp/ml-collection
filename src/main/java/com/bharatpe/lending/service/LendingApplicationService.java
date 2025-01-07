@@ -11,11 +11,13 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.BharatSwipeAccountDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.entity.ExperianSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
@@ -99,7 +101,7 @@ public class LendingApplicationService {
 //    MerchantDao merchantDao;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
+    LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -243,7 +245,7 @@ public class LendingApplicationService {
 //                }
 //            } else {
 //                String offerType = lendingApplicationRequest.getOfferType();
-//                EligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, "CUSTOM");
+//                LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchantId, "CUSTOM");
 //                LendingCategories lendingCategory = lendingCategoryDao.getByCategory(lendingApplicationRequest.getCategory());
 //                if (Objects.isNull(eligibleLoan)) {
 //                    logger.info("No loan available for Merchant {} and category {}", merchantId, lendingApplicationRequest.getCategory());
@@ -286,7 +288,7 @@ public class LendingApplicationService {
 ////				logger.error("Loan category not found in the request:{}", requestDTO.toString());
 ////				return new LendingApplicationResponseDTO(false, "Category missing");
 ////			}
-//            EligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(merchant.getId(), requestDTO.getPayload().getOfferType());
+//            LendingEligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(merchant.getId(), requestDTO.getPayload().getOfferType());
 //            //LendingCategories lendingCategory = lendingCategoryDao.getByCategory(selectedCategory);
 //            if (Objects.isNull(eligibleLoan)) {
 //                logger.info("No eligible loan found for merchant:{}", merchant.getId());
@@ -535,7 +537,7 @@ public class LendingApplicationService {
 //        return null;
 //    }
 
-    private EligibleLoan fetchEligibleLoansForCreateApplication(Long merchantId, String offerType) {
+    private LendingEligibleLoan fetchEligibleLoansForCreateApplication(Long merchantId, String offerType) {
 
 //		if("CUSTOM".equalsIgnoreCase(offerType) && !category.equalsIgnoreCase("SMALL_TICKET2")){
 //			return eligibleLoanDao.findByMerchantIdAndCategoryAndOfferType(merchantId, category, offerType);
@@ -551,7 +553,7 @@ public class LendingApplicationService {
 ////				return new LendingApplicationResponseDTO(false, "Category missing");
 ////			}
 //            //LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-//            EligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(prevLoan.getMerchantId(), offerType);
+//            LendingEligibleLoan eligibleLoan = fetchEligibleLoansForCreateApplication(prevLoan.getMerchantId(), offerType);
 //            if (Objects.isNull(eligibleLoan)) {
 //                logger.error("No eligible loan/category found for merchant {}", prevLoan.getMerchantId());
 //                return new LendingApplicationResponseDTO(false, "No eligible loan found");
@@ -589,7 +591,7 @@ public class LendingApplicationService {
 //        return new LendingApplicationResponseDTO(false, "Error occured while creating loan application");
 //    }
 
-//    private LendingApplication copyApplicationDataWhenExperianEnabled(EligibleLoan eligibleLoan, LendingApplication prevLoan, String selectedCategory, BasicDetailsDto merchantBasicDetailsDto) {
+//    private LendingApplication copyApplicationDataWhenExperianEnabled(LendingEligibleLoan eligibleLoan, LendingApplication prevLoan, String selectedCategory, BasicDetailsDto merchantBasicDetailsDto) {
 //        Experian experian = experianDao.getByMerchantId(prevLoan.getMerchantId());
 //        LendingApplication newApplication = new LendingApplication();
 //        // check here we need check or not
@@ -655,7 +657,7 @@ public class LendingApplicationService {
 //        return lendingApplication;
 //    }
 
-//    private LendingApplication createApplication(BasicDetailsDto merchantBasicDetailsDto, EligibleLoan eligibleLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
+//    private LendingApplication createApplication(BasicDetailsDto merchantBasicDetailsDto, LendingEligibleLoan eligibleLoan, LendingApplicationRequestDTO lendingApplicationRequest) {
 //        LendingApplication lendingApplication = new LendingApplication();
 //        //LendingCategories lendingCategory = lendingCategoryDao.getByCategory(eligibleLoan.getCategory());
 //
@@ -832,7 +834,7 @@ public class LendingApplicationService {
             if (applicationId > 0L) {
                 lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, basicDetailsDto.getId());
             }
-            List<EligibleLoan> eligibleLoan = eligibleLoanDao.findByMerchantIdAndCategory(basicDetailsDto.getId(), category);
+            List<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findByMerchantIdAndCategory(basicDetailsDto.getId(), category);
             if (lendingApplication == null && (eligibleLoan == null || eligibleLoan.isEmpty())) {
                 logger.error("Lending application not found for id {}", applicationId);
                 return null;
@@ -1675,7 +1677,7 @@ public class LendingApplicationService {
                 responseDTO.setData(data);
                 return responseDTO;
             }
-            EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
             LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
             logger.info("Payment Schedule:{}", lendingPaymentSchedule);

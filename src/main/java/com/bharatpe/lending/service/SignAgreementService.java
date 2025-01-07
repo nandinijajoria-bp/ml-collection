@@ -2,18 +2,22 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.entities.*;
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingAuditTrial;
+import com.bharatpe.common.entities.LendingGstDetail;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
@@ -97,7 +101,7 @@ public class SignAgreementService {
 	LendingApplicationService lendingApplicationService;
 
 	@Autowired
-	EligibleLoanDao eligibleLoanDao;
+	LendingEligibleLoanDao eligibleLoanDao;
 
 	@Autowired
 	APIGatewayService apiGatewayService;
@@ -315,7 +319,7 @@ public class SignAgreementService {
 			return response;
 		}
 //		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-		EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndTenureInMonthsAndLoanTypeOrderByIdDesc(merchant.getId(), selectedTenure, "TOPUP");
+		com.bharatpe.lending.common.entity.LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndTenureInMonthsAndLoanTypeOrderByIdDesc(merchant.getId(), selectedTenure, "TOPUP");
 		if(Objects.isNull(eligibleLoan)) {
 			logger.error("No available loan found with merchant id {} and loan tenure {}", merchant.getId(), selectedTenure);
 			return response;
@@ -705,13 +709,13 @@ public class SignAgreementService {
 			return response;
 		}
 //		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-		Optional<EligibleLoan> optionalEligibleLoan = eligibleLoanDao.findById(requestDTO.getEligibleLoanId());
+		Optional<LendingEligibleLoan> optionalEligibleLoan = eligibleLoanDao.findById(requestDTO.getEligibleLoanId());
 		if(!optionalEligibleLoan.isPresent()) {
 			logger.error("No available loan found with merchant id {}", merchant.getId());
 			response.put("message", "No available loan found with merchant");
 			return response;
 		}
-		EligibleLoan eligibleLoan = optionalEligibleLoan.get();
+		LendingEligibleLoan eligibleLoan = optionalEligibleLoan.get();
 		if(!topupLoans.contains(eligibleLoan.getLoanType()) || (dateTimeUtil.getDateDiffInHours(eligibleLoan.getCreatedAt(), new Date()) >= 1)){
 			logger.error("No available loan found for last 1 hr with merchant id {}", merchant.getId());
 			response.put("message", "Loan offer expired");
@@ -922,7 +926,7 @@ public class SignAgreementService {
 //		return finalResponse;
 //	}
 
-	private boolean isToupEligibilityValid(Long merchantId, EligibleLoan eligibleLoan){
+	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
 		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
 		logger.info("latest eligibility for {} : {}", merchantId, loans);
@@ -935,7 +939,7 @@ public class SignAgreementService {
 			logger.info("no eligible loan entry found at topup application creation for {}", merchantId);
 			return false;
 		}
-		Optional<EligibleLoan> optionalUpdatedEligibleLoan = eligibleLoanDao.findById(loanEligibilityDTO.getId());
+		Optional<LendingEligibleLoan> optionalUpdatedEligibleLoan = eligibleLoanDao.findById(loanEligibilityDTO.getId());
 		if(!optionalUpdatedEligibleLoan.isPresent()) {
 			logger.info("Updated eligible loan entry not available for merchant {}", merchantId);
 			return false;
@@ -947,7 +951,7 @@ public class SignAgreementService {
 		return false;
 	}
 
-	private boolean isOfferMatching(EligibleLoan eligibleLoan, EligibleLoan updatedEligibleLoan, Long merchantId){
+	private boolean isOfferMatching(LendingEligibleLoan eligibleLoan, LendingEligibleLoan updatedEligibleLoan, Long merchantId){
 		if(!Objects.equals(updatedEligibleLoan.getAmount(), eligibleLoan.getAmount())){
 			logger.info("amount not matching for {}", merchantId);
 			return false;

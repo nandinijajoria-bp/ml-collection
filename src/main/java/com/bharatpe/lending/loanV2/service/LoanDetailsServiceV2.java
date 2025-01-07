@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV2.service;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanDao;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.dao.LendingPancardDao;
@@ -15,6 +14,7 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
@@ -143,7 +143,7 @@ public class LoanDetailsServiceV2 {
     LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
-    EligibleLoanDao eligibleLoanDao;
+    LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
     LendingCategoryDao lendingCategoryDao;
@@ -806,7 +806,7 @@ public class LoanDetailsServiceV2 {
             loanDetailsResponse.setEdiDaysModel(iEdiModelAssignment.assignModel(merchant.getId()).getNoOfEdiDaysInAWeek());
         }
 
-        EligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
+        LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
         String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
         if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
             eligibilityRefreshWindow = 0;
@@ -845,7 +845,7 @@ public class LoanDetailsServiceV2 {
         }
         if (eligibleAmount > 0D) {
             log.info("Eligibility found for merchant:{}", merchant.getId());
-            EligibleLoan eligibleLoan1 = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId(), false);
+            LendingEligibleLoan eligibleLoan1 = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId(), false);
             eligibility = createEligibility(eligibleLoan1, merchant.getId());
         }
         if (eligibility != null) {
@@ -858,7 +858,7 @@ public class LoanDetailsServiceV2 {
     }
 
 
-    public EligibleLoan recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId, boolean skipEligibleLoanDbEntryCreation) {
+    public LendingEligibleLoan recomputeEligibleLoan(GlobalLimitResponse globalLimitResponse, Double customAmount, Long merchantId, boolean skipEligibleLoanDbEntryCreation) {
         if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
             log.info("Global Limit not found");
             return null;
@@ -866,7 +866,7 @@ public class LoanDetailsServiceV2 {
         Double finalLimit = globalLimitResponse.getData().getGlobalLimit();
         String loanType = globalLimitResponse.getData().getLoanType();
         Double version = globalLimitResponse.getData().getVersion();
-        EligibleLoan eligibleLoan = null;
+        LendingEligibleLoan eligibleLoan = null;
         try {
 //            eligibleLoanDao.deleteByMerchantId(merchantId);
             List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
@@ -941,7 +941,7 @@ public class LoanDetailsServiceV2 {
 //        return null;
 //    }
 
-    public Eligibility createEligibility(EligibleLoan eligibleLoan, Long merchantId) {
+    public Eligibility createEligibility(LendingEligibleLoan eligibleLoan, Long merchantId) {
         try {
             if(easyLoanUtil.percentScaleUp(merchantId, eligibleLoanCreationSkipRollout)){
                 if (ObjectUtils.isEmpty(eligibleLoan) || "TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {

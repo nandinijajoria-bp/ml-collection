@@ -22,4 +22,5 @@ public class LenderAssociationStatusResponse {
     String prevLender;
     Boolean isOfferModified;
     Boolean isApplicableForAggregationFlow;
+    Boolean isRoiDecreased = false;
 }

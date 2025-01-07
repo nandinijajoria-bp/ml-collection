@@ -5,8 +5,8 @@ import java.util.Optional;
 
 import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
-import com.bharatpe.common.dao.EligibleLoanDao;
-import com.bharatpe.common.entities.EligibleLoan;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -34,7 +34,7 @@ public class RedisNotificationService {
 //	SmsServiceHandler smsServiceHandler;
 
 	@Autowired
-	EligibleLoanDao eligibleLoanDao;
+	LendingEligibleLoanDao eligibleLoanDao;
 
 	@Autowired
 	MerchantService merchantService;
@@ -64,7 +64,7 @@ public class RedisNotificationService {
 	
 	public void sendNotificationForSeenOffer(Long merchantId) {
 		try {
-			EligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
+			LendingEligibleLoan eligibleLoan = eligibleLoanDao.findMaxLoan(merchantId);
 			if (eligibleLoan == null) {
 				return;
 			}
