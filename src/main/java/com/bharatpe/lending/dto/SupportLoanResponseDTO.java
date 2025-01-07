@@ -34,6 +34,8 @@ public class SupportLoanResponseDTO {
     private List<ApplicationDetailsDTO> applicationHistory;
     private Boolean bsUploadEligibility;
     private Boolean AaEligibility;
+    private Date nbfcSendDate;
+    private Date nachCompletionDate;
 
     public Long getMerchantId() {
         return merchantId;
@@ -193,6 +195,21 @@ public class SupportLoanResponseDTO {
 
     public void setLoanArrangerFee(LoanArrangerFee loanArrangerFee) {
         this.loanArrangerFee = loanArrangerFee;
+    }
+    public Date getNbfcSendDate() {
+        return nbfcSendDate;
+    }
+
+    public void setNbfcSendDate(Date nbfcSendDate) {
+        this.nbfcSendDate = nbfcSendDate;
+    }
+
+    public Date getNachCompletionDate() {
+        return nachCompletionDate;
+    }
+
+    public void setNachCompletionDate(Date nachCompletionDate) {
+        this.nachCompletionDate = nachCompletionDate;
     }
 
     @Override
