@@ -30,7 +30,7 @@ public class EntityToDtoConvertorUtil {
 
             Set<String> rejectedLenders = new HashSet<>();
             if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {
-                List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));\
+                List<String> rejectedLendersArray = Arrays.asList(lendingRiskVariables.getRejectedLenders().split(","));
                 if (!CollectionUtils.isEmpty(rejectedLendersArray)) {
                     rejectedLendersArray.forEach(l -> rejectedLenders.add(l.trim()));
                 }
