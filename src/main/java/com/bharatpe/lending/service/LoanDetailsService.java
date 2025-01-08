@@ -45,6 +45,8 @@ import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
+import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -229,6 +231,10 @@ public class LoanDetailsService {
 
 	@Autowired
 	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+	@Value("${bureau.credit.score.pull.days:45}")
+	private Long bureauScorePullDays;
+	@Autowired
+	BureauHandler bureauHandler;
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
@@ -1259,7 +1265,11 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
 			creditScoreResponseDto.setPinCode(experian.getPincode());
 			creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : merchantBasicDetails.getBeneficiaryName());
-			creditScoreResponseDto.setScore(experian.getExperianScore());
+			BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
+					bureauScorePullDays, "EASY_LOANS");
+			if (!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables().getBureauScore())) {
+				creditScoreResponseDto.setScore(bureauResponseDTO.getVariables().getBureauScore());
+			}
 			creditScoreResponseDto.setCreditDate(experian.getReportDate());
 			creditScoreResponseDto.setBureau(experian.getBureau() != null ? experian.getBureau() : "EXPERIAN");
 			creditScoreResponseDto.setNoExperian(false);
