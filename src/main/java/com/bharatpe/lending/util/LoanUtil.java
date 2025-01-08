@@ -63,6 +63,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+
 import java.io.File;
 import java.io.FileReader;
 import java.io.InputStream;
@@ -327,8 +328,8 @@ public class LoanUtil {
 	@Autowired
 	LendingLenderPricingDao lendingLenderPricingDao;
 
-	@Value("${lender.pricing.eligible.merchants:}")
-	private String lenderPricingEligibleMerchants;
+	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
+	private List<Integer> lenderPricingEligibleMerchantsPercent;
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -2505,7 +2506,7 @@ public class LoanUtil {
 	}
 
 	public boolean isLenderPricingApplicableMerchant(Long merchantId){
-		return !StringUtils.isEmpty(lenderPricingEligibleMerchants) && lenderPricingEligibleMerchants.contains(String.valueOf(merchantId));
+		return LoanUtil.isRolledOutByPercentage(String.valueOf(merchantId), (lenderPricingEligibleMerchantsPercent));
 	}
 
 	public MaxPricingValuesDTO getMaxPricingValues(LendingRiskVariables lendingRiskVariables, Integer tenure){
@@ -2561,6 +2562,16 @@ public class LoanUtil {
 			return (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
 		}
 		return 0D;
+	}
+
+
+	public static boolean isRolledOutByPercentage(String value, List<Integer> validDigits) {
+		// Extract the last digit of the number
+		int num = Integer.parseInt(value);
+		int lastDigit = num % 10;
+
+		return validDigits.contains(lastDigit);
+
 	}
 
 }
