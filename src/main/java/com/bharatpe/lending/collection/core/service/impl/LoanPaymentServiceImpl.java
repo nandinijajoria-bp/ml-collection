@@ -484,9 +484,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void foreCloseLoan(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism, Integer principalDueAmount, Integer ediHolidayInterestAmount) {
         double amount = payment.getOtherAmount();
         if (principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {  //foreClosure
-            if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
+            // releaseing the short fall principal for fore closure in pdpd for all lenders  on 9/1/25
+//            if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
                 checkAndAdjustPdpdInterestIfRequired(loan);
-            }
+//            }
 
             LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(loan.getMerchantId(), loan.getId());
             double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;

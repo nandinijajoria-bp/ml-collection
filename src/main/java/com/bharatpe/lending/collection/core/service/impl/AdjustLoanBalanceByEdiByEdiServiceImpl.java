@@ -12,8 +12,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 
 import java.util.*;
+
+import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 
 
 @Service
@@ -45,6 +48,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         settleLoanPaymentDTO.setBalance(settleLoanPaymentDTO.getBalance() - charges.getUsed());
 
         if (adjustPrincipleFirst) checkForNPA(loan);
+        if (settleLoanPaymentDTO.isAllDuePaid() && checkForTerminalEdiAmountDiff(loan)) adjustExtraBalance(loan, settleLoanPaymentDTO);
 
         return  PaymentCalculation.builder()
                 .received(amount)
@@ -57,6 +61,42 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .build();
     }
 
+    private boolean checkForTerminalEdiAmountDiff(LendingPaymentSchedule loan) {
+        log.info("checkForTerminalEdiAmountDiff for loanId : {} loan: {}", loan.getId(), loan);
+        return loan != null && loan.getEdiRemainingCount() == 0 && EDI_BY_EDI.name().equalsIgnoreCase(loan.getSettlementMechanism())
+                && ((loan.getEdiAmount() * loan.getEdiCount()) -  loan.getTotalPayableAmount() == loan.getDueAmount())
+                && Objects.equals(loan.getPaidPrinciple(), loan.getLoanAmount());
+    }
+
+    // refer LC- 474 Case 2  https://bharatpe.atlassian.net/wiki/x/KgDGE
+    private void adjustExtraBalance(LendingPaymentSchedule loan, PaymentCalculation settleLoanPaymentDTO) {
+        log.info("adjustExtraBalance for loanId : {} loan: {}", loan.getId(), loan);
+
+        double extraAmount = Math.max(loan.getEdiAmount() * loan.getEdiCount() - loan.getTotalPayableAmount(), 0);
+        log.info("adjustExtraBalance diff in lps for loanId : {} extraAmount: {}", loan.getId(), extraAmount);
+        extraAmount = Math.min(extraAmount, loan.getDueInterest()); // expected = due_amount == due_interest
+        log.info("adjustExtraBalance post dueInterest for loanId : {} extraAmount: {}, dueInterest:{}", loan.getId(), extraAmount, loan.getDueInterest());
+
+        extraAmount = Math.min(extraAmount, settleLoanPaymentDTO.getBalance());
+        log.info("adjustExtraBalance post balance for loanId : {} extraAmount: {}, balance:{}", loan.getId(), extraAmount, settleLoanPaymentDTO.getBalance());
+
+        if (extraAmount > 0) {
+            log.info("adjustExtraBalance pre settleLoanPaymentDTO for extraAmount : {} balance: {}, interest:{}", extraAmount, settleLoanPaymentDTO.getBalance(), settleLoanPaymentDTO.getInterestSettled());
+            settleLoanPaymentDTO.setBalance(Math.max(settleLoanPaymentDTO.getBalance() - extraAmount, 0));
+            settleLoanPaymentDTO.setInterestSettled(settleLoanPaymentDTO.getInterestSettled() + extraAmount);
+            log.info("adjustExtraBalance post settleLoanPaymentDTO for extraAmount : {} balance: {}, interest:{}", extraAmount, settleLoanPaymentDTO.getBalance(), settleLoanPaymentDTO.getInterestSettled());
+
+            log.info("adjustExtraBalance pre interest for extraAmount : {} dueInterest: {}, paidInterest:{}", extraAmount, loan.getDueInterest(), loan.getPaidInterest());
+            loan.setDueInterest(Math.max(loan.getDueInterest() - extraAmount, 0));
+            loan.setPaidInterest((loan.getPaidInterest() != null ? loan.getPaidInterest() : 0) + extraAmount);
+            log.info("adjustExtraBalance post interest for extraAmount : {} balance: {}, paidInterest:{}", extraAmount, loan.getDueInterest(), loan.getPaidInterest());
+
+            log.info("adjustExtraBalance pre amount for extraAmount: {} due: {}, paid:{}", extraAmount, loan.getDueAmount(), loan.getPaidAmount());
+            loan.setDueAmount(Math.max(loan.getDueAmount() - extraAmount, 0));
+            loan.setPaidAmount(loan.getPaidAmount() + extraAmount);
+            log.info("adjustExtraBalance post amount for extraAmount: {} due: {}, paid:{}", extraAmount, loan.getDueAmount(), loan.getPaidAmount());
+        }
+    }
 
     private void checkForNPA(LendingPaymentSchedule activeLoan) {
         // switch back to IPC if all due is paid
@@ -133,21 +173,11 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         Double paidPrinciple = 0d;
         Double paidInterest = 0d;
         Double remainingAmountToSettle = amountBeingPaid;
-        boolean settleAllPrincipleFirst = false;
 
         List<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan = lendingEDIScheduleLendingCommonDao.findUnpaidSchedulesForALoan(loanId, ediCreatedTillDate);
-        Optional<LendingEDIScheduleLendingCommon> firstPendingSchedule = unpaidSchedulesForALoan.stream().findFirst();
-
-        if (firstPendingSchedule.isPresent()) {
-            log.info("firstPendingSchedule for loanId : {} with id : {} is {}", loanId, firstPendingSchedule.get().getId(), firstPendingSchedule);
-            final long dateDiffInDays = LoanPaymentUtil.getDateDiffInDays(firstPendingSchedule.get().getDate(), new Date());
-            log.info("dateDiffInDays between first pending schedule and now for loanId : {} with id : {} is {}", loanId, firstPendingSchedule.get().getId(), dateDiffInDays);
-            if (dateDiffInDays > 90 || (Objects.nonNull(settleAllPrinciple) && settleAllPrinciple) )
-                settleAllPrincipleFirst = true;
-        }
 
         PaymentCalculation paymentCalculation;
-        if (settleAllPrincipleFirst) {
+        if (settleAllPrinciple != null && settleAllPrinciple) {
             paymentCalculation =  settleAllPrincipleFirstThenAllInterest(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
         } else {
             paymentCalculation =  settleEdiByEdi(loanId, unpaidSchedulesForALoan, remainingAmountToSettle);
@@ -164,10 +194,31 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .balance(remainingAmountToSettle)
                 .interestSettled(paidInterest)
                 .principleSettled(paidPrinciple)
+                .allDuePaid(ediRemainingCount == 0 && checkIfAllDuePaid(loanId, unpaidSchedulesForALoan, ediCount))
                 .build();
     }
 
+    // in case of edi by edi loan if terminal edi is repaid is fully
+    // then no further payment will be adjusted irrespective of payment mode...
+    private boolean checkIfAllDuePaid(long loanId, List<LendingEDIScheduleLendingCommon> edis, int ediCount) {
+        log.info("starting checkIfAllDuePaid for loanId : {}", loanId);
+        try {
+            if (!CollectionUtils.isEmpty(edis)) {
+                LendingEDIScheduleLendingCommon schedule = edis.stream().filter(_edi -> _edi.getInstallmentNumber() == ediCount).findAny().orElse(null);
+                if (schedule != null) {
+                    log.info("checkIfAllDuePaid for loanId : {} schId : {} installment_no :{}", loanId, schedule.getId(), schedule.getInstallmentNumber());
+                    return Objects.equals(schedule.getPrinciple(), schedule.getPaidPrinciple()) && Objects.equals(schedule.getInterest(), schedule.getPaidInterest());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception in the loan checkIfAllDuePaid {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        log.info("checkIfAllDuePaid for loanId : {} output: false ", loanId);
+        return false;
+    }
 
+    // adjustExtraBalance is not required - as we explicitly mark loan due as zero
+    // also in case of foreclosure the last edi will not have any paid_interest
     public PaymentCalculation settlePreClosureLoanPayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid) {
 
         // settle all due amount first
@@ -189,61 +240,6 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             PaymentCalculation principalAdjusted =  settleAllPrinciple(loanId, unpaidSchedulesForALoan.getContent(), remainingAmountToSettle);
             remainingAmountToSettle = principalAdjusted.getBalance();
             paidPrinciple += principalAdjusted.getPrincipleSettled();
-            if (unpaidSchedulesForALoan.hasNext() && remainingAmountToSettle > 0) {
-                pageCount++;
-            } else {
-                continueAmountDeduction = false;
-            }
-        }
-
-        log.info("paidPrinciple : {}, paidInterest : {}, remainingAmountToSettle : {} for loanId : {}", paidPrinciple, paidInterest, remainingAmountToSettle, loanId);
-        return PaymentCalculation.builder()
-                .received(amountBeingPaid)
-                .used(paidPrinciple + paidInterest)
-                .balance(remainingAmountToSettle)
-                .interestSettled(paidInterest)
-                .principleSettled(paidPrinciple)
-                .build();
-    }
-
-
-    public PaymentCalculation settleLoanPayment(LendingPaymentSchedule activeLoan, Boolean settleAllPrinciple, Double amountBeingPaid) {
-
-        double ediCanBePaid = getHowManyCanBePaid(amountBeingPaid, activeLoan.getEdiAmount());
-        // +2 is because  ediCanBePaid = 3.8 ... 3 complete and 0.8 is partially adjusted
-        // but let say in some previous iteration loan was paid 0.4  so  0.8 + 0.4 = 1.2 (edi can be adjust in addition to 3 complete)
-        int totalEdiAdjustment = (int) ediCanBePaid + 2;
-        long loanId = activeLoan.getId();
-        int ediCount = (Objects.nonNull(activeLoan.getEdiCount())) ? activeLoan.getEdiCount() : 0;
-        int ediRemainingCount = (Objects.nonNull(activeLoan.getEdiRemainingCount())) ? activeLoan.getEdiRemainingCount() : 0;
-
-        Integer ediCreatedTillDate = ediCount - ediRemainingCount;
-        log.info("ediCreatedTillDate : {} for loanId : {}", ediCreatedTillDate, loanId);
-
-        Double paidPrinciple = 0d;
-        Double paidInterest = 0d;
-        Double remainingAmountToSettle = amountBeingPaid;
-        boolean settleAllPrincipleFirst = Objects.nonNull(settleAllPrinciple) ? settleAllPrinciple : false;
-
-        int pageCount = 0;
-        boolean continueAmountDeduction = true;
-
-        int pageSize = Math.min(PAGE_SIZE, totalEdiAdjustment);
-
-        while(continueAmountDeduction) {
-            Pageable pageable = PageRequest.of(pageCount, pageSize);
-            Slice<LendingEDIScheduleLendingCommon> unpaidSchedulesForALoan = lendingEDIScheduleLendingCommonDao.findAllUnpaidSchedulesForALoan(loanId, pageable);
-            PaymentCalculation paymentCalculation;
-            if (settleAllPrincipleFirst) {
-                paymentCalculation =  settleAllPrincipleFirstThenAllInterest(loanId,unpaidSchedulesForALoan.getContent(), remainingAmountToSettle);
-            } else {
-                paymentCalculation =  settleEdiByEdi(loanId, unpaidSchedulesForALoan.getContent(), remainingAmountToSettle);
-            }
-
-            remainingAmountToSettle = paymentCalculation.getBalance();
-            paidPrinciple += paymentCalculation.getPrincipleSettled();
-            paidInterest += paymentCalculation.getInterestSettled();
-
             if (unpaidSchedulesForALoan.hasNext() && remainingAmountToSettle > 0) {
                 pageCount++;
             } else {
@@ -404,10 +400,6 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .balance(balance)
                 .principleSettled(principalAdjusted)
                 .build();
-    }
-
-    private double getHowManyCanBePaid(Double amountBeingPaid, Double ediAmount) {
-        return amountBeingPaid/ediAmount;
     }
 
 }

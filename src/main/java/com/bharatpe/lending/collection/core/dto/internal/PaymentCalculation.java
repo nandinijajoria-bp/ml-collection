@@ -19,4 +19,5 @@ public class PaymentCalculation {
     double interestSettled;
     double penaltySettled;
     double chargesSettled;
+    boolean allDuePaid;
 }
