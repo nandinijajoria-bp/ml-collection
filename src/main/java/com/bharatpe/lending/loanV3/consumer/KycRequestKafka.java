@@ -247,7 +247,7 @@ public class KycRequestKafka {
                 log.error("application not found !! {}", applicationId);
             }
             CKycResponseDto cKycResponseDto = kycUtils.getKycData(lendingApplication.get().getMerchantId());
-            if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) && ObjectUtils.isEmpty(poaXml))) {
+            if(kycUtils.isELigibleForLenderKyc(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) && ObjectUtils.isEmpty(poaXml)) {
                 log.info("poaXml not found for applicationId {}", lendingApplication.get().getId());
                 throw new RuntimeException("poaXml not found for application " + lendingApplication.get().getId());
             }
