@@ -13,6 +13,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -102,7 +103,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         }
         log.info("base checks ran for {}", applicationId);
         lenderAssociationDetailsRequestDto.setManageState(true);
-        if(!kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto.getLendingApplication().getMerchantId())) {
+        if(!kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto.getLendingApplication().getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType()))) {
             stagesToBeInvokedInOrder.add(LenderAssociationStages.PiramalAssociationStages.AADHAR_UPLOAD.name());
             stagesToBeInvokedInOrder.add(LenderAssociationStages.PiramalAssociationStages.SELFIE_UPLOAD.name());
         }
@@ -120,7 +121,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     public void checkForGSTDetailsAndInvokeBREWorkflow(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         log.info("entered for check gst and update lead bre flow: {} {}",lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
          if (checkForGSTDetails(lenderAssociationDetailsDto.getApplicationId())) {
-            if(kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId())) {
+            if(kycUtils.isELigibleForLenderKyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()))) {
                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
                commonService.manageApplicationState(lenderAssociationDetailsDto);
                return;

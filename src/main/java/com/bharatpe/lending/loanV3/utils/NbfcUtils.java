@@ -152,7 +152,7 @@ public class NbfcUtils {
                 }
                 lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
                 lendingApplicationDetailsDao.save(lendingApplicationDetails);
-                if(bharatPeKycLenderAlreadyAssigned(lendingApplication.getId(), lendingApplication.getMerchantId()) || (kycUtils.isELigibleForLenderKyc(modifiedLender.name(), lendingApplication.getMerchantId()))) {
+                if(bharatPeKycLenderAlreadyAssigned(lendingApplication.getId(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) || (kycUtils.isELigibleForLenderKyc(modifiedLender.name(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())))) {
                     log.info("Invoking lender association after lender change for applicationId {} {}", lendingApplication.getId(), lendingApplication.getLender());
                     pushApplicationToNextStage(lendingApplication.getId(), modifiedLender.name(), LenderAssociationStages.INIT.name(), Boolean.TRUE);
                 }
@@ -263,12 +263,12 @@ public class NbfcUtils {
     }
 
 
-    public Boolean bharatPeKycLenderAlreadyAssigned(Long applicationId, Long merchantId) {
+    public Boolean bharatPeKycLenderAlreadyAssigned(Long applicationId, Long merchantId, boolean isTopup) {
         try {
             Boolean bpKycLenderFound = Boolean.FALSE;
             List<String> alreadyAssignedLender = lendingApplicationLenderDetailsDao.findLendersByApplicationId(applicationId);
             for(String lender : alreadyAssignedLender) {
-                if(!kycUtils.isELigibleForLenderKyc(lender, merchantId)) {
+                if(!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
                     bpKycLenderFound = Boolean.TRUE;
                     break;
                 }

@@ -7,6 +7,8 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -74,7 +76,7 @@ public class TLCreateClientService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
             LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-            NBFCRequestDTO createLeadRequest = getPayload(lenderAssociationDetailsDto);
+            NBFCRequestDTO createLeadRequest = getPayload(lenderAssociationDetailsDto, kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType())));
             if (Objects.isNull(createLeadRequest)) {
                 log.info("error in create lead payload of TrillionLoans for applicationId: {}", lendingApplication.getId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
@@ -87,7 +89,10 @@ public class TLCreateClientService {
                 log.info("createLead request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
                 TLCreateClientResponseDto createClientResponse = objectMapper.readValue( objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateClientResponseDto.class);
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setCccId(createClientResponse.getClientId().toString());
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
+                if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())))
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.SELFIE_UPLOAD_PENDING.name());
+                else
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
                 commonService.manageApplicationState(lenderAssociationDetailsDto);
                 return true;
             }
@@ -99,7 +104,7 @@ public class TLCreateClientService {
         return false;
     }
 
-    private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+    private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, boolean isLenderKYC) {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
@@ -109,7 +114,7 @@ public class TLCreateClientService {
                     .productName("LENDING")
                     .payload(TLCreateClientRequestDto.builder()
                             .clientDetails(getClientDetails(lendingApplication, cKycResponseDto))
-                            .addressDetails(getAddressDetails(lendingApplication, cKycResponseDto))
+                            .addressDetails(!isLenderKYC ? getAddressDetails(lendingApplication, cKycResponseDto) : null)
                             .bankDetails(getBankDetails(lendingApplication, cKycResponseDto))
                             .clientIdentifierDetails(getClientIdentifier(cKycResponseDto))
                             .employmentDetails(getEmploymentDetails())
