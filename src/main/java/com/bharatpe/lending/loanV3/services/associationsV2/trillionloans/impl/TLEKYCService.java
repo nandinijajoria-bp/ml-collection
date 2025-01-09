@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -64,7 +65,9 @@ public class TLEKYCService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            if(ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if(kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()))){
+                lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getPanData(lenderAssociationDetailsDto.getLendingApplication().getMerchantId()));
+            } else if(ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getPanData(lenderAssociationDetailsDto.getLendingApplication().getMerchantId()));
             }
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStages.EKYC.name());
@@ -140,8 +143,9 @@ public class TLEKYCService {
                     if(ObjectUtils.isEmpty(action)){
                         log.error("Trillionloans actions are empty for application Id: {} so modifying lender or trying again", lendingApplication.getId());
                     }else {
+                        log.info("populating applicationId {}", lendingApplication.getId());
                         CKycResponseDto cKycResponseDto = populateEkycDetails(action);
-                        return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto);
+                        return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto, LenderAssociationStatus.EKYC_COMPLETED);
                     }
                 } else if(isEkyc){
 
@@ -149,7 +153,11 @@ public class TLEKYCService {
 
                     if(!ObjectUtils.isEmpty(eKycCallbackResponse) && Arrays.asList("approval_pending", "approved", "success").contains(eKycCallbackResponse.getPayload().getKycRequest().getStatus())){
 
+                        log.info("ekyc callback is approved for applicationId {}", lendingApplication.getId());
+
                         NBFCRequestDTO cKycStatusInfoRequest = getPayloadForEKycStatusInfo(lendingApplicationLenderDetails);
+
+                        log.info("invoke ekyc status check {}", lendingApplication.getId());
 
                         NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(cKycStatusInfoRequest, LenderAssociationStages.EKYC_STATUS);
 
@@ -159,11 +167,10 @@ public class TLEKYCService {
                             log.error("Trillionloans actions are empty for application Id: {} so modifying lender or trying again", lendingApplication.getId());
                         } else {
                             CKycResponseDto cKycResponseDto = populateEkycDetails(action);
-                            return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto);
+                            return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto, LenderAssociationStatus.EKYC_COMPLETED);
                         }
-                    } else {
-                        log.info("lender Trillions some of the fields are missing to set for kyc details for application Id: {} so modifying lender or trying again", lendingApplication.getId());
                     }
+                    log.info("lender Trillions some of the fields are missing to set for kyc details for application Id: {} so modifying lender or trying again", lendingApplication.getId());
                 } else {
                     TLCKycCallbackResponseDto cKycCallbackResponse = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLCKycCallbackResponseDto.class);
 
@@ -176,9 +183,10 @@ public class TLEKYCService {
                         TLCKYCStatusInfoResponseDto tlckycStatusInfoResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCKYCStatusInfoResponseDto.class);
 
                         CKycResponseDto cKycResponseDto = populateCkycDetails(tlckycStatusInfoResponseDto);
-                        return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto);
+                        return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto, LenderAssociationStatus.CKYC_COMPLETED);
                     }
                 }
+                log.info("cKyc callback Response not verified for Trillions applicationId {}", lendingApplication.getId());
             }
             Integer currentEKycRetryCount = ObjectUtils.isEmpty(lendingApplicationLenderDetails.getKycRetryCount()) ? 0 : lendingApplicationLenderDetails.getKycRetryCount();
             if(currentEKycRetryCount < tlEKycRetryCount) {
@@ -207,11 +215,11 @@ public class TLEKYCService {
     }
 
 
-    private Boolean updateKYCDataAndPushToNextStage(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, Long applicationId, CKycResponseDto cKycResponseDto){
+    private Boolean updateKYCDataAndPushToNextStage(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, Long applicationId, CKycResponseDto cKycResponseDto, LenderAssociationStatus lenderAssociationStatus){
 
         kycUtils.savePoaDetailsForLenderKyc(applicationId, cKycResponseDto);
-        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_COMPLETED.name());
-        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.EKYC_COMPLETED.name());
+        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(lenderAssociationStatus.name());
+        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(lenderAssociationStatus.name());
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycRetryCount(0);
         commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
 

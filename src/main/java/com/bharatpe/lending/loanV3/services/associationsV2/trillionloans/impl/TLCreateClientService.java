@@ -12,6 +12,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLCreateClientRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLCreateClientResponseDto;
@@ -63,6 +64,9 @@ public class TLCreateClientService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
+            if(kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()))){
+                lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getPanData(lenderAssociationDetailsDto.getLendingApplication().getMerchantId()));
+            }
             if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
@@ -106,6 +110,8 @@ public class TLCreateClientService {
 
     private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, boolean isLenderKYC) {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
+        NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lenderAssociationDetailsRequest.getMerchantId());
+
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
             return NBFCRequestDTO.builder()
@@ -113,7 +119,7 @@ public class TLCreateClientService {
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
                     .payload(TLCreateClientRequestDto.builder()
-                            .clientDetails(getClientDetails(lendingApplication, cKycResponseDto))
+                            .clientDetails(getClientDetails(lendingApplication, cKycResponseDto, nameAndDobDetailsDto))
                             .addressDetails(!isLenderKYC ? getAddressDetails(lendingApplication, cKycResponseDto) : null)
                             .bankDetails(getBankDetails(lendingApplication, cKycResponseDto))
                             .clientIdentifierDetails(getClientIdentifier(cKycResponseDto))
@@ -133,13 +139,13 @@ public class TLCreateClientService {
                 .build();
     }
 
-    private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
+    private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto) {
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         return TLCreateClientRequestDto.ClientDetails.builder()
-                .firstName(kycUtils.getFirstName(cKycResponseDto))
-                .middleName(kycUtils.getMiddleName(cKycResponseDto))
-                .lastName(kycUtils.getLastName(cKycResponseDto))
-                .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
+                .firstName(nameAndDobDetailsDto.getFirstName())
+                .middleName(nameAndDobDetailsDto.getMiddleName())
+                .lastName(nameAndDobDetailsDto.getLastName())
+                .dateOfBirth(DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
                 .gender(kycUtils.getGender(cKycResponseDto.getGender()))
                 .mobileNo(mobile)
                 .externalId(lendingApplication.getExternalLoanId())
