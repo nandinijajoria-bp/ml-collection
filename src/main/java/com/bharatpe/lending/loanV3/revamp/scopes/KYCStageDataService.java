@@ -125,7 +125,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         }
         initiateKycResponse.setLender(lendingApplication.getLender());
         boolean isResubmittedApplication = false;
-        initiateKycResponse.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()));
+        initiateKycResponse.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
         LendingResubmitReasonCount lendingResubmitReasonCount = null;
         if(ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(lendingApplication.getStatus())){
             lendingResubmitReasonCount = lendingResubmitReasonCountDao.findTopByApplicationIdAndResubmitReasonAndResubmitDoneOrderByIdDesc(lendingApplication.getId(), "INCORRECT_SELFIE", Boolean.FALSE);
@@ -299,7 +299,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         initiateKycResponse.setLender(lendingApplication.getLender());
         initiateKycResponse.setTopup(isTopup);
-        List<KycDocType> docTypes = new ArrayList<>(getKycTypesByLender(Lender.valueOf(lendingApplication.getLender()), lendingApplication.getMerchantId()));
+        List<KycDocType> docTypes = new ArrayList<>(getKycTypesByLender(Lender.valueOf(lendingApplication.getLender()), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 //        docTypes.add(KycDocType.PAN_CARD);
         if(isResubmittedApplication) {
             docTypes.clear();
@@ -319,7 +319,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 .panNumber(experian.getPancardNumber())
                 .callBackUrl(callBackURL)
                 .merchantId(merchantId.toString()).build();
-        boolean onlySelfieLivelinessRequired = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId());
+        boolean onlySelfieLivelinessRequired = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
         Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchantId, initiateKycDTO, docTypes, validAfter, onlySelfieLivelinessRequired);
         if (ckycResponseObj.containsKey("ckycId")) {
             lendingApplicationDao.updateKycId(lendingApplication.getId(), ckycResponseObj.get("ckycId"), merchantId);
@@ -345,11 +345,11 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         boolean aadharDigilocker = false;
 //        boolean panCardApproved = false;
         boolean panNoApproved = false;
-        String docs = getKycDocsForVerificationByLender(Lender.valueOf(lendingApplicationKycDetails.getLender()), lendingApplicationKycDetails.getMerchantId());
+        String docs = getKycDocsForVerificationByLender(Lender.valueOf(lendingApplicationKycDetails.getLender()), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType));
         if (isResubmittedApplication) {
             docs = "SELFIE";
         }
-        Boolean acceptDraft = kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId());
+        Boolean acceptDraft = kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType));
         Boolean acceptRejected = !acceptDraft;
         KycDocResponseDTO kycDocResponseDTO = kycHandler.getKycDocs(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER, docs, acceptRejected, acceptDraft);
         log.info("KYC docs fetched for merchantId : {}", merchantId);
@@ -359,7 +359,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         for (KycDoc kycDoc : kycDocResponseDTO.getKycDocs()) {
             switch (kycDoc.getDocType()) {
                 case SELFIE:
-                    if (KycDocStatus.APPROVED.equals(kycDoc.getStatus()) || (kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId()) && KycDocStatus.DRAFT.equals(kycDoc.getStatus()))) {
+                    if (KycDocStatus.APPROVED.equals(kycDoc.getStatus()) || (kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType)) && KycDocStatus.DRAFT.equals(kycDoc.getStatus()))) {
                         log.info("Selfie doc is valid for merchantId:{}", merchantId);
                         lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
                         if (Objects.isNull(lendingApplicationKycDetails.getSelfieApprovedAt()))
@@ -407,7 +407,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             aadharDigilocker = true;
             panNoApproved = true;
         }
-        if(kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId())) {
+        if(kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType))) {
             aadharValid = true;
             aadharDigilocker = true;
             panNoApproved = true;
@@ -425,11 +425,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         return kycVerified;
     }
 
-    private List<KycDocType> getKycTypesByLender(Lender lender, Long merchantId) {
-        if(kycUtils.isELigibleForLenderKyc(lender.name(), merchantId)) {
+    private List<KycDocType> getKycTypesByLender(Lender lender, Long merchantId, boolean isTopup) {
+        if(kycUtils.isELigibleForLenderKyc(lender.name(), merchantId, isTopup)) {
             switch (lender) {
                 case ABFL:
                 case PIRAMAL:
+                case TRILLIONLOANS:
                     return Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE);
                 default:
                     return Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.EKYC);
@@ -438,11 +439,12 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         return Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.EKYC);
     }
 
-    private String getKycDocsForVerificationByLender(Lender lender, Long merchantId) {
-        if(kycUtils.isELigibleForLenderKyc(lender.name(), merchantId)) {
+    private String getKycDocsForVerificationByLender(Lender lender, Long merchantId, boolean isTopup) {
+        if(kycUtils.isELigibleForLenderKyc(lender.name(), merchantId, isTopup)) {
             switch (lender) {
                 case ABFL:
                 case PIRAMAL:
+                case TRILLIONLOANS:
                     return "PAN_NO,SELFIE";
                 default:
                     return "PAN_NO,SELFIE,POA";

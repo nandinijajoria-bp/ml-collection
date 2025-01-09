@@ -85,6 +85,9 @@ public class KycUtils {
     @Value("${piramal.lender.kyc.rollout.percent:1}")
     Integer piramalLenderKycRolloutPercent;
 
+    @Value("${trillion.lender.kyc.rollout.percent:1}")
+    Integer trillionLenderKycRolloutPercent;
+
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
@@ -409,19 +412,19 @@ public class KycUtils {
             lendingApplicationKycDetails.setAadharState(cKycResponseDto.getState());
             lendingApplicationKycDetails.setAadharCity(cKycResponseDto.getCity());
             lendingApplicationKycDetails.setAadharPinCode(cKycResponseDto.getPincode());
-            String fileName = applicationId + "_" + UUID.randomUUID() + ".jpeg";
-            lendingApplicationKycDetails.setAadharImage(s3BucketHandler.uploadToS3Bucket(cKycResponseDto.getSelfieBase64(), fileName, bucketName));
             lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
         }
     }
 
-    public Boolean isELigibleForLenderKyc(String lender, Long merchantId) {
+    public Boolean isELigibleForLenderKyc(String lender, Long merchantId, boolean isTopup) {
         if(lenderKycPipeLenders.contains(lender)) {
             switch (lender) {
                 case "ABFL" :
                     return easyLoanUtil.percentScaleUp(merchantId, abflLenderKycRolloutPercent);
                 case "PIRAMAL":
                     return easyLoanUtil.percentScaleUp(merchantId, piramalLenderKycRolloutPercent);
+                case "TRILLIONLOANS":
+                    return !isTopup && easyLoanUtil.percentScaleUp(merchantId, trillionLenderKycRolloutPercent);
                 default:
                     return false;
             }

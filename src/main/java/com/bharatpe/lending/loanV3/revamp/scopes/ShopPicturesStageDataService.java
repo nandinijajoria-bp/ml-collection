@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -117,7 +118,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                     }
                 }
             }
-            shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()));
+            shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 
             if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()))shopPicturesStateDTO.setDummyMerchant(true);
             scopeDataArgs.setApplicationId(lendingApplication.getId());
