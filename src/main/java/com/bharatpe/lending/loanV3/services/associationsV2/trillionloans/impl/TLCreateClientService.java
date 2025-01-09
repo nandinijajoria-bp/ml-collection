@@ -64,13 +64,15 @@ public class TLCreateClientService {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
                 return false;
             }
-            if(kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()))){
+            boolean isEligibleForKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
+            if(isEligibleForKyc){
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getPanData(lenderAssociationDetailsDto.getLendingApplication().getMerchantId()));
-            }
-            if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            } else if (InvokeCreateLeadAndDocUploadWrapperService.kycDataNeeded(LenderAssociationStages.CREATE_LEAD.name()) && ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
-            if (payloadValidation.isInValidCreateClientPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if(isEligibleForKyc){
+                log.info("Data getting fetched from NSDL for createClient of TrillionLoans : {}", lenderAssociationDetailsDto.getApplicationId());
+            } else if (payloadValidation.isInValidCreateClientPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 log.info("invalid response from downstream api for createClient of TrillionLoans : {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.CREATE_CLIENT_FAILED);
@@ -80,7 +82,7 @@ public class TLCreateClientService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
             LendingApplication lendingApplication = lenderAssociationDetailsDto.getLendingApplication();
-            NBFCRequestDTO createLeadRequest = getPayload(lenderAssociationDetailsDto, kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType())));
+            NBFCRequestDTO createLeadRequest = getPayload(lenderAssociationDetailsDto, isEligibleForKyc);
             if (Objects.isNull(createLeadRequest)) {
                 log.info("error in create lead payload of TrillionLoans for applicationId: {}", lendingApplication.getId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
@@ -93,7 +95,7 @@ public class TLCreateClientService {
                 log.info("createLead request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
                 TLCreateClientResponseDto createClientResponse = objectMapper.readValue( objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateClientResponseDto.class);
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setCccId(createClientResponse.getClientId().toString());
-                if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())))
+                if(isEligibleForKyc)
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.SELFIE_UPLOAD_PENDING.name());
                 else
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
@@ -119,7 +121,7 @@ public class TLCreateClientService {
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
                     .payload(TLCreateClientRequestDto.builder()
-                            .clientDetails(getClientDetails(lendingApplication, cKycResponseDto, nameAndDobDetailsDto))
+                            .clientDetails(getClientDetails(lendingApplication, cKycResponseDto, nameAndDobDetailsDto, isLenderKYC))
                             .addressDetails(!isLenderKYC ? getAddressDetails(lendingApplication, cKycResponseDto) : null)
                             .bankDetails(getBankDetails(lendingApplication, cKycResponseDto))
                             .clientIdentifierDetails(getClientIdentifier(cKycResponseDto))
@@ -139,9 +141,10 @@ public class TLCreateClientService {
                 .build();
     }
 
-    private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto) {
+    private TLCreateClientRequestDto.ClientDetails getClientDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, NameAndDobDetailsDto nameAndDobDetailsDto, boolean isLenderKyc) {
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
-        return TLCreateClientRequestDto.ClientDetails.builder()
+
+        return  isLenderKyc ? TLCreateClientRequestDto.ClientDetails.builder()
                 .firstName(nameAndDobDetailsDto.getFirstName())
                 .middleName(nameAndDobDetailsDto.getMiddleName())
                 .lastName(nameAndDobDetailsDto.getLastName())
@@ -149,7 +152,16 @@ public class TLCreateClientService {
                 .gender(kycUtils.getGender(cKycResponseDto.getGender()))
                 .mobileNo(mobile)
                 .externalId(lendingApplication.getExternalLoanId())
-                .build();
+                .build() :
+                TLCreateClientRequestDto.ClientDetails.builder()
+                        .firstName(kycUtils.getFirstName(cKycResponseDto))
+                        .middleName(kycUtils.getMiddleName(cKycResponseDto))
+                        .lastName(kycUtils.getLastName(cKycResponseDto))
+                        .dateOfBirth(DateTimeUtil.formatDate(cKycResponseDto.getDob(), "dd/MM/yyyy",  "dd-MM-yyyy"))
+                        .gender(kycUtils.getGender(cKycResponseDto.getGender()))
+                        .mobileNo(mobile)
+                        .externalId(lendingApplication.getExternalLoanId())
+                        .build();
     }
 
     public List<TLCreateClientRequestDto.AddressDetails> getAddressDetails(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
