@@ -10,5 +10,4 @@ import lombok.Data;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TLEKYCRequestDto {
     private String clientId;
-    private Long leadId;
 }
