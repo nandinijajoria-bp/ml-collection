@@ -85,10 +85,15 @@ public class TLDocUploadService {
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "PENDING").name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
 
+            boolean isEligibleForKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
+
             if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
-            if (payloadValidation.isInValidDocUploadPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {
+
+            if(isEligibleForKyc){
+                log.info("TrillionLoans docUpload validation skipped as digio xml not present: {}", lenderAssociationDetailsDto.getApplicationId());
+            } else if (payloadValidation.isInValidDocUploadPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 log.info("invalid response from downstream api for TrillionLoans docUpload: {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "FAILED").name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, getStatusforDocumentUpload(docName, "FAILED"));
