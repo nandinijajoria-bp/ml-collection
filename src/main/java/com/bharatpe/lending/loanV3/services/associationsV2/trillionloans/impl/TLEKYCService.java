@@ -123,7 +123,7 @@ public class TLEKYCService {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
-            if(!Arrays.asList(LenderAssociationStatus.KYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_RETRY.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
+            if(!Arrays.asList(LenderAssociationStatus.CKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_RETRY.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
                 log.info("eKyc status of {} application is not correct for applicationId {} for callback ", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
@@ -150,6 +150,12 @@ public class TLEKYCService {
                 } else if(isEkyc){
 
                     TLEkycCallbackResponseDto eKycCallbackResponse = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLEkycCallbackResponseDto.class);
+                    if(!ObjectUtils.isEmpty(eKycCallbackResponse) && "EKYC_HARD_FAILED".equalsIgnoreCase(eKycCallbackResponse.getPayload().getKycRequest().getStatus())) {
+                        log.info("marking application hard failed as ekyc at lender is still in progress for application {}", lendingApplication.getId());
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_FAILED.name());
+                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.EKYC_FAILED);
+                        return false;
+                    }
 
                     if(!ObjectUtils.isEmpty(eKycCallbackResponse) && Arrays.asList("approval_pending", "approved", "success").contains(eKycCallbackResponse.getPayload().getKycRequest().getStatus())){
 
@@ -250,6 +256,7 @@ public class TLEKYCService {
                     .lender(lendingApplication.getLender())
                     .applicationId(lendingApplication.getId())
                     .productName("LENDING")
+                    .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
                     .payload(
                             TLEkycStatusCheckRequestDto.builder()
                                     .digiId(existingLendingApplicationLenderDetails.getDealId())
@@ -275,12 +282,16 @@ public class TLEKYCService {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
 
         try {
+            LinkedHashMap<String, Object> identifiers = new LinkedHashMap<>();
+            identifiers.put("leadId", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId());
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
+                    .identifier(identifiers)
                     .payload(TLEKYCRequestDto.builder()
                             .clientId(lendingApplicationLenderDetails.getCccId())
+                            .leadId(Long.parseLong(lendingApplicationLenderDetails.getLeadId()))
                             .build())
                     .build();
         } catch (Exception e) {
