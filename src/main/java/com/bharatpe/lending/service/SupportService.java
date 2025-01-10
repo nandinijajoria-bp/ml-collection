@@ -1088,20 +1088,19 @@ public class SupportService {
 
                     SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
 
-                    //Todo : uncomment after testing
-//                    LendingPayoutResponseDTO lendingPayouts =
-//                            lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule1.getMerchantId(),
-//                                    lendingPaymentSchedule1.getId(), "PF_CASHBACK");
-//                    if (!Objects.isNull(lendingPayouts) && !ObjectUtils.isEmpty(lendingPayouts)) {
-//                        loanArrangerFee.setArrangerFeeRefundEligible(false);
-//                        loanArrangerFee.setArrangerFeeRefunded(true);
-//                        loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
-//                        loanArrangerFee.setInEligibleReason(SupportConstants.ALREADY_REFUNDED);
-//                        loanArrangerFee.setUtr(lendingPayouts.getBankReferenceNo());
-//                        loanArrangerFee.setRefundType(lendingPayouts.getMessage());
-//                    } else {
-//                        populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
-//                    }
+                    LendingPayoutResponseDTO lendingPayouts =
+                            lendingPayoutsHandler.findTopByMerchantIdAndOwnerIdAndStatusAndOrderIdLike(lendingPaymentSchedule1.getMerchantId(),
+                                    lendingPaymentSchedule1.getId(), "PF_CASHBACK");
+                    if (!Objects.isNull(lendingPayouts) && !ObjectUtils.isEmpty(lendingPayouts)) {
+                        loanArrangerFee.setArrangerFeeRefundEligible(false);
+                        loanArrangerFee.setArrangerFeeRefunded(true);
+                        loanArrangerFee.setTimestamp(lendingPayouts.getPaidAt());
+                        loanArrangerFee.setInEligibleReason(SupportConstants.ALREADY_REFUNDED);
+                        loanArrangerFee.setUtr(lendingPayouts.getBankReferenceNo());
+                        loanArrangerFee.setRefundType(lendingPayouts.getMessage());
+                    } else {
+                        populateArrangerFeeEligible(lendingPaymentSchedule1, loanArrangerFee);
+                    }
                     //refund details
                     List<LendingRefundLedger> lendingRefundLedgerList = lendingRefundLedgerDao.findByMerchantIdAndLoanIdAndStatus(lendingPaymentSchedule1.getMerchantId(),
                             lendingPaymentSchedule1.getId(), "SUCCESS");
