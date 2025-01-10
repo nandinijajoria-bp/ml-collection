@@ -123,7 +123,7 @@ public class TLEKYCService {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
-            if(!Arrays.asList(LenderAssociationStatus.KYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_RETRY.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
+            if(!Arrays.asList(LenderAssociationStatus.CKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_RETRY.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
                 log.info("eKyc status of {} application is not correct for applicationId {} for callback ", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
@@ -145,7 +145,7 @@ public class TLEKYCService {
                     }else {
                         log.info("populating applicationId {}", lendingApplication.getId());
                         CKycResponseDto cKycResponseDto = populateEkycDetails(action);
-                        return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto, LenderAssociationStatus.EKYC_COMPLETED);
+                        return updateKYCDataAndPushToNextStage(lenderAssociationDetailsRequest, lendingApplication.getId(), cKycResponseDto, LenderAssociationStatus.KYC_IN_PROGRESS);
                     }
                 } else if(isEkyc){
 
@@ -221,7 +221,10 @@ public class TLEKYCService {
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(lenderAssociationStatus.name());
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(lenderAssociationStatus.name());
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycRetryCount(0);
-        commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
+        if(LenderAssociationStatus.KYC_IN_PROGRESS.name().equalsIgnoreCase(lenderAssociationStatus.name()))
+            commonService.manageApplicationState(lenderAssociationDetailsRequest);
+        else
+            commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
 
         log.info("Trillion EKyc is completed for applicationId {}", applicationId);
         return true;
@@ -253,6 +256,7 @@ public class TLEKYCService {
                     .payload(
                             TLEkycStatusCheckRequestDto.builder()
                                     .digiId(existingLendingApplicationLenderDetails.getDealId())
+                                    .leadId(existingLendingApplicationLenderDetails.getLeadId())
                                     .build())
                     .build();
             NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(payload, LenderAssociationStages.EKYC_STATUS);

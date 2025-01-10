@@ -83,6 +83,7 @@ public class TLDocUploadService {
             docName = getDocName(docType);
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(docType);
             lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "PENDING").name());
+            lenderAssociationDetailsDto.setModifyLender(Boolean.TRUE);
             commonService.manageApplicationState(lenderAssociationDetailsDto);
 
             boolean isEligibleForKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
@@ -117,7 +118,7 @@ public class TLDocUploadService {
                         MDC.clear();
                         return false;
                     }
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_IN_PROGRESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CKYC_IN_PROGRESS.name());
                 } else {
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "SUCCESS").name());
                 }

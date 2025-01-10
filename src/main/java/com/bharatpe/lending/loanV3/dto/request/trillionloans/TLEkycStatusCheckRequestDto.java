@@ -9,4 +9,6 @@ import lombok.Data;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class TLEkycStatusCheckRequestDto {
     private String digiId;
+    private String leadId;
+
 }
