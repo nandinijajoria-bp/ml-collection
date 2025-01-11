@@ -367,7 +367,7 @@ public class TLEKYCService {
         cKycDto.setPincode(permanentAddress.get().getPincode());
         cKycDto.setState(permanentAddress.get().getState());
         cKycDto.setGender(tlckycStatusInfoResponseDto.getPersonalInfo().getGender());
-        cKycDto.setAadharNumber(aadhaarDocumentInfo.get().getAadharId());
+        cKycDto.setAadharNumber(aadhaarDocumentInfo.isPresent() ? aadhaarDocumentInfo.get().getAadharId() : null);
         cKycDto.setCareOf(tlckycStatusInfoResponseDto.getPersonalInfo().getFatherName());
 
         return cKycDto;
