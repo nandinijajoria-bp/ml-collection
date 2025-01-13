@@ -109,7 +109,6 @@ public class TLEKYCService {
     }
 
     public boolean processKycCallback(NBFCResponseDTO nbfcResponseDTO, Boolean isEkyc, Boolean isEKYCStatusCheck) {
-        try {
             LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
             if(ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("No application found for applicationId : {}", nbfcResponseDTO.getApplicationId());
@@ -132,6 +131,7 @@ public class TLEKYCService {
                     .manageState(true)
                     .modifyLender(true)
                     .build();
+        try {
             if (nbfcResponseDTO.getSuccess() && Objects.nonNull(nbfcResponseDTO.getData())) {
 
                 if(isEKYCStatusCheck){
@@ -193,11 +193,11 @@ public class TLEKYCService {
                 commonService.manageApplicationState(lenderAssociationDetailsRequest);
                 return true;
             }
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_FAILED.name());
-            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.EKYC_FAILED);
         } catch (Exception e) {
             log.error("exception while processing eKyc callback of Trillion for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getLenderAssociationStaus(isEkyc|| isEKYCStatusCheck).name());
+        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, getLenderAssociationStaus(isEkyc || isEKYCStatusCheck));
         return true;
     }
 
@@ -373,6 +373,14 @@ public class TLEKYCService {
 
         return cKycDto;
 
+    }
+
+
+    private LenderAssociationStatus getLenderAssociationStaus(boolean isEkyc){
+        if(isEkyc){
+            return LenderAssociationStatus.EKYC_FAILED;
+        }
+        return LenderAssociationStatus.CKYC_FAILED;
     }
 
 
