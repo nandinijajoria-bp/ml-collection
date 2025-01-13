@@ -28,10 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -278,11 +275,15 @@ public class TLEKYCService {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
 
+        LinkedHashMap<String, Object> hashMap = new LinkedHashMap();
+        hashMap.put("leadId", lendingApplicationLenderDetails.getLeadId());
+        hashMap.put("digiId", lendingApplicationLenderDetails.getDealId());
         try {
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
+                    .identifier(hashMap)
                     .payload(TLEKYCRequestDto.builder()
                             .clientId(lendingApplicationLenderDetails.getCccId())
                             .build())
