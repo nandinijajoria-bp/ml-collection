@@ -11,6 +11,7 @@ import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
+import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
@@ -441,6 +442,11 @@ public class SupportService {
             loanApplication.setApplicationRecvDate(lendingApplication.getCreatedAt());
             logger.info("LENDING APPLICATION ID -> {}", lendingApplication.getId());
             loanApplication.setApplicationId(lendingApplication.getId());
+            supportLoanResponseDTO.setNbfcSendDate(lendingApplication.getNbfcSendDate());
+            MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId);
+            if(Objects.nonNull(enachSuccess)){
+                supportLoanResponseDTO.setNachCompletionDate(enachSuccess.getUpdatedAt());
+            }
 
             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
             loanArrangerFee.setFeeAmount(lendingApplication.getProcessingFee());
