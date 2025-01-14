@@ -130,11 +130,7 @@ public class MileStoneHelperService {
         entity.setComment(null);
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(entity.getCreatedAt());
-        if (days == 30) {
-            calendar.add(Calendar.DATE, 30);
-        } else {
-            calendar.add(Calendar.DATE, 60);
-        }
+        calendar.add(Calendar.DATE, days);
         entity.setExpiryDate(calendar.getTime());
         mileStoneDao.save(entity);
         return entity;
