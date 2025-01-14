@@ -722,7 +722,7 @@ public class VerifyOTPService {
 
     private void updateKycStatus(LendingApplication lendingApplication) {
         try {
-            KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId()) ?
+            KycStatusDTO kycStatus = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) ?
                     kycHandler.getKycStatusForLenderKycPipe(lendingApplication.getMerchantId()) : kycHandler.getKycStatus(lendingApplication.getMerchantId());
             logger.info("kyc status:{} for application:{}", kycStatus, lendingApplication.getId());
             lendingApplication.setCkycStatus(kycStatus.getKycStatus().name());

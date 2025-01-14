@@ -11,7 +11,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @NoArgsConstructor
 @AllArgsConstructor
-public class AbflTopupRpsResponseDTO {
+public class AbflRpsResponseDTO {
     Long applicationId;
     String lender;
     Boolean success;

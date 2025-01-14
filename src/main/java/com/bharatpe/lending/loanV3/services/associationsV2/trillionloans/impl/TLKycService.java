@@ -64,17 +64,31 @@ public class TLKycService {
                 log.info("KYC callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), kycCallbackResponseDto);
                 if (!ObjectUtils.isEmpty(kycCallbackResponseDto)) {
                     if (kycCallbackResponseDto.getKycStatus().equalsIgnoreCase("VERIFIED")) {
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.AADHAR_UPLOAD_SUCCESS.name());
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getKYCStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode(), true).name());
                         commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                         return true;
                     }
                 }
             }
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.AADHAR_UPLOAD_FAILED.name());
-            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.AADHAR_UPLOAD_FAILED);
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getKYCStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode(), false).name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, getKYCStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode(), false));
         } catch (Exception e) {
             log.error("exception while processing KYC callback of Muthoot for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return false;
+    }
+
+    private LenderAssociationStatus getKYCStatus(String kycMode, boolean isSuccess){
+
+        if(ObjectUtils.isEmpty(kycMode)){
+            if(isSuccess){
+                return LenderAssociationStatus.AADHAR_UPLOAD_SUCCESS;
+            }
+            return LenderAssociationStatus.AADHAR_UPLOAD_FAILED;
+        }
+        if(isSuccess){
+            return LenderAssociationStatus.KYC_COMPLETED;
+        }
+        return LenderAssociationStatus.KYC_FAILED;
     }
 }

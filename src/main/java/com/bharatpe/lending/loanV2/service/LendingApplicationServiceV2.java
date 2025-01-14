@@ -4050,7 +4050,7 @@ public class LendingApplicationServiceV2 {
                         lendingGstDetail.setAddressType("Same");
                     }
                 }
-                if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
+                if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                     LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
                     if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                         lendingGstDetail.setAddress1(lendingApplicationKycDetails.getAadharAddress());
@@ -4108,7 +4108,7 @@ public class LendingApplicationServiceV2 {
                     return new ApiResponse<>(dto);
                 }
             }
-            if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId())) {
+            if(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, lendingApplication.getLender());
                 if (!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                     AadhaarAddressResponseDTO dto = new AadhaarAddressResponseDTO();

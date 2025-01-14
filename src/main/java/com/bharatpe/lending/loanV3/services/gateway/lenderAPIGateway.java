@@ -86,6 +86,15 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.topup.approve.api:api/v3/lender/topup-approve}")
     String topupApproveUrl;
 
+    @Value("${nbfc.eKyc.api:api/v3/lender/eKyc}")
+    String nbfcEKycUrl;
+
+    @Value("${nbfc.ekyc.status.check.api:api/v3/lender/eKyc-status-check}")
+    String getEkycStatusCheck;
+
+    @Value("${nbfc.ckyc.status.check.api:api/v3/lender/ckyc-info}")
+    String getCkycStatusCheck;
+
     @Value("${http.payu.read.timeout:20000}")
     int payuReadTimeout;
 
@@ -150,6 +159,12 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+addChargeUrl;
             case "TOPUP_APPROVE":
                 return nbfcBaseUrl+topupApproveUrl;
+            case "EKYC":
+                return nbfcBaseUrl + nbfcEKycUrl;
+            case "EKYC_STATUS":
+                return nbfcBaseUrl+getEkycStatusCheck;
+            case "CKYC_INFO":
+                return nbfcBaseUrl+getCkycStatusCheck;
             default:
                 return null;
         }

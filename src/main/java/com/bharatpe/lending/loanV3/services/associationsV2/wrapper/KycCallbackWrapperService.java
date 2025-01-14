@@ -25,10 +25,19 @@ public class KycCallbackWrapperService {
 
     public void lenderEKycCallback(NBFCResponseDTO nbfcResponseDTO) {
         try {
-            log.info("KYC callback received {}", nbfcResponseDTO);
+            log.info("EKYC callback received {}", nbfcResponseDTO);
             associationServiceUtil.handleEKycCallback(nbfcResponseDTO.getLender(), nbfcResponseDTO);
         } catch (Exception e) {
             log.info("Exception in consuming eKyc callback of {} for applicationId {}  {} {}", nbfcResponseDTO.getLender(), nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void lenderCKycCallback(NBFCResponseDTO nbfcResponseDTO) {
+        try {
+            log.info("CKYC callback received {}", nbfcResponseDTO);
+            associationServiceUtil.handleCKycCallback(nbfcResponseDTO.getLender(), nbfcResponseDTO);
+        } catch (Exception e) {
+            log.info("Exception in consuming cKyc callback of {} for applicationId {}  {} {}", nbfcResponseDTO.getLender(), nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
 }

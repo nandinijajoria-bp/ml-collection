@@ -208,6 +208,15 @@ public abstract class LendingApplicationServiceV3Base {
                         .lender(currentDraftApplication.getLender())
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentDraftApplication.getLender())
+                        && LenderAssociationStatus.SELFIE_UPLOAD_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())){
+                    //INVOKING STAGE FOR LENDER PIPE
+                    invokeStageForLender(InvokeStageRequestDTO.builder()
+                            .applicationId(currentDraftApplication.getId())
+                            .lender(currentDraftApplication.getLender())
+                            .stage(LenderAssociationStages.SELFIE_UPLOAD.name())
+                            .build());
+                }
                 log.info("Lender assoc at KYC for applicationId {}", currentDraftApplication.getId());
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
                 if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
@@ -229,8 +238,8 @@ public abstract class LendingApplicationServiceV3Base {
 
     public Boolean checkForBPKycRequired(LendingApplication currentDraftApplication) {
         LendingApplicationLenderDetails prevLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.INACTIVE.name());
-        if (ObjectUtils.isEmpty(prevLenderDetails) || nbfcUtils.bharatPeKycLenderAlreadyAssigned(currentDraftApplication.getId(), currentDraftApplication.getMerchantId())
-                || kycUtils.isELigibleForLenderKyc(currentDraftApplication.getLender(), currentDraftApplication.getMerchantId())) {
+        if (ObjectUtils.isEmpty(prevLenderDetails) || nbfcUtils.bharatPeKycLenderAlreadyAssigned(currentDraftApplication.getId(), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()))
+                || kycUtils.isELigibleForLenderKyc(currentDraftApplication.getLender(), currentDraftApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType()))) {
             log.info("BP Kyc already done for applicationId {}", currentDraftApplication.getId());
             return false;
         }
@@ -244,7 +253,7 @@ public abstract class LendingApplicationServiceV3Base {
 
     private String getLenderKycRedirectionUrl(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String lenderKycStatus) {
         try {
-            if (kycUtils.isELigibleForLenderKyc(lendingApplicationLenderDetails.getLender(), lendingApplication.getMerchantId())) {
+            if (kycUtils.isELigibleForLenderKyc(lendingApplicationLenderDetails.getLender(), lendingApplication.getMerchantId(),LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
                 if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
                         && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycMode())
                         && LenderAssociationStages.EKYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
