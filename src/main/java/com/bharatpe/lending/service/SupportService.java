@@ -446,8 +446,6 @@ public class SupportService {
             MerchantNachDetailsResponseDTO enachSuccess = enachHandler.findSuccessEnach(merchantId);
             if(Objects.nonNull(enachSuccess)){
                 supportLoanResponseDTO.setNachCompletionDate(enachSuccess.getUpdatedAt());
-            } else {
-                supportLoanResponseDTO.setNachCompletionDate(null);
             }
 
             SupportLoanResponseDTO.LoanArrangerFee loanArrangerFee = new SupportLoanResponseDTO.LoanArrangerFee();
