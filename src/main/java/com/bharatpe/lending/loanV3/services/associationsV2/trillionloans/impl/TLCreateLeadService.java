@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -26,6 +27,7 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Objects;
 
 @Slf4j
@@ -98,6 +100,7 @@ public class TLCreateLeadService {
     }
 
     private NBFCRequestDTO<?> getCreateLeadPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        boolean isEligibleForKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplication().getLoanType()));
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
@@ -138,6 +141,9 @@ public class TLCreateLeadService {
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
+                    .identifier(new LinkedHashMap<String, Object>(){{
+                        put("lenderKycPipe", isEligibleForKyc);
+                    }})
                     .payload(createLeadRequest)
                     .build();
         } catch (Exception e) {

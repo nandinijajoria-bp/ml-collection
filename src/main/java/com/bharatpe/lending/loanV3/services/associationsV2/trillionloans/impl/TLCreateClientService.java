@@ -22,10 +22,11 @@ import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeCreateL
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -57,8 +58,16 @@ public class TLCreateClientService {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Value("${enable.tl.update.client:false}")
+    private Boolean enableTlUpdateClient;
+
+
     @Transactional
     public boolean invokeCreateClient(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        boolean updateLeadException = false;
         try {
             if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getApplicationId()) || ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplication())) {
                 log.info("Application Id not found for merchant: {}", lenderAssociationDetailsDto.getMerchantId());
@@ -100,13 +109,25 @@ public class TLCreateClientService {
                 else
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
                 commonService.manageApplicationState(lenderAssociationDetailsDto);
+
+                log.info("invoking updateLead request of TrillionLoans for {}", lenderAssociationDetailsDto.getApplicationId());
+
+                if(enableTlUpdateClient && eligibleForUpdateClient(createClientResponse.getClientId(), lendingApplication.getId())){
+                    NBFCResponseDTO updateLeadNbfcResponseDTO = updateClientDetailsForExceptionCases(lendingApplication, lenderAssociationDetailsDto.getCKycResponseDto(), createClientResponse.getClientId());
+                    if (Objects.nonNull(updateLeadNbfcResponseDTO) && updateLeadNbfcResponseDTO.getSuccess() && Objects.nonNull(updateLeadNbfcResponseDTO.getData())) {
+                        log.info("UpdateLead request of TrillionLoans is success for {}", lenderAssociationDetailsDto.getApplicationId());
+                    } else {
+                        updateLeadException = true;
+                        throw new Exception("update lead response is null");
+                    }
+                }
                 return true;
             }
         } catch (Exception e) {
             log.info("exception occurred while processing create client of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
-        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.CREATE_CLIENT_FAILED);
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(updateLeadException ? LenderAssociationStatus.UPDATE_CLIENT_FAILED.name() : LenderAssociationStatus.CREATE_CLIENT_FAILED.name());
+        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, updateLeadException ? LenderAssociationStatus.UPDATE_CLIENT_FAILED : LenderAssociationStatus.CREATE_CLIENT_FAILED);
         return false;
     }
 
@@ -220,4 +241,35 @@ public class TLCreateClientService {
         clientIdentifierDetailsList.add(clientIdentifierPan);
         return clientIdentifierDetailsList;
     }
+
+    public NBFCResponseDTO updateClientDetailsForExceptionCases(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, Long clientId) {
+        TLCreateClientRequestDto tlUpdateLeadRequestDto = getUpdateLeadRequest(lendingApplication, cKycResponseDto, clientId);
+
+        return lenderAPIGateway.invokeStage(
+                NBFCRequestDTO.builder()
+                        .applicationId(lendingApplication.getId())
+                        .payload(tlUpdateLeadRequestDto)
+                        .lender(Lender.TRILLIONLOANS.name())
+                        .productName("LENDING")
+                        .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
+                        .build(),
+                LenderAssociationStages.UPDATE_CLIENT);
+    }
+
+    public TLCreateClientRequestDto getUpdateLeadRequest(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto, Long clientId){
+        return TLCreateClientRequestDto.builder()
+                .addressDetails(getAddressDetails(lendingApplication, cKycResponseDto))
+                .clientId(clientId)
+                .build();
+    }
+
+    public boolean eligibleForUpdateClient(Long clientId, Long applicationId) {
+        final List<Long> updateLeadLenderClientIds = loanUtil.getLenderClientIdList();
+        if(updateLeadLenderClientIds.contains(clientId)) {
+            return true;
+        }
+        log.info("For applicationId {} clientId : {} ",applicationId, clientId);
+        return false;
+    }
+
 }

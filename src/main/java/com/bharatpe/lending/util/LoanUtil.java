@@ -265,6 +265,10 @@ public class LoanUtil {
 
 	Map<String, String> rejectedLenderMapping = new HashMap<>();
 
+	List<Long> updateLeadLenderClientIdsList = new ArrayList();
+
+
+
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
@@ -362,6 +366,17 @@ public class LoanUtil {
 
 		reNachEnabledMerchants = readCsvFile(filePath);
 		return reNachEnabledMerchants;
+	}
+
+	public List<Long> getLenderClientIdList() {
+		if (!ObjectUtils.isEmpty(updateLeadLenderClientIdsList)) {
+			return updateLeadLenderClientIdsList;
+		}
+
+		String filePath = "/MerchantList/updateLeadLenderClientIds";
+
+		updateLeadLenderClientIdsList = readCsvFile(filePath);
+		return updateLeadLenderClientIdsList;
 	}
 
 	private boolean derogTopUpEnable(Long merchantId) {

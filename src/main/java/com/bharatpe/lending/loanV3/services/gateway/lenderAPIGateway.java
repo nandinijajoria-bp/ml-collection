@@ -95,6 +95,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.ckyc.status.check.api:api/v3/lender/ckyc-info}")
     String getCkycStatusCheck;
 
+    @Value("${nbfc.update.client.api:api/v3/lender/update-client}")
+    String getUpdateClient;
+
+
     @Value("${http.payu.read.timeout:20000}")
     int payuReadTimeout;
 
@@ -165,6 +169,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+getEkycStatusCheck;
             case "CKYC_INFO":
                 return nbfcBaseUrl+getCkycStatusCheck;
+            case "UPDATE_CLIENT":
+                return nbfcBaseUrl+getUpdateClient;
             default:
                 return null;
         }
