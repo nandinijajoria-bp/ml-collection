@@ -37,5 +37,7 @@ public class KycDocResponse {
     public static class Entity {
         private String status;
         private String entity;
+        private String kycRanking;
+        private String statusOfRequestedKycRanking;
     }
 }

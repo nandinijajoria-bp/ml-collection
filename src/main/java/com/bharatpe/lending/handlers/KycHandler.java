@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
@@ -59,6 +60,9 @@ public class KycHandler {
 
     @Autowired
     RestUtils restUtils;
+
+    @Value("${enable.p2pm.flag:false}")
+    boolean p2pmEnabled;
 
     private static final String CLIENT = "LENDING";
 
@@ -170,7 +174,7 @@ public class KycHandler {
         return null;
     }
 
-    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider, String docs, Boolean acceptRejected, Boolean acceptDraft) {
+    public KycDocResponseDTO getKycDocs(Long merchantId, Date validAfterDate, String provider, String docs, Boolean acceptRejected, Boolean acceptDraft, String convertedKycRanking) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         KycDocResponseDTO kycDocResponseDTO = new KycDocResponseDTO();
         try {
@@ -181,18 +185,10 @@ public class KycHandler {
                 validAfter = sdf.format(validAfterDate);
             }
             String finaValidAfter = validAfter;
-            Map<String, Object> requestParams = new HashMap<String, Object>(){{
-                put("merchantId", merchantId);
-                put("validAfter", finaValidAfter);
-                put("provider", provider);
-                put("docs", docs);
-                put("imgRequire", true);
-                put("acceptRejected", acceptRejected);
-                put("acceptDraft", acceptDraft);
-            }};
+            Map<String, Object> requestParams = createPayLoad(merchantId, finaValidAfter, provider, docs, acceptRejected, acceptDraft, convertedKycRanking);
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
-            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs + "&imgRequire=true&acceptRejected=" + acceptRejected + "&validAfter=" + validAfter + "&provider=" + provider + "&acceptDraft=" + acceptDraft;
+            final String url = getKycUrl(merchantId, docs, acceptRejected, validAfter, provider, acceptDraft, convertedKycRanking);
             log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
             ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
             log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
@@ -200,6 +196,8 @@ public class KycHandler {
                 kycDocResponseDTO.setKycDocs(responseEntity.getBody().getData().getDocs());
                 if(Objects.nonNull(responseEntity.getBody().getData().getEntity())){
                     kycDocResponseDTO.setEntityStatus(responseEntity.getBody().getData().getEntity().getStatus());
+                    kycDocResponseDTO.setKycRanking(responseEntity.getBody().getData().getEntity().getKycRanking());
+                    kycDocResponseDTO.setStatusOfRequestedKycRanking(responseEntity.getBody().getData().getEntity().getStatusOfRequestedKycRanking());
                 }
                 return kycDocResponseDTO;
             }
@@ -207,6 +205,39 @@ public class KycHandler {
             log.error("Exception in getKycDoc for merchant:{}, {}, {}", merchantId, ex, Arrays.asList(ex.getStackTrace()));
         }
         return null;
+    }
+
+    private String getKycUrl(Long merchantId, String docs, Boolean acceptRejected, String validAfter, String provider, Boolean acceptDraft, String convertedKycRanking) {
+        StringBuilder urlBuilder = new StringBuilder();
+        urlBuilder.append(env.getProperty("kyc.service.base.url"))
+                .append(LendingConstants.KYC_DOC_URL)
+                .append("?merchantId=").append(merchantId)
+                .append("&docs=").append(docs)
+                .append("&imgRequire=true")
+                .append("&acceptRejected=").append(acceptRejected)
+                .append("&validAfter=").append(validAfter)
+                .append("&provider=").append(provider)
+                .append("&acceptDraft=").append(acceptDraft);
+        if (p2pmEnabled && !ObjectUtils.isEmpty(convertedKycRanking)) {
+            urlBuilder.append("&kycRankingRequired=").append(convertedKycRanking);
+        }
+        return urlBuilder.toString();
+    }
+
+    private Map<String, Object> createPayLoad(Long merchantId, String finaValidAfter, String provider, String docs, Boolean acceptRejected, Boolean acceptDraft, String convertedKycRanking) {
+        Map<String, Object> requestParams = new HashMap<>();
+        requestParams.put("merchantId", merchantId);
+        requestParams.put("validAfter", finaValidAfter);
+        requestParams.put("provider", provider);
+        requestParams.put("docs", docs);
+        requestParams.put("imgRequire", true);
+        requestParams.put("acceptRejected", acceptRejected);
+        requestParams.put("acceptDraft", acceptDraft);
+        if(p2pmEnabled && !ObjectUtils.isEmpty(convertedKycRanking)) {
+            log.info("fetching status of requestedKycRanking: {} for merchant: {}", convertedKycRanking, merchantId);
+            requestParams.put("kycRankingRequired", convertedKycRanking);
+        }
+        return requestParams;
     }
 
     public KycStatusDTO getKycStatus(Long merchantId) {
@@ -384,7 +415,7 @@ public class KycHandler {
         return responseObj;
     }
 
-    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate, Boolean onlySelfieLivelinessRequired) {
+    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate, Boolean onlySelfieLivelinessRequired, String convertedkycRanking) {
         log.info("Initiate kyc for merchant:{}", merchantId);
         Map<String, String> responseObj = new HashMap<>();
         try {
@@ -399,16 +430,21 @@ public class KycHandler {
             for (KycDocType docType : docTypes) {
                 documents.add(new HashMap<String, String>(){{put("docType", docType.getVal());}});
             }
-            Map<String, Object> requestParams = new HashMap<String, Object>(){{
-                put("callBackUrl", initiateKycDTO.getCallBackUrl());
-                put("product", "LOAN");
-                put("referenceId", initiateKycDTO.getReferenceId());
-                put("panNumber", initiateKycDTO.getPanNumber());
-                put("merchantId", initiateKycDTO.getMerchantId());
-                put("documents", documents);
-                put("validAfter", finaValidAfter);
-                put("onlySelfieLivelinessRequired", onlySelfieLivelinessRequired);
-            }};
+            Map<String, Object> requestParams = new HashMap<>();
+            requestParams.put("callBackUrl", initiateKycDTO.getCallBackUrl());
+            requestParams.put("product", "LOAN");
+            requestParams.put("referenceId", initiateKycDTO.getReferenceId());
+            requestParams.put("panNumber", initiateKycDTO.getPanNumber());
+            requestParams.put("merchantId", initiateKycDTO.getMerchantId());
+            requestParams.put("documents", documents);
+            requestParams.put("validAfter", finaValidAfter);
+            requestParams.put("onlySelfieLivelinessRequired", onlySelfieLivelinessRequired);
+
+            // Conditionally add "kycRankingRequired"
+            if (p2pmEnabled && !ObjectUtils.isEmpty(convertedkycRanking)) {
+                log.info("passing kycRankingRequired as {} for merchant: {}", convertedkycRanking, merchantId);
+                requestParams.put("kycRankingRequired", convertedkycRanking);
+            }
             HttpHeaders headers = getApiHeaders(requestParams);
             HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
             final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_INITIATE_URL;

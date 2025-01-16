@@ -20,4 +20,5 @@ public class KYCStateDTO {
     private String lender;
     private boolean lenderKycPipe;
     private Long merchantId;
+    private String convertedKycRanking;
 }
