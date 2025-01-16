@@ -19,4 +19,6 @@ public class ApplicationStatusStateDTO {
     private Boolean enachDone;
     private String lender;
     private Long merchantId;
+    private Boolean udyamRegistrationRequired;
+    private String udyamRegistrationLink;
 }

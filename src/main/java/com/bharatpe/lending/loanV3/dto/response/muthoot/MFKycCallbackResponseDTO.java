@@ -24,6 +24,7 @@ public class MFKycCallbackResponseDTO {
         private PersonalKYC[] personalKYC;
         private Results results;
         private String status;
+        private OutputVariables outputVariables;
     }
 
     @Data
@@ -61,6 +62,15 @@ public class MFKycCallbackResponseDTO {
     public static class Results {
         private boolean dobMatch;
         private boolean nameMatch;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class OutputVariables {
+       private boolean manualReviewRequired;
+       private String udyamStatus;
     }
 }
 
