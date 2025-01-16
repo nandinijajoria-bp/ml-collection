@@ -161,7 +161,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             String adjustmentMode = PaymentAdjustmentModesPiramal.valueOf(lendingLedger.getAdjustmentMode()).getAdjustedModeEquivalent();
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
-
+            logger.info("inside the post foreclosure-  adjustmentMode - {}, txnId - {} ", adjustmentMode,txnId);
             LoanReceiptRequestDTO.PaymentReceiptData paymentReceiptData = new LoanReceiptRequestDTO.PaymentReceiptData();
             paymentReceiptData.setTransactionReference(txnId);
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");

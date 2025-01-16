@@ -58,7 +58,9 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
     private void updateForeclosureAmountInfoLedgerId(LendingLedger lendingLedger, Long orderId, Long loanId) {
         try {
+            log.info("LoanClosureServiceImpl -> updateForeclosureAmountInfoLedgerId -> orderId {}, loanId {}, lendingLedger {}", orderId, loanId, lendingLedger);
             ForeClosureAmountInfo foreClosureAmountInfo = foreClosureAmountInfoDao.findByOrderId(orderId);
+            log.info("LoanClosureServiceImpl -> updateForeclosureAmountInfoLedgerId -> orderId {}, loanId {}, foreClosureAmountInfo {}", orderId, loanId, foreClosureAmountInfo);
             if(foreClosureAmountInfo != null && lendingLedger != null) {
                 log.info("going to update foreclosureamountinfo ledgerId for foreclosureamountinfo {} and ledger {}", foreClosureAmountInfo.getId(), lendingLedger.getId());
                 foreClosureAmountInfo.setLedgerId(lendingLedger.getId());
