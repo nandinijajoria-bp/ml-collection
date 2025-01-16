@@ -14,4 +14,6 @@ import java.util.List;
 public class KycDocResponseDTO {
     private List<KycDoc> kycDocs;
     private String entityStatus;
+    private String kycRanking;
+    private String statusOfRequestedKycRanking;
 }

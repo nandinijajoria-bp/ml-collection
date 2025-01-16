@@ -508,7 +508,7 @@ public class LendingApplicationServiceV2 {
                     .panNumber(experian.getPancardNumber())
                     .callBackUrl(callBackURL)
                     .merchantId(String.valueOf(merchant.getId())).build();
-            Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes, validAfterDate, false);
+            Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchant.getId(), initiateKycDTO, docTypes, validAfterDate, false, null);
             if (ckycResponseObj.containsKey("ckycId")) {
                 if (initiateKycRequest.getApplicationId() != null) {
                     lendingApplicationDao.updateKycId(initiateKycRequest.getApplicationId(), ckycResponseObj.get("ckycId"), merchant.getId());

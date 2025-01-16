@@ -37,6 +37,7 @@ import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.collections.MapUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -49,6 +50,9 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import static com.bharatpe.lending.enums.KycRanking.P2MS;
+import static com.bharatpe.lending.enums.KycRanking.P2PM;
 
 @Component
 @Slf4j
@@ -107,6 +111,9 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Value("${enable.p2pm.flag:false}")
+    boolean p2pmEnabled;
 
     @Override
     public LendingStateDTO<KYCStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -236,9 +243,8 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 // check the status for already created entry in table
                Date validAfter = isResubmittedApplication ? lendingResubmitReasonCount.getResubmitTimestamp() : kycRetry ? lendingApplicationLenderDetails.getUpdatedAt() : lendingApplication.getUpdatedAt();
                boolean kycVerified=updateApplicationKycDetails(
-                       lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
-                       validAfter, initiateKycResponse, isResubmittedApplication, lendingApplication.getLoanType()
-               );
+                       lendingApplicationKycDetails, lendingApplication, lendingApplicationDetails, scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
+                       validAfter, initiateKycResponse, isResubmittedApplication);
                 if(kycVerified){
                     initiateKycResponse.setKycStatus(KycStatus.APPROVED);
                     initiateKycResponse.setDeeplink(kycDeepLink);
@@ -258,7 +264,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
-                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, validAfter);
+                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, validAfter, initiateKycResponse.getConvertedKycRanking());
                 loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
                 if(initiateKycResponse.isTopup() && !kycRetry && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())){
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
@@ -275,11 +281,10 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
 
 
                 boolean kycVerified=updateApplicationKycDetails(
-                        lendingApplicationKycDetails, lendingApplication.getId(), scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
-                        lendingApplication.getCreatedAt(), initiateKycResponse, isResubmittedApplication,lendingApplication.getLoanType()
-                );
+                        lendingApplicationKycDetails, lendingApplication, lendingApplicationDetails, scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
+                        lendingApplication.getCreatedAt(), initiateKycResponse, isResubmittedApplication);
 
-                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, lendingApplication.getUpdatedAt());
+                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, lendingApplication.getUpdatedAt(), initiateKycResponse.getConvertedKycRanking());
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, scopeDataArgs.getMerchant().getMid()));
                 funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
@@ -295,10 +300,11 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         }
     }
 
-    private KYCStateDTO initiateKyc(LendingApplication lendingApplication,Long merchantId, Boolean isTopup, boolean isFreshKyc, boolean isResubmittedApplication, Date validAfter){
+    private KYCStateDTO initiateKyc(LendingApplication lendingApplication,Long merchantId, Boolean isTopup, boolean isFreshKyc, boolean isResubmittedApplication, Date validAfter, String convertedKycRanking){
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         initiateKycResponse.setLender(lendingApplication.getLender());
         initiateKycResponse.setTopup(isTopup);
+        initiateKycResponse.setConvertedKycRanking(convertedKycRanking);
         List<KycDocType> docTypes = new ArrayList<>(getKycTypesByLender(Lender.valueOf(lendingApplication.getLender()), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 //        docTypes.add(KycDocType.PAN_CARD);
         if(isResubmittedApplication) {
@@ -320,10 +326,10 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 .callBackUrl(callBackURL)
                 .merchantId(merchantId.toString()).build();
         boolean onlySelfieLivelinessRequired = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
-        Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchantId, initiateKycDTO, docTypes, validAfter, onlySelfieLivelinessRequired);
+        Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchantId, initiateKycDTO, docTypes, validAfter, onlySelfieLivelinessRequired, convertedKycRanking);
         if (ckycResponseObj.containsKey("ckycId")) {
             lendingApplicationDao.updateKycId(lendingApplication.getId(), ckycResponseObj.get("ckycId"), merchantId);
-            if(isFreshKyc){
+            if(isFreshKyc || !ObjectUtils.isEmpty(convertedKycRanking)){
                 initiateKycResponse.setDeeplink(ckycResponseObj.containsKey("callBackUrl") ? ckycResponseObj.get("callBackUrl") : kycDeepLink);
             }
             else {
@@ -337,7 +343,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         throw new LoanDetailsException(LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorCode(),LoanDetailExceptionEnum.INITIATE_KYC_FAILED.getErrorMessage());
     }
 
-    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, Long applicationId, Long merchantId,String mid, Date vaildAfterDate, KYCStateDTO kycStateDTO, Boolean isResubmittedApplication, String loanType) {
+    private boolean updateApplicationKycDetails(LendingApplicationKycDetails lendingApplicationKycDetails, LendingApplication lendingApplication, LendingApplicationDetails lendingApplicationDetails, Long merchantId,String mid, Date vaildAfterDate, KYCStateDTO kycStateDTO, Boolean isResubmittedApplication) {
         boolean kycVerified=false;
         log.info("Updating kyc details for merchant:{}", merchantId);
         boolean selfieValid = false;
@@ -345,21 +351,42 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         boolean aadharDigilocker = false;
 //        boolean panCardApproved = false;
         boolean panNoApproved = false;
-        String docs = getKycDocsForVerificationByLender(Lender.valueOf(lendingApplicationKycDetails.getLender()), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType));
+        String docs = getKycDocsForVerificationByLender(Lender.valueOf(lendingApplicationKycDetails.getLender()), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
         if (isResubmittedApplication) {
             docs = "SELFIE";
         }
-        Boolean acceptDraft = kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType));
+        Boolean acceptDraft = kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
         Boolean acceptRejected = !acceptDraft;
-        KycDocResponseDTO kycDocResponseDTO = kycHandler.getKycDocs(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER, docs, acceptRejected, acceptDraft);
+        // Fetch kycRanking from metadata or initialize it
+        Map<String, Object> metaData = lendingApplicationDetails.getMetaData();
+        String kycRankingConverted = MapUtils.getString(metaData, "kycRankingConverted");
+        kycStateDTO.setConvertedKycRanking(kycRankingConverted);
+        KycDocResponseDTO kycDocResponseDTO = kycHandler.getKycDocs(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER, docs, acceptRejected, acceptDraft, kycRankingConverted);
         log.info("KYC docs fetched for merchantId : {}", merchantId);
+
+        if(p2pmEnabled && (ObjectUtils.isEmpty(kycRankingConverted) && p2pmChecks(kycDocResponseDTO.getKycRanking()))) {
+            if(ObjectUtils.isEmpty(metaData)) {
+                metaData = new HashMap<>();
+            }
+            kycRankingConverted = convertKycRanking(kycDocResponseDTO.getKycRanking());
+            metaData.put("kycRankingReceived", kycDocResponseDTO.getKycRanking());
+            if(!ObjectUtils.isEmpty(kycRankingConverted)) {
+                metaData.put("kycRankingConverted", kycRankingConverted);
+                kycStateDTO.setConvertedKycRanking(kycRankingConverted);
+            }
+            lendingApplicationDetails.setMetaData(metaData);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            log.info("KYC ranking saved for merchantId: {} (Received: {}, Converted: {})",
+                    merchantId, kycDocResponseDTO.getKycRanking(), kycRankingConverted);
+        }
+
         if(!KycConstants.KYC_ENTITY_ACTIVATED.equalsIgnoreCase(kycDocResponseDTO.getEntityStatus())){
             kycStateDTO.setFreshKyc(true);
         }
         for (KycDoc kycDoc : kycDocResponseDTO.getKycDocs()) {
             switch (kycDoc.getDocType()) {
                 case SELFIE:
-                    if (KycDocStatus.APPROVED.equals(kycDoc.getStatus()) || (kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType)) && KycDocStatus.DRAFT.equals(kycDoc.getStatus()))) {
+                    if (KycDocStatus.APPROVED.equals(kycDoc.getStatus()) || (kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) && KycDocStatus.DRAFT.equals(kycDoc.getStatus()))) {
                         log.info("Selfie doc is valid for merchantId:{}", merchantId);
                         lendingApplicationKycDetails.setSelfieUrl(kycDoc.getDocFrontImageUrl());
                         if (Objects.isNull(lendingApplicationKycDetails.getSelfieApprovedAt()))
@@ -407,23 +434,44 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
             aadharDigilocker = true;
             panNoApproved = true;
         }
-        if(kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(loanType))) {
+        if(kycUtils.isELigibleForLenderKyc(lendingApplicationKycDetails.getLender(), lendingApplicationKycDetails.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))) {
             aadharValid = true;
             aadharDigilocker = true;
             panNoApproved = true;
         }
-        if (selfieValid && aadharValid && aadharDigilocker && panNoApproved) {
+
+        boolean p2pmCheckPassed = true;
+        if (p2pmChecks(kycDocResponseDTO.getKycRanking())) {
+            String requestedkycRankingStatus = kycDocResponseDTO.getStatusOfRequestedKycRanking();
+            p2pmCheckPassed = (!ObjectUtils.isEmpty(requestedkycRankingStatus)
+                    && ("APPROVED".equalsIgnoreCase(requestedkycRankingStatus) || "PENDING".equalsIgnoreCase(requestedkycRankingStatus)));
+            log.info("kycRanking check passed for requestedkycRankingStatus {}", requestedkycRankingStatus);
+        }
+
+        if (selfieValid && aadharValid && aadharDigilocker && panNoApproved && p2pmCheckPassed) {
             log.info("All the required kyc documents are valid for merchantId:{}, setting consent date as kyc success", merchantId);
             lendingApplicationKycDetails.setConsentDate(new Date());
             kycVerified=true;
             log.info("Kyc details verified for merchant : {}", merchantId);
             executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_VERIFIED_BE.name(), null, mid));
-            funnelService.submitEventV3(merchantId, null, applicationId,loanType,
+            funnelService.submitEventV3(merchantId, null, lendingApplication.getId(),lendingApplication.getLoanType(),
                     FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.COMPLETED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
         }
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
         return kycVerified;
     }
+
+    private boolean p2pmChecks(String kycRanking) {
+        return p2pmEnabled &&
+                isKycRankingApplicable(kycRanking);
+    }
+
+    private boolean isKycRankingApplicable(String kycRanking) {
+        return ObjectUtils.isEmpty(kycRanking) ||
+                P2PM.name().equalsIgnoreCase(kycRanking) ||
+                P2MS.name().equalsIgnoreCase(kycRanking);
+    }
+
 
     private List<KycDocType> getKycTypesByLender(Lender lender, Long merchantId, boolean isTopup) {
         if(kycUtils.isELigibleForLenderKyc(lender.name(), merchantId, isTopup)) {
@@ -438,6 +486,14 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         }
         return Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.EKYC);
     }
+
+    private String convertKycRanking(String kycRanking) {
+        if(isKycRankingApplicable(kycRanking)) {
+            return "P2MS";
+        }
+        return null;
+    }
+
 
     private String getKycDocsForVerificationByLender(Lender lender, Long merchantId, boolean isTopup) {
         if(kycUtils.isELigibleForLenderKyc(lender.name(), merchantId, isTopup)) {
