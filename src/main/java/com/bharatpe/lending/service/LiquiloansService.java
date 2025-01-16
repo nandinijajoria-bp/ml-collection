@@ -85,6 +85,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.common.enums.VpaTrackingStatus.DISBURSED;
 import static com.bharatpe.lending.constant.KfsConstants.KFS_S3_KEY_PREFIX;
 import static com.bharatpe.lending.constant.KfsConstants.SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX;
@@ -258,9 +259,6 @@ public class LiquiloansService {
 
     @Value("${backdated.loan.eligible.lenders:ABFL}")
     String backDatedLoanEligibleLenders;
-
-    @Value("${backdated.perpetual.dpd.loan.eligible.lenders:SMFG}")
-    String backDatedPerpetualDPDLoanEligibleLenders;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
     @Autowired
@@ -849,19 +847,21 @@ public class LiquiloansService {
             }
         }
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = Optional.empty();
+        boolean perpetualDpdLoan = false;
         if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) ||
                 (pdpPartialRollout.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent))) {
             lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
             if (lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())) {
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
+                perpetualDpdLoan = true;
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
                 lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
             }
         }
         if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
-            createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0);
-        } else if (lendingPaymentScheduleLendingCommon.isPresent() && PerpetualDpdAdjusted.Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
+            createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, 0, perpetualDpdLoan);
+        } else if (perpetualDpdLoan) {
             createFirstDueForSameDayEdiAdjustment(lendingPaymentSchedule);
         }
         postPayoutResponseDto.setLoanStartDate(lendingPaymentSchedule.getStartDate());
@@ -979,7 +979,9 @@ public class LiquiloansService {
         lendingApplication = lendingApplicationDao.save(lendingApplication);
         updateBackdatedLPS(lendingPaymentSchedule, disbursementDate, lendingApplication);
         moveEdiScheduleDates(lendingPaymentSchedule,daysToMove);
-        createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, offset);
+        Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
+        boolean perpetualDpdLoan = lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted());
+        createDuesInLedgerAndAdjustDueInLPS(lendingPaymentSchedule, offset, perpetualDpdLoan);
         // audit this loan
         return lendingPaymentSchedule;
     }
@@ -1031,19 +1033,19 @@ public class LiquiloansService {
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
 
-    private void createDuesInLedgerAndAdjustDueInLPS(LendingPaymentSchedule lendingPaymentSchedule, int offset) {
+    private void createDuesInLedgerAndAdjustDueInLPS(LendingPaymentSchedule lendingPaymentSchedule, int offset, boolean perpetualDpdLoan) {
         List<LendingEDISchedule> lendingEDISchedules = lendingEDIScheduleDao.findByLendingPaymentSchedule(lendingPaymentSchedule);
         Double dueAmount = lendingPaymentSchedule.getDueAmount();
         Double duePrinciple = lendingPaymentSchedule.getDuePrinciple();
         Double dueInterest = lendingPaymentSchedule.getDueInterest();
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
         Date nextEdiDate = null;
-
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
 //            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
-            if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) ? 1 : 0)))
+            if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
+                logger.info("created due before : {} for lps id {}", lendingEDISchedule.getDate(), lendingPaymentSchedule.getId());
                 break;
-
+            }
             if (lendingEDISchedule.getInstallmentNumber() <= offset)
                 continue;
             dueAmount+= lendingEDISchedule.getTotalEdi();
@@ -1065,12 +1067,7 @@ public class LiquiloansService {
         nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
         nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
         lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
-
-        List<LendingLedger> lendingLedger = lendingLedgerDao.saveAll(lendingLedgerList);
-        if(backDatedPerpetualDPDLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc())) {
-            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
-            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
-        }
+        lendingLedgerDao.saveAll(lendingLedgerList);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
 
