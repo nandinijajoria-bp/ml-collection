@@ -356,6 +356,9 @@ public class LendingApplicationServiceV2 {
     @Value("${bl.eligible.lenders:IIFL}")
     String blEligibleLendersList;
 
+    @Value("${udyam.registration.required.lenders:}")
+    String udyamRegistrationRequiredLenders;
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -1321,6 +1324,18 @@ public class LendingApplicationServiceV2 {
             }
             applicationDTO.add(kycDTO);
             applicationDTO.add(applicationDTO2);
+
+            if(udyamRegistrationRequiredLenders.contains(lendingApplication.getLender())) {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
+                if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus())) {
+                    ApplicationDTO udyamRegistrationDto = new ApplicationDTO();
+                    udyamRegistrationDto.setText("Udyam Registration");
+                    udyamRegistrationDto.setDisabled(enachMandatory);
+                    udyamRegistrationDto.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
+                    udyamRegistrationDto.setStatus(docUploadUtils.isUdyamRegistrationRequired(lendingApplicationLenderDetails) ? "PENDING" : "APPROVED");
+                    applicationDTO.add(udyamRegistrationDto);
+                }
+            }
 
             ApplicationDTO applicationDTO3 = new ApplicationDTO();
             if("v2".equalsIgnoreCase(loanDashboardApiVersion.getApiVersion()))applicationDTO3.setText("Doc Verification");
