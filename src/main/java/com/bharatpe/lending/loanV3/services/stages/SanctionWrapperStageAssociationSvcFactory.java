@@ -30,6 +30,7 @@ public class SanctionWrapperStageAssociationSvcFactory  extends LenderAssociatio
             case "PAYU":
             case "CREDITSAISON":
             case "SMFG":
+            case "UGRO":
                 return sanctionWrapperService;
             default:
                 return oldModelService;

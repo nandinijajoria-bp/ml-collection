@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -101,6 +102,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     SmfgConfig smfgConfig;
+
+    @Autowired
+    UgroConfig ugroConfig;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
@@ -378,6 +382,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return csConfig.getNbfcCreditsaisonForeclosureTopic();
             case "SMFG":
                 return smfgConfig.getForeclosureTopic();
+            case "UGRO":
+                return ugroConfig.getForeclosureTopic();
             default:
                 return null;
         }

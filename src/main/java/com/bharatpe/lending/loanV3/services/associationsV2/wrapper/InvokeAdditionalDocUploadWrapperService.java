@@ -106,7 +106,7 @@ public class InvokeAdditionalDocUploadWrapperService {
                 }
 
             } catch (Exception ex) {
-                log.error("Exception occurred while updating lead info: {} {} {}", applicationId, ex.getMessage(), ex);
+                log.error("Exception occurred while updating lead info: {} {}", applicationId, ex.getMessage(), ex);
             } finally {
                 MDC.clear();
             }
@@ -131,6 +131,8 @@ public class InvokeAdditionalDocUploadWrapperService {
                 return Collections.singletonList(DocType.LOAN_DOCS);
             case "SMFG":
                 return Arrays.asList(DocType.DIGILOCKER_AADHAAR_XML, DocType.SELFIE, DocType.BUSINESS_DOC, DocType.AUDIT_TRAIL_DOC);
+            case "UGRO":
+                return Collections.singletonList(DocType.LOAN_DOCUMENTS_MERGED);
             default:
                 return new ArrayList<>();
         }

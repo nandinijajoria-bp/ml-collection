@@ -39,6 +39,7 @@ public class BreStageAssociationSvcFactory extends LenderAssociationServiceFacto
             case "PAYU":
             case "CREDITSAISON":
             case "SMFG":
+            case "UGRO":
                 return updateLeadAndBREWorkflowService;
             default:
                 return oldModelService;

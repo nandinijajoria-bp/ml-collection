@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -23,6 +24,7 @@ import com.bharatpe.lending.loanV2.dto.AdditionalDetails;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -119,7 +121,7 @@ public class ApplicationStatusStageDataService implements IStageDataService<Appl
             if(udyamRegistrationRequiredLenders.contains(lendingApplication.getLender())) {
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
                  if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                     applicationStatusStateDTO.setUdyamRegistrationRequired(docUploadUtils.isUdyamRegistrationRequired(lendingApplicationLenderDetails));
+                     applicationStatusStateDTO.setUdyamRegistrationRequired(docUploadUtils.isUdyamRegistrationRequired(lendingApplicationLenderDetails, lendingApplication));
                      applicationStatusStateDTO.setUdyamRegistrationLink(docUploadUtils.getUdyamRegistrationLink(lendingApplicationLenderDetails));
                  }
             }

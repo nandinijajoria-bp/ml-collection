@@ -7,11 +7,14 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -34,8 +37,10 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
 
 import static com.bharatpe.lending.constant.KfsConstants.*;
 
@@ -59,6 +64,10 @@ public class DocUploadUtils {
     @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Lazy
+    @Autowired
+    AssociationServiceUtil associationServiceUtil;
 
     public void saveESignedDocs(Long applicationId, byte[] signedKFSBytes, byte[] signedSanctionBytes) {
         try {
@@ -153,8 +162,7 @@ public class DocUploadUtils {
     public String mergeUnsignedDocs(Long applicationId, String kfsDocKey, String sanctionDocKey)
             throws IOException, DocumentException {
         /*
-            1. download files
-             from bucket to local storage
+            1. downloads files from bucket to local storage
             2. merge both file in new merged file using ipdf
             3. set base64 payload to payload object
             4. delete file from local storage
@@ -201,6 +209,58 @@ public class DocUploadUtils {
             String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
 
             log.info("Pre-signed URL for merged doc for application id: {} - {}", applicationId, mergeDocumentPresignedUrl);
+
+            return mergeDocumentPresignedUrl;
+        } catch (IOException | DocumentException e) {
+            log.error("Error merging or uploading documents for application id: {}", applicationId, e);
+            throw e; // Rethrow the exception to handle it in the caller method
+        }
+    }
+
+    public String mergeUnsignedDocs(Long applicationId, List<String> docKeyList)
+            throws IOException, DocumentException {
+        /*
+            1. downloads files from bucket to local storage
+            2. merge list of files in new merged file using ipdf
+            3. set base64 payload to payload object
+            4. delete file from local storage
+         */
+
+        log.info("Initiating downloading of the docs: {} for application id : {}", docKeyList, applicationId);
+
+        String mergedFileName = "LOAN_DOCUMENTS_MERGED_" + applicationId + ".pdf";
+        try {
+            List<PdfReader> pdfReaderList = new ArrayList<>();
+            for(String docKey : docKeyList) {
+                log.info("Downloading {} document from S3 for application id: {}", docKey, applicationId);
+                URL url = new URL(getS3PresignedUrlFromKey(docKey));
+                URLConnection connection1 = url.openConnection();
+                InputStream inputStream1 = connection1.getInputStream();
+                pdfReaderList.add(new PdfReader(inputStream1));
+            }
+
+            log.info("Merging docs for application id: {}, readers: {}", applicationId, pdfReaderList);
+
+            // Create the output file
+            Document document = new Document();
+            PdfCopy copy = new PdfCopy(document, Files.newOutputStream(Paths.get("/data/"+mergedFileName)));
+            copy.setCompressionLevel(9);
+            document.open();
+
+            for (PdfReader pdfReader : pdfReaderList) {
+                copy.addDocument(pdfReader);
+            }
+
+            // Close the document
+            document.close();
+
+            log.info("Uploading merged document for application id: {}", applicationId);
+
+            File mergedFile = new File("/data/"+mergedFileName);
+            s3BucketHandler.uploadFileToS3(mergedFile, bucket, mergedFileName);
+            String mergeDocumentPresignedUrl = s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(mergedFileName, bucket);
+
+            log.info("Pre-signed URL for merged document for application id: {} - {}", applicationId, mergeDocumentPresignedUrl);
 
             return mergeDocumentPresignedUrl;
         } catch (IOException | DocumentException e) {
@@ -387,11 +447,25 @@ public class DocUploadUtils {
         }
     }
 
-    public Boolean isUdyamRegistrationRequired(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
-         if(LendingEnum.LENDER.MUTHOOT.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
-             return LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus());
-         }
-         return false;
+    public Boolean isUdyamRegistrationRequired(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication) {
+        if(LendingEnum.LENDER.MUTHOOT.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+            return LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus());
+        } else if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus())
+                    && LenderAssociationStatus.UDYAM_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus())) {
+                // in case the registration is success, status check else return true
+                if (LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
+                    LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = LenderAssociationDetailsRequestDto.builder()
+                            .applicationId(lendingApplication.getId()).merchantId(lendingApplication.getMerchantId())
+                            .lendingApplication(lendingApplication).lendingApplicationLenderDetails(lendingApplicationLenderDetails).build();
+                    boolean isStatusCheckSuccess = associationServiceUtil.invokeUdyamStatusCheckService(lendingApplication.getLender(), lenderAssociationDetailsRequestDto);
+                    return !isStatusCheckSuccess;
+                } else {
+                    return Boolean.TRUE;
+                }
+            }
+        }
+        return false;
     }
 
     public String getUdyamRegistrationLink(LendingApplicationLenderDetails lendingApplicationLenderDetails) {

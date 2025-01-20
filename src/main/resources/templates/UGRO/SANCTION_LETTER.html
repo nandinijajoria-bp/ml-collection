@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .width-6 {
+            width: 6%;
+        }
+
+        .width-24 {
+            width: 24%;
+        }
+
+        .width-47 {
+            width: 47%;
+        }
+
+        .width-50 {
+            width: 50%;
+        }
+
+        .width-70 {
+            width: 70%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mb30 {
+            margin-bottom: 20px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .mr4 {
+            margin-right: 4px;
+        }
+
+        .text-justify {
+            text-align: justify;
+        }
+    </style>
+</head>
+
+<body>
+<div style="padding: 20px 30px; margin-top: 50px">
+    <div style="display: flex; justify-content: center;" class="width-100">
+        {{lender_logo}}
+    </div>
+    <h2 class="text-center">
+        <span>SANCTION LETTER</span>
+    </h2>
+    <div class="text-left bold mb10">Date: {{date}}</div>
+    <div class="text-left bold mb10">Main Applicant: {{borrower_name}}</div>
+    <div class="text-left bold mb10">Main Applicant Address: {{address_of_borrower}}</div>
+    <div class="text-left bold mb10">Main Applicant Contact Number: {{phone_number_of_borrower}}</div>
+    <div class="text-left bold mb10">Branch: Mumbai, Maharashtra</div>
+
+    <br/>
+    <div class="text-left bold mb10"><span class="bold">Name of Guarantor(s) / Co-borrowers(s)</span>: Not
+        Applicable
+    </div>
+    <div class="text-left bold mb30"><span class="bold">Subject</span>: UGRO Lead ID: {{lead_id}}</div>
+    <br/>
+    <br/>
+    <div class="text-left bold mb40"><span class="bold">Dear Sir/Madam,</span></div>
+
+    <p class="fw400 mb30"> We thank you for applying for an unsecured loan with UGRO Capital Limited ("UGRO"). We
+        are pleased to inform you that, based on your loan application and details provided by you, loan facility
+        has been sanctioned to you in principle as per the terms and conditions mentioned below: </p>
+
+    <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left bold"> Loan Type </p>
+            </td>
+            <td style="padding: 0px 5px;" class="word-wrap width-70">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Unsecured Loan (“Facility”)</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left bold">Program Name</p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Term Loan</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left bold">Loan Amount Sanctioned</p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{loan_amount_in_figure}}</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left bold">Purpose of Loan</p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 10px 16px;" class="fw400 text-left">
+                    Business Loan
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 bold text-left">Tenure of Loan (months)</p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">{{tenure_of_loan_in_months}} months</p>
+            </td>
+        </tr>
+
+        <tr class="width-100">
+            <td class="bold text-left width-100">
+                <p style="margin: 6px 16px;">Interest Type</p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Fixed Interest</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="bold text-left width-100">
+                <p style="margin: 6px 16px;">Interest Payable</p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Daily
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    Rate of Interest (per annum)
+                </p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">{{annual_roi}} % per annum</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">Installment Amount / Graded Installment</p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">Rs. {{edi_amount}} for a period of
+                    {{no_of_edis}} installments</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Break up of total amount payable (Amount in
+                    Rs)</p>
+            </td>
+            <td class="width-24">
+                <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+                    <tbody>
+                    <tr class="width-100">
+                        <td class="width-24">
+                            <p style="margin: 6px 16px;" class="bold text-left">Principal</p>
+                        </td>
+                        <td class="width-24">
+                            <p style="margin: 6px 16px;" class="bold text-left">Total Interest*</p>
+                        </td>
+                        <td class="width-24">
+                            <p style="margin: 6px 16px;" class="bold text-left">Total Repayment Amount</p>
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td class="width-24">
+                            <p style="margin: 6px 16px;" class="fw400 text-left">{{loan_amount_in_figure}}</p>
+                        </td>
+                        <td class="width-24">
+                            <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
+                        </td>
+                        <td class="width-24">
+                            <p style="margin: 6px 16px;" class="fw400 text-left">{{repayment_amount}}
+                            </p>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+
+                <p style="margin: 6px 16px;" class="fw400 text-left">Note: *Amounts are indicative and will be
+                    subject to change depending on actual date of disbursement, change in rate of interest, if
+                    any and not inclusive of other applicable charges payable in the event of default in
+                    repayment</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">Frequency of repayment</p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Daily</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">Repayment cycle date</p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Daily</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">EDI / Installment Date</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">
+                    (Exact dates of repayment depends on the disbursement date and the same shall be mentioned
+                    in the loan agreement and repayment schedule which shall be shared with the Borrower post
+                    disbursement)
+                </p>
+            </td>
+            <td class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Installments begin immediately next day
+                    from disbursement</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left bold">Fees and other charges (non-refundable)
+                </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 bold text-left">Processing Fee (including GST): Rs.
+                    {{processing_fee_includes_tax}}</p>
+                <p style="margin: 6px 16px;" class="fw400 bold text-left">It is clarified that the processing
+                    fees shall be retained by the Lender in case the Borrower forecloses the loan during the
+                    cooling-off period.</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="bold text-left width-100">
+                <p style="margin: 6px 16px;">Number of Advance Instalments</p>
+            </td>
+            <td class="bold text-left width-100">
+                <p style="margin: 6px 16px;">Not Applicable</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td class="bold text-left width-100">
+                <p style="margin: 6px 16px;">Instalment Mode</p>
+            </td>
+            <td class="bold text-left width-100">
+                <p style="margin: 6px 16px;">Daily</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Penal charges</p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <table border="1" cellspacing="0" style="margin: 6px 16px;">
+                    <tbody>
+                    <tr class="width-100">
+                        <td class="width-50 bold" style="padding: 8px;">
+                            Overdue Amount
+                        </td>
+                        <td class="width-50 bold" style="padding: 8px;">
+                            Penal Charges (in Rs.)
+                        </td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">
+                            Upto Rs. {{outstanding_amount_1}}
+                        </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_1}}</td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">Rs. {{outstanding_amount_min_2}} -
+                            {{outstanding_amount_max_2}}
+                        </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_2}}</td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">Rs. {{outstanding_amount_min_3}} -
+                            {{outstanding_amount_max_3}}
+                        </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_3}}</td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">Rs. {{outstanding_amount_min_4}} -
+                            {{outstanding_amount_max_4}}
+                        </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_4}}</td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">Rs. {{outstanding_amount_min_5}} -
+                            {{outstanding_amount_max_5}}
+                        </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_5}}</td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">Rs. {{outstanding_amount_min_6}} -
+                            {{outstanding_amount_max_6}}
+                        </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_6}}</td>
+                    </tr>
+                    <tr class="width-100 ">
+                        <td class="width-50 fw400" style="padding: 8px;">Rs. {{outstanding_amount_min_7}} and above </td>
+                        <td class="width-50 fw400" style="padding: 8px;">{{penal_charges_7}}</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Pre/Part loan payment </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">No part prepayment of the loan shall be
+                    allowed</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="bold text-left">Foreclosure Charges</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">*Please note that there are no charges on
+                    foreclosure or prepayment on floating rate term loans sanctioned only to individual
+                    borrowers for other than business purposes</p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">The foreclosure charges (including GST)
+                    will be maximum of (A,B) as per below grid:</p>
+                <table border="1" cellspacing="0" style="margin: 6px 16px;">
+                    <tbody>
+                    <tr class="width-100">
+                        <td class="width-24 bold" style="padding: 8px;">
+                            Tenure (In months)
+                        </td>
+                        <td class="width-24 bold" style="padding: 8px;">
+                            Closure up to tenure (In months)
+                        </td>
+                        <td class="width-24 bold" style="padding: 8px;">
+                            Rate (A)
+                        </td>
+                        <td class="width-24 bold" style="padding: 8px;">
+                            Minimum amount (B)
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td class="width-24" style="padding: 8px;">
+                            4 and 6
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            M-1
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            2%
+                        </td>
+                        <td rowspan="9" class="width-24 text-center" style="padding: 8px;">
+                            Rs. 1000
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td rowspan="2" class="width-24" style="padding: 8px;">
+                            9
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            Up to M5
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            3%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td class="width-24" style="padding: 8px;">
+                            M6-8
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            2%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td rowspan="2" class="width-24" style="padding: 8px;">
+                            12
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            Up to M6
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            3%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td class="width-24" style="padding: 8px;">
+                            M7-10
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            2%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td rowspan="2" class="width-24" style="padding: 8px;">
+                            15
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            Up to M9
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            3%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td class="width-24" style="padding: 8px;">
+                            M10-13
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            2%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td rowspan="2" class="width-24" style="padding: 8px;">
+                            18
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            Up to M12
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            3%
+                        </td>
+                    </tr>
+                    <tr class="width-100">
+                        <td class="width-24" style="padding: 8px;">
+                            M13-16
+                        </td>
+                        <td class="width-24" style="padding: 8px;">
+                            2%
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p style="margin: 6px 16px;" class="fw400 text-left">No foreclosure charges applicable for
+                    closure during cooling-off period </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Lock in period </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Not Applicable</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px;" class="width-24">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Repayment mode </p>
+            </td>
+            <td style="padding: 0px 5px;" class="width-70 word-wrap">
+                <p style="margin: 6px 16px;" class="fw400 text-left">Deduction of Instalment Amount or any other
+                    dues as per the Loan Documents from the daily Settlement Amount** as per the instructions of
+                    the Borrower to Resilient Innovations Private Limited (offline payment aggregator of the
+                    Borrower) <span class="bold">(“Offline PA”)</span>.</p>
+                <br/>
+                <p style="margin: 6px 16px;" class="fw400 text-center">AND/OR</p>
+                <br/>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Deduction of the Instalment Amount or any
+                    dues as per the Loan Documents through Payment Instrument such as UPI Autopay/NACH etc.
+                    modes from the Borrower’s bank account</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">The Lender reserves right to give
+                    appropriate instruction for deduction of Instalment Amount and other dues as per the Loan
+                    Documents from any of the modes or through a combination of the modes specified above.</p>
+                <br/>
+                <p style="margin: 6px 16px;" class="fw400 text-left">*Borrower hereby expressly, unconditionally
+                    and irrevocably authorizes the Offline PA to make such deduction of Instalment Amount and
+                    other dues as per the Loan Documents & make payment directly to the Lender.</p>
+                <br/>
+                <p style="margin: 6px 16px;" class="fw400 text-left">**Settlement Amount shall have the meaning
+                    defined under the Sanction Letter and Loan Agreement.</p>
+            </td>
+        </tr>
+
+        </tbody>
+    </table>
+    <br/>
+    <br/>
+    <p class="fw400 mb30">The schedule/ detailed list of charges is displayed on the website of UGRO Capital Limited
+        the link of the same is:
+        <a href="https://www.ugrocapital.com/interest-rate-model-and-schedule-charges"
+           target="_blank">https://www.ugrocapital.com/interest-rate-model-and-schedule-charges</a>
+    </p>
+
+    <p class="fw400 bold mb30">Please note that the facility will be subject to the following terms and conditions:
+    </p>
+    <ol>
+        <li>
+            <p>Applicable rate of interest is annualized & fixed in nature.</p>
+        </li>
+        <li>
+            <p>This sanction is subject to positive credit report with a credit information company, other FCU/ FI
+                reports and payment / clearance of processing / application fee. Further, the terms of sanction
+                contained herein are subject to review by UGRO from time to time.</p>
+        </li>
+        <li>
+            <p>Any material fact concerning the borrower's / guarantor's income / ability to repay / any other
+                relevant aspect should be disclosed and not suppressed or concealed in your proposal for the
+                Facility.</p>
+        </li>
+        <li>
+            <p>All statutory taxes, duties and levies under the applicable laws, as may be amended from time to
+                time, shall be additionally payable by you.</p>
+        </li>
+        <li class="mb30">
+            <p>The additional sanction conditions applicable are
+                We would like to inform you that the issuance of this in-principle sanction letter shall not
+                guarantee the loan disbursement which will be done at the sole discretion of UGRO. It shall neither
+                constitute an offer nor a contract. As a token of acceptance of this sanction, you are requested to
+                return a copy of this letter duly signed and accepted by you and other co- borrower(s). The sanction
+                will remain valid for a period of 15 days from the date of issue thereof.
+            </p>
+            <p class="mb30">
+                UGRO reserves the rights to anytime assign/sell/transfer or enter into co-lending arrangement
+                regarding amount under Facility or any part thereof to/with any other financial institution or bank
+                as maybe decided by UGRO in its absolute discretion.
+            </p>
+            <p>In case of any query you may have regarding sanctioning of this loan facility, kindly contact our
+                customer service team through any of the channels mentioned below.</p>
+        </li>
+    </ol>
+
+    <p class="bold mb30">Yours Sincerely,</p>
+    <br/>
+    <p class="bold mb40">Authorized Signatory UGRO Capital Limited</p>
+    <p class="fw400">I / We understand and accept the above terms and conditions for availing the Facility.</p>
+    <br/>
+    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+           style="page-break-inside: avoid !important">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left"> Borrower Name </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{borrower_name}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left"> Mobile No. for OTP </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{mobile_number_for_otp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    BharatPe for Business
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{ip_address}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{time_stamp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">UGRO Lead ID</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{lead_id}}
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <br/>
+    <br/>
+    <p class="bold mb30">Signatures of all authorized signatories on company stamp (As applicable)</p>
+    <br/>
+    <p class="fw400 mb20">For any inquiry:</p>
+    <p class="fw400 mb10">Call us at - +91 90199 00199 | Email us at - support-ugro@myshubhlife.com</p>
+    <p class="fw400 mb10">Write to us at - Nova Miller, #333, Thimmaiah Road, Vasanth Nagar, Bengaluru- 560052</p>
+    <p class="fw400 mb10">Visit our website - <a href="https://www.myshubhlife.com"
+                                                 target="_blank">www.myshubhlife.com</a></p>
+    <br/>
+    <p class="fw400 mb30">Other terms and conditions:</p>
+    <ol>
+        <li class="mb20">
+            <p>Disbursement shall be subject to execution of transaction documents and the facility/ loan agreement
+                and other transaction documents may / will contain terms and in addition to or in modification of
+                those set out in this letter.</p>
+        </li>
+        <li class="mb20">
+            <p>The continuance of the Facility is subject to cancellation and / or repayment to UGRO on demand
+                without assigning any reason for the same.</p>
+        </li>
+        <li class="mb20">
+            <p>UGRO is entitled to add to, delete or modify all or any of the terms and conditions for the facility
+                and/or the Standard Terms applicable to the Facility.</p>
+        </li>
+        <li class="mb20">
+            <p>The borrower/s shall immediately intimate the Lenders in the event of any change in the repayment
+                capacity of the borrower/s, any change in the information/documents submitted earlier, not later
+                than 30 days from the date of such change.</p>
+        </li>
+        <li class="mb20">
+            <p>You have an option to enroll under Group Insurance scheme to cover the loan facility availed in full
+                or part disbursal. You are free to avail insurance from any of the Insurance intermediaries and
+                companies operating in the market. You will be required to pay insurance premium separately as
+                applicable.</p>
+        </li>
+        <li class="mb20">
+            <p>Please note that risk-based pricing is determined based on the risk associated with type of loan
+                (Risk Gradation), cost of funds, tenor of the loan, collateral and quantum of loan. In addition,
+                there is a regular review exercise of the interest rates and product features with the competition
+                offerings. An additional risk premium may incorporated in the pricing which is based on the credit
+                risk associated with the customer which is a function of his credit history, bureau information,
+                internal rating along with other factors like the borrowers income etc. Hence, it should be noted,
+                that the interest rate applied is different from customer to customer and his/her loans/advances.
+                The range of rates of interest and approach for gradation of risks are also available on the website
+                of UGRO Capital Ltd. at <a href="https://www.ugrocapital.com/"
+                                           target="_blank">www.ugrocapital.com</a></p>
+        </li>
+        <li class="mb20">
+            <p>Please note that this is the only sanction letter issued by UGRO in respect of the abovementioned
+                proposed loan facility. UGRO shall not be liable, responsible or bound by any other letter /
+                communication issued by any person in relation to the proposed loan facility.</p>
+        </li>
+        <li class="mb20">
+            <p>Revision in reference rate and interest reset shall be applied from the first of the month following
+                the month of the year in which URR is changed. In absence of any specific instruction, UGRO will
+                prefer to keep the EDI amount constant irrespective of revisions in URR</p>
+        </li>
+    </ol>
+
+    <br/>
+    <p class="bold mb30">Clarification on due dates and defaults</p>
+    <p class="fw400 mb20">If any amount due under the Loan is not received before the Lender runs its day end
+        process on the due date, the same shall be considered as overdue and if continued to be overdue the account
+        will be classified as SMA-1 at 31st day, SMA-2 at 61st day and Non-performing Asset at 91st day after the
+        day end process of the respective dates.</p>
+    <p class="fw400 mb10">For example, if due date is 05-01-22 then if continuously being unpaid the same shall be
+        classified as SMA- 1 as at 04-02-22, SMA-2 as at 06-03-22 and NPA as at 05-04-22. If there is any overdue in
+        an account, the default/ non-repayment is reported with the credit bureau companies like CIBIL etc. and the
+        CIBIL report of the customer will reflect defaults and its classification status and no. of days for which
+        an account remains overdue is known as DPD (Days past due). Once an account is classified as NPAs then it
+        shall be upgraded as 'standard' asset only if entire arrears of interest and principal are paid by the
+        borrower. Detailed illustration and information about the same shall be available in the Loan agreement and
+        is available at our website at www.ugrocapital.com/p>
+
+</div>
+</body>
+
+</html>

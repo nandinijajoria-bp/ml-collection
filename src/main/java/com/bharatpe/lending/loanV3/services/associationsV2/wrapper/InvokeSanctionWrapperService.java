@@ -78,8 +78,8 @@ public class InvokeSanctionWrapperService {
                 return;
             }
 
-            if(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())){
-                stagesToBeInvokedInOrder = checkTrillionRetryAndGetStageToBeInvokedInOrderList(lenderAssociationDetailsDto, stagesToBeInvokedInOrder);
+            if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.UGRO.name()).contains(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLender())) {
+                stagesToBeInvokedInOrder = checkRetryAndGetStageToBeInvokedInOrderList(lenderAssociationDetailsDto, stagesToBeInvokedInOrder);
             }
 
             Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage)).findFirst();
@@ -91,7 +91,6 @@ public class InvokeSanctionWrapperService {
             if(Arrays.asList(Lender.MUTHOOT.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
             }
-
             MDC.clear();
         } catch (Exception e) {
             log.info("Exception in invoking sanction wrapper flow for applicationId : {} {}", request.get("application_id"), Arrays.asList(e.getStackTrace()));
@@ -99,10 +98,10 @@ public class InvokeSanctionWrapperService {
         }
     }
 
-    private List<String> checkTrillionRetryAndGetStageToBeInvokedInOrderList(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, List<String> stagesToBeInvokedInOrder) {
-        boolean isTrillionRetry = !ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
+    private List<String> checkRetryAndGetStageToBeInvokedInOrderList(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, List<String> stagesToBeInvokedInOrder) {
+        boolean isRetry = !ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
 
-        if (isTrillionRetry) {
+        if (isRetry) {
             int retryApiIndex = stagesToBeInvokedInOrder.indexOf(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getSanctionStatus());
             if (retryApiIndex >= 0) {
                 return stagesToBeInvokedInOrder.subList(retryApiIndex, stagesToBeInvokedInOrder.size());
@@ -139,7 +138,7 @@ public class InvokeSanctionWrapperService {
         }
         switch (lendingApplication.get().getLender()) {
             case "TRILLIONLOANS": {
-                if(loanUtilV3.isNonTLToTLTopup(lendingApplication.get()))
+                if (loanUtilV3.isNonTLToTLTopup(lendingApplication.get()))
                     return Arrays.asList(LenderAssociationStages.TOPUP_UNDO_APPROVE.name(), LenderAssociationStages.TOPUP_DATA.name(),
                             LenderAssociationStages.ADD_CHARGE.name(), LenderAssociationStages.TOPUP_APPROVE.name(), LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
                 else
@@ -153,6 +152,8 @@ public class InvokeSanctionWrapperService {
                 return Collections.singletonList(LenderAssociationStages.UPDATE_LEAD.name());
             case "CREDITSAISON":
                 return Collections.singletonList(LenderAssociationStages.PENNY_DROP.name());
+            case "UGRO":
+                return Arrays.asList(LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.PENNY_DROP.name(), LenderAssociationStages.GET_LEAD.name());
             default:
                 return new ArrayList<>();
         }

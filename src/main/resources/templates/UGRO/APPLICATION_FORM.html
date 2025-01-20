@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Application form</title>
+    <style>
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .fw-bold {
+            font-weight: bold;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .width-33 {
+            width: 33%;
+        }
+
+        .width-66 {
+            width: 66%;
+        }
+
+        .width-20 {
+            width: 20%;
+        }
+
+        .width-80 {
+            width: 80%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mb30 {
+            margin-bottom: 30px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .mb60 {
+            margin-bottom: 60px;
+        }
+
+        .mt10 {
+            margin-top: 10px;
+        }
+
+        .mr20 {
+            margin-right: 20px;
+        }
+
+        .ml40 {
+            margin-left: 40px;
+        }
+
+        .mt30 {
+            margin-top: 30px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+
+        .fw400 {
+            font-weight: 400;
+        }
+
+        .width-100 {
+            width: 100%;
+        }
+
+        .fw600 {
+            font-weight: 600;
+        }
+
+        .width-33 {
+            width: 33%;
+        }
+
+        .width-66 {
+            width: 66%;
+        }
+
+        .word-wrap {
+            overflow-wrap: anywhere;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .bold {
+            font-weight: bold;
+        }
+
+        .upper-case {
+            text-transform: uppercase
+        }
+
+        .text-color-white {
+            color: #FFF;
+        }
+
+        .bg-color-black {
+            background-color: #000;
+        }
+
+        .common-text-margin {
+            margin: 6px 16px;
+        }
+
+        .m16 {
+            margin: 16px;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-justify {
+            justify-content: space-between;
+        }
+
+        .flex-end {
+            justify-content: end;
+        }
+
+        .bg-grey {
+            background-color: #e0e0e0;
+        }
+
+        .common-text {
+            font-weight: 400;
+            text-align: left;
+            margin: 16px;
+        }
+
+        .italic {
+            font-style: italic;
+        }
+
+        .terms-text {
+            font-weight: 400;
+            margin-bottom: 10px;
+            text-align: justify;
+        }
+
+        .center-box {
+            padding: 15px;
+            border: 1px solid #000;
+            display: flex;
+            width: fit-content;
+            justify-content: center;
+            align-items: center;
+            margin: auto;
+        }
+    </style>
+</head>
+
+<body>
+<div style="padding: 30px; margin-top: 50px">
+    <div class="text-center">{{lender_logo}}</div>
+    <h2 class="text-center">
+        Application Form - Term Loan
+    </h2>
+
+    <div class="width-100 bg-color-black text-color-white" style="padding: 6px;">
+        <p class="fw-bold text-left common-text-margin">
+            <span class="upper-case text-color-white">FOR OFFICE USE ONLY</span>
+        </p>
+    </div>
+    <table border="1" cellspacing="0" class="width-100 mb50" style="table-layout: fixed">
+        <tbody class="word-wrap">
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="bg-grey">
+                <p class="common-text">
+                    Date of application
+                </p>
+            </td>
+            <td style="padding: 0px 5px">
+                <p class="common-text">
+                    {{date}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="bg-grey">
+                <p class="common-text">
+                    Lead ID
+                </p>
+            </td>
+            <td style="padding: 0px 5px">
+                <p class="common-text">
+                    {{lead_id}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="bg-grey">
+                <p class="common-text">
+                    Loan Amount Sanctioned (Rs)
+                </p>
+            </td>
+            <td style="padding: 0px 5px">
+                <p class="common-text">
+                    {{loan_amount_in_figure}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="bg-grey">
+                <p class="common-text">
+                    Duration (Months)
+                </p>
+            </td>
+            <td style="padding: 0px 5px">
+                <p class="common-text">
+                    {{tenure_of_loan_in_months}} months
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="bg-grey">
+                <p class="common-text">
+                    Purpose
+                </p>
+            </td>
+            <td style="padding: 0px 5px">
+                <p class="common-text">
+                    Business Loan
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="bg-grey">
+                <p class="common-text">
+                    ID
+                </p>
+            </td>
+            <td style="padding: 0px 5px">
+                <p class="common-text">
+                    Not Applicable
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <br/>
+    <br/>
+
+    <div class="width-100 bg-color-black text-color-white" style="padding: 6px;">
+        <p class="fw-bold text-left common-text-margin">
+            <span class="upper-case text-color-white">BORROWER DETAILS</span>
+        </p>
+    </div>
+
+
+    <table border="1" cellspacing="0" class="width-100 word-wrap" style="table-layout: fixed">
+        <tbody>
+        <tr>
+            <td>
+                <p class="common-text">Name of the Borrower</p>
+            </td>
+            <td colspan="5">
+                <p class="common-text">{{borrower_name}}</p>
+            </td>
+            <td rowspan="7" class="text-center" style="padding: 0px 5px;">
+                <img src={{borrower_selfie}} alt="selfie" height="200" width="100"
+                     style="border: 1px solid #000;"/>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Father's Name</p>
+            </td>
+            <td colspan="5">
+                <p class="common-text">{{father_name}}</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Nationality
+                </p>
+            </td>
+            <td colspan="5">
+                <p class="common-text">INDIAN</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Date of Birth</p>
+            </td>
+            <td colspan="2">
+                <p class="common-text">{{dob}}</p>
+            </td>
+            <td>
+                <p class="common-text">Gender</p>
+            </td>
+            <td colspan="2">
+                <p class="common-text">{{gender}}</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Mobile
+                    Number</p>
+            </td>
+            <td colspan="2">
+                <p class="common-text">{{mobile_number_for_otp}}</p>
+            </td>
+            <td>
+                <p class="common-text">Email
+                    Address</p>
+            </td>
+            <td colspan="2">
+                <p class="common-text">Not
+                    Applicable</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">PAN</p>
+            </td>
+            <td colspan="2">
+                <p class="common-text">{{pan_of_borrower}}</p>
+            </td>
+            <td colspan="3">
+                <div><br></div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Residential
+                    Address</p>
+            </td>
+            <td colspan="5">
+                <p class="common-text">{{address_of_borrower}}</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">City</p>
+            </td>
+            <td>
+                <p class="common-text">{{borrower_city}}</p>
+            </td>
+            <td>
+                <p class="common-text">Pin-code
+                </p>
+            </td>
+            <td>
+                <p class="common-text">{{borrower_pincode}}</p>
+            </td>
+            <td colspan="3" rowspan="2">
+                <div><br></div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">State</p>
+            </td>
+            <td>
+                <p class="common-text">{{borrower_state}}</p>
+            </td>
+            <td>
+                <p class="common-text">Country</p>
+            </td>
+            <td>
+                <p class="common-text">INDIA</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Occupation
+                    Type</p>
+            </td>
+            <td colspan="6">
+                <p class="common-text">SELF
+                    EMPLOYED</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Proof of
+                    Identity</p>
+            </td>
+            <td colspan="6">
+                <p class="common-text">PAN CARD ({{pan_of_borrower}})</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p>Name of
+                    Business/Company</p>
+            </td>
+            <td colspan="3">
+                <p class="common-text">{{shop_name}}</p>
+            </td>
+            <td>
+                <p class="common-text">Monthly
+                    Income</p>
+            </td>
+            <td colspan="2">
+                <p class="common-text">{{monthlyIncome}}</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">Applicant
+                    Type</p>
+            </td>
+            <td colspan="6">
+                <p class="common-text">SOLE
+                    PROPRIETORSHIP</p>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <p class="common-text">GST No.</p>
+            </td>
+            <td colspan="6">
+                <p class="common-text">{{gst_number}}</p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+    <br/><br/><br/>
+
+    <div>
+        <p class="fw-bold text-center">
+            Common Declarations
+        </p>
+    </div>
+    <br/>
+
+    <p class="common-text">
+        <span class="fw-bold">I/We hereby acknowledge and confirm that:</span> I hereby declare that I am not involved
+        in any type of production or trading activity that comes under International Finance Corporation exclusion list.
+        *
+    </p>
+
+    <p class="common-text mr20" style="text-align: justify;">*Production or trade in any product or activity deemed
+        illegal, pharmaceuticals, pesticides/herbicides, ozone-depleting substances, PCB's, wildlife, weapons,
+        munitions, alcoholic beverages (excluding beer and wine), tobacco, Gambling, casinos, radioactive materials,
+        unbonded asbestos fibers, drift net fishing in the marine environment.</p>
+
+    <ol class="mb40">
+        <li class="terms-text">
+            I have been informed by UGRO Capital Limited (Lender) about the applicable schedule of charges along with
+            this application form, which is also more particularly mentioned in the Schedule of charges on the Lender
+            website.
+        </li>
+        <li class="terms-text">
+            Submission of loan application to the Lender does not imply automatic approval of the loan and Lender, in
+            its sole and absolute discretion, may either approve or reject the application.
+        </li>
+        <li class="terms-text">
+            I/we am/are competent and fully authorized to give any declaration and to submit this application form and
+            all other documents for the purpose of availing loan, creation of security, and to represent for all the
+            purposes mentioned/required to be done with respect to the loan.
+        </li>
+
+        <li class="terms-text">
+            I/We have submitted all the information/documents as required by Lender and shall furnish any additional
+            document as required by it. The information/documents provided by me/us are true and complete in all
+            respects and I/we have not withheld/suppressed any information/document whatsoever. Any misrepresentation
+            therein or incorrect/incomplete application will be my/our sole responsibility and Lender may take suitable
+            action. I/We shall inform Lender regarding any deviation from the information provided by me/us.
+        </li>
+        <li class="terms-text">
+            I/We authorize Lender to use the documents, download records from CKYCR using the KYC identifier submitted,
+            video record the KYC document, personal discussion, and use any other information provided herewith to
+            extract additional information from various public domains. Further, I/we give consent to Lender to
+            disclose, without notifying me/us, the information furnished by me/us in the application form/documents in
+            relation to the facilities, to its branches/subsidiaries/affiliates/service providers or credit information
+            companies/rating agencies or banks/financial institutions/governmental or regulatory authorities or any
+            third party, who may process & publish the information in such manner and through such medium as it may be
+            deemed necessary by Lender/RBI.
+        </li>
+        <li class="terms-text">
+            The executive collecting the application/documents has informed me/us of the rate of interest and approach
+            for gradation of risk and rational of charging different rates of interest to different categories of
+            borrowers, the particulars whereof are specified in the loan application form.
+        </li>
+        <li class="terms-text">
+            The rate of interest and credit decision are subject to various factors such as cost of funds,
+            administrative cost, risk premium, margin, etc. and the decision to give a loan and the interest rate
+            applicable to each loan are assessed on a case-to-case basis, based on multiple parameters such as borrower
+            profile, repayment capacity, etc. The rate of interest is subject to change as per the discretion of the
+            Lender.
+        </li>
+        <li class="terms-text">
+            The terms of loan as sanctioned are applicable for the specified product as indicated in the loan
+            application and are valid for a period of 60 days only. If there is a delay in loan approval, Lender
+            reserves the right to revise the loan terms at the time of actual availing of loan.
+        </li>
+        <li class="terms-text">
+            Processing fees and stamp charges would be deducted from disbursement and the same are non-refundable. In
+            the event the customer cancels the loan after sanction, the customer shall be liable to pay the applicable
+            processing fees and stamping/ other charges, if any borne by the Lender on behalf of the customer No cash
+            has been given by me/us to any person in relation to the loan application and no discount/fees/gifts or any
+            other commitment is given whatsoever which is not documented in the loan agreement, by the Lender or any of
+            its authorized representatives.
+        </li>
+        <li class="terms-text">
+            Lender has the right to retain the documents along with the photographs submitted with the loan application,
+            and the same will not be returned to me/us.
+        </li>
+        <li class="terms-text">
+            I/We authorize and give consent to Lender for communicating with me/us regularly via
+            SMS/email/calls/WhatsApp/other social media applications and the mobile number provided for receiving OTP is
+            registered in the name of borrower/applicant/co-applicant or its main promoter/director/partner and I/we
+            hereby authorize you or your subsidiaries/affiliates or any third-party vendor for sending any
+            promotional/transactional SMS. Further I/we confirm that the provided number/s are not registered with DO
+            NOT DISTURB (DND).
+        </li>
+        <li class="terms-text">
+            The contents of the application have been read out to me/us in our vernacular language(s) & I/we have
+            understood the same.
+        </li>
+        <li class="terms-text">
+            UGRO shall have a right to either process and disburse the entire loan amount singly or jointly together
+            with other co-lending partners, i.e., bank/NBFCs, as it may deem fit. I/We hereby authorize such co-lending
+            partners to access the bureau reports/ credit information from the credit information companies, download
+            records from CKYCR using the KYC identifier submitted, video record the KYC document, personal discussion,
+            use the documents submitted and any other information provided herewith to extract additional information
+            from various public domains.
+        </li>
+    </ol>
+
+    <br/>
+    <div>
+        <p class="fw-bold text-center">
+            OTHER TERMS & CONDITIONS
+        </p>
+    </div>
+
+    <ol class="mb40">
+        <li class="terms-text">
+            Payment No cash/bearer cheque has been collected from me up-front towards processing the loan application.
+        </li>
+        <li class="terms-text">
+            Details with respect to the EDI presentation dates, number of EDIs, amount, and other terms & conditions of
+            the loan will be communicated separately along with the welcome letter.
+        </li>
+        <li class="terms-text">
+            No discount/fees gifts or any other commitment is given whatsoever which is not documented in the loan
+            agreement by the lender or any of its authorized representative(s).
+        </li>
+        <li class="terms-text">
+            The lender shall make all attempts to process the application and disburse the loan within 30 (thirty)
+            working days from the date of the completion and submission of all relevant loan documents as specified
+            therein.
+        </li>
+        <li class="terms-text">
+            Other charges Loan processing fees would be up to 5% of the loan amount.
+        </li>
+        <li class="terms-text">
+            Charges which are in nature of fees are exclusive of good and service tax. Goods and services tax and other
+            government levies, as applicable, would be charged additionally.
+        </li>
+    </ol>
+    <br/>
+
+    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+           style="page-break-inside: avoid !important">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left"> Borrower Name </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{borrower_name}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left"> Mobile No. for OTP </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{mobile_number_for_otp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    BharatPe for Business
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{ip_address}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{time_stamp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">UGRO Lead ID</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{lead_id}}
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+
+</div>
+</body>
+
+</html>

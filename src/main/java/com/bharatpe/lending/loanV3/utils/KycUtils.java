@@ -522,6 +522,7 @@ public class KycUtils {
                 if ("GST_NO".equalsIgnoreCase(doc.getDocType().name())) {
                     cKycResponseDto.setGstNumber(doc.getDocIdentifier());
                     cKycResponseDto.setName(doc.getName());
+                    cKycResponseDto.setTradeName(ObjectUtils.isEmpty(doc.getTradeName()) ? null : doc.getTradeName());
                 }
             } catch (Exception e) {
                 log.error("error in processing kyc doc {} {}", e.getMessage(), Arrays.asList(e.getStackTrace()));

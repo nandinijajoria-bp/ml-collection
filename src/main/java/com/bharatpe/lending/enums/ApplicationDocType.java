@@ -1,7 +1,5 @@
 package com.bharatpe.lending.enums;
 
-import static com.bharatpe.lending.enums.Lender.*;
-
 public enum ApplicationDocType {
     KEY_FACTS_STATEMENT_DETAILS,
     KEY_FACTS_STATEMENT_DOC,
@@ -20,8 +18,8 @@ public enum ApplicationDocType {
     PAYU_LETTERHEAD_FOOTER,
     PAYU_MITC_DOC,
     PAYU_GTC_DOC,
-    PAYU_LOA_DOC,
-    PAYU_APPLICATION_FORM_DOC;
+    LOA_DOC,
+    APPLICATION_FORM_DOC;
 
 
     public static ApplicationDocType getFooterMapping(Lender lender) {

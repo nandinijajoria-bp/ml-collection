@@ -8,14 +8,21 @@ import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.entity.LendingLenderPricing;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingGstDao;
@@ -26,12 +33,9 @@ import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.*;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.loanV3.dto.ModifyAppRequest;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -39,9 +43,9 @@ import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.util.ObjectUtils;
 
@@ -349,6 +353,9 @@ public abstract class LendingApplicationServiceV3Base {
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails.get());
                     DecimalFormat df = new DecimalFormat("#.##");
                     df.setRoundingMode(RoundingMode.DOWN);
+                    if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.get().getLender())) {
+                        df = new DecimalFormat("#.######");
+                    }
                     lendingApplicationLenderDetails.get().setAnnualRoi(Double.valueOf(df.format(
                             lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                     LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
@@ -689,5 +696,42 @@ public abstract class LendingApplicationServiceV3Base {
         }
             return null;
         }
+
+    public NBFCResponseDTO<?> getStageDetails(InvokeStageRequestDTO invokeStageRequest) {
+        try {
+            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
+            if (ObjectUtils.isEmpty(lendingApplication.get())) {
+                log.error("No application found for {}", invokeStageRequest.getApplicationId());
+                return NBFCResponseDTO.builder()
+                        .applicationId(invokeStageRequest.getApplicationId().toString())
+                        .lender(invokeStageRequest.getLender()).productName("LENDING")
+                        .success(Boolean.FALSE).error("No application found").build();
+            }
+            LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
+            lenderAssociationDetailsDto.setApplicationId(lendingApplication.get().getId());
+            lenderAssociationDetailsDto.setLendingApplication(lendingApplication.get());
+            lenderAssociationDetailsDto.setMerchantId(lendingApplication.get().getMerchantId());
+            lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
+                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                log.error("Lending application lender details not found for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                return NBFCResponseDTO.builder()
+                        .applicationId(lendingApplication.get().getId().toString())
+                        .lender(invokeStageRequest.getLender()).productName("LENDING")
+                        .success(Boolean.FALSE).error("Lending application lender details not found").build();
+            }
+            lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
+
+            LenderAssociationStages stage = LenderAssociationStages.valueOf(invokeStageRequest.getStage());
+            return nbfcUtils.getStageDetails(lendingApplication.get().getLender(), lenderAssociationDetailsDto, stage);
+        } catch (Exception e) {
+            log.error("Exception in stage details {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
+        }
+        return NBFCResponseDTO.builder()
+                .applicationId(invokeStageRequest.getApplicationId().toString())
+                .lender(invokeStageRequest.getLender()).productName("LENDING")
+                .success(Boolean.FALSE).error("Something went wrong").build();
+    }
 
 }

@@ -18,6 +18,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -215,6 +216,7 @@ public class NbfcUtils {
             case PAYU:
             case CREDITSAISON:
             case SMFG:
+            case UGRO:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:
@@ -257,6 +259,10 @@ public class NbfcUtils {
                 return associationServiceUtil.invokeAddChargeService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             case "TOPUP_APPROVE":
                 return associationServiceUtil.invokeTopupApproveService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "POST_CONSENT":
+                return  associationServiceUtil.invokeConsentPostingService(lender, lenderAssociationDetailsDto);
+            case "GET_LEAD":
+                return  associationServiceUtil.invokeGetLeadService(lender, lenderAssociationDetailsDto);
             default:
                 return false;
         }
@@ -278,5 +284,14 @@ public class NbfcUtils {
             log.info("Exception in checking prev Bp Kyc lenders assigned for applicationId {}", applicationId);
         }
         return false;
+    }
+
+    public NBFCResponseDTO<?> getStageDetails(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LenderAssociationStages stage) {
+        switch (stage) {
+            case GENERATE_DOCUMENT:
+                return associationServiceUtil.getDocsGenerateService(lender, lenderAssociationDetailsDto);
+            default:
+                return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
+        }
     }
 }

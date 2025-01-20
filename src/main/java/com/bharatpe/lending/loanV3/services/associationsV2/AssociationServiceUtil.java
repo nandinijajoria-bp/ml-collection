@@ -17,6 +17,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.TLEKYCService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -222,6 +223,42 @@ public class AssociationServiceUtil {
     @Autowired
     TLEKYCService tlEkycService;
 
+    @Autowired
+    UgroLeadService ugroLeadService;
+
+    @Autowired
+    UgroDocUploadService ugroDocUploadService;
+
+    @Autowired
+    UgroCreateClientService ugroCreateClientService;
+
+    @Autowired
+    UgroKycService ugroKycService;
+
+    @Autowired
+    UgroBreService ugroBreService;
+
+    @Autowired
+    UgroGetLeadService ugroGetLeadService;
+
+    @Autowired
+    UgroNachMandateService ugroNachMandateService;
+
+    @Autowired
+    UgroPennyDropService ugroPennyDropService;
+
+    @Autowired
+    UgroForeclosureService ugroForeclosureService;
+
+    @Autowired
+    UgroDocumentGenerationService ugroDocumentGenerationService;
+
+    @Autowired
+    UgroDisbursalService ugroDisbursalService;
+
+    @Autowired
+    UgroRepaymentScheduleService ugroRepaymentScheduleService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -234,6 +271,8 @@ public class AssociationServiceUtil {
                 return capriLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             case "PAYU":
                 return payULeadService.invokeCreateLead(lenderAssociationDetailsRequest);
+            case "UGRO":
+                return ugroLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -264,6 +303,8 @@ public class AssociationServiceUtil {
                 return capriDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "PAYU":
                 return payUDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
+            case "UGRO":
+                return ugroDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             default:
                 return false;
         }
@@ -302,6 +343,8 @@ public class AssociationServiceUtil {
                 return creditSasionBREService.invokeBre(lenderAssociationDetailsRequest);
             case "SMFG":
                 return smfgBreService.invokeBre(lenderAssociationDetailsRequest);
+            case "UGRO":
+                return ugroBreService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -323,6 +366,8 @@ public class AssociationServiceUtil {
                 return creditSaisonDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "SMFG":
                 return smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
+            case "UGRO":
+                return ugroDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             default:
                 return false;
         }
@@ -342,6 +387,8 @@ public class AssociationServiceUtil {
                 return payURepaymentScheduleService.invokeRpsGenerate(applicationId, isPreview);
             case "SMFG":
                 return smfgRpsService.invokeRpsGenerate(applicationId);
+            case "UGRO":
+                return ugroRepaymentScheduleService.invokeRpsGenerate(applicationId);
             default:
                 return null;
         }
@@ -363,6 +410,8 @@ public class AssociationServiceUtil {
                 return creditSaisonDisbursalCallbackService.parseCallbackResponse(nbfcResponseDTO);
             case "SMFG":
                 return smfgDisbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
+            case "UGRO":
+                return ugroDisbursalService.parseCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -405,6 +454,8 @@ public class AssociationServiceUtil {
                 return creditSaisonForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             case "SMFG":
                 return smfgForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger);
+            case "UGRO":
+                return ugroForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
             default:
                 return null;
         }
@@ -422,6 +473,8 @@ public class AssociationServiceUtil {
                 return payUForeclosureService.getForeclosureDetails(applicationId);
             case "SMFG":
                 return smfgForeclosureService.getForeclosureDetails(applicationId);
+            case "UGRO":
+                return ugroForeclosureService.getForeclosureDetails(applicationId);
             default:
                 return 0D;
         }
@@ -435,6 +488,8 @@ public class AssociationServiceUtil {
                 return capriCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
             case "CREDITSAISON":
                 return creditSaisonCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
+            case "UGRO":
+                return ugroCreateClientService.invokeCreateClient(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -448,6 +503,8 @@ public class AssociationServiceUtil {
                 return mfKycService.processMFKycCallback(nbfcResponseDTO);
             case "CREDITSAISON":
                 return creditSaisonKYCService.processCreditSasionKycCallback(nbfcResponseDTO);
+            case "UGRO":
+                return ugroKycService.processKycCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -457,6 +514,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlConsentPostingService.invokeConsentPosting(lenderAssociationDetailsRequest);
+            case "UGRO":
+                return ugroBreService.invokeCounterOffer(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -494,6 +553,8 @@ public class AssociationServiceUtil {
                 return payUNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             case "SMFG":
                 return smfgNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
+            case "UGRO":
+                return ugroNachMandateService.invokeNachMandate(lenderAssociationDetailsDto);
             default:
                 return false;
         }
@@ -514,6 +575,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "CREDITSAISON":
                 return creditSaisonPennyDropService.invokePennyDrop(lenderAssociationDetailsRequest);
+            case "UGRO":
+                return ugroPennyDropService.invokePennyDrop(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -567,6 +630,8 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "CREDITSAISON":
                 return creditSaisonPennyDropService.processCallback(nbfcResponseDTO);
+            case "UGRO":
+                return ugroPennyDropService.processCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -604,6 +669,33 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "TRILLIONLOANS":
                 return tlTopupApproveService.invokeTopupApprove(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeGetLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "UGRO":
+                return ugroGetLeadService.invokeGetLead(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public NBFCResponseDTO<?> getDocsGenerateService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        switch (lender) {
+            case "UGRO":
+                return ugroDocumentGenerationService.getUdyamRegistrationResponse(lenderAssociationDetailsRequestDto);
+            default:
+                return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
+        }
+    }
+
+    public boolean invokeUdyamStatusCheckService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "UGRO":
+                return ugroGetLeadService.invokeUdyamStatusCheck(lenderAssociationDetailsDto);
             default:
                 return false;
         }

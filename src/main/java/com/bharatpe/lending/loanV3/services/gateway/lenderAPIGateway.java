@@ -2,9 +2,9 @@ package com.bharatpe.lending.loanV3.services.gateway;
 
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -98,9 +98,18 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.update.client.api:api/v3/lender/update-client}")
     String getUpdateClient;
 
+    @Value("${nbfc.get.lead.api:api/v3/lender/get-lead}")
+    String getLeadUrl;
+
+    @Value("${nbfc.get.lead.api:api/v3/lender/generate-document}")
+    String generateDocumentUrl;
+
 
     @Value("${http.payu.read.timeout:20000}")
     int payuReadTimeout;
+
+    @Autowired
+    UgroConfig ugroConfig;
 
 
     @Override
@@ -108,7 +117,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
         try {
             if(!ObjectUtils.isEmpty(nbfcRequestDto) && !ObjectUtils.isEmpty(nbfcRequestDto.getLender()) && Lender.PAYU.name().equalsIgnoreCase(nbfcRequestDto.getLender())){
                 return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NBFCResponseDTO.class, getUrl(lenderAssociationStage), payuReadTimeout);
-            }
+            } else if (!ObjectUtils.isEmpty(nbfcRequestDto) && !ObjectUtils.isEmpty(nbfcRequestDto.getLender()) && Lender.UGRO.name().equalsIgnoreCase(nbfcRequestDto.getLender()))
+                return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NBFCResponseDTO.class, getUrl(lenderAssociationStage), ugroConfig.getHttpReadTimeout());
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NBFCResponseDTO.class, getUrl(lenderAssociationStage));
         } catch (Exception e) {
             log.error("exception occurred while processing {} api call to nbfc for lender {} for {} {},{}", lenderAssociationStage.name(), nbfcRequestDto.getLender(), nbfcRequestDto, e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -171,6 +181,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+getCkycStatusCheck;
             case "UPDATE_CLIENT":
                 return nbfcBaseUrl+getUpdateClient;
+            case "GET_LEAD":
+                return nbfcBaseUrl+getLeadUrl;
+            case "GENERATE_DOCUMENT":
+                return nbfcBaseUrl+generateDocumentUrl;
             default:
                 return null;
         }

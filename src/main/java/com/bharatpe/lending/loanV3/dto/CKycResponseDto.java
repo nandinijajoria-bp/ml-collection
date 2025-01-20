@@ -46,4 +46,5 @@ public class CKycResponseDto {
     String po;
     String subdist;
     String dist;
+    String tradeName;
 }

@@ -1736,6 +1736,9 @@ public class LoanUtil {
 		if("SMFG".equalsIgnoreCase(lender)) {
 			finalLender = Lender.SMFG.name();
 		}
+		if(UGRO.name().equalsIgnoreCase(lender)) {
+			finalLender = UGRO.name();
+		}
 		return finalLender;
 	}
 

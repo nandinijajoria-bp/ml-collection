@@ -26,6 +26,7 @@ public class DocUploadStageAssociationSvcFactory extends LenderAssociationServic
             case "PAYU":
             case "CREDITSAISON":
             case "SMFG":
+            case "UGRO":
                 return additionalDocUploadService;
             default:
                 return oldModelService;

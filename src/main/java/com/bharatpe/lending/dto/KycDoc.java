@@ -17,6 +17,7 @@ public class KycDoc {
     private Long merchantId;
     private Long merchantStoreId;
     private String name;
+    private String tradeName;
     private String docIdentifier;
     private String docFrontImageUrl;
     private String docBackImageUrl;
