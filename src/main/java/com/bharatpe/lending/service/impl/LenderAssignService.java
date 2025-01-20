@@ -26,6 +26,7 @@ import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
+import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
@@ -43,11 +44,8 @@ import org.springframework.util.ObjectUtils;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
+
 import static com.bharatpe.lending.constant.LendingConstants.*;
-import static com.bharatpe.lending.enums.Lender.LDC;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_NBFC;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P;
-import static com.bharatpe.lending.enums.Lender.LIQUILOANS_P2P_OF;
 import static com.bharatpe.lending.enums.Lender.*;
 
 @Slf4j
@@ -223,6 +221,10 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     SmfgConfig smfgConfig;
 
+    @Lazy
+    @Autowired
+    UgroConfig ugroConfig;
+
     @Value("${lender.apr.enable_new_logic:true}")
     private boolean enableNewLenderAprLogic;
 
@@ -366,6 +368,13 @@ public class LenderAssignService implements ILenderAssignService {
                             if (PAYU.name().equalsIgnoreCase(lender) && application.getEdi() > summaryTpv) {
                                 log.info("skipping payu for application id : {} due to merchant loan edi amount is greater than summary_tpv {}", application.getId(), summaryTpv);
                                 String remarks = "skipping payu for application id : " + application.getId() + " due to merchant loan edi amount: " + application.getEdi() + " is greater than summary_tpv " + summaryTpv;
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (UGRO.name().equalsIgnoreCase(lender) && (application.getLoanAmount() < ugroConfig.getMinAmount() || application.getLoanAmount() > ugroConfig.getMaxAmount())) {
+                                String remarks = "UGRO: skipping for application id : " + application.getId() + " due to loan amount: " + application.getLoanAmount() + " is greater than: " + ugroConfig.getMaxAmount() + " / less than: " + ugroConfig.getMinAmount();
+                                log.info(remarks);
                                 createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
                                 continue;
@@ -923,6 +932,9 @@ public class LenderAssignService implements ILenderAssignService {
                 break;
             case "SMFG":
                 rolloutPercent = smfgConfig.getRolloutPercentage();
+                break;
+            case "UGRO":
+                rolloutPercent = ugroConfig.getRolloutPercentage();
                 break;
             default:
                 rolloutPercent = 0;

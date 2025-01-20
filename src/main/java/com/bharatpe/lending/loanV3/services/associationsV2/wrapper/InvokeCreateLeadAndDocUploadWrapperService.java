@@ -91,7 +91,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 MDC.clear();
                 return;
             }
-            if(!Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CREDITSAISON.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
+            if(!Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplication().getLender())){
                 invokeBREWorkflow(lenderAssociationDetailsRequestDto);
             }
             MDC.clear();
@@ -115,7 +115,6 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 Boolean.TRUE
         );
     }
-
 
     public void runBaseChecksAndCreateRecord(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lenderAssociationDetailsDto.getApplicationId());
@@ -149,32 +148,13 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
         df.setRoundingMode(RoundingMode.DOWN);
+        if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+            df = new DecimalFormat("#.######");
+        }
         lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                 lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(),
                         LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.getLender()))));
         return lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-    }
-
-
-    private boolean invokeStage(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String stage) {
-        switch (stage) {
-            case "CREATE_LEAD":
-                return associationServiceUtil.invokeCreateLeadService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
-            //case "PAN_UPLOAD":
-            case "AADHAR_UPLOAD":
-            case "SELFIE_UPLOAD":
-            case "SHOP_PHOTO_UPLOAD":
-            case "SHOP_STOCK_PHOTO_UPLOAD":
-                return associationServiceUtil.invokeDocUploadService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage);
-            case "CREATE_CLIENT" :
-                return associationServiceUtil.invokeCreateClientService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
-            case "KYC":
-                return associationServiceUtil.invokeKycService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
-            case "UPDATE_LEAD":
-                return associationServiceUtil.invokeLeadUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
-            default:
-                return true;
-        }
     }
 
     public static boolean kycDataNeeded(String stage) {
@@ -214,6 +194,9 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                         LenderAssociationStages.SHOP_STOCK_PHOTO_UPLOAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.KYC.name());
             case CREDITSAISON:
                 return Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.KYC.name());
+            case UGRO:
+                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(),
+                        LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.CREATE_CLIENT.name());
             default:
                 throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }

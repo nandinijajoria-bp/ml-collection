@@ -3,7 +3,6 @@ package com.bharatpe.lending.controller;
 import com.bharatpe.lending.entity.LenderAssignmentRules;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.service.impl.LenderAssignService;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;

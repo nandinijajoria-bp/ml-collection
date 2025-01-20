@@ -128,6 +128,7 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
             case "PAYU":
             case "CREDITSAISON":
             case "SMFG":
+            case "UGRO":
                 return true;    // Skipped update lead as its only taking same payload as createLead
             default:
                 return false;
@@ -170,6 +171,9 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
         df.setRoundingMode(RoundingMode.DOWN);
+        if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+            df = new DecimalFormat("#.######");
+        }
         lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                 lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(),
                         LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.getLender()))));

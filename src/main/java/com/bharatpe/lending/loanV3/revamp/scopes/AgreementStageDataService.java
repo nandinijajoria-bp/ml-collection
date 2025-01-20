@@ -360,6 +360,9 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
             DecimalFormat df = new DecimalFormat("#.##");
             df.setRoundingMode(RoundingMode.DOWN);
+            if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
+                df = new DecimalFormat("#.######");
+            }
 
             Double annualRoi = Double.valueOf(df.format(
                     lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(),

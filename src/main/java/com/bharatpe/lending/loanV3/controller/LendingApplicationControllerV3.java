@@ -152,4 +152,13 @@ public class LendingApplicationControllerV3 {
         ApiResponse<?> response = maskedMobileOtpService.verifyOTP(merchant, map);
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/stageDetails")
+    public ResponseEntity<?> stageDetails(@RequestBody InvokeStageRequestDTO invokeStageRequest) {
+        log.info("initiated the stage details request {}", invokeStageRequest);
+        NBFCResponseDTO<?> response = lendingApplicationServiceV3.getStageDetails(invokeStageRequest);
+        HttpStatus status = response.getSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+        return ResponseEntity.status(status).body(response);
+    }
+
 }

@@ -14,7 +14,6 @@ import com.bharatpe.lending.common.dto.LendingPayoutResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.NachableBanksDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
@@ -23,7 +22,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.LoanInsuranceConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
@@ -2400,12 +2398,11 @@ public class SupportService {
                     } else {
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
                     }
-                    if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.get().getLender())){
-                    if (s3BucketHandler.doesS3ObjectExist(authorizationLetterFileName,bucket))
-                    {
-                        String authorizationLetterUrl = lendingApplicationServiceV2.fetchAuthorizationLetterFromS3andGenerateShortUrl(lendingApplication.get().getId(),authorizationLetterFileName);
-                        lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterUrl);
-                    } else {
+                    if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.LIQUILOANS_NBFC.name(), Lender.LIQUILOANS_P2P.name(), Lender.LIQUILOANS_P2P_OF.name(), Lender.UGRO.name()).contains(lendingApplication.get().getLender())) {
+                        if (s3BucketHandler.doesS3ObjectExist(authorizationLetterFileName, bucket)) {
+                            String authorizationLetterUrl = lendingApplicationServiceV2.fetchAuthorizationLetterFromS3andGenerateShortUrl(lendingApplication.get().getId(), authorizationLetterFileName);
+                            lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterUrl);
+                        } else {
                             lendingApplicationServiceV2.generateAuthorizationLetterDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getAuthorizationLetterSignedAt());
                         }
                     }
@@ -2423,8 +2420,8 @@ public class SupportService {
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getKfsSignedAt());
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getSanctionLoanAgreementSignedAt());
 
-                        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name()).contains(lendingApplication.get().getLender())){
-                            lendingApplicationServiceV2.generateAuthorizationLetterDoc(lendingApplication.get(),basicDetailsDto.get(),lendingKfs1,lendingKfs.getAuthorizationLetterSignedAt());
+                        if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.LIQUILOANS_NBFC.name(), Lender.LIQUILOANS_P2P.name(), Lender.LIQUILOANS_P2P_OF.name(), Lender.UGRO.name()).contains(lendingApplication.get().getLender())) {
+                            lendingApplicationServiceV2.generateAuthorizationLetterDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs1, lendingKfs.getAuthorizationLetterSignedAt());
                             lendingKfs1.setAuthorizationLetterSignedAt(lendingKfs.getKfsSignedAt());
                         }
                         //set timestamps as the old ones.

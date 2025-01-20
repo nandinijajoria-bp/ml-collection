@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .bold {
+            font-weight: bold;
+        }
+
+        .underline {
+            text-decoration: underline;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .m-auto {
+            margin: auto;
+        }
+
+        .mb10 {
+            margin-bottom: 10px;
+        }
+
+        .mb20 {
+            margin-bottom: 20px;
+        }
+
+        .mb30 {
+            margin-bottom: 30px;
+        }
+
+        .mb40 {
+            margin-bottom: 40px;
+        }
+
+        .mb50 {
+            margin-bottom: 50px;
+        }
+
+        .mb60 {
+            margin-bottom: 60px;
+        }
+
+        .mt10 {
+            margin-top: 10px;
+        }
+
+        .mr20 {
+            margin-right: 20px;
+        }
+
+        .ml40 {
+            margin-left: 40px;
+        }
+
+        .mt30 {
+            margin-top: 30px;
+        }
+
+        .width-auto {
+            width: -moz-fit-content;
+            width: fit-content;
+        }
+    </style>
+</head>
+
+<body>
+<div style="padding: 20px 30px;">
+    <div><br></div>
+    <p class="text-center underline"><strong>PAYMENT INSTRUCTION/AUTHORIZATION</strong></p>
+    <p class="text-right">Date: {{date}}</p>
+    <p>Resilient Innovations Private Limited (<span class="bold">RIPL/ Offline PA </span>)</p>
+    <p>3rd Floor, Ramnath House, 18, Community Center,&nbsp;</p>
+    <p>Opp. Jet Airways, Yusuf Sarai, New
+        Delhi-110049&nbsp;</p>
+    <p>(acting as the offline payment aggregator)</p>
+    <p class="underline mb30"><strong>Sub: Deduction of Due Amounts from the
+        Settlement Amount</strong></p>
+    <p>Dear Sir/ Ma’am,</p>
+    <div>
+        <ol>
+            <li style="font-size:15px">
+                <p style="line-height:1.295;text-align: justify"><span style="font-size:15px">This is in
+                            reference to loan sanctioned to the undersigned by UGRO CAPITAL LIMITED (</span><span
+                        style="font-size:15px" class="bold">“Lender”</span><span style="font-size:15px">) vide the
+                            Loan Id
+                            {{lead_id}}</span><span style="font-size:15px">&nbsp;(</span><span style="font-size:15px"
+                                                                                               class="bold">“Loan
+                            ID”</span><span style="font-size:15px">).</span></p>
+            </li>
+            <li style="font-size:15px">
+                <p style="line-height:1.295;text-align: justify"><span style="font-size:15px">Pursuant to the
+                            Key Facts Statement, Sanction Letter and other loan documents (“</span><span
+                        style="font-size:15px" class="bold">Loan Documents</span><span style="font-size:15px">”)
+                            accepted by
+                            the undersigned, the undersigned has agreed to give an irrevocable, unconditional and
+                            express consent/authorization to the Offline Payment Aggregator (</span><span
+                        style="font-size:15px" class="bold">PA</span><span style="font-size:15px">) to deduct the
+                            applicable
+                            instalment amounts as per the agreed frequency and/or any other dues stated under the
+                            Loan Documents (“</span><span style="font-size:15px" class="bold">Due Amounts</span><span
+                        style="font-size:15px">”). The Offline PA, shall upon receipt of such instructions from
+                            the Lender, deduct the Due Amounts from the Settlement Amount and transfer such Due
+                            Amounts to the Lender’s bank account against repayment of the loan availed by the
+                            undersigned vide the above-mentioned Loan ID.&nbsp; For clarification, Settlement Amount
+                            shall have the same meaning assigned to it under the Loan Documents.&nbsp;</span></p>
+            </li>
+            <li style="font-size:15px">
+                <p style="line-height:1.295;text-align: justify">The undersigned hereby give its irrevocable,
+                    unconditional, and express consent to the Offline PA to deduct the Due Amounts from the
+                    Settlement Amount as communicated by the Lender and/or its representatives and transfer such
+                    amounts to Lender’s bank account as repayment for the loan availed by the undersigned vide
+                    the above-mentioned Loan ID.</p>
+            </li>
+            <li style="font-size:15px">
+                <p style="line-height:1.295;text-align: justify">The undersigned hereby irrevocably and
+                    unconditionally confirm that these instructions/authorization in favour of the Offline PA
+                    and the Lender as mentioned above shall be irrevocable and shall not be revoked until the
+                    loan has been repaid in full to the satisfaction of the Lender.</p>
+            </li>
+        </ol>
+        <p style="line-height:1.295;margin-left: 18pt">Yours Sincerely,</p>
+        <p style="line-height:1.295;margin-left: 18pt">{{borrower_name}} (“Borrower”)</p>
+        <p style="line-height:1.295;margin-left: 18pt">{{pan_of_borrower}}</p>
+
+        <br>
+
+
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+               style="page-break-inside: avoid !important">
+            <tbody>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> Borrower Name </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{borrower_name}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Date</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> Mobile No. for OTP </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{mobile_number_for_otp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Platform</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        BharatPe for Business
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">IP Address</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{ip_address}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">Time Stamp</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{time_stamp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">UGRO Lead ID</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{lead_id}}
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+
+    </div>
+</div>
+</body>
+
+</html>
