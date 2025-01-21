@@ -339,4 +339,59 @@ public class LendingEdiScheduleService {
         return new CommonResponse(false, "Something went wrong in V3 edi schedule");
     }
 
+    public CommonResponse getEdiScheduleForEdi(long merchantId, long applicationId, Double edi) {
+        logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
+        try {
+            LendingApplication lendingApplication =
+                    lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            if (lendingApplication == null) {
+                return new CommonResponse(false, "Lending application not found");
+            }
+
+            int installmentNo = 1;
+            int ediCount = lendingApplication.getPayableDays().intValue();
+            Double openingBalance = lendingApplication.getLoanAmount();
+            double totalInterest = 0D;
+            Double totalPrincipal = 0D;
+            List<EdiScheduleV2DTO> ediSchedules = new ArrayList<>();
+            Calendar cal = Calendar.getInstance();
+
+            double reducingInterestRateDaily =
+                    Finance.rate(ediCount, edi.intValue(), lendingApplication.getLoanAmount());
+            int normalEdIinstallmentNo = 1;
+            while (normalEdIinstallmentNo <= ediCount) {
+                Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
+                double interest = round(edi.intValue() - principal);
+
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    interest = roundToWhole(interest);
+                    principal = edi.intValue() - interest;
+                }
+
+                if(normalEdIinstallmentNo == ediCount && !lendingApplication.getLoanAmount().equals(totalPrincipal + principal)) {
+                        double diff = lendingApplication.getLoanAmount() - (totalPrincipal + principal);
+                        principal = round(lendingApplication.getLoanAmount() - totalPrincipal);
+                        interest = round(interest - diff < 0 ? 0 : interest - diff);
+                }
+                totalPrincipal = totalPrincipal + principal;
+                totalInterest = totalInterest + interest;
+                EdiScheduleV2DTO currentSchedule = new EdiScheduleV2DTO();
+                currentSchedule.setSerialNumber(installmentNo);
+                currentSchedule.setInterest(interest);
+                currentSchedule.setPrincipal(principal);
+                currentSchedule.setEdiAmount((int) (principal + interest));
+                currentSchedule.setDate(cal.getTime());
+                currentSchedule.setBalance(round(openingBalance));
+                ediSchedules.add(currentSchedule);
+                openingBalance = openingBalance - principal;
+                installmentNo++;
+                normalEdIinstallmentNo++;
+                cal.add(Calendar.DAY_OF_MONTH, 1);
+            }
+            return new CommonResponse(true, "success", ediSchedules);
+        } catch(Exception ex) {
+            logger.error("Exception while creating schedule V2 for applicationId {}, Exception is {}, Stacktrace : {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return new CommonResponse(false, "Something went wrong");
+    }
 }

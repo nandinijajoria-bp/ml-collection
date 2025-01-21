@@ -278,7 +278,7 @@ public class LoanEligibleService {
             repayment = eligibleLoan.getRepayment();
         }
         else {
-            processingFee = maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100;
+            processingFee = Math.ceil(maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100);
             interestRate = maxPricingValuesDTO.getMaxInterestRate();
             edi = (int) Math.ceil((eligibleLoan.getAmount() + (interestRate * eligibleLoan.getAmount() * eligibleLoan.getTenureInMonths())/100) / ediCount);
             repayment = edi * ediCount;
