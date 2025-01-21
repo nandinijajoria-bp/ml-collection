@@ -64,6 +64,7 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
@@ -2923,6 +2924,69 @@ public class LendingApplicationServiceV2 {
         }
         catch(Exception e){
             log.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    /*
+        * This method is to be used specifically for calculating APR for base checks only.
+        * This caters the case of using lender pricing config for APR calculation
+     */
+    public Double getAprForBaseChecks(LendingApplication lendingApplication, Double amountToCalculateAprOn, Integer ediModel, String lender, LendingLenderPricing lenderPricing){
+        try{
+            long applicationId = lendingApplication.getId();
+            long merchantId = lendingApplication.getMerchantId();
+
+            log.info("calculating APR using Lender Pricing for applicationId : {}", applicationId);
+            Double guess = 0.01;
+            ArrayList<Double> values = new ArrayList<>();
+
+            //Get Lender pricing config for APR calculation
+            Double edi = lendingApplication.getEdi();
+            if (!ObjectUtils.isEmpty(lenderPricing)) {
+                Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
+                Double interestAmt = (lendingApplication.getLoanAmount() * (lenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+                edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+            }
+
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi);
+            if(!response.isSuccess()){
+                log.info(response.getMessage());
+                log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
+                return null;
+            }
+            List<EdiScheduleV2DTO> ediSchedule = (List<EdiScheduleV2DTO>)response.getData();
+            if(ObjectUtils.isEmpty(ediSchedule)){
+                log.info("Unable to fetch edi schedule for APR calculation for applicationid : {}", applicationId);
+                return null;
+            }
+            values.add(0-amountToCalculateAprOn);
+            for(int i = 0; i < ediSchedule.size(); i++){
+                if(ediSchedule.get(i).getSerialNumber() == 0)continue;
+                values.add(new Double(ediSchedule.get(i).getEdiAmount()));
+                if((i+1) < ediSchedule.size()){
+                    long diff = Math.abs(dateTimeUtil.getDateDiffInDays(ediSchedule.get(i).getDate(), ediSchedule.get(i+1).getDate()));
+                    if(diff == 2){
+                        values.add(0.0);
+                    }
+                }
+            }
+            int tenureInDays = values.size() - 1;
+            Double apr = 0.0;
+            double[] valuesDouble = new double[values.size()];
+            for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
+            log.info("valuesDouble Size : {}", valuesDouble.length);
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lender)) ? 360 : 365;
+            apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
+            if(apr.isNaN()){
+                log.info("APR : {}", apr);
+                return null;
+            }
+            log.info("APR : {}", apr);
+            return apr * 100;
+        }
+        catch(Exception e){
+            log.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
