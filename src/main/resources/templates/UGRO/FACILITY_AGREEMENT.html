@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <style>
+        input {
+            pointer-events: none;
+        }
+
         .fw400 {
             font-weight: 400;
         }
@@ -2341,11 +2345,7 @@
                 <p style="margin: 6px 16px;" class="fw400 text-left ">Lock in period</p>
             </td>
             <td style="padding: 0px 5px;" class="width-auto word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">A lock-in period will be applicable on the loan
-                    until the first twelve (12) EMIs are fully paid (Pre-EMI will not be considered in EMI), during
-                    which the Borrower shall not be entitled to make part prepayment or foreclosure unless otherwise
-                    specifically approved or permitted by the Lender, at its sole discretion, subject to payment of the
-                    applicable charges as mentioned above.</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Not Applicable</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -2639,7 +2639,7 @@
                     </tr>
                     <tr class="width-100">
                         <td style="padding: 8px;">
-                            ✔
+                            <input type="checkbox" checked id="edi"/>
                         </td>
                         <td style="padding: 8px;">
                             NA
@@ -2696,7 +2696,7 @@
                     </tr>
                     <tr class="width-100">
                         <td style="padding: 8px;">
-                            ✔
+                            <input type="checkbox" checked id="daily"/>
                         </td>
                         <td style="padding: 8px;">
                             NA
