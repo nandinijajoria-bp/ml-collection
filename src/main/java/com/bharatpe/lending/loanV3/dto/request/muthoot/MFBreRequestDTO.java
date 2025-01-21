@@ -29,6 +29,10 @@ public class MFBreRequestDTO {
         private String riskSegment;
         private String pincodeColour;
         private Double netFreeIncome;
+        private Long pincodeBand;
+        private String experimentationFlag;
+        private Double proposedInterest;
+        private Double proposedProcessingFee;
 
     }
 

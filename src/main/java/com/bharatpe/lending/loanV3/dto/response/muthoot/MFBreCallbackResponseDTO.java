@@ -13,56 +13,59 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class MFBreCallbackResponseDTO {
 
-        private UserData data;
-        private String error;
-        private String statusCode;
+    private UserData data;
+    private String error;
+    private String statusCode;
 
-        @Data
-        @AllArgsConstructor
-        @NoArgsConstructor
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public static class UserData {
-            private String referenceID;
-            private String status;
-            private List<LoanOffer> offers;
-        }
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    private static class OutputVariables {
+        private Double thick_thin_multiplier;
+        private String rejectionReason;
+    }
 
-        @Data
-        @AllArgsConstructor
-        @NoArgsConstructor
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public static class LoanOffer {
-            private String offerID;
-            private String status;
-            private String lenderID;
-            private String lenderName;
-            private String offerType;
-            private String repaymentFrequency;
-            private Integer minAmount;
-            private Integer maxAmount;
-            private Integer stepAmount;
-            private Integer minTenure;
-            private Integer maxTenure;
-            private Integer stepTenure;
-            private String tenureType;
-            private Double interest;
-            private String interestType;
-            private String interestMethod;
-            private Integer processingFee;
-            private String processingFeeType;
-            private String expiry;
-            private DataRequired dataRequired;
-        }
 
-        @Data
-        @AllArgsConstructor
-        @NoArgsConstructor
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public static class DataRequired {
-            private String bureau;
-            private String banking;
-            private String gst;
-            private String xyz;
-        }
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class UserData {
+        private List<LoanOffer> offers;
+        private OutputVariables outputVariables;
+        private String rejectionReason;
+        private String status;
+        private String referenceID;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class LoanOffer {
+        private String createdAt;
+        private String expiresAt;
+        private String lenderID;
+        private String lenderLogoURL;
+        private String lenderName;
+        private String offerID;
+        private String offerType;
+        private List<Slab> slabs;
+        private String status;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Slab {
+        private Double maxAmount;
+        private Double minAmount;
+        private Integer tenure;
+        private Double interest;
+        private String method;
+        private Double processingFee;
+        private String processingFeeType;
+        private Double gst;
+    }
 
 }
