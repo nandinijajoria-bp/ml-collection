@@ -1231,6 +1231,9 @@ public class LenderAssignService implements ILenderAssignService {
             case "PIRAMAL":
                 maxIrr = piramalMaxIrr;
                 break;
+            case "UGRO":
+                maxIrr = ugroConfig.getMaxIrr();
+                break;
             default:
                 maxIrr = 0D;
         }

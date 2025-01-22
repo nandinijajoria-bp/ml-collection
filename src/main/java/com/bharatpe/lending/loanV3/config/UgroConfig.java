@@ -38,6 +38,7 @@ public class UgroConfig {
 
     private double minAmount = 15000;
     private double maxAmount = 500000;
+    private double maxIrr = 38;
 
     private String corporateName = "UGRO Capital Limited";
     private String businessAddress = "UGRO Capital, 4th Floor, Tower 3, Equinox Business Park, Lbs Road, Kurla, Mumbai - 400070";
