@@ -32,7 +32,7 @@ jobs:
           msg: ${{ steps.extract_branch.outputs.branch }}
           separator: '-'
           maxsplit: 1
-
+          
       - name: Action PR title
         if: ${{ (steps.split.outputs._0 == 'feature') || (steps.split.outputs._0 == 'hotfix') }}
         uses: deepakputhraya/action-pr-title@master
@@ -71,26 +71,42 @@ jobs:
             exit 1
           fi
       - name: Verify JIRA ID on JIRA Board
-        if: ${{ (steps.split.outputs._0 == 'feature') || (steps.split.outputs._0 == 'hotfix') }} 
+        if: ${{ (steps.split.outputs._0 == 'feature') || (steps.split.outputs._0 == 'hotfix') }}
         id: verify-jira-id
         run: |
           jira_id="${{ steps.split.outputs._1 }}"
           jira_url="https://bharatpe.atlassian.net/rest/api/2/issue/$jira_id"
-          # Replace 'your-jira-username' and 'your-jira-api-token' with your Jira credentials
+          if [[ "${{ steps.split.outputs._0 }}" == 'hotfix' ]]; then
+            if [[ $jira_id != INCIDENT-* ]]; then
+              echo "Error: Hotfix branches must correspond to an INCIDENT JIRA ID."
+              exit 1
+            fi
+          fi
           curl -u ${{ secrets.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }} -X GET -H "Content-Type: application/json" $jira_url | grep -q 'id' && echo "JIRA ID $jira_id exists on the JIRA board" || (echo "JIRA ID $jira_id does not exist on the JIRA board" && exit 1)
       - name: Add tag in default branch
         if: ${{ steps.base_branch.outputs.branch == github.event.repository.default_branch && github.event.pull_request.merged == true }}
         run: |
           echo "Tagging The following Repo"
-          current_version=$(git tag -l | cut -c1,2,3,4,5,6 | sort -V  | tail -1)
+          # Fetch latest semantic versioning tag
+          latest_semantic_tag=$(curl -s -H "Authorization: token ${{ secrets.github_token }}" "https://api.github.com/repos/bharatpe/${{ github.event.repository.name }}/tags" | jq -r '.[].name | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' | sort -V | tail -1)
+
+          # If no semantic versioning tags are found, fallback to non-semantic versioning tags
+          if [ -z "$latest_semantic_tag" ]; then
+              latest_non_semantic_tag=$(curl -s -H "Authorization: token ${{ secrets.github_token }}" "https://api.github.com/repos/bharatpe/${{ github.event.repository.name }}/tags" | jq -r '.[].name | select(test("^v[0-9]+$"))' | sort -V | tail -1)
+              latest_tag=$latest_non_semantic_tag
+          else
+              latest_tag=$latest_semantic_tag
+          fi
+          current_version="$latest_tag"
+          echo "Current version: $current_version"
           IFS='.' read -r -a version_parts <<< "$current_version"
-          echo "$current_version"
+
           commit_messages=$(git log -n 3)
           commit_messagesTrim=$(echo "$commit_messages" | head -c 500)
           git config --global user.email "deployer@bharatpe.com"
           git config --global user.name "deployerbharatpe"
-          if [ -z $current_version ]
-          then
+          pattern="^v[0-9]+\.[0-9]+\.[0-9]+$"
+          if [ -z "$current_version" ] || ! [[ "$current_version" =~ $pattern ]]; then
             echo "This Repo Has Not Been Tagged Yet Starting Tagging The Following Repo"
             git tag -a v0.1.0 -m "$commit_messagesTrim"
             git push  origin v0.1.0
