@@ -6,6 +6,8 @@ import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -18,7 +20,6 @@ import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
-import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -72,6 +73,9 @@ public class BreRequestKafka {
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Autowired
+    MerchantService merchantService;
 
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
@@ -318,10 +322,17 @@ public class BreRequestKafka {
     }
 
     private String getRegisteredBusinessName(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
+        Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lendingApplication.getMerchantId());
+        if (bankDetailsDtoOptional.isPresent() && !ObjectUtils.isEmpty(bankDetailsDtoOptional.get().getBeneficiaryName())) {
+            log.info("beneficiary Name {} for application id {}", bankDetailsDtoOptional.get().getBeneficiaryName(), lendingApplication.getId());
+            return bankDetailsDtoOptional.get().getBeneficiaryName();
+        }
         CKycResponseDto gstResponseDTO = kycUtils.getGstData(lendingApplication.getMerchantId());
-        if(!ObjectUtils.isEmpty(gstResponseDTO) && !ObjectUtils.isEmpty(gstResponseDTO.getName())) {
+        if (!ObjectUtils.isEmpty(gstResponseDTO) && !ObjectUtils.isEmpty(gstResponseDTO.getName())) {
+            log.info("gst Name {} for application id {}", gstResponseDTO.getName(), lendingApplication.getId());
             return gstResponseDTO.getName();
         }
+        log.info("pan Name {} for application id {}", cKycResponseDto.getPanName(), lendingApplication.getId());
         return cKycResponseDto.getPanName();
     }
 }
