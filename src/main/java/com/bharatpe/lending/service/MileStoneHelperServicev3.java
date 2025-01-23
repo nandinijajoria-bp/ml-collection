@@ -330,8 +330,8 @@ public class MileStoneHelperServicev3 {
 
     private boolean isMerchantEligibleForMilestone(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
         log.info("Checks for merchant eligibility for milestone with merchantId: {}",merchant.getId());
-        if (isActiveSliderSession(entity)) {
-            log.info("Session in progress with SLIDER program of merchantId: {}", merchant.getId());
+        if (isActiveOngoingSession(entity)) {
+            log.info("Session already in progress of merchantId: {}", merchant.getId());
             return true;
         }
 
@@ -342,12 +342,8 @@ public class MileStoneHelperServicev3 {
         return isNewMerchantEligibleForMilestone(merchant, entity, responseDto);
     }
 
-    private boolean isActiveSliderSession(MileStoneEntity entity) {
-        if (!ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus())) {
-            DSMileStoneResponse dsMileStoneResponse = mileStoneHelperService.fetchTarget(entity);
-            return (!ObjectUtils.isEmpty(dsMileStoneResponse) && RTEProgramType.SLIDER.name().equals(dsMileStoneResponse.getProgram_type()));
-        }
-        return false;
+    private boolean isActiveOngoingSession(MileStoneEntity entity) {
+        return !ObjectUtils.isEmpty(entity) && RTESessionStatus.IN_PROGRESS.name().equals(entity.getSessionStatus());
     }
 
     private boolean isFreshOrReenrollingSliderMerchant(MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {

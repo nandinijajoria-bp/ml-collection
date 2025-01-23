@@ -198,6 +198,7 @@ public class KycHandler {
                     kycDocResponseDTO.setEntityStatus(responseEntity.getBody().getData().getEntity().getStatus());
                     kycDocResponseDTO.setKycRanking(responseEntity.getBody().getData().getEntity().getKycRanking());
                     kycDocResponseDTO.setStatusOfRequestedKycRanking(responseEntity.getBody().getData().getEntity().getStatusOfRequestedKycRanking());
+                    kycDocResponseDTO.setActivatedViaNewObV3(responseEntity.getBody().getData().getEntity().isActivatedViaNewObV3());
                 }
                 return kycDocResponseDTO;
             }

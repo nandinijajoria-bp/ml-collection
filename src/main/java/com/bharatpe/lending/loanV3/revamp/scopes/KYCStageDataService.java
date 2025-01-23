@@ -364,7 +364,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         KycDocResponseDTO kycDocResponseDTO = kycHandler.getKycDocs(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER, docs, acceptRejected, acceptDraft, kycRankingConverted);
         log.info("KYC docs fetched for merchantId : {}", merchantId);
 
-        if(p2pmEnabled && (ObjectUtils.isEmpty(kycRankingConverted) && p2pmChecks(kycDocResponseDTO.getKycRanking()))) {
+        if(p2pmChecks(kycDocResponseDTO.getKycRanking()) && ObjectUtils.isEmpty(kycRankingConverted)) {
             if(ObjectUtils.isEmpty(metaData)) {
                 metaData = new HashMap<>();
             }
@@ -441,7 +441,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         }
 
         boolean p2pmCheckPassed = true;
-        if (p2pmChecks(kycDocResponseDTO.getKycRanking())) {
+        if (kycDocResponseDTO.isActivatedViaNewObV3() && p2pmChecks(kycDocResponseDTO.getKycRanking())) {
             String requestedkycRankingStatus = kycDocResponseDTO.getStatusOfRequestedKycRanking();
             p2pmCheckPassed = (!ObjectUtils.isEmpty(requestedkycRankingStatus)
                     && ("APPROVED".equalsIgnoreCase(requestedkycRankingStatus) || "PENDING".equalsIgnoreCase(requestedkycRankingStatus)));

@@ -39,5 +39,6 @@ public class KycDocResponse {
         private String entity;
         private String kycRanking;
         private String statusOfRequestedKycRanking;
+        private boolean activatedViaNewObV3;
     }
 }
