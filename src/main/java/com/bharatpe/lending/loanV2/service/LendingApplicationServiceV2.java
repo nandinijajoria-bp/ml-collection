@@ -3549,6 +3549,8 @@ public class LendingApplicationServiceV2 {
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
         BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.orElse(null);
         Map<String, Object> data = new HashMap<>();
+        data.put("lsp_contact_name", KfsConstants.LSP_CONTACT_NAME);
+        data.put("lsp_contact_number", KfsConstants.LSP_CONTACT_NUMBER_FORMATTED);
         data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
         data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
