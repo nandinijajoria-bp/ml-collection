@@ -16,4 +16,5 @@ public class KycDocResponseDTO {
     private String entityStatus;
     private String kycRanking;
     private String statusOfRequestedKycRanking;
+    private boolean activatedViaNewObV3;
 }

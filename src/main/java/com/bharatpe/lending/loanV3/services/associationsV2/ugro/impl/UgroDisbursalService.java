@@ -37,7 +37,7 @@ public class UgroDisbursalService {
                 UgroDisbursalResponse disbursalResponse = new ObjectMapper().convertValue(nbfcResponseDTO.getData(), UgroDisbursalResponse.class);
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(Long.valueOf(nbfcResponseDTO.getApplicationId()), Status.ACTIVE.name(), nbfcResponseDTO.getLender());
 
-                if (ugroPayloadValidation.isInvalidSuccessDisbursalResponse(disbursalResponse, lendingApplicationLenderDetails) || ugroPayloadValidation.isInvalidRejectedDisbursalResponse(disbursalResponse, lendingApplicationLenderDetails)) {
+                if (ugroPayloadValidation.isInvalidSuccessDisbursalResponse(disbursalResponse, lendingApplicationLenderDetails) && ugroPayloadValidation.isInvalidRejectedDisbursalResponse(disbursalResponse, lendingApplicationLenderDetails)) {
                     log.error("UGRO: Invalid payload received for DisbursalResponse for applicationId: {}, {}, {}", nbfcResponseDTO.getApplicationId(), disbursalResponse, nbfcResponseDTO);
                     return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
                 }
