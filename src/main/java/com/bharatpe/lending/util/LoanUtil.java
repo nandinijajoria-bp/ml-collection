@@ -26,10 +26,13 @@ import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingD
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LmsStageHistory;
+import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
@@ -144,6 +147,9 @@ public class LoanUtil {
 	ExperianSnapshotDao experianSnapshotDao;
 
 	@Autowired
+	NachMandateEligibilityConfigDao nachMandateEligibilityConfigDao;
+
+	@Autowired
 	LendingBBSDao lendingBBSDao;
 
 	@Autowired
@@ -204,6 +210,9 @@ public class LoanUtil {
 
 	@Autowired
 	LoanDpdDao loanDpdDao;
+
+	@Autowired
+	AutoPayUPIDao autoPayUPIDao;
 
 	@Autowired
 	LendingLedgerDao lendingLedgerDao;
@@ -2592,5 +2601,27 @@ public class LoanUtil {
 
 	}
 
+	public boolean checkIfUPIAutoPayIsActive(long merchantId, String lender, Long applicationId)  {
+		logger.info("checkIfUPIAutoPayAllowed: Checking for UPI autopay mandate merchant : {} and lender :{}", merchantId, lender);
+		try {
+			AutoPayUPI autoPayUpi = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+			if (autoPayUpi != null && autoPayUpi.getStatus() != null  && AutoPayStatusEnum.ACTIVE.name().equalsIgnoreCase(autoPayUpi.getStatus().name())) {
+				logger.info("checkIfUPIAutoPayIsActive: autopay exist for merchnatId :{}, applicationId : {}, lender : {}", merchantId, applicationId, lender);
+				return true;
+			}
+		} catch (Exception e) {
+			logger.info("checkIfUPIAutoPayAllowed: Exception in mandate fetch from DB application :{} merchant : {} and lender :{}",applicationId, merchantId, lender);
+		}
+		return false;
+	}
+
+	public boolean checkIfUpiAutoPayNachNotRequired(LendingApplication lendingApplication) {
+		if (!checkIfUPIAutoPayIsActive(lendingApplication.getMerchantId(), lendingApplication.getLender(), lendingApplication.getId())) {
+			return false;
+		}
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+
+		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayNachRequired());
+	}
 }
 

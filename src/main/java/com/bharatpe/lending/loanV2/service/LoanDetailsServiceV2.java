@@ -1029,6 +1029,11 @@ public class LoanDetailsServiceV2 {
                         if (openApplication.getLoanAmount() > maxLoanAmountForNachUPI && !easyLoanUtil.percentScaleUp(openApplication.getMerchantId(),upiNachRolloutPercent)) {
                             enachModes.removeIf(mode -> mode.getName().equals(EnachMode.UPI.name()));
                         }
+
+                        if(loanUtil.checkIfUpiAutoPayNachNotRequired(openApplication) && !easyLoanUtil.percentScaleUp(openApplication.getMerchantId(),upiNachRolloutPercent)){
+                            enachModes.removeIf(mode -> mode.getName().equals(EnachMode.UPI.name()));
+                        }
+
                         if (Objects.nonNull(enachModes)) {
                             applicationDetails.setEnachMode(enachModes.stream().map(EnachModeDTO::getName)
                                     .collect(Collectors.toList()).toString()
