@@ -14,7 +14,9 @@ import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.Deeplink;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.NachMandateEligibilityConfigDao;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
+import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
@@ -81,6 +83,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Autowired
+    NachMandateEligibilityConfigDao nachMandateEligibilityConfigDao;
 
     @Value("${renach.rollout.date}")
     String renachRolloutDate;
@@ -339,11 +344,17 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                     });
         }
 
+        NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+
         // UPI NACH for Loan Amount <= 50000
-        if (lendingApplication.getLoanAmount() > maxLoanAmountForNachUPI
+        if (ObjectUtils.isEmpty(nachMandateEligibilityConfig)
+            || !nachMandateEligibilityConfig.getStatus()
+            || !nachMandateEligibilityConfig.getUpiAutopayNachRequired()
             || !easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiNachRolloutPercent)
             || (!ObjectUtils.isEmpty(appVersion) && appVersion < upiAppVersion)
-            || !upiNachLender.contains(lendingApplication.getLender())) {
+            || !upiNachLender.contains(lendingApplication.getLender())
+            || loanUtil.checkIfUpiAutoPayNachNotRequired(lendingApplication)) {
+
             enachModes.removeIf(mode -> mode.getName().equals(EnachMode.UPI.name()));
             log.info("UPI removed because, Amount > {} or App version doesn't support UPI NACH appversion: {}", maxLoanAmountForNachUPI, appVersion);
         }
