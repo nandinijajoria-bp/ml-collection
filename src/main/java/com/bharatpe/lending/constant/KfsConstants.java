@@ -52,9 +52,10 @@ public interface KfsConstants {
     String COLENDER_BUSINESS_ADDRESS_MAMTA2 = "B-17, 4th Floor, Art Guild House, Phoenix Market City, Kurla West, Mumbai, Mumbai City MH 400070, India";
 
 
-    String LSP_CONTACT_NAME = "Ms. Mallika Janardhan";
+    String LSP_CONTACT_NAME = "Mr. Pushpender Kumar";
     String LSP_CONTACT_EMAIL = "nodalofficer@bharatpemoney.com";
     String LSP_CONTACT_NUMBER = "+91-9899355922";
+    String LSP_CONTACT_NUMBER_FORMATTED = "+91 9899355922";
 
     Double PROCESSING_FEE_PERCENTAGE = 2.0;
 
