@@ -3835,6 +3835,7 @@ public class LendingApplicationServiceV2 {
             data.put("father_name", lendingApplicationKycDetails.getFatherName());
             data.put("email_address", lendingApplicationKycDetails.getEmail());
         }
+        data.put("total_amount_including_processing_fees", kfsDto.getRepaymentAmount() + kfsDto.getProcessingFee());
         if (Lender.UGRO.name().equalsIgnoreCase(kfsDto.getLender())) {
             data.put("gst_number", !ObjectUtils.isEmpty(lendingGstDetail) && !ObjectUtils.isEmpty(lendingGstDetail.getGstNumber()) ? lendingGstDetail.getGstNumber() : "NOT AVAILABLE");
             data.put("father_name", !ObjectUtils.isEmpty(lendingApplicationKycDetails) && !ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName()) ? lendingApplicationKycDetails.getFatherName() : "NOT AVAILABLE");
