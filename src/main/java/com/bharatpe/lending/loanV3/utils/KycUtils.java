@@ -41,6 +41,8 @@ import java.text.SimpleDateFormat;
 import java.time.Period;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.bharatpe.lending.constant.LendingConstants.BUSINESS_CATEGORY_LMS_FIELD_ID;
 import static com.bharatpe.lending.constant.LendingConstants.BUSINESS_SUBCATEGORY_LMS_FIELD_ID;
@@ -371,9 +373,7 @@ public class KycUtils {
                         cKycResponseDto.setDob(DateTimeUtil.formatDate(poi.getDob(), "dd-MM-yyyy", "dd/MM/yyyy"));
                         cKycResponseDto.setName(poi.getName());
                         cKycResponseDto.setGender(poi.getGender());
-                        String address = poa.getCo() + "," + poa.getHouse() + "," + poa.getPo() + "," + poa.getVtc() + "," + poa.getSubdist() + ","
-                                + poa.getDist() + "," + poa.getLoc() + "," + poa.getState() + "," + poa.getPc();
-                        cKycResponseDto.setAddress(address);
+                        cKycResponseDto.setAddress(constructKycAddress(poa));
                         cKycResponseDto.setCity(poa.getDist());
                         cKycResponseDto.setState(poa.getState());
                         cKycResponseDto.setPincode(poa.getPc());
@@ -396,6 +396,15 @@ public class KycUtils {
             log.info("Exception in parsing poaXml for merchantId {} {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
         return cKycResponseDto;
+    }
+
+    private String constructKycAddress(PoaXmlDTO.Poa poa) {
+        String address = Stream.of(poa.getHouse(), poa.getLoc(), poa.getStreet(), poa.getLm(),
+                        poa.getVtc(), poa.getDist(), poa.getPc(), poa.getState(), poa.getCountry())
+                .filter(Objects::nonNull)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.joining(", "));
+        return address;
     }
 
     public void savePoaDetailsForLenderKyc(Long applicationId, CKycResponseDto cKycResponseDto) {
