@@ -68,11 +68,17 @@ public class DateUtils {
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
     }
 
-
-
-
-
-
-
+    public static boolean isSameYear(Date date1, Date date2) {
+        if (date1 == null || date2 == null) {
+            return false;
+        }
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(date1);
+        int date1Year = calendar.get(Calendar.YEAR);
+        calendar.setTime(date2);
+        int date2Year = calendar.get(Calendar.YEAR);
+        log.info("date1Year {} - date2Year {}", date1Year, date2Year);
+        return (date1Year == date2Year);
+    }
 
 }
