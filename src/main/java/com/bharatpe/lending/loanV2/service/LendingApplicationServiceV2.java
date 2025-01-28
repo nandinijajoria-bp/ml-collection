@@ -104,6 +104,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
@@ -757,30 +758,40 @@ public class LendingApplicationServiceV2 {
 
     private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, Boolean isPreApproved, LendingEligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
         LendingApplication lendingApplication = new LendingApplication();
-        int processingFee;
+        BigDecimal processingFee;
+        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
         MaxPricingValuesDTO maxPricingValuesDTO = null;
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
             maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, eligibleLoan.getTenureInMonths());
         }
         if (apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId())) {
-            processingFee = 0;
+            processingFee = BigDecimal.ZERO;
         } else if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            processingFee = (int) Math.ceil(maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100);
+            BigDecimal maxProcessingFeeRateBD = BigDecimal.valueOf(maxPricingValuesDTO.getMaxProcessingFeeRate());
+           // processingFee = (int) Math.ceil(maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100);
+            processingFee = maxProcessingFeeRateBD.multiply(amountBD)
+                    .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
         }
         else {
-            processingFee = eligibleLoan.getProcessingFee();
+            if(eligibleLoan.getProcessingFee() != null) {
+                processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+
+            }else{
+                throw new NullPointerException("processing fee cannot be null for eligible loan");
+            }
+
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
             eligibleLoan.setRateOfInterest(maxPricingValuesDTO.getMaxInterestRate());
             Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
             Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
             Double repayment = ediAmount * eligibleLoan.getEdiCount();
-            eligibleLoan.setProcessingFee(processingFee);
+            eligibleLoan.setProcessingFee(processingFee.intValue());
             eligibleLoan.setRepayment(repayment.intValue());
             eligibleLoan.setEdi(ediAmount.intValue());
             eligibleLoan.setIrr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId(), null));
-            eligibleLoan.setApr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount() - processingFee, eligibleLoan.getMerchantId(), null));
+            eligibleLoan.setApr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount() - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
             log.info("eligibleLoan values -> {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest());
             eligibleLoanDao.save(eligibleLoan);
         }
@@ -792,8 +803,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        lendingApplication.setProcessingFee((double) processingFee);
-        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+        lendingApplication.setProcessingFee(processingFee.doubleValue());
+        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
         lendingApplication.setMerchantId(merchantBasicDetails.getId());
@@ -2084,18 +2095,26 @@ public class LendingApplicationServiceV2 {
                 return false;
             }
             Double amountDiffrence = lendingApplication.getLoanAmount() - loanAmount;
-            int processingFee = 0;
-            if (lendingApplication.getProcessingFee() > 0) {
-                processingFee = (int) Math.ceil((loanAmount * lendingApplication.getProcessingFee())/lendingApplication.getLoanAmount());
+            //ProcessingFee change to BigDecimal for calculation and then store the double value in lending_application table
+            BigDecimal processingFee = BigDecimal.ZERO;
+            if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
+                BigDecimal loanAmountBD = new BigDecimal(loanAmount);
+                BigDecimal processingFeeRate = BigDecimal.valueOf(lendingApplication.getProcessingFee());
+                BigDecimal loanAmountInApp = BigDecimal.valueOf(lendingApplication.getLoanAmount());
+
+                processingFee = loanAmountBD.multiply(processingFeeRate)
+                        .divide(loanAmountInApp, 0, RoundingMode.CEILING);
+            }
+            else{
+                throw new NullPointerException("processing Fee can not be null for lending application");
             }
             Integer edi,repayment;
             edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingApplication.getInterestRate() / 100) * lendingApplication.getTenureInMonths()))) / lendingApplication.getPayableDays());
             repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
-
             lendingApplication.setEdi(Double.valueOf(edi));
             lendingApplication.setRepayment(Double.valueOf(repayment));
-            lendingApplication.setProcessingFee((double) processingFee);
-            lendingApplication.setDisbursalAmount(loanAmount - processingFee);
+            lendingApplication.setProcessingFee(processingFee.doubleValue());
+            lendingApplication.setDisbursalAmount(loanAmount - processingFee.intValue());
             lendingApplication.setLoanAmount(loanAmount);
             lendingApplicationDao.save(lendingApplication);
 
@@ -2573,9 +2592,9 @@ public class LendingApplicationServiceV2 {
 
             String shopAddress = constructShopAddress(lendingApplication);
             Double insurancePremium = getInsurancePremium(lendingApplication);
-            if (insurancePremium.equals(0D)) {
-                insurancePremium = null;
-            }
+//            if (insurancePremium.equals(0D)) {
+//                insurancePremium = null;
+//            }
 
             Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (lendingApplication.getLoanAmount()) * 100));
 
@@ -2593,6 +2612,13 @@ public class LendingApplicationServiceV2 {
             if(Lender.UGRO.name().equalsIgnoreCase(lendingApplication.getLender())) {
                 monthlyIncome = lendingRiskVariablesSnapshot.getMonthlyTpv();
             }
+            Double processingFeePercentage;
+            if(lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.toString())){
+                processingFeePercentage =  (Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee() + insurancePremium) * 100))));
+            }else{
+                processingFeePercentage =  (Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))));
+
+            }
 
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -2609,7 +2635,7 @@ public class LendingApplicationServiceV2 {
                     .lenderGrievanceTime(lenderGrievanceTime)
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
-                    .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeePercentage(processingFeePercentage)
                     .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())

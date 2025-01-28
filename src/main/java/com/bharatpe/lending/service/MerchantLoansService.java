@@ -49,7 +49,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -864,8 +866,8 @@ public class MerchantLoansService {
     private LoanCalculationUtil.LoanBreakupDetail calculateHalfIOLoan(LendingPaymentScheduleSlave lendingPaymentSchedule, Long merchantId, LoanType loanType) {
         try {
             int foreclosureAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
-            int processingFee = loanUtil.getIoHalfPF(lendingPaymentSchedule);
-            double loanAmount = Math.ceil((foreclosureAmount + processingFee) / 1000.0) * 1000;
+            BigDecimal processingFee = loanUtil.getIoHalfPFBD(lendingPaymentSchedule);
+            double loanAmount = Math.ceil((foreclosureAmount + processingFee.intValue()) / 1000.0) * 1000;
             int ediPaidCount = (int) Math.ceil(lendingPaymentSchedule.getPaidAmount() / lendingPaymentSchedule.getEdiAmount());
             int ediRemainingCount = lendingPaymentSchedule.getEdiCount() - ediPaidCount;
             if (loanAmount < 10000d || ediRemainingCount < 26) {
@@ -886,7 +888,7 @@ public class MerchantLoansService {
             AvailableLoan availableLoan = new AvailableLoan();
             availableLoan.setAmount(loanAmount);
             LoanCalculationUtil.LoanBreakupDetail breakup = LoanCalculationUtil.getLoanBreakup(availableLoan, lendingCategory, loanType.name());
-            breakup.setProcessingFee(processingFee);
+            breakup.setProcessingFee(processingFee.intValue());
             eligibleLoanDao.deleteByMerchantId(merchantId);
             eligibleLoanDao.deleteCustomOffers(merchantId);
             insertEligibleLoan(merchantId, experian, breakup, lendingCategory);
@@ -1075,9 +1077,20 @@ public class MerchantLoansService {
                 eligibleLoanList.add(internalMerchantLoan);
 
                 double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
+                BigDecimal prevLoanUnpaidAmountBD = BigDecimal.valueOf(getPreviousLoanAmount(lendingPaymentSchedule));
+
                 if (!eligibleLoanList.isEmpty()) {
+                    BigDecimal processingFee;
                     Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                     LendingEligibleLoan eligibleLoan = eligibleLoanList.get(0);
+                    if(eligibleLoan.getAmount() != null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD != null){
+                        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                        BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate());
+                        processingFee = amountBD.subtract(prevLoanUnpaidAmountBD).multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+                    }else{
+                        throw new IllegalArgumentException("Either processing fee rate or loan amount cannot be null");
+                    }
+
                     logger.info("eligible loan: {}", eligibleLoan);
                     LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                     loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
@@ -1097,7 +1110,7 @@ public class MerchantLoansService {
 //              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //              loanEligibilityDTO.setType();
                     loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
-                    loanEligibilityDTO.setProcessingFee((int) Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                    loanEligibilityDTO.setProcessingFee(processingFee.intValue());
                     loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
                     loanEligibilityDTO.setLoanType("TOPUP");
                     loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
@@ -1252,16 +1265,30 @@ public class MerchantLoansService {
                 experianId = experian.getId();
             }
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
+            BigDecimal prevLoanUnpaidAmountBD = BigDecimal.valueOf(getPreviousLoanAmount(lendingPaymentSchedule));
+            BigDecimal processingfee;
             if (!eligibleLoanList.isEmpty()) {
                 eligibleLoanList.sort((o1, o2) -> (o2.getCreatedAt().compareTo(o1.getCreatedAt())));
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 LendingEligibleLoan eligibleLoan = eligibleLoanList.get(0);
                 logger.info("eligible loan: {}", eligibleLoan);
 
+
                 if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
                     log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
+                if(eligibleLoan.getAmount() != null && prevLoanUnpaidAmountBD != null && eligibleLoan.getProcessingFeeRate() != null){
+                    BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+                    processingfee = amountBD.subtract(prevLoanUnpaidAmountBD)
+                            .multiply(processingFeeRateBD)
+                            .setScale(0, RoundingMode.CEILING);
+                }
+                else{
+                    throw new IllegalArgumentException("Either loan amount or prevLoanunpainAmount or processing fee rate is null");
+                }
+
 
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
@@ -1281,7 +1308,8 @@ public class MerchantLoansService {
 //              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //              loanEligibilityDTO.setType();
                 loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
-                loanEligibilityDTO.setProcessingFee((int) Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                //loanEligibilityDTO.setProcessingFee((int) Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                loanEligibilityDTO.setProcessingFee(processingfee.intValue());
                 loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
@@ -1396,6 +1424,8 @@ public class MerchantLoansService {
                 experianId = experian.getId();
             }
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
+            BigDecimal prevLoanUnpaidAmountBD = BigDecimal.valueOf(getPreviousLoanAmount(lendingPaymentSchedule));
+            BigDecimal processingfee;
             if (!eligibleLoanList.isEmpty()) {
                 eligibleLoanList.sort((o1, o2) -> (o2.getCreatedAt().compareTo(o1.getCreatedAt())));
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
@@ -1406,6 +1436,17 @@ public class MerchantLoansService {
                     log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
+                if(eligibleLoan.getAmount() !=null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD !=null){
+                    BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+                    processingfee = amountBD.subtract(prevLoanUnpaidAmountBD)
+                            .multiply(processingFeeRateBD)
+                            .setScale(0, RoundingMode.CEILING);
+                }
+                else{
+                    throw new IllegalArgumentException("Either loan amount or prevLoanunpainAmount or processing fee rate is null");
+                }
+
 
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
@@ -1425,7 +1466,8 @@ public class MerchantLoansService {
 //              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //              loanEligibilityDTO.setType();
                 loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
-                loanEligibilityDTO.setProcessingFee((int) Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                //loanEligibilityDTO.setProcessingFee((int) Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                loanEligibilityDTO.setProcessingFee(processingfee.intValue());
                 loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
@@ -1630,10 +1672,22 @@ public class MerchantLoansService {
                 experianId = experian.getId();
             }
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
+            BigDecimal prevLoanUnpaidAmountBD = BigDecimal.valueOf(getPreviousLoanAmount(lendingPaymentSchedule));
+            BigDecimal processingfee;
             if (!eligibleLoanList.isEmpty()) {
                 eligibleLoanList.sort((o1, o2) -> (o2.getCreatedAt().compareTo(o1.getCreatedAt())));
                 Collections.sort(eligibleLoanList, (o1, o2) -> o1.getTenureInMonths() - o2.getTenureInMonths());
                 LendingEligibleLoan eligibleLoan = eligibleLoanList.get(0);
+                if(eligibleLoan.getAmount() != null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD != null){
+                    BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+                    processingfee = amountBD.subtract(prevLoanUnpaidAmountBD)
+                            .multiply(processingFeeRateBD)
+                            .setScale(0, RoundingMode.CEILING);
+                }else{
+                    throw new IllegalArgumentException("Either loan amount or prevLoanUnpaidAmount or processing fee rate is null");
+                }
+
                 logger.info("eligible loan: {}", eligibleLoan);
                 LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
                 loanEligibilityDTO.setActiveApplicationId(lendingPaymentSchedule.getId());
@@ -1653,7 +1707,8 @@ public class MerchantLoansService {
 //              loanEligibilityDTO.setList(LoanCalculationUtil.prepareLabels(breakup, breakup.getIoOrFreeEdiTenure()));
 //              loanEligibilityDTO.setType();
                 loanEligibilityDTO.setPrincipleEdiTenure(eligibleLoan.getTenureInMonths());
-                loanEligibilityDTO.setProcessingFee((int)Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                //loanEligibilityDTO.setProcessingFee((int)Math.ceil((eligibleLoan.getAmount() - (int) prevLoanUnpaidAmount) * eligibleLoan.getProcessingFeeRate()));
+                loanEligibilityDTO.setProcessingFee(processingfee.intValue());
                 loanEligibilityDTO.setDisbursementAmount(loanEligibilityDTO.getAmount() - (int) prevLoanUnpaidAmount - loanEligibilityDTO.getProcessingFee());
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
