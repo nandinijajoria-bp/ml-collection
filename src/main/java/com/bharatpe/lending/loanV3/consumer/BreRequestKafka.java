@@ -213,6 +213,7 @@ public class BreRequestKafka {
             if(!offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
                     && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
                 log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
+                existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.LENDER_BRE_OFFER_DOWNGRADE.name());
                 nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
                 return;
             }

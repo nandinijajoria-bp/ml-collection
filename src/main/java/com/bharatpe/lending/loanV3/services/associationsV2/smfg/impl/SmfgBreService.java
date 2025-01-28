@@ -26,6 +26,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDt
 import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgAppPushRequest;
 import com.bharatpe.lending.loanV3.dto.response.smfg.SmfgAppPushResponseDto;
 import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgCallbackRequest;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
@@ -296,7 +297,7 @@ public class SmfgBreService {
         }
         Date cKycDob = KycUtils.getFormattedDate(cKycResponseDto.getDob());
         Date panDob = KycUtils.getFormattedDate(panFetchKYCResponse.getData().getVerifiedDob());
-        if (ObjectUtils.isEmpty(cKycDob) || ObjectUtils.isEmpty(panDob) || !cKycDob.equals(panDob)) {
+        if (!DateUtils.isSameYear(cKycDob, panDob)) {
             log.info("bre check failed application id {}, pan dob {} not equal kyc dob {}", lenderAssociationDetailsRequest.getApplicationId(), panDob, cKycDob);
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_DOB_MISMATCH.name());
             return true;
