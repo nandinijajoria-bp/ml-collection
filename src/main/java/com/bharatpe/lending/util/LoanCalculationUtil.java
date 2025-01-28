@@ -1,7 +1,5 @@
 package com.bharatpe.lending.util;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -143,18 +141,8 @@ public class LoanCalculationUtil {
 
 
 	public static int getProcessingFee(Double loanAmount, LendingCategories category) {
-		BigDecimal processingFee;
-		if(category!=null && category.getProcessingFeeType()!=null && category.getProcessingFee() != null){
-			if(category.getProcessingFeeType().equalsIgnoreCase("PERCENTAGE")){
-					BigDecimal loanAmountBD = new BigDecimal(loanAmount);
-					BigDecimal processingFeePercent = new BigDecimal(category.getProcessingFee());
-					processingFee = loanAmountBD.multiply(processingFeePercent).setScale(0, RoundingMode.CEILING);
-					return processingFee.intValue();
-
-			}else{
-				processingFee = new BigDecimal(category.getProcessingFee());
-				return processingFee.intValue();
-			}
+		if(category!=null && category.getProcessingFeeType()!=null) {
+			return category.getProcessingFeeType().equalsIgnoreCase("PERCENTAGE")?(int)Math.ceil(loanAmount * Double.parseDouble(category.getProcessingFee())):Integer.parseInt(category.getProcessingFee());
 		}
 		return 0;
 	}

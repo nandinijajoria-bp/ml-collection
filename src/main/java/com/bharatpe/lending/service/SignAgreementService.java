@@ -55,8 +55,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -348,18 +346,14 @@ public class SignAgreementService {
 			logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 			return response;
 		}
-		BigDecimal processingFee;
+		int processingFee;
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-			processingFee = BigDecimal.ZERO;
+			processingFee = 0;
 		}else {
-			if(eligibleLoan.getProcessingFee() != null){
-				processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
-			}else{
-				throw new NullPointerException("Processing Fee cannot be mull in eligible loan");
-			}
+			processingFee = eligibleLoan.getProcessingFee();
 		}
 		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-			processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
+			processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
 		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
@@ -370,9 +364,9 @@ public class SignAgreementService {
 //            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-		newApplication.setProcessingFee(processingFee.doubleValue());
+		newApplication.setProcessingFee((double)processingFee);
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
+		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -759,7 +753,7 @@ public class SignAgreementService {
 			response.put("message","Last loan not closed for merchant {}");
 			return response;
 		}
-		BigDecimal processingFee;
+		Double processingFee;
 
 		double previousAmount = 0;
 
@@ -784,17 +778,12 @@ public class SignAgreementService {
 		}
 
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-			processingFee = BigDecimal.ZERO;
+			processingFee = 0D;
 		}else {
-			if(disbursalAmount != null && eligibleLoan.getProcessingFeeRate() != null){
-				processingFee = BigDecimal.valueOf(disbursalAmount).multiply(BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate()));
-			}else{
-				throw new NullPointerException("Either disbursal amount or processing fee rate is null");
-			}
-
+			processingFee = disbursalAmount * eligibleLoan.getProcessingFeeRate();
 		}
 		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-			processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
+			processingFee = Double.valueOf(loanUtil.getIoHalfPF(prevLendingSchedule));
 		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
@@ -806,8 +795,8 @@ public class SignAgreementService {
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee.doubleValue()));
-		newApplication.setProcessingFee(processingFee.setScale(0, RoundingMode.CEILING).doubleValue());
+		newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee));
+		newApplication.setProcessingFee(Math.ceil(processingFee));
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());

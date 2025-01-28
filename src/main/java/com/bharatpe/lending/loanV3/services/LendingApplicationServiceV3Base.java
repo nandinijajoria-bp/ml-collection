@@ -49,7 +49,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.util.ObjectUtils;
 
-import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.util.*;
@@ -608,26 +607,14 @@ public abstract class LendingApplicationServiceV3Base {
             Double interestAmt = (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100);
             Long payableDays = lendingApplication.getPayableDays();
             Double ediAmount = Math.ceil((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
-//            double initialDisbursalAmountWithoutProcessingFee = lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee();
-//            double processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
-//            double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
-            BigDecimal processingFee;
-            if(lendingApplication.getDisbursalAmount() != null && lendingApplication.getProcessingFee() != null && lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() != null){
-                BigDecimal disbursalAmount = BigDecimal.valueOf(lendingApplication.getDisbursalAmount());
-                BigDecimal processingFeeAmount = BigDecimal.valueOf(lendingApplication.getProcessingFee());
-                BigDecimal initialDisbursalAmountWithoutProcessingFee = disbursalAmount.add(processingFeeAmount);
-                BigDecimal processingFeeRate = processingFeeAmount.divide(initialDisbursalAmountWithoutProcessingFee, 10, RoundingMode.HALF_UP);
-                BigDecimal nbfcApprovedLoanOfferAmt = BigDecimal.valueOf(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
-                processingFee= nbfcApprovedLoanOfferAmt.multiply(processingFeeRate).setScale(0, RoundingMode.CEILING);
-            }else{
-                throw new NullPointerException("Either processing fee or disbursal amount or nbfc approved amount cannot be null");
-            }
+            double initialDisbursalAmountWithoutProcessingFee = lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee();
+            double  processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
+            double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
 
-
-            lendingApplication.setProcessingFee(processingFee.doubleValue());
+            lendingApplication.setProcessingFee(processingFee);
             lendingApplication.setLoanAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
             lendingApplication.setRepayment(ediAmount * payableDays);
-            lendingApplication.setDisbursalAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() - processingFee.doubleValue());
+            lendingApplication.setDisbursalAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() - processingFee);
             lendingApplication.setEdi(ediAmount);
 
             lendingApplicationDao.save(lendingApplication);

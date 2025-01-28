@@ -71,8 +71,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.InputStream;
 import java.io.Reader;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -1479,66 +1477,6 @@ public class LoanUtil {
 				- advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
 	}
 
-	//This method returns the foreclosure amount in Big Decimal and take argument lendingPaymentScheduleSlave Object
-	public BigDecimal getForeclosureAmountBD(LendingPaymentScheduleSlave lendingPaymentSchedule) {
-		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-			return BigDecimal.ZERO;
-		}
-		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-		BigDecimal advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ?
-				BigDecimal.valueOf(lendingPrepayment.getAdvanceEdiAmount()) : BigDecimal.ZERO;
-
-		BigDecimal excessCollectionBalance = new BigDecimal(excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId()).toString());
-		BigDecimal extraInterestofPerpetualDpdLoan = BigDecimal.valueOf(fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId()));
-
-		BigDecimal loanAmount = BigDecimal.valueOf(lendingPaymentSchedule.getLoanAmount());
-
-		BigDecimal paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null ?
-				BigDecimal.valueOf(lendingPaymentSchedule.getPaidPrinciple()) : BigDecimal.ZERO;
-
-		BigDecimal dueInterest = lendingPaymentSchedule.getDueInterest() != null ?
-				BigDecimal.valueOf(lendingPaymentSchedule.getDueInterest()) : BigDecimal.ZERO;
-
-
-		BigDecimal foreclosureAmount = loanAmount.subtract(paidPrinciple)
-				.add(dueInterest)
-				.subtract(advanceEdiAmount)
-				.subtract(excessCollectionBalance)
-				.subtract(extraInterestofPerpetualDpdLoan);
-
-		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
-	}
-
-	//This method returns the foreclosure amount in Big Decimal and take argument lendingPaymentSchedule object
-	public BigDecimal getForeclosureAmountBD(LendingPaymentSchedule lendingPaymentSchedule) {
-		if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
-			return BigDecimal.ZERO;
-		}
-		LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-		BigDecimal advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ?
-                BigDecimal.valueOf(lendingPrepayment.getAdvanceEdiAmount()) : BigDecimal.ZERO;
-
-		BigDecimal excessCollectionBalance = new BigDecimal(excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId()).toString());
-		BigDecimal extraInterestofPerpetualDpdLoan = BigDecimal.valueOf(fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId()));
-
-		BigDecimal loanAmount = BigDecimal.valueOf(lendingPaymentSchedule.getLoanAmount());
-
-		BigDecimal paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null ?
-                BigDecimal.valueOf(lendingPaymentSchedule.getPaidPrinciple()) : BigDecimal.ZERO;
-
-		BigDecimal dueInterest = lendingPaymentSchedule.getDueInterest() != null ?
-                BigDecimal.valueOf(lendingPaymentSchedule.getDueInterest()) : BigDecimal.ZERO;
-
-
-		BigDecimal foreclosureAmount = loanAmount.subtract(paidPrinciple)
-				.add(dueInterest)
-				.subtract(advanceEdiAmount)
-				.subtract(excessCollectionBalance)
-				.subtract(extraInterestofPerpetualDpdLoan);
-
-		return foreclosureAmount.setScale(0, RoundingMode.CEILING);
-	}
-
 	public double getForeclosureAmountForLdc (LendingPaymentSchedule lendingPaymentSchedule) {
 
 		double prevLoanUnpaidAmount = 0;
@@ -1654,21 +1592,9 @@ public class LoanUtil {
 		return (int) Math.ceil(foreclosureAmount * 0.05);
 	}
 
-	//This method returns the PF value in Big Decimal
-	public BigDecimal getIoHalfPFBD(LendingPaymentSchedule lendingPaymentSchedule) {
-		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
-		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
-	}
-
-
 	public int getIoHalfPF(LendingPaymentScheduleSlave lendingPaymentSchedule) {
 		int foreclosureAmount = getForeclosureAmount(lendingPaymentSchedule);
 		return (int) Math.ceil(foreclosureAmount * 0.05);
-	}
-
-	public BigDecimal getIoHalfPFBD(LendingPaymentScheduleSlave lendingPaymentSchedule) {
-		BigDecimal foreclosureAmount = new BigDecimal(String.valueOf(getForeclosureAmountBD(lendingPaymentSchedule)));
-		return foreclosureAmount.multiply(new BigDecimal("0.05")).setScale(0, RoundingMode.CEILING);
 	}
 
 
@@ -1683,17 +1609,6 @@ public class LoanUtil {
 		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
 		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
 		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
-
-		BigDecimal processingFee;
-		BigDecimal amountBD = new BigDecimal(amount);
-		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
-		if(tenureDetail.getProcessingFee() != null){
-			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
-		}
-		else{
-			throw new NullPointerException("processing fee cannot be null in tenure details");
-		}
-
 
 		LendingEligibleLoan eligibleLoan = LendingEligibleLoan.builder()
 				.loanType(loanType)
@@ -1712,13 +1627,11 @@ public class LoanUtil {
 				.ioEdi(0)
 				.ioEdiDays(0)
 				.ediCount(tenureDetail.getEdiCount())
-				.processingFee(processingFee.intValue())
+				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
 				.version(version)
 				.clubV2Amount(tenureDetail.getClubV2Amount())
 				.processingFeeRate(tenureDetail.getProcessingFee())
 				.build();
-
-
 		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
 				.loanType(loanType)
 				.offerType(offerType)
@@ -1736,7 +1649,7 @@ public class LoanUtil {
 				.ioEdi(0)
 				.ioEdiDays(0)
 				.ediCount(tenureDetail.getTenure() * 30)
-				.processingFee(processingFee.intValue())
+				.processingFee((int) Math.ceil(amount * tenureDetail.getProcessingFee()))
 				.version(version)
 				.clubV2Amount(tenureDetail.getClubV2Amount())
 				.processingFeeRate(tenureDetail.getProcessingFee())
