@@ -85,12 +85,13 @@ public class CommonService {
     }
 
     public void rejectApplication(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
-        log.info("rejecting application due to {} for applicationId {}", lendingApplicationLenderDetails.getLeadStatus(), lendingApplication.getId());
+        String rejectReason = lendingApplication.getLender() + "_" + lendingApplicationLenderDetails.getLeadStatus();
+        log.info("rejecting application due to {} for applicationId {} with rejectReason {}", lendingApplicationLenderDetails.getLeadStatus(), lendingApplication.getId(), rejectReason);
         if (!ObjectUtils.isEmpty(lendingApplication)) {
             String oldStatus = lendingApplication.getStatus();
             lendingApplication.setStatus("rejected");
             lendingApplication.setManualKyc("rejected");
-            lendingApplication.setManualKycReason(lendingApplication.getLender() + "_" + lendingApplicationLenderDetails.getLeadStatus());
+            lendingApplication.setManualKycReason(rejectReason);
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
             commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected", oldStatus, "APP_STATUS", lendingApplication.getManualKyc());

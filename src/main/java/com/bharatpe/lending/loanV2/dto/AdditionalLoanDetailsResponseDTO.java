@@ -16,5 +16,6 @@ public class AdditionalLoanDetailsResponseDTO {
     String message;
     String errorCode;
     Boolean detailSaved;
+    Boolean applicationRejected;
 
 }
