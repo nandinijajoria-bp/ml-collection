@@ -2329,6 +2329,7 @@ public class LoanUtil {
 					break;
 				case "PAYU":
 					date = payuForeClosureChargesRolloutDate;
+					break;
 				case "CREDITSAISON":
 					date = creditSaisonForeClosureChargesRolloutDate;
 					break;
