@@ -701,6 +701,8 @@ public class LoanDashboardService {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
+            } else if (lendingApplication.getRejectionStage().equalsIgnoreCase("PNC")) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.PNC, lendingApplication.getMerchantId());
             } else {
                 reapplyDayDiff = 0;
             }
