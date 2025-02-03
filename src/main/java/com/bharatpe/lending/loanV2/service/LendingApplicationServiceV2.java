@@ -1374,7 +1374,7 @@ public class LendingApplicationServiceV2 {
                     (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || 
                             lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ?
                     lendingApplication.getPhysicalVerificationStatus() : "PENDING";
-            String pncRejectionReason = "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage()) &&  lendingApplication.getRejectionReason()!=null ? lendingApplication.getRejectionReason() : null;
+            String pncRejectionReason = "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name()) &&  lendingApplication.getRejectionReason()!=null ? lendingApplication.getRejectionReason() : null;
             if (!isSmallTicketLoan && (cpvRequired && !"REJECTED".equalsIgnoreCase(kycStatus)) || "REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 String cpvComment;
                 if (lendingApplication.getPhysicalVerificationStatus() == null || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null") || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("ASSIGNED")) {
