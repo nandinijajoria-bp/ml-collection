@@ -2,6 +2,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.service.SettlementService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,9 @@ public class PaymentController {
 	
 	@Autowired
 	PaymentService paymentService;
+
+    @Autowired
+    SettlementService settlementService;
 
     @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant,
@@ -113,6 +117,18 @@ public class PaymentController {
     public ResponseDTO applyWaiver(@RequestBody LoanSettlementRequestDTO requestDTO) {
         logger.info("Request received for apply waiver {} for loan_id : {}", requestDTO.getWaiverType(), requestDTO.getLoanId());
         return paymentService.applyWaiver(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType(), requestDTO.getCrmUserId());
+    }
+
+    @RequestMapping(value = "/loan_settlement/v2", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO applyWaiverV2(@RequestBody LoanSettlementRequestDTO requestDTO) {
+        logger.info("Request received for apply waiver {} for loan_id : {}", requestDTO.getWaiverType(), requestDTO.getLoanId());
+        return settlementService.applySettlementWaiver(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType(), requestDTO.getCrmUserId());
+    }
+
+    @RequestMapping(value = "/loan-settlement-reversal", method = RequestMethod.POST, produces="application/json")
+    public ResponseDTO applySettlementReversal(@RequestBody LoanSettlementRequestDTO requestDTO) {
+        logger.info("Request received for apply waiver {} for loan_id : {}", requestDTO.getWaiverType(), requestDTO.getLoanId());
+        return settlementService.applySettlementReversal(requestDTO.getLoanId(), requestDTO.getMerchantId(), requestDTO.getWaiverType(), requestDTO.getCrmUserId());
     }
 
     @RequestMapping(value = "/refund", method = RequestMethod.GET, produces="application/json")

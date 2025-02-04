@@ -1,10 +1,10 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
@@ -36,10 +36,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.PaymentConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.LoanPaymentOrderDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
@@ -168,7 +165,6 @@ public class PaymentService {
 
     @Autowired
     LendingInterestWaiverDao lendingInterestWaiverDao;
-
     @Value(("${pg.android.version:324}"))
     Long androidVersion;
 
@@ -2631,6 +2627,5 @@ public class PaymentService {
     private boolean checkIfNewPaymentFlowApplicable(String nbfc) {
         return "TRILLIONLOANS".equalsIgnoreCase(nbfc);
     }
-
 
 }

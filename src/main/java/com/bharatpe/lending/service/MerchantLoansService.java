@@ -63,6 +63,7 @@ import java.util.concurrent.TimeUnit;
 import static com.bharatpe.lending.constant.LendingConstants.PAYTM;
 import static com.bharatpe.lending.constant.LendingConstants.TOPUP_PILOT_IDENTIFIER;
 import static com.bharatpe.lending.enums.Lender.*;
+import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
 @Service
@@ -255,6 +256,9 @@ public class MerchantLoansService {
 
     @Autowired
     ExcessNachService excessNachService;
+
+    @Autowired
+    private SettlementDetailsDao settlemetDetailsDao;
 
     static List<String> LIQUILOANS_TOPUP_LENDERS = Arrays.asList("LIQUILOANS_P2P","LIQUILOANS_NBFC","LIQUILOANS_P2P_OF");
 
@@ -562,6 +566,14 @@ public class MerchantLoansService {
                     }
                     else
                         loan.setAutoPayEligibility(Boolean.FALSE);
+
+//                    Set settlement details if settlement initiated
+                    if (loan.isSettlementInitiated()) {
+                        loan.setSettlementInitiated(loan.isSettlementInitiated());
+                        SettlementDetails settlementDetails = settlemetDetailsDao.findByLoanIdAndStatus(loan.getLoanId(), INIT.name());
+                        loan.setSettlementAmountOffer(settlementDetails.getSettlementAmountOffer());
+                        loan.setSettlementExpiryDate(settlementDetails.getSettlementExpiryDate());
+                    }
 
                     responseDTO.setShowRenachBanner(showRenachBanner(merchantId, loan.getLender(), responseDTO.getShowChangeBankAccountBanner()));
                 }

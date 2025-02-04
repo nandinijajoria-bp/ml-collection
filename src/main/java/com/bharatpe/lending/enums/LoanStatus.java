@@ -4,5 +4,7 @@ public enum LoanStatus {
     ACTIVE,
     CLOSED,
     INACTIVE_TOPUP,
+    SETTLED,
+    DECEASED,
     INACTIVE
 }
