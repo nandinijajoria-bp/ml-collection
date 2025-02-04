@@ -63,6 +63,8 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -804,17 +806,20 @@ public class LoanDetailsService {
 				loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
 				loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
 				loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
-				int processingFee;
-				if (apiGatewayService.eligibleForProcessingFee(merchantId)) {
-					processingFee = 0;
+				BigDecimal processingFee;
+				if(apiGatewayService.eligibleForProcessingFee(merchantId)){
+					processingFee = BigDecimal.ZERO;
 				} else {
-					processingFee = (int) Math.ceil(eligibleLoan.getAmount() * eligibleLoan.getProcessingFee());
+					BigDecimal amount = BigDecimal.valueOf(eligibleLoan.getAmount());
+					BigDecimal feePercentage = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+					processingFee = amount.multiply(feePercentage).setScale(0, RoundingMode.CEILING);
 				}
+
 				LoanCalculationUtil.LoanBreakupDetail breakup = new LoanCalculationUtil.LoanBreakupDetail();
 				breakup.setEdi(eligibleLoan.getEdi());
 				breakup.setRepayment(eligibleLoan.getRepayment());
-				loanEligibilityDTO.setProcessingFee(processingFee);
-				loanEligibilityDTO.setDisbursementAmount((int) (eligibleLoan.getAmount() - processingFee));
+				loanEligibilityDTO.setProcessingFee(processingFee.intValue());
+				loanEligibilityDTO.setDisbursementAmount((int) (eligibleLoan.getAmount() - processingFee.intValue()));
 				loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
 				loanEligibilityDTO.setInterestAmount((int) (eligibleLoan.getRepayment() - eligibleLoan.getAmount()));
 				loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
