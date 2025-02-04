@@ -106,7 +106,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     }
 
     private PaymentCalculation settleEDIPrincipleAndInterest(LendingPaymentSchedule loan, double amount, Boolean settleAllPrinciple) {
-        PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loan.getId(), loan.getEdiCount(), loan.getEdiRemainingCount(), settleAllPrinciple, amount);
+        PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loan.getId(), loan.getEdiCount(), loan.getEdiRemainingCount(), settleAllPrinciple, amount, loan.getSettlementInitiated());
         double paidPrincipalAmount = settleLoanPaymentDTO.getPrincipleSettled();
         double paidInterestAmount = settleLoanPaymentDTO.getInterestSettled();
 
@@ -166,9 +166,14 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .build();
     }
 
-    public PaymentCalculation settleLoanDuePayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid) {
+    public PaymentCalculation settleLoanDuePayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid, boolean settlementInitiated) {
         Integer ediCreatedTillDate = ediCount - ediRemainingCount;
         log.info("ediCreatedTillDate : {} for loanId : {}", ediCreatedTillDate, loanId);
+//        For settlement initiated cases the received amount needs to be adjusted for future schedules also, if possible
+//        (in case if enough amount received).
+        if(settlementInitiated) {
+            ediCreatedTillDate = ediCount;
+        }
 
         Double paidPrinciple = 0d;
         Double paidInterest = 0d;
@@ -222,7 +227,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     public PaymentCalculation settlePreClosureLoanPayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid) {
 
         // settle all due amount first
-        final PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loanId, ediCount, ediRemainingCount, settleAllPrinciple, amountBeingPaid);
+        final PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loanId, ediCount, ediRemainingCount, settleAllPrinciple, amountBeingPaid, false);
 
         log.info("Remaining amount to settle in after all due are settled for loanId : {} is : {}", loanId, amountBeingPaid);
 

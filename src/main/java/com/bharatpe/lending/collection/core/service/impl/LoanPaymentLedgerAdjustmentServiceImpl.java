@@ -30,6 +30,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
+import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
 
 @Service
@@ -63,6 +64,9 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
     @Autowired
     LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
+
+    @Autowired
+    private SettlementDetailsDao settlementDetailsDao;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -119,6 +123,14 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                                              Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges) {
         if(amount == 0) return null;
 
+        Long settlementId = null;
+        if (loan.getSettlementInitiated()) {
+            SettlementDetails details = settlementDetailsDao.findByLoanIdAndStatus(loan.getId(), INIT.name());
+            if (Objects.nonNull(details)) {
+                settlementId = details.getId();
+            }
+        }
+
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchantId(loan.getMerchantId());
         if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
@@ -134,6 +146,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setDescription(description);
         lendingLedger.setTransferType(transferType);
         lendingLedger.setTerminalOrderId(terminalOrderId);
+        lendingLedger.setSettlementId(settlementId);
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
     }
@@ -143,6 +156,13 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                                              Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges) {
         if(amount == 0) return null;
 
+        Long settlementId = null;
+        if (loan.getSettlementInitiated()) {
+            SettlementDetails details = settlementDetailsDao.findByLoanIdAndStatus(loan.getId(), INIT.name());
+            if (Objects.nonNull(details)) {
+                settlementId = details.getId();
+            }
+        }
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchantId(loan.getMerchantId());
         if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
@@ -158,6 +178,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setDescription(description);
         lendingLedger.setTransferType(transferType);
         lendingLedger.setTerminalOrderId(terminalOrderId);
+        lendingLedger.setSettlementId(settlementId);
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
     }
