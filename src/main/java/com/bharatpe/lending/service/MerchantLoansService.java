@@ -1292,7 +1292,7 @@ public class MerchantLoansService {
                 }
                 if(eligibleLoan.getAmount() != null && prevLoanUnpaidAmountBD != null && eligibleLoan.getProcessingFeeRate() != null){
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
-                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate());
                     processingfee = amountBD.subtract(prevLoanUnpaidAmountBD)
                             .multiply(processingFeeRateBD)
                             .setScale(0, RoundingMode.CEILING);
@@ -1450,7 +1450,7 @@ public class MerchantLoansService {
                 }
                 if(eligibleLoan.getAmount() !=null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD !=null){
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
-                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate());
                     processingfee = amountBD.subtract(prevLoanUnpaidAmountBD)
                             .multiply(processingFeeRateBD)
                             .setScale(0, RoundingMode.CEILING);
