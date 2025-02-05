@@ -316,7 +316,7 @@ public class MFBreService {
         LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails();
         try {
-            if ("Y".equalsIgnoreCase(lendingApplicationLenderDetails.getNbfcBreAsyncId())) {
+            if ("N".equalsIgnoreCase(lendingApplicationLenderDetails.getNbfcBreAsyncId())) {
                 log.info("Updating offer details after acceptOffer as breExperiment flag {} for applicationId {}", lendingApplicationLenderDetails.getNbfcBreAsyncId(), lendingApplication.getId());
                 LendingOfferModificationSnapshot lendingOfferModificationSnapshot = getLendingOfferModificationSnapshot(lendingApplication);
                 log.info("saving previous offer details in lendingOfferModificationSnapshot {} for applicationId {}", lendingOfferModificationSnapshot, lendingApplication.getId());
