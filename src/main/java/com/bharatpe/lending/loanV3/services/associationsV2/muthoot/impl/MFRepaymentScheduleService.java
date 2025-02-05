@@ -88,32 +88,4 @@ public class MFRepaymentScheduleService {
         return null;
     }
 
-    public MFRpsResponseDTO invokePreRpsGenerate(Long applicationId) {
-        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.MUTHOOT.name());
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            log.info("lender record not exist of MUTHOOT for {}", applicationId);
-            return null;
-        }
-        NBFCRequestDTO nbfcRequestDto = NBFCRequestDTO.builder()
-                .productName("LENDING")
-                .lender(Lender.MUTHOOT.name())
-                .applicationId(applicationId)
-                .payload(MFRpsRequestDTO.builder()
-                        .customerID(lendingApplicationLenderDetails.getLeadId())
-                        .program("EDI")
-                        .build())
-                .build();
-
-        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.PRE_RPS);
-        try {
-            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
-                MFRpsResponseDTO response = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), MFRpsResponseDTO.class);
-                return response;
-            }
-        } catch (Exception e) {
-            log.info("exception occurred while parsing response data of MUTHOOT repayment schedule for {} {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
-        }
-        return null;
-    }
-
 }
