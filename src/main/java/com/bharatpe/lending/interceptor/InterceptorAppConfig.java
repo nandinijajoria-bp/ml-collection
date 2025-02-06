@@ -54,7 +54,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/v3/modifyLender", "/lending/v3/nextStage", "/lending/v3/callback/invoke/dataUpload", "/support/sendArcCommunication", "/lending/v3/test/**", "/lms/payment/details", "/lending/v3/callback/**",
 						"/lending/payment_link/**", "/lending/bank-statement/session/callback","/lending/liquiloan/backdated/loan", "/lending/gst3b/session/callback","/topup/close","/support/rte-program",
 						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible", "/lending/v3/invokeStage", "/lending/payment/details/v2", "/lending/homepage/cards", "/milestone/rte-eligibility-check",
-						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal");
+						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication",
@@ -68,7 +68,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 				"/lending/liquiloan/postPayout/callback", "/lending/nbfc/mamta/decision/callback","/assign/rules","/assign/limit","/assign/update-rule","/assign/update-limit","/support/computeEligibility",
 				"/lending/payment/ledger_entry", "/lending/v3/modifyLender", "/lending/v3/nextStage", "/lending/v3/callback/invoke/dataUpload", "/support/sendArcCommunication",
 				"/lms/payment/details", "/lending/liquiloan/backdated/loan", "/topup/close","/support/rte-program","/lending/merchant/eligibility","/support/loan-flag-status", "/lending/check-delete-eligible", "/lending/payment/details/v2", "/lending/homepage/cards"
-				, "/milestone/rte-eligibility-check","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal");
+				, "/milestone/rte-eligibility-check","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal","/lending/payment/loan/cancel");
 
         registry.addInterceptor(midInterceptor).addPathPatterns( "/lending/payment/callback").addPathPatterns("/lending/credit_line/vpa/update");
 
