@@ -218,10 +218,10 @@ public class LoanUtilV3 {
 
     private void saveLendingPancardData(PanFetchKYCResponseDto.Data panFetchResponseData, LendingPancardDetails lendingPancard, Long merchantId){
         if (!ObjectUtils.isEmpty(lendingPancard)) {
-            lendingPancard.setName(panFetchResponseData.getName());
+            lendingPancard.setName(panFetchResponseData.getVerifiedName());
             lendingPancard.setPancardNumber(panFetchResponseData.getPanNumber());
             lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
-            lendingPancard.setDob(panFetchResponseData.getDateOfBirth());
+            lendingPancard.setDob(panFetchResponseData.getVerifiedDob());
             lendingPancardDetailsDao.save(lendingPancard);
         } else {
             lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, panFetchResponseData.getPanNumber(), panFetchResponseData.getName(), null, LendingConstants.PAN_VERIFICATION_VERSION, panFetchResponseData.getDateOfBirth()));
