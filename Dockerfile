@@ -16,5 +16,5 @@ RUN mkdir -p /data/logs && \
     chmod -R 777 /data && \
     chown -R bharatpe:bharatpe /app
 USER bharatpe
-ENTRYPOINT ["java","-javaagent:opentelemetry-javaagent.jar","-Xms2560M", "-Xmx5000M","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
+ENTRYPOINT ["java","-javaagent:opentelemetry-javaagent.jar","-Xms2048M","-Xmx4608M","-XX:+ParallelRefProcEnabled","-XX:+UseG1GC","-XX:ConcGCThreads=2","-XX:G1HeapRegionSize=8M","-XX:G1ReservePercent=15","-XX:InitiatingHeapOccupancyPercent=50","-XX:MaxGCPauseMillis=200","-XX:ParallelGCThreads=2","-Duser.timezone=IST","-Dspring.profiles.active=${PROFILE}","-jar","/app/app.jar"]
 # ENTRYPOINT ["/bin/bash", "-x", "/newrelic.sh"]

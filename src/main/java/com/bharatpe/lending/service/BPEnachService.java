@@ -1,18 +1,14 @@
 package com.bharatpe.lending.service;
 
-import com.bharatpe.common.dao.*;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.PartnersApiHandler;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.LendingNachBankResponseDTO;
-import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.common.service.merchant.constants.Constants;
-import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
@@ -34,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -149,11 +144,13 @@ public class BPEnachService {
             String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
             return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                    String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
+                    String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode, lendingApplication.getTenureInMonths()),
+                    lendingApplication.getLoanType());
 
         } else {
             final double LOAN_AMOUNT = Double.parseDouble(amt); ;
-            final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(), Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider);
+            final EnachInitiateRequestDTO enachInitiateRequestDTO = new EnachInitiateRequestDTO(token, merchant.getId(),
+                    Long.parseLong(ownerId), String.valueOf(LOAN_AMOUNT), enachProvider, lendingApplication.getTenureInMonths());
             enachInitiateRequestDTO.setClientName(clientName);
             return apiGatewayService.initiateEnach(enachInitiateRequestDTO, lendingApplication.getLoanType());
         }
@@ -194,7 +191,8 @@ public class BPEnachService {
         String providerName = deep_link.contains("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
 
         return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-          String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
+          String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode, lendingApplication.getTenureInMonths()),
+                lendingApplication.getLoanType());
     }
 
 

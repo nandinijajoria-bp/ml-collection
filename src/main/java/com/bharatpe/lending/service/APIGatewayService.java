@@ -57,7 +57,6 @@ import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -1353,6 +1352,7 @@ public class APIGatewayService {
             put("enach_provider", requestDTO.getEnachProvider());
             put("lender", finalLender);
             put("mode", requestDTO.getNachMode());
+            put("tenure_in_months", requestDTO.getTenureInMonths());
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
