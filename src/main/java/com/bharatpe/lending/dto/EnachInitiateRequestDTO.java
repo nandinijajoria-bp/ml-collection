@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dto;
 
+import lombok.Getter;
+
 public class EnachInitiateRequestDTO {
 
     private String token;
@@ -9,20 +11,20 @@ public class EnachInitiateRequestDTO {
     private String nachAmount;
     private String enachProvider;
     private String lender;
-
-
-
     private String nachMode;
+    @Getter
+    private Integer tenureInMonths;
 
-    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider) {
+    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider, Integer tenureInMonths) {
         this.token = token;
         this.merchantId = merchantId;
         this.applicationId = applicationId;
         this.nachAmount = nachAmount;
         this.enachProvider = enachProvider;
+        this.tenureInMonths = tenureInMonths;
     }
 
-    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider, String lender, String nachMode) {
+    public EnachInitiateRequestDTO(String token, Long merchantId, Long applicationId, String nachAmount, String enachProvider, String lender, String nachMode, Integer tenureInMonths) {
         this.token = token;
         this.merchantId = merchantId;
         this.applicationId = applicationId;
@@ -30,6 +32,7 @@ public class EnachInitiateRequestDTO {
         this.enachProvider = enachProvider;
         this.lender = lender;
         this.nachMode = nachMode;
+        this.tenureInMonths = tenureInMonths;
     }
 
     public String getToken() {

@@ -144,7 +144,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
 
         Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
-        enachStateDTO.setEnachDeeplink(getEnachDeeplink(openApplication,scopeDataArgs.getToken(),scopeDataArgs.getLoanDetailsV3Request().isIOS()));
+        enachStateDTO.setEnachDeeplink(getEnachDeeplinkOrUpdateNachStatus(openApplication,scopeDataArgs.getToken(),scopeDataArgs.getLoanDetailsV3Request().isIOS()));
 
         if(loanUtil.isInternalMerchant(openApplication.getMerchantId()) || easyLoanUtil.percentScaleUp(openApplication.getMerchantId(), aadharNachRolloutPercentV3)){
             String lender = openApplication.getLender();
@@ -268,7 +268,15 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         return new LendingStateDTO<>(enachStateDTO , LendingViewStates.ENACH_PAGE, LendingViewStates.ENACH_PAGE);
     }
 
-    private String getEnachDeeplink(LendingApplication openApplication, String token, boolean isIOS) {
+    /**
+     *
+     * @param openApplication application to process
+     * @param token
+     * @param isIOS flag to check request is from ios or not
+     * @return null in case of skip nach flow else deeplink (datasource nach service). in case of skip nach, update application status.
+     */
+
+    private String getEnachDeeplinkOrUpdateNachStatus(LendingApplication openApplication, String token, boolean isIOS) {
         if (!"TOPUP".equalsIgnoreCase(openApplication.getLoanType()) && !ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {
             return null;
         }

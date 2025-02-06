@@ -53,6 +53,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.opencsv.CSVReader;
+import lombok.Setter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
@@ -67,6 +68,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 
+import javax.annotation.PostConstruct;
 import java.io.File;
 import java.io.FileReader;
 import java.io.InputStream;
@@ -126,6 +128,12 @@ public class LoanUtil {
 
 	@Value("${whitelisted.fore.closure.charges.lenders:LIQUILOANS_P2P,LIQUILOANS_P2P_OF,TRILLIONLOANS,LIQUILOANS_NBFC,PAYU}")
 	String foreClosureChargesWhitelistedLenders;
+
+	@Value("${skip.nach.disabled.lenders:ABFL}")
+	private Set<String> skipNachDisabledLenders;
+
+	@Value("${skip.nach.disabled.merchants:}")
+	private Set<Integer> skipNachDisabledMerchant;
 
 	@Autowired
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
@@ -345,6 +353,11 @@ public class LoanUtil {
 
 	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
 	private List<Integer> lenderPricingEligibleMerchantsPercent;
+
+	@PostConstruct
+	public void init(){
+		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
+	}
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1857,13 +1870,15 @@ public class LoanUtil {
 	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
-
+		String finalLender = enachServiceLenderMapper(lender);
+		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
+			return false;
+		}
 		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), enachServiceLenderMapper(lender));
-
+		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
 		if (ObjectUtils.isEmpty(approvedNachDetails)) {
 			return Boolean.FALSE;
@@ -1884,6 +1899,12 @@ public class LoanUtil {
 		}
 
 		return Boolean.FALSE;
+	}
+
+	private boolean checkIfNachSkipDisabled(String finalLender, Long merchantId) {
+		return !StringUtils.isEmpty(finalLender)
+				&& skipNachDisabledLenders.contains(finalLender)
+					&& skipNachDisabledMerchant.contains((int)(merchantId % 10));
 	}
 
 	public void setIsNachSkip(LendingApplication lendingApplication){
