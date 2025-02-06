@@ -2,6 +2,7 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.service.LoanCancellationService;
 import com.bharatpe.lending.service.SettlementService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,8 @@ public class PaymentController {
 	
 	@Autowired
 	PaymentService paymentService;
+    @Autowired
+    LoanCancellationService loanCancellationService;
 
     @Autowired
     SettlementService settlementService;
@@ -57,6 +60,14 @@ public class PaymentController {
     @RequestMapping(value="/callback/v2", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
     public ResponseEntity<String> callbackV2(@RequestBody PgPaymentCallbackDTO requestDTO) {
         return new ResponseEntity<>(paymentService.handlePgCallback(requestDTO), HttpStatus.OK);
+    }
+
+    //cancel loan
+    @RequestMapping(value="/loan/cancel", method = RequestMethod.POST,consumes = "application/json", produces="application/json")
+    public ResponseEntity<String> cancel(@RequestBody LoanCancelDTO loanCancelDTO) throws Exception {
+        logger.info("PaymentController -> loan cancellation request for {}",loanCancelDTO.getExternalLoanId());
+        loanCancellationService.cancelLoan(loanCancelDTO.getExternalLoanId(), loanCancelDTO.getLmsBulkExportId());
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @RequestMapping(value="/status", method = RequestMethod.GET, produces="application/json")

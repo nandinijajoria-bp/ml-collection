@@ -2,6 +2,7 @@ package com.bharatpe.lending.dao;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -101,6 +102,14 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
         Double getTotalPaidPenalty();
         Double getTotalPaidOtherCharges();
     }
+    @Query(nativeQuery = true, value ="SELECT COALESCE(SUM(amount), 0) AS amount, COALESCE(SUM(principle), 0) AS principle, COALESCE(SUM(interest), 0) AS interest FROM lending_ledger WHERE loan_id = :loanId AND amount < 0")
+    Map<String, Object> totalNegativeEdiAmount(Long loanId);
+
+    @Query(nativeQuery = true, value = "SELECT COALESCE(SUM(amount), 0) AS amount, COALESCE(SUM(principle), 0) AS principle, COALESCE(SUM(interest), 0) AS interest FROM lending_ledger WHERE loan_id = :loanId AND amount > 0")
+    Map<String, Object> totalPositiveEdiAmount(Long loanId);
+
+    @Query(nativeQuery = true, value ="SELECT * FROM lending_ledger WHERE loan_id = :loanId AND amount > 0")
+    List<LendingLedger> positiveEdiEntries(Long loanId);
     @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND created_at >= :date ORDER BY id DESC", nativeQuery = true)
     List<LendingLedger> findAdvanceEdiLedgerList(Long lpsId, Date date);
 
