@@ -808,10 +808,10 @@
                 </td>
                 <td style="padding: 0px 5px;" class="word-wrap width-70">
                     <p style="margin: 6px 16px;" class="fw400 text-left bold">For Lender</p>
-                    <p style="margin: 6px 16px;" class="fw400 text-left">Name & Designation of the Nodal Officer- Hardik Nandani, Head-Operations</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">Name & Designation of the Nodal Officer- {{nodal_officer_name}}, Head-Operations</p>
     
                     <p style="margin: 6px 16px;" class="fw400 text-left">Email- nodalofficer@trillionloans.com</p>
-                    <p style="margin: 6px 16px;" class="fw400 text-left">Phone No- +91-8851682895 from 09:30 am to 7:00 pm on all working days (Mon to Fri)</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">Phone No- +91-{{nodal_officer_contact_number}} from 09:30 am to 7:00 pm on all working days (Mon to Fri)</p>
     
                     <p style="margin: 6px 16px;" class="fw400 text-left">Address- 7th Floor, Unit No. B2, 705, in Building - Kanakia Boomerang, situated at Yadav Nagar, Chandivali, Powai, Mumbai -400072, Maharashtra</p>
     
@@ -1661,13 +1661,13 @@
                     <p style="margin: 6px 16px;" class="fw400 text-left bold">For Lender
                     </p>
                     <p style="margin: 6px 16px;" class="fw400 text-left">
-                       Name: {{name_of_nodal_officer}}
+                       Name: {{nodal_officer_name}}
                     </p>
                     <p style="margin: 6px 16px;" class="fw400 text-left">
                         Email : {{email_id}}
                     </p>
                     <p style="margin: 6px 16px;" class="fw400 text-left">
-                        Contact : {{conatct_no}}
+                        Contact : +91-{{nodal_officer_contact_number}}
                      </p>
                     <p style="margin: 6px 16px;" class="fw400 text-left">
                         Timing for Contact : {{grievance_time}}
@@ -3286,10 +3286,10 @@
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-70">
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">ಸಾಲದಾತನಿಗೆ</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">ನೋಡಲ್ ಅಧಿಕಾರಿಯ ಹೆಸರು ಮತ್ತು ಹುದ್ದೆ - ಹಾರ್ದಿಕ್ ನಂದಾನಿ, ಹೆಡ್-ಆಪರೇಶನ್ಸ್ </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">ನೋಡಲ್ ಅಧಿಕಾರಿಯ ಹೆಸರು ಮತ್ತು ಹುದ್ದೆ - ಊರ್ವಶಿ ನಯ್ಯರ್, ಹೆಡ್-ಆಪರೇಶನ್ಸ್ </p>
                
                 <p style="margin: 6px 16px;" class="fw400 text-left">ಇಮೇಲ್- nodalofficer@trillionloans.com </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">ಫೋನ್ ನಂ - +91-8851682895 ಎಲ್ಲಾ ಕೆಲಸದ ದಿನಗಳಲ್ಲಿ ಬೆಳಿಗ್ಗೆ 09:30 ರಿಂದ ಸಂಜೆ 7:00 ರವರೆಗೆ (ಸೋಮವಾರದಿಂದ ಶುಕ್ರವಾರ)</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">ಫೋನ್ ನಂ - +91-{{nodal_officer_contact_number}} ಎಲ್ಲಾ ಕೆಲಸದ ದಿನಗಳಲ್ಲಿ ಬೆಳಿಗ್ಗೆ 09:30 ರಿಂದ ಸಂಜೆ 7:00 ರವರೆಗೆ (ಸೋಮವಾರದಿಂದ ಶುಕ್ರವಾರ)</p>
 
                 <p style="margin: 6px 16px;" class="fw400 text-left">ವಿಳಾಸ- 7ನೇ ಮಹಡಿ, ಯುನಿಟ್ ನಂ B 2, 705, ಕನಕಿಯಾ ಬೂಮರಾಂಗ್ ಕಟ್ಟಡ , ಯಾದವ್ ನಗರ, ಚಾಂದಿವಲಿ, ಪೊವಾಯಿ, ಮುಂಬೈ -400072, ಮಹಾರಾಷ್ಟ್ರ</p>
                
@@ -4099,13 +4099,13 @@
                 <p style="margin: 6px 16px;" class="fw400 text-left bold">ಸಾಲದಾತನಿಗೆ
                 </p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
-                    ಹೆಸರು: {{name_of_nodal_officer}}
+                    ಹೆಸರು: ಊರ್ವಶಿ ನಯ್ಯರ್
                 </p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
                     ಇಮೇಲ್ : {{email_id}}
                 </p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
-                    ಸಂಪರ್ಕ ನಂಬರ್ : {{email_nodal_officer}}
+                    ಸಂಪರ್ಕ ನಂಬರ್ : +91-{{nodal_officer_contact_number}}
                  </p>
                 <p style="margin: 6px 16px;" class="fw400 text-left">
                     ಸಂಪರ್ಕದ ಸಮಯ> : {{grievance_time}}
