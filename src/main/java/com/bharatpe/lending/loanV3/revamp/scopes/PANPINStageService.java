@@ -100,16 +100,16 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                             LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
                             if (!ObjectUtils.isEmpty(lendingPancardDetails) && LendingConstants.PAN_VERIFICATION_VERSION.equals(lendingPancardDetails.getVersion())) {
                                 eligibilityStateDTO.setIsPanNsdlVerified(true);
-                                eligibilityStateDTO.setFullName(data.getName());
-                                eligibilityStateDTO.setDob(data.getDateOfBirth());
+                                eligibilityStateDTO.setFullName(lendingPancardDetails.getName());
+                                eligibilityStateDTO.setDob(lendingPancardDetails.getDob());
                             } else {
                                 if (data.getIsPanNsdlVerified() != null) {
                                     eligibilityStateDTO.setIsPanNsdlVerified(data.getIsPanNsdlVerified());
                                     eligibilityStateDTO.setDob(data.getDateOfBirth());
                                     eligibilityStateDTO.setFullName(data.getName());
                                     if(data.getIsPanNsdlVerified()){
-                                        eligibilityStateDTO.setDob(data.getVerifiedName());
-                                        eligibilityStateDTO.setFullName(data.getVerifiedDob());
+                                        eligibilityStateDTO.setDob(data.getVerifiedDob());
+                                        eligibilityStateDTO.setFullName(data.getVerifiedName());
                                         if (!ObjectUtils.isEmpty(lendingPancardDetails)) {
                                             lendingPancardDetails.setName(data.getVerifiedName());
                                             lendingPancardDetails.setPancardNumber(data.getPanNumber());
