@@ -23,4 +23,14 @@ public class LenderAssociationStatusResponse {
     Boolean isOfferModified;
     Boolean isApplicableForAggregationFlow;
     Boolean isRoiDecreased = false;
+
+    LenderAssociationStatusResponseMetadata metadata;
+
+    @Data
+    @ToString
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Builder
+    public static class LenderAssociationStatusResponseMetadata {
+        long retryAfter;
+    }
 }

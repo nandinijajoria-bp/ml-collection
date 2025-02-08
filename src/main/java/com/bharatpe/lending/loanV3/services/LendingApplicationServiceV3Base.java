@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services;
 
 import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
+import com.bharatpe.lending.common.dao.mongo.NbfcRetryRepository;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
@@ -14,15 +15,13 @@ import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.mongo.NbfcRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.Status;
-import com.bharatpe.lending.common.entity.LendingLenderPricing;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
-import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
-import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
 import com.bharatpe.lending.dao.LendingGstDao;
@@ -30,6 +29,7 @@ import com.bharatpe.lending.dao.LendingOfferModificationSnapshotDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
+import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
@@ -42,6 +42,7 @@ import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -52,6 +53,8 @@ import org.springframework.util.ObjectUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 @Slf4j
@@ -113,11 +116,17 @@ public abstract class LendingApplicationServiceV3Base {
     @Value("${ekyc.status.check.enabled.lenders:}")
     String eKycStatusCheckEnabledLenders;
 
+    @Value("#{'${status.poll.enabled.lenders:ABFL}'.split(',')}")
+    private Set<String> statusPollEnabledLenders;
+
     @Autowired
     LendingLenderPricingDao lendingLenderPricingDao;
 
     @Autowired
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    NbfcRetryRepository nbfcRetryRepository;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -227,7 +236,7 @@ public abstract class LendingApplicationServiceV3Base {
                 if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
                     lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
                 }
-                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse = new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                         .stage(LenderAssociationStages.KYC)
                         .ediModelModified(lendingApplicationDetails.getEdiModelModified())
@@ -236,9 +245,45 @@ public abstract class LendingApplicationServiceV3Base {
                         .prevLender(LenderAssociationStatus.EKYC_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()) ? getPrevLender(currentDraftApplication) : null)
                         .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
                         .build());
+
+                //If status polling is enabled for lender, then check the latest status of the polling
+                if (statusPollEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
+                    checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse);
+                }
+
+                return lenderAssociationStatusResponse;
             }
         }
         return new ApiResponse<>(false,"something went wrong");
+    }
+
+    private void checkEkycStatusRetry(LendingApplication currentDraftApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails,
+                                      ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse) {
+        if (ObjectUtils.isEmpty(currentDraftApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            return;
+        }
+        if (!ApplicationStatus.DRAFT.name().equalsIgnoreCase(currentDraftApplication.getStatus())
+        || !(LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
+                && List.of(LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name()).contains(lendingApplicationLenderDetails.getKycStatus()))) {
+            return;
+        }
+
+        Optional<NbfcRetry> nbfcRetryObj = nbfcRetryRepository.findByApplicationIdAndLenderAndRequestTypeAndStatus(currentDraftApplication.getId(),
+                lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), "IN_PROGRESS");
+        if (!nbfcRetryObj.isPresent()) {
+            return;
+        }
+
+        int retryDelaySeconds = nbfcRetryObj.get().getRetriesRemaining() == 3 ? 10 : 300; //TODO: Pick from config properly
+        //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
+        long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000 - System.currentTimeMillis();
+        if (retryAfter > 0) {
+            //TODO: How to handle when retryAfter is Exactly 0
+            lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
+                    .retryAfter(retryAfter / 1000)
+                    .build());
+        }
+
     }
 
     public Boolean checkForBPKycRequired(LendingApplication currentDraftApplication) {

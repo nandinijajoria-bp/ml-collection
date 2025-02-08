@@ -28,5 +28,7 @@ public class LoanDetailsV3Request {
     private Boolean isInsured;
     private List<LoanInsuranceDTO> loanInsurances;
 
+    private boolean kycSuccess;
+
 //    private boolean isIOS = false;
 }
