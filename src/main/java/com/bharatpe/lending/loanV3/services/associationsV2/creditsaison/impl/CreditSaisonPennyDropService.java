@@ -200,27 +200,30 @@ public class CreditSaisonPennyDropService  {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                     return true;
-                } else {
-                    if (ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
-                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.PENNY_DROP_FAILED);
-                        return false;
-                    } else {
-                        rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
-                        return false;
-                    }
                 }
+                log.info("CS: pennydrop callback Response  is not success of CreditSaison for {} {}", nbfcResponseDTO.getApplicationId(), creditSaisonCallbackResponseDTO);
+                if (ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
+                    log.info("CS: Agreement at is empty so modifying lender in case of pennydrop for CreditSaison for {}", nbfcResponseDTO.getApplicationId());
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
+                    commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.PENNY_DROP_FAILED);
+                    return false;
+                }
+                log.info("CS: Rejecting application after agreement in case of pennydrop for CreditSaison for {}", nbfcResponseDTO.getApplicationId());
+                rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
+                return false;
+
             }
-            if (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) && ObjectUtils.isEmpty(nbfcResponseDTO.getSuccess())) {
+            if (ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
+                log.info("CS: modifying application before agreement as nbfc response is false in case of pennydrop for CreditSaison for {}", nbfcResponseDTO.getApplicationId());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.PENNY_DROP_FAILED.name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.PENNY_DROP_FAILED);
                 return false;
-            } else {
-                rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
-                return false;
             }
+            log.info("CS: rejecting application after agreement as nbfc response is false in case of pennydrop for CreditSaison for {}", nbfcResponseDTO.getApplicationId());
+            rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
+            return false;
         } catch (Exception e) {
             log.error("CS: exception while processing bre callback of CreditSaison for {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
