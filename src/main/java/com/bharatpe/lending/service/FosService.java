@@ -886,8 +886,12 @@ public class FosService {
                     logger.info("merchant {} has a pending application", merchantId);
                     if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 20000 ) {
                         if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), fosNachPercent)){
-                            if(Math.abs(dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date())) > 7){
+                            if(Math.abs(dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date())) <= 7){
                                 logger.info("fos nach task pending for application:{}", lendingApplication.getId());
+                                return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
+                            }
+                            else {
+                                logger.info("merchant {} has a pending nach application", merchantId);
                                 return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                             }
                         } else {
