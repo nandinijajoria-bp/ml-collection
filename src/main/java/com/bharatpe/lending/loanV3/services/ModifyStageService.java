@@ -19,6 +19,8 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static com.bharatpe.lending.common.enums.TlBreExceptionEnum.INTERNAL_ERROR;
+
 @Slf4j
 @Service
 public class ModifyStageService {
@@ -46,6 +48,9 @@ public class ModifyStageService {
             return;
         }
         LenderAssociationStatus lenderAssociationStatus = LenderAssociationStatus.valueOf(modifyLenderDto.getStatus());
+        if (lenderAssociationStatus.equals(LenderAssociationStatus.BRE_HARD_FAILED)) {
+            existingLendingApplicationLenderDetails.setBreRejectionReason(INTERNAL_ERROR.name());
+        }
         log.info("Fetched the required details for modify lender {},{},{}",lendingApplication,
                 existingLendingApplicationLenderDetails,lenderAssociationStatus);
         nbfcUtils.modifyLender(lendingApplication.get(), existingLendingApplicationLenderDetails, lenderAssociationStatus);
