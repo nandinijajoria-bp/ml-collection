@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.config.OxyzoConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
@@ -24,6 +25,7 @@ import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+import com.bharatpe.lending.loanV3.dto.request.oxyzo.OxyzoForeclosureDetailsRequestDTO;
 import com.bharatpe.lending.loanV3.dto.trillions.TrillionForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
@@ -105,6 +107,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     UgroConfig ugroConfig;
+
+    @Autowired
+    OxyzoConfig oxyzoConfig;
 
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
@@ -214,7 +219,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
         try {
             logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
-            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger);
+            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger, null);
             if(ObjectUtils.isEmpty(nbfcRequest)) {
                 log.info("Error in generating request for foreclosure receipt of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
                 return;
@@ -351,7 +356,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             return;
         }
         try {
-            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(Lender.PAYU.name(), applicationId, lendingLedger);
+            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(Lender.PAYU.name(), applicationId, lendingLedger, null);
             logger.info("Payu :  foreclosure charges event Sending {}", nbfcRequestDTO);
             Object metadata = confluentKafkaTemplate.send(nbfcPayuForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequestDTO), new TypeReference<Map<String, Object>>() {}));
             logger.info("Payu : foreclosure charges event sent {}", objectMapper.writeValueAsString(nbfcRequestDTO));
@@ -372,6 +377,43 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         loanForeClosureChargesDao.save(loanForeClosureCharges);
     }
 
+    @Override
+    public void sendForeclosureEventToLender(Long applicationId, LendingLedger lendingLedger, Long orderId, String lender) {
+        String status = "SUCCESS";
+        String postingStatus = "FAILURE";
+        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            logger.info("{} no lending app details record found for the app {}", lender, applicationId);
+            return;
+        }
+
+        try {
+            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(lender, applicationId, lendingLedger, orderId);
+            logger.info("{} :  foreclosure charges event Sending {}", lender, nbfcRequestDTO);
+            Object metadata = confluentKafkaTemplate.send(getLenderForeclsoureReceiptTopic(lender), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequestDTO), new TypeReference<Map<String, Object>>() {
+            }));
+            logger.info("{} : foreclosure charges event sent {}", lender, objectMapper.writeValueAsString(nbfcRequestDTO));
+            postingStatus = "POSTED";
+        } catch (Exception e) {
+            logger.error("{} : error occurred while sending foreclosure event {}", lender, e.getMessage());
+            status = "FAILED";
+        }
+
+
+        logger.info("{}: updating LCA for foreclosed event for application id : {}  and status is {}", lender,applicationId, status);
+        LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(), 1);
+        if (lendingCollectionAudit != null) {
+            lendingCollectionAudit.setStatus(status);
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            logger.info("{}: updated LCA for foreclosed event for application id : {} and status :{} ", lender, applicationId, status);
+        }
+        if (loanForeClosureCharges != null) {
+            loanForeClosureCharges.setChargePostingStatus(postingStatus);
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+        }
+    }
+
     private String getLenderForeclsoureReceiptTopic(String lender) {
         switch (lender) {
             case "USFB":
@@ -384,6 +426,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return smfgConfig.getForeclosureTopic();
             case "UGRO":
                 return ugroConfig.getForeclosureTopic();
+            case "OXYZO":
+                return oxyzoConfig.getForeclosureTopic();
             default:
                 return null;
         }

@@ -17,6 +17,7 @@ public class LenderAssociationStageFactoryV2 {
                     case PAYU:
                     case CREDITSAISON:
                     case UGRO:
+                    case OXYZO:
                         return LenderAssociationStages.KYC;
                     case SMFG:
                         return LenderAssociationStages.BRE;
@@ -32,6 +33,7 @@ public class LenderAssociationStageFactoryV2 {
                     case PAYU:
                     case CREDITSAISON:
                     case UGRO:
+                    case OXYZO:
                         return LenderAssociationStages.BRE;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -46,6 +48,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return LenderAssociationStages.ASSC_COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -60,6 +63,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return LenderAssociationStages.DOC_UPLOAD;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -80,6 +84,7 @@ public class LenderAssociationStageFactoryV2 {
             case DOC_UPLOAD:
                 switch (lender) {
                     case USFB:
+                    case OXYZO:
                         return LenderAssociationStages.DRAWDOWN;
                     case TRILLIONLOANS:
                     case MUTHOOT:
@@ -102,6 +107,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return LenderAssociationStages.COMPLETED;
                     default:
                         return LenderAssociationStages.OLD_MODEL;
@@ -114,6 +120,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case UGRO:
+                    case OXYZO:
                         return LenderAssociationStages.KYC;
                     case SMFG:
                         return LenderAssociationStages.BRE;
@@ -135,6 +142,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -148,6 +156,7 @@ public class LenderAssociationStageFactoryV2 {
                     case PAYU:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -161,6 +170,7 @@ public class LenderAssociationStageFactoryV2 {
                     case PAYU:
                     case CREDITSAISON:
                     case UGRO:
+                    case OXYZO:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -175,6 +185,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return Boolean.TRUE;
                     default:
                         return Boolean.FALSE;
@@ -189,6 +200,7 @@ public class LenderAssociationStageFactoryV2 {
                     case CREDITSAISON:
                     case SMFG:
                     case UGRO:
+                    case OXYZO:
                         return Boolean.FALSE;
                     default:
                         return Boolean.FALSE;
@@ -196,6 +208,7 @@ public class LenderAssociationStageFactoryV2 {
             case DOC_UPLOAD:
                 switch (lender) {
                     case USFB:
+                    case OXYZO:
                         return Boolean.FALSE;
                     case TRILLIONLOANS:
                     case MUTHOOT:

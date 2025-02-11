@@ -108,4 +108,23 @@ public class AssignmentRuleUtils {
         lendingLenderQuotas.forEach(lendingLenderQuota -> filteredLenders.add(lendingLenderQuota.getLender()));
         extractedRulesAndLendersDTO.setFilteredLenders(filteredLenders);
     }
+
+    public Double getUnsecuredPos(Map<String, Object> metaData) {
+
+        if (metaData == null || !metaData.containsKey("eligibility_params")) {
+            return 0D;
+        }
+
+        Object eligibilityParamsObj = metaData.get("eligibility_params");
+
+        if (!(eligibilityParamsObj instanceof Map)) {
+            return 0D;
+        }
+
+        Map<String, Object> eligibilityParams = (Map<String, Object>) eligibilityParamsObj;
+
+        return (eligibilityParams.containsKey("unsecuredPos") && eligibilityParams.get("unsecuredPos") instanceof Double)
+                ? (Double) eligibilityParams.get("unsecuredPos")
+                : 0D;
+    }
 }

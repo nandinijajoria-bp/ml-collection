@@ -45,6 +45,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.config.OxyzoConfig;
 import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.*;
@@ -364,6 +365,10 @@ public class LendingApplicationServiceV2 {
     @Autowired
     @Lazy
     UgroConfig ugroConfig;
+
+    @Autowired
+    @Lazy
+    OxyzoConfig oxyzoConfig;
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -2572,7 +2577,15 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = ugroConfig.getContactEmail();
                 lenderContactNumber = ugroConfig.getContactNumber();
                 lenderGrievanceTime = ugroConfig.getGrievanceTIme();
-            } else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
+            } else if (lendingApplication.getLender().equalsIgnoreCase(Lender.OXYZO.toString())) {
+                lenderCorporateName = oxyzoConfig.getCorporateName();
+                lenderBusinessAddress = oxyzoConfig.getBusinessAddress();
+                lenderContactName = oxyzoConfig.getContactName();
+                lenderContactEmail = oxyzoConfig.getContactEmail();
+                lenderContactNumber = oxyzoConfig.getContactNumber();
+                lenderGrievanceTime = oxyzoConfig.getGrievanceTIme();
+            }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA2.toString()) ){
@@ -2912,7 +2925,7 @@ public class LendingApplicationServiceV2 {
             log.info("calculating APR for applicationId : {}", applicationId);
             Double guess = 0.01;
             ArrayList<Double> values = new ArrayList<>();
-            CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId);
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId, null);
             if(!response.isSuccess()){
                 log.info(response.getMessage());
                 log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
@@ -2939,7 +2952,7 @@ public class LendingApplicationServiceV2 {
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lender)) ? 360 : 365;
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lender)) ? 360 : 365;
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
@@ -3231,6 +3244,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_SMFG" + ".html";
             } else if(lender.equalsIgnoreCase(Lender.UGRO.name())) {
                 filePath = "/templates/" + "UGRO/" + "KFS.html";
+            } else if(lender.equalsIgnoreCase(Lender.OXYZO.name())) {
+                filePath = "/templates/OXYZO/" + "KFS_OXYZO" + ".html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -3379,6 +3394,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_SMFG.html";
             } else if(lender.equalsIgnoreCase(Lender.UGRO.name())) {
                 filePath = "/templates/" + "UGRO/" + "SANCTION_LETTER.html";
+            } else if (lender.equalsIgnoreCase(Lender.OXYZO.name())) {
+                filePath = "/templates/OXYZO/" + "SANCTION_LOAN_AGREEMENT_OXYZO.html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
@@ -3950,13 +3967,18 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
         } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SMICC-Logo-1724934813170_1-1728285292259.png";
+        } else if(lender.equalsIgnoreCase(Lender.OXYZO.name()) && applicationDocType.equals(ApplicationDocType.OXYZO_LETTERHEAD_FOOTER)){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Oxyzo_footer-1737110322362.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.OXYZO.name())){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Oxyzo_header-1737110280049.png";
         }
         return logoUrl;
     }
 
     public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant, String lender) {
         CommonResponse response = Lender.SMFG.name().equalsIgnoreCase(lender) ? lendingEdiScheduleService.getEdiScheduleV3(merchant.getId(), applicationId)
-        : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
+        : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId,null);
         if (!response.isSuccess()) {
             log.info(response.getMessage());
             log.info("Unable to fetch edi schedule for applicationId : {}", applicationId);

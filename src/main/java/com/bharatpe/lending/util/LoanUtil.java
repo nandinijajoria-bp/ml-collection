@@ -328,6 +328,9 @@ public class LoanUtil {
 	@Value("${fore.closure.charges.rollout.date.CREDITSAISON:2024-10-01 00:00}")
 	String creditSaisonForeClosureChargesRolloutDate;
 
+	@Value("${fore.closure.charges.rollout.date.OXYZO:2025-01-16 00:00}")
+	String oxyzoForeClosureChargesRolloutDate;
+
 
 	@Value("${autopay.upi.lenders:}")
 	String autoPayUpiLenders;
@@ -1848,6 +1851,9 @@ public class LoanUtil {
 		if(UGRO.name().equalsIgnoreCase(lender)) {
 			finalLender = UGRO.name();
 		}
+		if("OXYZO".equalsIgnoreCase(lender)) {
+			finalLender = Lender.OXYZO.name();
+		}
 		return finalLender;
 	}
 
@@ -2441,6 +2447,9 @@ public class LoanUtil {
 				case "CREDITSAISON":
 					date = creditSaisonForeClosureChargesRolloutDate;
 					break;
+				case "OXYZO":
+					date = oxyzoForeClosureChargesRolloutDate;
+					break;
 				default:
 					break;
 			}
@@ -2454,7 +2463,7 @@ public class LoanUtil {
 		List<ForeClosureConfig> foreClosureConfigList = foreClosureDao.findByLenderAndTenure(activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
         double duration = calculateDurationInMonths(activeLoan.getStartDate());
 
-		if(Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
+		if(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name()).contains(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
 			return null;
 		}
 
@@ -2537,6 +2546,7 @@ public class LoanUtil {
 		rejectedLenderMapping.put(PAYU.name(), "PAYU");
 		rejectedLenderMapping.put(CREDITSAISON.name(), "CREDITSAISON");
 		rejectedLenderMapping.put(SMFG.name(), "SMFG");
+		rejectedLenderMapping.put(OXYZO.name(), "OXYZO");
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
