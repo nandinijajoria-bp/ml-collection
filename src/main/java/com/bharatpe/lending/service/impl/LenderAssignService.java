@@ -24,9 +24,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.config.SmfgConfig;
-import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
-import com.bharatpe.lending.loanV3.config.UgroConfig;
+import com.bharatpe.lending.loanV3.config.*;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
@@ -227,6 +225,10 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     UgroConfig ugroConfig;
 
+    @Lazy
+    @Autowired
+    OxyzoConfig oxyzoConfig;
+
     @Value("${lender.apr.enable_new_logic:true}")
     private boolean enableNewLenderAprLogic;
 
@@ -376,6 +378,34 @@ public class LenderAssignService implements ILenderAssignService {
                             }
                             if (UGRO.name().equalsIgnoreCase(lender) && (application.getLoanAmount() < ugroConfig.getMinAmount() || application.getLoanAmount() > ugroConfig.getMaxAmount())) {
                                 String remarks = "UGRO: skipping for application id : " + application.getId() + " due to loan amount: " + application.getLoanAmount() + " is greater than: " + ugroConfig.getMaxAmount() + " / less than: " + ugroConfig.getMinAmount();
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && application.getEdi() > 0.7 * (riskVariables.getMonthlyTpv()/30)){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + " due to edi amount: " + application.getEdi() + " is greater than 0.7 *  (monthly_tpv/30) " + 0.7 * (riskVariables.getMonthlyTpv()/30);
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && application.getLoanAmount() > Math.ceil(tpvOffer)){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + "due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + Math.ceil(tpvOffer);
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && "R1".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((application.getLoanAmount() + riskVariables.getUnsecuredPos()) > (6 * riskVariables.getMonthlyTpv()))){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + "due to merchant loan amount: " + application.getLoanAmount() + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + "is greater than 6 * Monthly Adj TPV: " + 6 * riskVariables.getMonthlyTpv();
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && "R2".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((application.getLoanAmount() + riskVariables.getUnsecuredPos()) > (4.5 * riskVariables.getMonthlyTpv()))){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + "due to merchant loan amount: " + application.getLoanAmount() + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + "is greater than 4.5 * Monthly Adj TPV: " + 4.5 * riskVariables.getMonthlyTpv();
                                 log.info(remarks);
                                 createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
                                 iterator.remove();
@@ -965,6 +995,9 @@ public class LenderAssignService implements ILenderAssignService {
             case "UGRO":
                 rolloutPercent = ugroConfig.getRolloutPercentage();
                 break;
+            case "OXYZO":
+                rolloutPercent = oxyzoConfig.getRolloutPercentage();
+                break;
             default:
                 rolloutPercent = 0;
         }
@@ -1233,6 +1266,9 @@ public class LenderAssignService implements ILenderAssignService {
                 break;
             case "UGRO":
                 maxIrr = ugroConfig.getMaxIrr();
+                break;
+            case "OXYZO":
+                maxIrr = oxyzoConfig.getMaxIrr();
                 break;
             default:
                 maxIrr = 0D;
@@ -1597,6 +1633,8 @@ public class LenderAssignService implements ILenderAssignService {
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
         RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
 
+        log.info("riskVariables in lender assignment v2 {}", riskVariables);
+
         //Change 1 : Fetched lender pricing list
         List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
                 lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
@@ -1817,6 +1855,33 @@ public class LenderAssignService implements ILenderAssignService {
                 if (edi > 0.7 * summaryTpv) {
                     response = "skipping smfg for application id : " + applicationId + " due to edi amount: " + edi + " is greater than 0.7 * summary_tpv " + 0.7 * summaryTpv;
                     success = false;
+                    break;
+                }
+                break;
+            case OXYZO:
+
+                log.info("runLenderChecksForApplication for Oxyzo {} {} {}", riskVariables.getUnsecuredPos(), riskVariables.getMonthlyTpv(), loanAmount);
+
+                if(edi > 0.7 * (riskVariables.getMonthlyTpv()/30)){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to edi amount: " + edi + " is greater than 0.7 * monthly_tpv " + 0.7 * (riskVariables.getMonthlyTpv()/30);
+                    success = false;
+                    break;
+                }
+                if(loanAmount > Math.ceil(tpvOffer)){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to merchant loan amount: " + loanAmount + " is greater than tpvOffer: " + (Math.ceil(tpvOffer));
+                    success = false;
+                    break;
+                }
+                if("R1".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((loanAmount + riskVariables.getUnsecuredPos()) > (6 * riskVariables.getMonthlyTpv()))){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to merchant loan amount: " + loanAmount + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + " is greater than 6 * Monthly Adj TPV: " + 6 * riskVariables.getMonthlyTpv();
+                    success = false;
+                    log.info("inside unsecuredPOs check for R1");
+                    break;
+                }
+                if("R2".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((loanAmount + riskVariables.getUnsecuredPos()) > (4.5 * riskVariables.getMonthlyTpv()))){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to merchant loan amount: " + loanAmount + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + " is greater than 4.5 * Monthly Adj TPV: " + 4.5 * riskVariables.getMonthlyTpv();
+                    success = false;
+                    log.info("inside unsecuredPOs check for R2");
                     break;
                 }
                 break;

@@ -217,6 +217,7 @@ public class NbfcUtils {
             case CREDITSAISON:
             case SMFG:
             case UGRO:
+            case OXYZO:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:

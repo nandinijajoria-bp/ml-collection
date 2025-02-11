@@ -123,6 +123,7 @@ public class InvokeAdditionalDocUploadWrapperService {
             case "TRILLIONLOANS":
                 return Collections.singletonList(DocType.LOAN_AGREEMENT);
             case "MUTHOOT":
+            case "OXYZO":
                 return Collections.singletonList(DocType.KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED);
             case "CAPRI":
             case "CREDITSAISON":

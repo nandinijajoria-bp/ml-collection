@@ -1603,7 +1603,7 @@ public class PaymentService {
     public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
         try {
             logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
-            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger);
+            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger, null);
             if(ObjectUtils.isEmpty(nbfcRequest)) {
                 log.info("Error in generating request for foreclosure receipt of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
                 return;

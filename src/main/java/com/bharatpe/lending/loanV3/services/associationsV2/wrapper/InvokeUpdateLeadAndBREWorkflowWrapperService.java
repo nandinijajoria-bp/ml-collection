@@ -129,6 +129,7 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
             case "CREDITSAISON":
             case "SMFG":
             case "UGRO":
+            case "OXYZO":
                 return true;    // Skipped update lead as its only taking same payload as createLead
             default:
                 return false;
