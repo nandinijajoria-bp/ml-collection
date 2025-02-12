@@ -60,8 +60,8 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(lendingStateDTO.getData().isTopup() && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingStateDTO.getData().getLender())){
-            //next page for ABFL, TRILLIONLOANS topup is set in fetchScopeData call
+        if(lendingStateDTO.getData().isTopup() && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingStateDTO.getData().getLender())){
+            //next page for ABFL, TRILLIONLOANS PIRAMAL topup is set in fetchScopeData call
             return lendingStateDTO;
         }
         if(offerModifiedEligibleLenders.contains(lendingStateDTO.getData().getLender())
