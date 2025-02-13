@@ -958,6 +958,12 @@ public class PaymentService {
             transferType = "EXTERNAL";
         }
 
+        if(!ObjectUtils.isEmpty(source) && "LMS_PRECLOSURE".equals(source)){
+            transferType = "EXTERNAL";
+            if(amount > 0)    description = "PRECLOSER_IMPS/NEFT";
+            lendingLedger.setAdjustmentMode("DIRECT_TRANSFER");
+        }
+
         lendingLedger.setDescription(description);
         lendingLedger.setTerminalOrderId(terminalOrderId);
         lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ?
@@ -2627,5 +2633,6 @@ public class PaymentService {
     private boolean checkIfNewPaymentFlowApplicable(String nbfc) {
         return "TRILLIONLOANS".equalsIgnoreCase(nbfc);
     }
+
 
 }

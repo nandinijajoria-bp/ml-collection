@@ -179,6 +179,15 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setTransferType(transferType);
         lendingLedger.setTerminalOrderId(terminalOrderId);
         lendingLedger.setSettlementId(settlementId);
+
+        if(!ObjectUtils.isEmpty(source) && "LMS_PRECLOSURE".equals(source)){
+            lendingLedger.setAdjustmentMode("DIRECT_TRANSFER");
+            lendingLedger.setTransferType("DIRECT_TRANSFER_LENDER");
+            if(amount > 0) {
+                lendingLedger.setDescription("PRECLOSER_IMPS/NEFT");
+            }
+        }
+
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
     }
