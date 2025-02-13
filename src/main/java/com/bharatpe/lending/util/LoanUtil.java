@@ -2782,5 +2782,19 @@ public class LoanUtil {
 
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayNachRequired());
 	}
+
+	public LendingApplication fetchParentApplication(Long applicationId){
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+		if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+			logger.info("No lending application details found for applicationId : {}", applicationId);
+			throw new RuntimeException("unable to fetch lending application details " + applicationId);
+		}
+		LendingApplication prevApplication = lendingApplicationDao.findById(lendingApplicationDetails.getPrevAppId()).orElse(null);
+		if(ObjectUtils.isEmpty(prevApplication)) {
+			logger.info("No previous lending application found for topup application with applicationId : {} and prevAppId : {}", applicationId, lendingApplicationDetails.getPrevAppId());
+			throw new RuntimeException("unable to fetch parent application " + applicationId);
+		}
+		return prevApplication;
+	}
 }
 

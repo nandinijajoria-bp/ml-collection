@@ -58,6 +58,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
@@ -2496,6 +2497,7 @@ public class LendingApplicationServiceV2 {
             String colenderCorporateName = "";
             String colenderBusinessAddress = "";
             String lenderGrievanceTime = "";
+            String parentLenderCorporateName = "NA";
 
             if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LIQUILOANS;
@@ -2687,7 +2689,7 @@ public class LendingApplicationServiceV2 {
 
             if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
-                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())){
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
                     throw new Exception("Unable to fetch parent loan details");
                 }
@@ -2698,6 +2700,12 @@ public class LendingApplicationServiceV2 {
                 }
                 kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
                 kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
+                kfsDto.setParentLender(parentLendingApplicationOptional.get().getLender());
+                kfsDto.setParentLoanAmount(parentLendingApplicationOptional.get().getLoanAmount());
+                if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(parentLendingApplicationOptional.get().getLender())) {
+                    parentLenderCorporateName = LENDER_CORPORATE_NAME_LIQUILOANS;
+                }
+                kfsDto.setParentLenderCorporateName(parentLenderCorporateName);
             }
             return new ApiResponse<>(kfsDto);
         }
@@ -3771,6 +3779,7 @@ public class LendingApplicationServiceV2 {
         data.put("annual_turnover",kfsDto.getAnnualTurnover()); // summaryTPV * 360
         data.put("monthlyIncome",Optional.ofNullable(kfsDto.getMonthlyIncome()).map(String::valueOf).orElse(""));
         data.put("annual_roi", kfsDto.getAnnualRoi());
+        data.put("parent_lender_corporate_name", kfsDto.getParentLenderCorporateName());
 
         if(kfsDto.isForeclosureChargesRequired()) {
             List<ForeClosureConfig> foreClosureConfigList = foreClosureConfigDao.findByLender(kfsDto.getLender());
@@ -3899,7 +3908,7 @@ public class LendingApplicationServiceV2 {
                 data.put("udyam_number", businessDocs.peek() != null ? businessDocs.peek().getDocIdentifier() : null);
             }
         }
-
+        data.put("parent_lender", ObjectUtils.isEmpty(kfsDto.getParentLender()) ? "NA" : kfsDto.getParentLender());
         //log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
@@ -4478,12 +4487,16 @@ public class LendingApplicationServiceV2 {
     }
 
     private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
-        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
-        if(foreClosureAmountForABFL <= 0){
+        Double foreClosureAmount = 0D;
+        foreClosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+        if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+            foreClosureAmount = (double) loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+        }
+        if(foreClosureAmount <= 0){
             log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
             throw new Exception("Unable to fetch foreclosure amount for parent loan");
         }
-        return foreClosureAmountForABFL;
+        return foreClosureAmount;
     }
 
     public ApiResponse<?> generateLenderKfs(LendingApplication lendingApplication, Boolean preSigned) {

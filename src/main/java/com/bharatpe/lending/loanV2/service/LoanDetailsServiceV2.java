@@ -356,6 +356,9 @@ public class LoanDetailsServiceV2 {
     @Autowired
     CommonService commonService;
 
+    @Value("${reference.page.disabled.for.topup:true}")
+    Boolean referencePageDisabledForTopup;
+
     private static final String UPTO_3_LAKH = "UPTO_3_LAKH";
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
@@ -1555,7 +1558,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
 
-            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
+            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && referencePageDisabledForTopup)
             {
                 log.info("lending application loan Type is {} ",lendingApplication.getLoanType());
                 return new ApiResponse<>(false,"Application type is Topup");

@@ -26,4 +26,6 @@ public class LenderAssociationDetailsRequestDto {
 
     boolean modifyLender = false;
     boolean manageState = false;
+
+    String topupParentLender;
 }

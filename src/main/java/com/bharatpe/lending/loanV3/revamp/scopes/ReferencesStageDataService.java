@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ReferenceStateDTO;
@@ -41,7 +42,9 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
     public LendingStateDTO<ReferenceStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
-
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())) {
+            lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+        }
         return lendingStateDTO;
     }
 
@@ -61,6 +64,7 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
             if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
                 referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
                 referenceStateDTO.setLender(lendingApplication.getLender());
+                referenceStateDTO.setLoanType(lendingApplication.getLoanType());
             }
             if(!ObjectUtils.isEmpty(scopeDataArgs.getMerchant())) {
                 referenceStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));

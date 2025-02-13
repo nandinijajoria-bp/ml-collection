@@ -12,6 +12,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -41,9 +42,6 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
-
-    @Autowired
-    NbfcUtils nbfcUtils;
 
     @Autowired
     AssociationServiceUtil associationServiceUtil;
@@ -139,7 +137,8 @@ public class InvokeUpdateLeadAndBREWorkflowWrapperService {
     @Transactional
     private void invokeRiskDecision(LenderAssociationDetailsRequestDto lenderAssociationDetailDto) {
         Boolean isBreSuccess = associationServiceUtil.invokeBREService(lenderAssociationDetailDto.getLendingApplication().getLender(), lenderAssociationDetailDto);
-        if (isBreSuccess && lenderAssociationDetailDto.getLendingApplication().getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())) {
+        if (isBreSuccess && lenderAssociationDetailDto.getLendingApplication().getLender().equalsIgnoreCase(Lender.TRILLIONLOANS.name())
+            && !ObjectUtils.isEmpty(lenderAssociationDetailDto.getTopupParentLender()) && !LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lenderAssociationDetailDto.getTopupParentLender())) {
             associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailDto.getLendingApplication().getLender(), lenderAssociationDetailDto);
         }
     }

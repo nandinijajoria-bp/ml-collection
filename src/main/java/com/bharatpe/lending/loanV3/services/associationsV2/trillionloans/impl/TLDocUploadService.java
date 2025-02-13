@@ -25,6 +25,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validat
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -68,6 +69,13 @@ public class TLDocUploadService {
     @Lazy
     @Autowired
     NbfcUtils nbfcUtils;
+
+    @Lazy
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Autowired
+    TLConsentPostingService consentPostingService;
 
     @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
