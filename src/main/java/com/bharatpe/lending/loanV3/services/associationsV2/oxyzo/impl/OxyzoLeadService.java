@@ -191,11 +191,13 @@ public class OxyzoLeadService {
                             .customerType(oxyzoConfig.getCustomerType())
                             .paymentFrequency(oxyzoConfig.getPaymentFrequency())
                             .loanType(oxyzoConfig.getLoanType())
-                            .loanSegment(lendingRiskVariablesSnapshot.getLoanSegment())
+                            .loanSegment(getLoanSegmentMapping(lendingRiskVariablesSnapshot.getLoanSegment()))
                             .interestRate(BigDecimal.valueOf(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getAnnualRoi()))
                             .kycDetails(OxyzoCreateLeadRequestDTO.OxyzoKycDetailsRequestDto.builder().type("AADHAAR").isVerified(true).build())
                             .shopGeoTagLatitude(location.get("latitude"))
                             .shopGeoTagLongitude(location.get("longitude"))
+                            .geoTagLatitude(location.get("latitude"))
+                            .geoTagLongitude(location.get("longitude"))
                             .build())
                     .build();
         } catch (Exception e) {
@@ -250,6 +252,22 @@ public class OxyzoLeadService {
         location.put("longitude", "0.0");
 
         return location;
+    }
+
+    private String getLoanSegmentMapping(String loanSegment){
+
+        switch(loanSegment){
+            case "FRESH":
+            case "REGULAR_ETC":
+                return "REGULAR_ETC";
+            case "REPEAT":
+                return "REPEAT";
+            case "TOPUP":
+                return "TOP_UP";
+            default:
+                return loanSegment;
+        }
+
     }
 }
 
