@@ -10,4 +10,5 @@ import java.util.List;
 public interface LoanPaymentService {
 
     LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment);
+
 }
