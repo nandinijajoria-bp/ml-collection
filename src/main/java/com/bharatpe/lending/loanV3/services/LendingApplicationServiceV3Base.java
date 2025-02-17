@@ -39,10 +39,10 @@ import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.service.RedisNotificationService;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -53,8 +53,6 @@ import org.springframework.util.ObjectUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
-import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.*;
 
 @Slf4j
@@ -128,9 +126,12 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     NbfcRetryRepository nbfcRetryRepository;
 
+    @Autowired
+    RedisNotificationService redisNotificationService;
+
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
-    public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus) {
+    public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
         LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
             LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
@@ -248,7 +249,7 @@ public abstract class LendingApplicationServiceV3Base {
 
                 //If status polling is enabled for lender, then check the latest status of the polling
                 if (statusPollEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
-                    checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse);
+                    checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse, userReturnedFromLenderKyc);
                 }
 
                 return lenderAssociationStatusResponse;
@@ -258,27 +259,27 @@ public abstract class LendingApplicationServiceV3Base {
     }
 
     private void checkEkycStatusRetry(LendingApplication currentDraftApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails,
-                                      ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse) {
+                                      ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse, boolean userReturnedFromLenderKyc) {
         if (ObjectUtils.isEmpty(currentDraftApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             return;
         }
+        Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name()));
         if (!ApplicationStatus.DRAFT.name().equalsIgnoreCase(currentDraftApplication.getStatus())
         || !(LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
-                && List.of(LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name()).contains(lendingApplicationLenderDetails.getKycStatus()))) {
+                && validStages.contains(lendingApplicationLenderDetails.getKycStatus()))) {
             return;
         }
 
         Optional<NbfcRetry> nbfcRetryObj = nbfcRetryRepository.findByApplicationIdAndLenderAndRequestTypeAndStatus(currentDraftApplication.getId(),
                 lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), "IN_PROGRESS");
-        if (!nbfcRetryObj.isPresent()) {
-            return;
+        if (!nbfcRetryObj.isPresent() && userReturnedFromLenderKyc) {
+            nbfcRetryObj = Optional.ofNullable(enqueueNbfcRetry(currentDraftApplication, LenderAssociationStages.EKYC_STATUS));
         }
 
-        int retryDelaySeconds = nbfcRetryObj.get().getRetriesRemaining() == 3 ? 10 : 300; //TODO: Pick from config properly
+        int retryDelaySeconds = (nbfcRetryObj.get().getRetriesRemaining() == 3 ? 20 : 360); //TODO: Pick from config properly
         //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
         long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000 - System.currentTimeMillis();
-        if (retryAfter > 0) {
-            //TODO: How to handle when retryAfter is Exactly 0
+        if (retryAfter >= 0) {
             lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
                     .retryAfter(retryAfter / 1000)
                     .build());
@@ -790,6 +791,29 @@ public abstract class LendingApplicationServiceV3Base {
                 .applicationId(invokeStageRequest.getApplicationId().toString())
                 .lender(invokeStageRequest.getLender()).productName("LENDING")
                 .success(Boolean.FALSE).error("Something went wrong").build();
+    }
+
+    private NbfcRetry enqueueNbfcRetry(LendingApplication lendingApplication, LenderAssociationStages associationStage) {
+        if (ObjectUtils.isEmpty(lendingApplication)) {
+            return null;
+        }
+        NbfcRetry nbfcRetryRequest = null;
+        try {
+            nbfcRetryRequest = NbfcRetry.builder()
+                    .merchantId(lendingApplication.getMerchantId())
+                    .applicationId(lendingApplication.getId())
+                    .requestType(associationStage.name())
+                    .lender(lendingApplication.getLender())
+                    .retriesRemaining(3)
+                    .status("INIT")
+                    .build();
+            nbfcRetryRepository.save(nbfcRetryRequest);
+            redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest, 10000); //TODO: Configurable
+        } catch (Exception e) {
+            log.error("Error while initiating retry for applicationId: {}, lender: {} at stage: {}",
+                    lendingApplication.getId(), lendingApplication.getLender(), associationStage.name());
+        }
+        return nbfcRetryRequest;
     }
 
 }

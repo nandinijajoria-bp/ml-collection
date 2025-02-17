@@ -7,9 +7,11 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
+import com.bharatpe.lending.common.entity.mongo.NbfcRetry;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.dto.NbfcRetryRequestDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +22,7 @@ import com.bharatpe.lending.common.entity.CreditAccount;
 import com.bharatpe.lending.common.entity.CreditApplication;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dto.InstantNotificationDto;
+import org.springframework.util.ObjectUtils;
 
 @Service
 public class RedisNotificationService {
@@ -235,4 +238,25 @@ public class RedisNotificationService {
 			logger.error("Error occured while sending pf nudge for merchant {}", merchantId, e);
 		}
 	}
+
+	public boolean sendNbfcRetryRequestMessage(NbfcRetry nbfcRetryRequest, long timeout) {
+		if (ObjectUtils.isEmpty(nbfcRetryRequest)) {
+			return false;
+		}
+		try {
+			logger.info("Sending nbfc retry request message for merchant {}", nbfcRetryRequest.getMerchantId());
+			NbfcRetryRequestDto nbfcRetryRequestDto = NbfcRetryRequestDto.builder()
+					.retryId(nbfcRetryRequest.getId())
+					.merchantId(nbfcRetryRequest.getMerchantId())
+					.applicationId(nbfcRetryRequest.getApplicationId())
+					.lender(nbfcRetryRequest.getLender())
+					.requestType(nbfcRetryRequest.getRequestType())
+					.build();
+			lendingDelayedMessagePublisher.publish("retry_nbfc_requests", nbfcRetryRequest.getMerchantId().toString(), nbfcRetryRequestDto, "nbfc_retry_request_"+nbfcRetryRequest.getMerchantId(), timeout);
+			return true;
+		} catch (Exception e) {
+			logger.error("Error occured while sending nbfc retry request message for merchant {}", nbfcRetryRequest.getMerchantId(), e);
+			return false;
+        }
+    }
 }

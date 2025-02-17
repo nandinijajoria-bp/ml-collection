@@ -52,13 +52,6 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
 
-    @Value("#{'${status.poll.enabled.lenders:ABFL}'.split(',')}")
-    private Set<String> statusPollEnabledLenders;
-
-
-    @Autowired
-    NbfcRetryRepository nbfcRetryRepository;
-
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -136,42 +129,11 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
             }
 
             lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
-
-            if (statusPollEnabledLenders.contains(lendingApplication.getLender()) && scopeDataArgs.getLoanDetailsV3Request().isKycSuccess()) {
-                //TODO:  Enqueue a status check request for Lender E-KYC.
-                boolean retryInitiated = enqueueNbfcRetry(lendingApplication, LenderAssociationStages.EKYC_STATUS);
-                lenderEvaluationStateDTO.setPollingInitiated(retryInitiated);
-            }
-
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.LENDER_EVALUATION_PAGE);
             return new LendingStateDTO<>(lenderEvaluationStateDTO , nextPage, LendingViewStates.LENDER_EVALUATION_PAGE);
         } catch (Exception e) {
             log.error("error in getting reference stage data for {} : {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(),LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
         }
-    }
-
-    private boolean enqueueNbfcRetry(LendingApplication lendingApplication, LenderAssociationStages associationStage) {
-        if (ObjectUtils.isEmpty(lendingApplication)) {
-            return false;
-        }
-        try {
-            NbfcRetry nbfcRetry = NbfcRetry.builder()
-                    .merchantId(lendingApplication.getMerchantId())
-                    .applicationId(lendingApplication.getId())
-                    .requestType(associationStage.name())
-                    .lender(lendingApplication.getLender())
-                    .retriesRemaining(3)
-                    .status("INIT")
-                    .build();
-            nbfcRetryRepository.save(nbfcRetry);
-
-            //TODO: Save request with appropriate timeout to Redis for delayed queue
-        } catch (Exception e) {
-            log.error("Error while initiating retry for applicationId: {}, lender: {} at stage: {}",
-                    lendingApplication.getId(), lendingApplication.getLender(), associationStage.name());
-            return false;
-        }
-        return true;
     }
 }
