@@ -19,6 +19,8 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.Optional;
 
+import static com.bharatpe.lending.common.enums.TlBreExceptionEnum.INTERNAL_ERROR;
+
 @Slf4j
 @Service
 public class ModifyStageService {
@@ -41,11 +43,14 @@ public class ModifyStageService {
         }
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
                 .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name());
-        if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) || !Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name()).contains(existingLendingApplicationLenderDetails.getLender())) {
+        if (ObjectUtils.isEmpty(existingLendingApplicationLenderDetails) || !Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(existingLendingApplicationLenderDetails.getLender())) {
             log.info("no existingLendingApplicationLenderDetails exists for {}", modifyLenderDto.getId());
             return;
         }
         LenderAssociationStatus lenderAssociationStatus = LenderAssociationStatus.valueOf(modifyLenderDto.getStatus());
+        if (lenderAssociationStatus.equals(LenderAssociationStatus.BRE_HARD_FAILED)) {
+            existingLendingApplicationLenderDetails.setBreRejectionReason(INTERNAL_ERROR.name());
+        }
         log.info("Fetched the required details for modify lender {},{},{}",lendingApplication,
                 existingLendingApplicationLenderDetails,lenderAssociationStatus);
         nbfcUtils.modifyLender(lendingApplication.get(), existingLendingApplicationLenderDetails, lenderAssociationStatus);

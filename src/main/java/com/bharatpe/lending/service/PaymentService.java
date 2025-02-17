@@ -958,6 +958,12 @@ public class PaymentService {
             transferType = "EXTERNAL";
         }
 
+        if(!ObjectUtils.isEmpty(source) && "LMS_PRECLOSURE".equals(source)){
+            transferType = "EXTERNAL";
+            if(amount > 0)    description = "PRECLOSER_IMPS/NEFT";
+            lendingLedger.setAdjustmentMode("DIRECT_TRANSFER");
+        }
+
         lendingLedger.setDescription(description);
         lendingLedger.setTerminalOrderId(terminalOrderId);
         lendingLedger.setTransferType(Objects.nonNull(transferType) && transferType.equals("EXTERNAL") ?
@@ -1603,7 +1609,7 @@ public class PaymentService {
     public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
         try {
             logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
-            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger);
+            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger, null);
             if(ObjectUtils.isEmpty(nbfcRequest)) {
                 log.info("Error in generating request for foreclosure receipt of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
                 return;
@@ -2627,5 +2633,6 @@ public class PaymentService {
     private boolean checkIfNewPaymentFlowApplicable(String nbfc) {
         return "TRILLIONLOANS".equalsIgnoreCase(nbfc);
     }
+
 
 }

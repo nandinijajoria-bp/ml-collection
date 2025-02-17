@@ -639,6 +639,8 @@ public class LoanDashboardService {
         } else if (KycStatus.REJECTED.name().equalsIgnoreCase(openApplication.getPhysicalReason())) {
 //            rejectionMessage = easyLoanUtil.getRejectionMessage(openApplication.getPhysicalReason(), RejectionStage.QC);
             rejectionReason = openApplication.getPhysicalReason();
+        } else if (!StringUtils.isEmpty(openApplication.getRejectionReason())) {
+            rejectionReason = openApplication.getRejectionReason();
         }
         if("ABFL".equalsIgnoreCase(openApplication.getLender())){
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(openApplication.getId(), openApplication.getLender());
@@ -701,7 +703,9 @@ public class LoanDashboardService {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
-            } else {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && RejectionStage.BRE.name().equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
+            }else {
                 reapplyDayDiff = 0;
             }
             if (Objects.nonNull(reapplyDayDiff)) {

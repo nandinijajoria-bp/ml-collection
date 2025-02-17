@@ -2,6 +2,7 @@ package com.bharatpe.lending.util;
 
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.dto.RiskVariablesDTO;
+import com.bharatpe.lending.service.AssignmentRuleUtils;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -27,6 +28,10 @@ public class EntityToDtoConvertorUtil {
             riskVariablesDTO.setVintage(Objects.nonNull(lendingRiskVariables.getVintage()) ? lendingRiskVariables.getVintage() : 0L);
             riskVariablesDTO.setSummaryTpv(Objects.nonNull(lendingRiskVariables.getSummaryTpv()) ? lendingRiskVariables.getSummaryTpv() : 0D);
             riskVariablesDTO.setTpvOffer(Objects.nonNull(lendingRiskVariables.getTpvOffer()) ? lendingRiskVariables.getTpvOffer() : 0D);
+            riskVariablesDTO.setMonthlyTpv(Objects.nonNull(lendingRiskVariables.getMonthlyTpv()) ? lendingRiskVariables.getMonthlyTpv() : 0D);
+
+            AssignmentRuleUtils assignmentRuleUtils = new AssignmentRuleUtils();
+            riskVariablesDTO.setUnsecuredPos(assignmentRuleUtils.getUnsecuredPos(lendingRiskVariables.getMetaData()));
 
             Set<String> rejectedLenders = new HashSet<>();
             if (!StringUtils.isEmpty(lendingRiskVariables.getRejectedLenders())) {

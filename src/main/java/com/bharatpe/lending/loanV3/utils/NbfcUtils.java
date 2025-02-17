@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
@@ -112,6 +113,7 @@ public class NbfcUtils {
         }
         if (LenderAssociationStages.BRE.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getStage())) {
             existingLendingApplicationLenderDetails.setBreStatus(lenderAssociationStatus.name());
+            existingLendingApplicationLenderDetails.setBreRejectionReason(existingLendingApplicationLenderDetails.getBreRejectionReason());
         } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getStage())) {
             existingLendingApplicationLenderDetails.setKycStatus(lenderAssociationStatus.name());
         } else if (LenderAssociationStages.SANCTION_WRAPPER.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getStage())) {
@@ -137,7 +139,13 @@ public class NbfcUtils {
                 modifiedLender = lenderAssignService.modifyLender(lendingApplication.getId());
                 if(ObjectUtils.isEmpty(modifiedLender)) {
                     log.info("Rejecting application for the applicationId: {}",lendingApplication.getId());
-                    lendingApplication.setManualKyc("rejected");
+                    if (!ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getBreRejectionReason())) {
+                        log.info("Rejecting application for the applicationId: {} due to : {}", lendingApplication.getId(), existingLendingApplicationLenderDetails.getBreRejectionReason());
+                        lendingApplication.setRejectionStage(RejectionStage.BRE);
+                        lendingApplication.setRejectionReason(existingLendingApplicationLenderDetails.getBreRejectionReason());
+                    } else {
+                        lendingApplication.setManualKyc("rejected");
+                    }
                     lendingApplication.setStatus("rejected");
                     lendingApplicationDao.save(lendingApplication);
                     commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
@@ -217,6 +225,7 @@ public class NbfcUtils {
             case CREDITSAISON:
             case SMFG:
             case UGRO:
+            case OXYZO:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:
