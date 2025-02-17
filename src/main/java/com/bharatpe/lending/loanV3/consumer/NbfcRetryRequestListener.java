@@ -17,6 +17,7 @@ import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.service.RedisNotificationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,9 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static com.bharatpe.lending.enums.Lender.ABFL;
@@ -39,6 +43,9 @@ public class NbfcRetryRequestListener {
     private final KycRequestKafka kycRequestKafka;
     private final LenderGatewayFactory lenderGatewayFactory;
     private final RedisNotificationService redisNotificationService;
+
+    @Value("#{${nbfc.ekyc-status.retry.timeout:{1:10, 2:300, 3:300}}}")
+    private Map<Long, Long> ekycStatusRetryTimeoutsMap = new HashMap<>();
 
     public NbfcRetryRequestListener(ObjectMapper objectMapper,
                                     LendingApplicationDao lendingApplicationDao,
@@ -59,30 +66,26 @@ public class NbfcRetryRequestListener {
             concurrency = "1",
             autoStartup = "${kafka.confluent.consumer.new:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
-    public void nbfcRetryRequestListener(String message, Acknowledgment acknowledgment) {
+    public void nbfcRetryRequestListener(String message) {
         log.info("Processing the nbfc retry request message: {}", message);
         if (StringUtils.isEmpty(message)) {
             log.warn("Empty message payload received for processing the nbfc retry request: {}", message);
-            acknowledgment.acknowledge();
             return;
         }
         try {
             NbfcRetryRequestDto nbfcRetryRequestDto = objectMapper.readValue(message, NbfcRetryRequestDto.class);
             if (ObjectUtils.isEmpty(nbfcRetryRequestDto) || ObjectUtils.isEmpty(nbfcRetryRequestDto.getMerchantId()) || ObjectUtils.isEmpty(nbfcRetryRequestDto.getApplicationId())) {
                 log.warn("Invalid message payload received for processing the nbfc retry request: {}", message);
-                acknowledgment.acknowledge();
                 return;
             }
             Optional<NbfcRetry> nbfcRetryRequest = nbfcRetryRepository.findById(nbfcRetryRequestDto.getRetryId());
             if (!nbfcRetryRequest.isPresent()) {
                 log.warn("Unable to find nbfc retry request for application ID: {}", nbfcRetryRequestDto.getApplicationId());
-                acknowledgment.acknowledge();
                 return;
             }
             Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(nbfcRetryRequestDto.getApplicationId());
             if (!lendingApplicationOptional.isPresent()) {
                 log.warn("Unable to find lending application for message payload received for ID: {}", message);
-                acknowledgment.acknowledge();
                 return;
             }
 
@@ -90,17 +93,16 @@ public class NbfcRetryRequestListener {
             LendingApplicationLenderDetails lendingApplicationLenderDetails =
                     lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), ABFL.name());
 
-            processRetryRequest(lendingApplication, lendingApplicationLenderDetails, nbfcRetryRequest.get(), acknowledgment);
+            processRetryRequest(lendingApplication, lendingApplicationLenderDetails, nbfcRetryRequest.get());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
     }
 
-    private void processRetryRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequestDto, Acknowledgment acknowledgment) {
+    private void processRetryRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequestDto) {
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.warn("Lender {} not found for application {}", nbfcRetryRequestDto.getApplicationId(), nbfcRetryRequestDto.getLender());
-            acknowledgment.acknowledge();
             return;
         }
         if (nbfcRetryRequestDto.getRequestType().equals("EKYC_STATUS")) {
@@ -108,7 +110,6 @@ public class NbfcRetryRequestListener {
         } else {
             log.info("Request Type currently not supported in delayed nbfc retry {}", nbfcRetryRequestDto);
         }
-        acknowledgment.acknowledge();
     }
 
     private void processEkycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequest) {
@@ -153,13 +154,17 @@ public class NbfcRetryRequestListener {
                     nbfcRetryRepository.save(nbfcRetryRequest);
                 } else {
                     nbfcRetryRequest.setRetriesRemaining(nbfcRetryRequest.getRetriesRemaining() - 1);
-                    redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest, 300000);//TODO
-                    nbfcRetryRepository.save(nbfcRetryRequest);
                 }
             } catch (Exception e) {
                 log.error("Exception occurred while processing eKyc status check for application {}", lendingApplicationLenderDetails.getApplicationId(), e);
                 nbfcRetryRequest.setRetriesRemaining(nbfcRetryRequest.getRetriesRemaining() - 1);
-                redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest, 300000);//TODO
+            }
+            if (Objects.equals(nbfcRetryRequest.getStatus(), "INIT")) {
+                if (nbfcRetryRequest.getRetriesRemaining() <= 0) {
+                    nbfcRetryRequest.setStatus("FAILURE");
+                } else {
+                    redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest,  ekycStatusRetryTimeoutsMap.getOrDefault(3L - nbfcRetryRequest.getRetriesRemaining(), 300L));
+                }
                 nbfcRetryRepository.save(nbfcRetryRequest);
             }
         } else {
