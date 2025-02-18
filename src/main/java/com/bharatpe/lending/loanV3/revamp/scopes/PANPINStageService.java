@@ -76,6 +76,7 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
         EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
         try{
             eligibilityStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));
+            eligibilityStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             Experian experian = experianDao.getByMerchantId(scopeDataArgs.getMerchant().getId());
             if (experian != null) {
                 eligibilityStateDTO.setPancard(experian.getPancardNumber());
