@@ -19,6 +19,7 @@ import com.bharatpe.lending.common.entity.mongo.NbfcRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LenderOffDays;
+import com.bharatpe.lending.common.enums.NbfcRetryStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
@@ -130,10 +131,13 @@ public abstract class LendingApplicationServiceV3Base {
     RedisNotificationService redisNotificationService;
 
     @Value("#{${nbfc.ekyc-status.retry.timeout:{0:10, 1:300, 2:300}}}")
-    private Map<Long, Long> ekycStatusRetryTimeoutsMap = new HashMap<>();
+    private Map<Integer, Long> ekycStatusRetryTimeoutsMap = new HashMap<>();
 
     @Value("${retry.timer.delay:5}")
     private long retryTimerDelay;
+
+    @Value("${nbfc.retry.max-retries-count:3}")
+    private int maxRetriesCount;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -277,13 +281,13 @@ public abstract class LendingApplicationServiceV3Base {
         }
 
         Optional<NbfcRetry> nbfcRetryObj = nbfcRetryRepository.findByApplicationIdAndLenderAndRequestTypeAndStatus(currentDraftApplication.getId(),
-                lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), "INIT");
+                lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), NbfcRetryStatus.INIT);
         if (!nbfcRetryObj.isPresent() && userReturnedFromLenderKyc) {
             nbfcRetryObj = Optional.ofNullable(enqueueNbfcRetry(currentDraftApplication, LenderAssociationStages.EKYC_STATUS));
         }
 
         if (nbfcRetryObj.isPresent()) {
-            long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(3L - nbfcRetryObj.get().getRetriesRemaining(), 10L) + retryTimerDelay;
+            long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault((long) maxRetriesCount - nbfcRetryObj.get().getRetriesRemaining(), 10L) + retryTimerDelay;
             //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
             long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
             if (retryAfter >= 0) {
@@ -811,14 +815,15 @@ public abstract class LendingApplicationServiceV3Base {
                     .applicationId(lendingApplication.getId())
                     .requestType(associationStage.name())
                     .lender(lendingApplication.getLender())
-                    .retriesRemaining(3)
-                    .status("INIT")
+                    .retriesRemaining(maxRetriesCount)
+                    .status(NbfcRetryStatus.INIT)
+                    .remarks(new LinkedHashMap<>())
                     .build();
 
             nbfcRetryRequest.setCreatedAt(new Date());
             nbfcRetryRequest.setUpdatedAt(new Date());
             nbfcRetryRepository.save(nbfcRetryRequest);
-            redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest, ekycStatusRetryTimeoutsMap.getOrDefault(3L - nbfcRetryRequest.getRetriesRemaining(), 10L));
+            redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest, ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - nbfcRetryRequest.getRetriesRemaining(), 10L));
         } catch (Exception e) {
             log.error("Error while initiating retry for applicationId: {}, lender: {} at stage: {}",
                     lendingApplication.getId(), lendingApplication.getLender(), associationStage.name());
