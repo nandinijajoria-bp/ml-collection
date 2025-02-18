@@ -12,6 +12,7 @@ import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -51,10 +52,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -278,6 +276,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             }
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = getNonFutureTransactionDate(lendingLedger.getDate());
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.TRILLIONLOANS.name())
@@ -287,7 +286,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .note("Foreclosure")
                             .preClosureReasonId(192)
                             .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
-                            .transactionDate(lendingLedger.getDate())
+                            .transactionDate(txnDate)
                             .paymentTypeId(1)
                             .interestWaiverAmount(0.0)
                             .receiptNumber(txnId)
@@ -314,6 +313,13 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             loanForeClosureCharges.setChargePostingStatus(postingStatus);
             loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
+    }
+
+    private Date getNonFutureTransactionDate(Date providedDate) {
+        Date currentDate = new Date();
+
+        // Check if the provided date is in the future
+        return (providedDate != null && providedDate.after(currentDate)) ? DateTimeUtil.getCurrentDayStartTime() : providedDate;
     }
 
     @Override
