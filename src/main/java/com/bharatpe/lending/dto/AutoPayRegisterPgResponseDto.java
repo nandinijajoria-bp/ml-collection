@@ -19,6 +19,9 @@ public class AutoPayRegisterPgResponseDto {
         private String orderId;
         private String paymentURI;
         private String paymentURIDeeplink;
+        private String errorCode;
+        private String errorMessage;
+
 
     }
 

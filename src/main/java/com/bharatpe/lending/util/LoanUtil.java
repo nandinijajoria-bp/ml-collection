@@ -309,6 +309,7 @@ public class LoanUtil {
 	@Autowired
 	LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
+
 	@Value("${fore.closure.charges.rollout.date:2024-04-10 00:00}")
 	String foreClosureChargesRolloutDate;
 
@@ -357,10 +358,15 @@ public class LoanUtil {
 	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
 	private List<Integer> lenderPricingEligibleMerchantsPercent;
 
+
+	@Value("${auto.pay.upi.internal.merchant:-}")
+	private List<String> autoPauUpiInternalMerchant;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
 	}
+
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -683,13 +689,17 @@ public class LoanUtil {
 
 	public boolean isApplicationEligibleForAutoPayUpi(String lender, Long merchantId, Double loanAmount) {
 
-		if (autoPayUpiLenders.contains(lender) && loanAmount < maxLoanAmountForAutoPayUPI)
+		if (autoPayUpiLenders.contains(lender))
 		{
 			return true;
 		}
-
-		return false;
+        return  isAutoPayUpiInternalMerchant(merchantId);
 	}
+
+	private boolean isAutoPayUpiInternalMerchant(Long merchantId) {
+		return autoPauUpiInternalMerchant.contains(merchantId);
+	}
+
 
 	/*
 	feature-ML-820 : New logic implemented for displaying message based on TAT days
@@ -2647,9 +2657,19 @@ public class LoanUtil {
 		return null;
 	}
 
+	public boolean checkIfUpiAutoPayNotRequired(LendingApplication lendingApplication) {
+		logger.info("checking if UPI autopay not required for applicationId : {}", lendingApplication.getId());
+		if ( lendingApplication.getLender() == null || lendingApplication.getId() == null)  {
+			return true;
+		}
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+        logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
+		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
+	}
 	public Boolean validateToken(String token){
 		return apiToken.equals(token);
 	}
+
 
 	public boolean isLenderPricingApplicableMerchant(Long merchantId){
 		return LoanUtil.isRolledOutByPercentage(String.valueOf(merchantId), (lenderPricingEligibleMerchantsPercent));

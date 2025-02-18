@@ -25,4 +25,10 @@ public class UPIRegisterResponseDto {
         private String paymentURIDeeplink;
     }
 
+    public static UPIRegisterResponseDto mandateRegistrationFailureResponse() {
+        UPIRegisterResponseDto upiRegisterResponseDto = new UPIRegisterResponseDto();
+        upiRegisterResponseDto.setSuccess(false);
+        return upiRegisterResponseDto;
+    }
+
 }

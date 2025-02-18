@@ -7,6 +7,7 @@ import com.bharatpe.lending.service.AutoPayUPIService;
 import com.bharatpe.lending.service.validator.AutoPayUPIServiceValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,9 +41,8 @@ public class AutoPayUPIController {
     @PostMapping(value = "/mandate/register/application")
     public UPIRegisterResponseDto registerAutoPayForMerchantForNewApplication(
       @RequestAttribute BasicDetailsDto merchant,
-      @RequestBody(required = true)
-      RequestDTO<AutoUPIMandateRegisterRequestDto> requestDTO) {
-        return autoPayUPIService.registerUPIForNewApplication(merchant, requestDTO);
+      @RequestBody RequestDTO<AutoUPIMandateRegisterRequestDto> requestDTO) {
+        return autoPayUPIService.registerMandate(merchant, requestDTO);
     }
 
 
