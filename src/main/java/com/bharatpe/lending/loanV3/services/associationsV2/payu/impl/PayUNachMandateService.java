@@ -5,19 +5,17 @@ import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
-import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -25,7 +23,6 @@ import com.bharatpe.lending.loanV3.dto.request.payu.PayUMandateRequestDTO;
 import com.bharatpe.lending.loanV3.dto.request.payu.PayUUpdateLeadRequestDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUCommonResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUMandateResponseDTO;
-import com.bharatpe.lending.loanV3.dto.response.payu.PayUNachCallbackResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUUpdateLeadResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
@@ -38,8 +35,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Slf4j
@@ -75,6 +70,8 @@ public class PayUNachMandateService {
 
     @Autowired
     KycUtils kycUtils;
+
+    private Integer nachPlusDays = 14600;
 
     @Transactional
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -161,6 +158,8 @@ public class PayUNachMandateService {
                             .mandateState("SUCCESS")
                             .mandateId(merchantNachDetailsResponseDTO.getMandateId())
                             .umrn(merchantNachDetailsResponseDTO.getProviderUmrn())
+                            .startDate(merchantNachDetailsResponseDTO.getStartDate())
+                            .endDate(DateTimeUtil.addDays(merchantNachDetailsResponseDTO.getStartDate(), nachPlusDays))
                             .mandateAccountDetails(PayUMandateRequestDTO.MandateAccountDetails.builder().ifsc(merchantNachDetailsResponseDTO.getIfscCode()).maskedAccountNumber(merchantNachDetailsResponseDTO.getAccountNumber()).build())
                             .authMode("UPI")
                             .authAmount(merchantNachDetailsResponseDTO.getNachAmount())
