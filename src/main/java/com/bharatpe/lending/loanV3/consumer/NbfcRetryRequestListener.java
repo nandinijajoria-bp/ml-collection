@@ -16,6 +16,7 @@ import com.bharatpe.lending.loanV3.dto.EKycStatusCheckRequestApiDto;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.service.RedisNotificationService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +27,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -45,7 +47,7 @@ public class NbfcRetryRequestListener {
     private final LenderGatewayFactory lenderGatewayFactory;
     private final RedisNotificationService redisNotificationService;
 
-    @Value("#{${nbfc.ekyc-status.retry.timeout:{1:10, 2:300, 3:300}}}")
+    @Value("#{${nbfc.ekyc-status.retry.timeout:{0:10, 1:300, 2:300}}}")
     private Map<Integer, Long> ekycStatusRetryTimeoutsMap = new HashMap<>();
 
     @Value("${nbfc.retry.max-retries-count:3}")
@@ -122,24 +124,11 @@ public class NbfcRetryRequestListener {
                     || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
                 log.info("Kyc Status is not correct in lender details for eKyc status check for application {}", lendingApplicationLenderDetails.getApplicationId());
                 nbfcRetryRequest.setStatus(NbfcRetryStatus.SUCCESS);
+                nbfcRetryRequest.setUpdatedAt(new Date());
                 nbfcRetryRepository.save(nbfcRetryRequest);
                 return;
             }
             try {
-                if (nbfcRetryRequest.getRetriesRemaining() == 0) {
-                    log.error("Retry count exhausted for EKYC Status check for application {}", lendingApplicationLenderDetails.getApplicationId());
-                    EKycCallbackResponseDto eKycCallbackResponseDto = EKycCallbackResponseDto.builder()
-                            .success(false)
-                            .applicationId(String.valueOf(lendingApplicationLenderDetails.getApplicationId()))
-                            .lender(lendingApplicationLenderDetails.getLender())
-                            .productName("LENDING")
-                            .build();
-                    kycRequestKafka.eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));
-                    nbfcRetryRequest.setStatus(NbfcRetryStatus.FAILED);
-                    nbfcRetryRepository.save(nbfcRetryRequest);
-                    return;
-                }
-
                 EKycStatusCheckRequestApiDto eKycStatusCheckRequestApiDto = EKycStatusCheckRequestApiDto.builder()
                         .applicationId(lendingApplication.getId())
                         .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))
@@ -155,6 +144,7 @@ public class NbfcRetryRequestListener {
                 if (!ObjectUtils.isEmpty(eKycCallbackResponseDto) && Boolean.TRUE.equals(eKycCallbackResponseDto.getSuccess())) {
                     kycRequestKafka.eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));
                     nbfcRetryRequest.setStatus(NbfcRetryStatus.SUCCESS);
+                    nbfcRetryRequest.setUpdatedAt(new Date());
                     nbfcRetryRepository.save(nbfcRetryRequest);
                 } else {
                     nbfcRetryRequest.setRetriesRemaining(nbfcRetryRequest.getRetriesRemaining() - 1);
@@ -167,14 +157,31 @@ public class NbfcRetryRequestListener {
             }
             if (NbfcRetryStatus.INIT.equals(nbfcRetryRequest.getStatus())) {
                 if (nbfcRetryRequest.getRetriesRemaining() <= 0) {
+                    log.error("Retry count exhausted for EKYC Status check for application {}", lendingApplicationLenderDetails.getApplicationId());
+                    handleEkycFailureCallback(lendingApplicationLenderDetails);
                     nbfcRetryRequest.setStatus(NbfcRetryStatus.FAILED);
                 } else {
                     redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest,  ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - nbfcRetryRequest.getRetriesRemaining(), 300L));
                 }
+                nbfcRetryRequest.setUpdatedAt(new Date());
                 nbfcRetryRepository.save(nbfcRetryRequest);
             }
         } else {
             log.warn("Lender {} not supported for ekyc status retry", lendingApplicationLenderDetails.getLender());
+        }
+    }
+
+    private void handleEkycFailureCallback(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+        EKycCallbackResponseDto eKycCallbackResponseDto = EKycCallbackResponseDto.builder()
+                .success(false)
+                .applicationId(String.valueOf(lendingApplicationLenderDetails.getApplicationId()))
+                .lender(lendingApplicationLenderDetails.getLender())
+                .productName("LENDING")
+                .build();
+        try {
+            kycRequestKafka.eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));
+        } catch (JsonProcessingException e) {
+            log.error("Json processing exception while triggering failure ekyc callback for application {}", lendingApplicationLenderDetails.getApplicationId(), e);
         }
     }
 }

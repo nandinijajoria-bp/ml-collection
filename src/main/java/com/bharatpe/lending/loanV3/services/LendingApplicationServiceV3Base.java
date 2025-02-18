@@ -258,7 +258,7 @@ public abstract class LendingApplicationServiceV3Base {
                         .build());
 
                 //If status polling is enabled for lender, then check the latest status of the polling
-                if (statusPollEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
+                if (statusPollEnabledLenders.contains(currentDraftApplication.getLender())) {
                     checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse, userReturnedFromLenderKyc);
                 }
 
@@ -287,7 +287,7 @@ public abstract class LendingApplicationServiceV3Base {
         }
 
         if (nbfcRetryObj.isPresent()) {
-            long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault((long) maxRetriesCount - nbfcRetryObj.get().getRetriesRemaining(), 10L) + retryTimerDelay;
+            long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - nbfcRetryObj.get().getRetriesRemaining(), 10L) + retryTimerDelay;
             //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
             long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
             if (retryAfter >= 0) {
@@ -808,6 +808,8 @@ public abstract class LendingApplicationServiceV3Base {
         if (ObjectUtils.isEmpty(lendingApplication)) {
             return null;
         }
+        log.info("Creating a new nbfc retry request for applicationId: {}, lender: {} at stage: {}",
+                lendingApplication.getId(), lendingApplication.getLender(), associationStage.name());
         NbfcRetry nbfcRetryRequest = null;
         try {
             nbfcRetryRequest = NbfcRetry.builder()
