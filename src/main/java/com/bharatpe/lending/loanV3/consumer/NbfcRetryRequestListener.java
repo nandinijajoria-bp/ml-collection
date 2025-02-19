@@ -137,6 +137,7 @@ public class NbfcRetryRequestListener {
                         .payload(EKycStatusCheckRequestApiDto.Payload.builder()
                                 .accountId(lendingApplication.getExternalLoanId())
                                 .build())
+                        .skipTermination(!(nbfcRetryRequest.getRetriesRemaining() <= 1))
                         .build();
                 INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(eKycStatusCheckRequestApiDto.getLender());
                 EKycCallbackResponseDto eKycCallbackResponseDto = apiGatewayV3.invokeEKycStatusCheck(eKycStatusCheckRequestApiDto);
