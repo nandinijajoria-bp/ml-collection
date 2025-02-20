@@ -286,49 +286,47 @@ public abstract class LendingApplicationServiceV3Base {
             if (nbfcRetryObj.isPresent()) {
                 NbfcRetry nbfcRequestRetry = nbfcRetryObj.get();
                 int retriesRemaining = nbfcRequestRetry.getRetriesRemaining();
-                long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - retriesRemaining, 10L) + retryTimerDelay;
+                long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - retriesRemaining, 10L);
                 long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
                 if (retryAfter > 0) {
                     lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
-                            .retryAfter(retryAfter / 1000)
+                            .retryAfter((retryAfter / 1000) + retryTimerDelay)
                             .build());
-                    return;
                 } else {
                     nbfcRequestRetryService.processRetryRequest(currentDraftApplication, lendingApplicationLenderDetails, nbfcRequestRetry);
                     if (NbfcRetryStatus.INIT.equals(nbfcRequestRetry.getStatus())) {
                         retriesRemaining = nbfcRequestRetry.getRetriesRemaining();
-                        retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - retriesRemaining, 10L) + retryTimerDelay;
+                        retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - retriesRemaining, 10L);
                         retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
                         if (retryAfter > 0) {
                             lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
-                                    .retryAfter(retryAfter / 1000)
+                                    .retryAfter((retryAfter / 1000) + retryTimerDelay)
                                     .build());
-                            return;
                         }
                     } else {
                         currentDraftApplication = lendingApplicationDao.findById(currentDraftApplication.getId()).orElse(currentDraftApplication);
                         lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
                         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
                         modifyAssociationStatusResponse(lenderAssociationStatusResponse.getData(), currentDraftApplication, lendingApplicationDetails, lendingApplicationLenderDetails);
-                        return;
                     }
 
                 }
             } else {
                 nbfcRetryObj = Optional.ofNullable(enqueueNbfcRetry(currentDraftApplication, LenderAssociationStages.EKYC_STATUS));
+                if (nbfcRetryObj.isPresent()) {
+                    long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - nbfcRetryObj.get().getRetriesRemaining(), 10L);
+                    //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
+                    long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
+                    if (retryAfter >= 0) {
+                        lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
+                                .retryAfter((retryAfter / 1000) + retryTimerDelay)
+                                .build());
+                    }
+                }
             }
         }
 
-        if (nbfcRetryObj.isPresent()) {
-            long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - nbfcRetryObj.get().getRetriesRemaining(), 10L) + retryTimerDelay;
-            //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
-            long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
-            if (retryAfter >= 0) {
-                lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
-                        .retryAfter(retryAfter / 1000)
-                        .build());
-            }
-        }
+
     }
 
     private void modifyAssociationStatusResponse(LenderAssociationStatusResponse associationStatusResponse, LendingApplication currentDraftApplication, LendingApplicationDetails lendingApplicationDetails, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
