@@ -136,6 +136,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Value("${nbfc.retry.max-retries-count:3}")
     private int maxRetriesCount;
 
+    @Value("${ekyc.status-poll.rollout.percentage:5}")
+    private int ekycStatusPollRolloutPercentage;
+
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
 
@@ -258,7 +261,8 @@ public abstract class LendingApplicationServiceV3Base {
                         .build());
 
                 //If status polling is enabled for lender, then check the latest status of the polling
-                if (statusPollEnabledLenders.contains(currentDraftApplication.getLender())) {
+                if (statusPollEnabledLenders.contains(currentDraftApplication.getLender())
+                        && LoanUtil.isRolledOutByPercentage(String.valueOf(currentDraftApplication.getMerchantId()), ekycStatusPollRolloutPercentage)) {
                     checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse, userReturnedFromLenderKyc);
                 }
 
@@ -280,25 +284,31 @@ public abstract class LendingApplicationServiceV3Base {
             return;
         }
 
+        log.info("Checking for ekyc status retries for applicationId {}", currentDraftApplication.getId());
         Optional<NbfcRetry> nbfcRetryObj = nbfcRetryRepository.findByApplicationIdAndLenderAndRequestTypeAndStatus(currentDraftApplication.getId(),
                 lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), NbfcRetryStatus.INIT);
         if (userReturnedFromLenderKyc) {
             if (nbfcRetryObj.isPresent()) {
                 NbfcRetry nbfcRequestRetry = nbfcRetryObj.get();
+                log.info("Ekyc Retry request found with id {} for application {}", nbfcRequestRetry.getId(), nbfcRequestRetry.getApplicationId());
+
                 int retriesRemaining = nbfcRequestRetry.getRetriesRemaining();
                 long retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - retriesRemaining, 10L);
                 long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
                 if (retryAfter > 0) {
+                    log.info("Retry to execute after {} ms for applicationId {}", retryAfter, currentDraftApplication.getId());
                     lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
                             .retryAfter((retryAfter / 1000) + retryTimerDelay)
                             .build());
                 } else {
+                    log.info("Processing retry request for applicationId {}", currentDraftApplication.getId());
                     nbfcRequestRetryService.processRetryRequest(currentDraftApplication, lendingApplicationLenderDetails, nbfcRequestRetry);
                     if (NbfcRetryStatus.INIT.equals(nbfcRequestRetry.getStatus())) {
                         retriesRemaining = nbfcRequestRetry.getRetriesRemaining();
                         retryDelaySeconds = ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - retriesRemaining, 10L);
                         retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
                         if (retryAfter > 0) {
+                            log.info("Retry to execute after {} ms for applicationId {}", retryAfter, currentDraftApplication.getId());
                             lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
                                     .retryAfter((retryAfter / 1000) + retryTimerDelay)
                                     .build());
@@ -308,6 +318,7 @@ public abstract class LendingApplicationServiceV3Base {
                         lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(currentDraftApplication.getId(), Status.ACTIVE.name());
                         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
                         modifyAssociationStatusResponse(lenderAssociationStatusResponse.getData(), currentDraftApplication, lendingApplicationDetails, lendingApplicationLenderDetails);
+                        log.info("Updated association response : {}", lenderAssociationStatusResponse.getData());
                     }
 
                 }
@@ -318,6 +329,7 @@ public abstract class LendingApplicationServiceV3Base {
                     //Add retryDelaySeconds to nbfcRetryObj.get().getUpdatedAt and subtract current datetime to get the retryAfter value
                     long retryAfter = nbfcRetryObj.get().getUpdatedAt().getTime() + retryDelaySeconds * 1000L - System.currentTimeMillis();
                     if (retryAfter >= 0) {
+                        log.info("Retry to execute after {} ms for applicationId {}", retryAfter, currentDraftApplication.getId());
                         lenderAssociationStatusResponse.getData().setMetadata(LenderAssociationStatusResponse.LenderAssociationStatusResponseMetadata.builder()
                                 .retryAfter((retryAfter / 1000) + retryTimerDelay)
                                 .build());
@@ -325,8 +337,10 @@ public abstract class LendingApplicationServiceV3Base {
                 }
             }
         } else if (!nbfcRetryObj.isPresent() && LenderAssociationStatus.EKYC_IN_PROGRESS.name().equals(lendingApplicationLenderDetails.getKycStatus())) {
+            log.info("Resetting to EKYC-PENDING for applciation ID : {}", currentDraftApplication.getId());
             lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+            lenderAssociationStatusResponse.getData().setStatus(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())));
         }
     }
 

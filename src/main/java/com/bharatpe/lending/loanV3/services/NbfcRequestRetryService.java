@@ -93,6 +93,7 @@ public class NbfcRequestRetryService {
                 INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(eKycStatusCheckRequestApiDto.getLender());
                 EKycCallbackResponseDto eKycCallbackResponseDto = apiGatewayV3.invokeEKycStatusCheck(eKycStatusCheckRequestApiDto);
 
+                log.info("EKYC status check API response received for Application ID {} with status {}", lendingApplication.getId(), eKycCallbackResponseDto.getSuccess());
                 nbfcRetryRequest.getRemarks().put(maxRetriesCount - nbfcRetryRequest.getRetriesRemaining(), objectMapper.writeValueAsString(eKycCallbackResponseDto));
                 if (!ObjectUtils.isEmpty(eKycCallbackResponseDto) && Boolean.TRUE.equals(eKycCallbackResponseDto.getSuccess())) {
                     kycRequestKafka.eKycCallbackListener(objectMapper.writeValueAsString(eKycCallbackResponseDto));

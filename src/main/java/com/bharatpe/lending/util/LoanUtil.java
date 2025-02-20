@@ -2720,6 +2720,26 @@ public class LoanUtil {
 
 	}
 
+	public static boolean isRolledOutByPercentage(String value, Integer percentage) {
+		// Percentage not provided or <= 0, not rolled out
+		if(percentage == null || percentage <= 0) return false;
+		// 100% rollout
+		if(percentage >= 100) return true;
+		// Blank value cannot be rolled out
+		if(StringUtils.isEmpty(value)) return false;
+		// extracting last two digit of value
+		int lastTwoDigits;
+		try {
+			lastTwoDigits = Integer.parseInt(value.substring(Math.max(value.length() - 2, 0)));
+		} catch (NumberFormatException e) {
+			logger.error("value is not a number: {}", value);
+			// Invalid value, not rolled out
+			return false;
+		}
+		// Check if the last two digits are less than the percentage
+		return lastTwoDigits < percentage;
+	}
+
 	public boolean checkIfUPIAutoPayIsActive(long merchantId, String lender, Long applicationId)  {
 		logger.info("checkIfUPIAutoPayAllowed: Checking for UPI autopay mandate merchant : {} and lender :{}", merchantId, lender);
 		try {
