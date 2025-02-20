@@ -53,9 +53,14 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         if (adjustPrincipleFirst) checkForNPA(loan);
         if (checkForTerminalEdiAmountDiffV2(loan, settleLoanPaymentDTO)) {
 //            LC-985: Terminal EDI fixes
+            log.info("Adjust the terminal dues block: dueAmount: {}, duePrinciple: {}, dueInterest: {}",
+                    loan.getDueAmount(), loan.getDuePrinciple(), loan.getDueInterest());
             PaymentCalculation interest = adjustLoanBalanceByIPCService.adjustInterest(loan, settleLoanPaymentDTO.getBalance());
-            settleLoanPaymentDTO.setBalance(interest.getBalance());
+            PaymentCalculation principle = adjustLoanBalanceByIPCService.adjustPrinciple(loan, interest.getBalance());
+
+            settleLoanPaymentDTO.setBalance(principle.getBalance());
             settleLoanPaymentDTO.setInterestSettled(settleLoanPaymentDTO.getInterestSettled() + interest.getInterestSettled());
+            settleLoanPaymentDTO.setPrincipleSettled(settleLoanPaymentDTO.getPrincipleSettled() + principle.getPrincipleSettled());
         }
         return  PaymentCalculation.builder()
                 .received(amount)

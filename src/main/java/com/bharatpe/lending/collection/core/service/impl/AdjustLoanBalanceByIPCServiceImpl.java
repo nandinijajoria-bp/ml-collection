@@ -66,7 +66,7 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
     }
 
 
-    private PaymentCalculation adjustPrinciple(LendingPaymentSchedule activeLoan, double amount) {
+    public PaymentCalculation adjustPrinciple(LendingPaymentSchedule activeLoan, double amount) {
         double principalPaid = 0;
         log.info("LoanAdjustment#{} adjustPrinciple is started for loan {} with amount :{}",activeLoan.getId(), activeLoan, amount);
         if (amount > 0D && activeLoan.getDuePrinciple() != null && activeLoan.getDuePrinciple() > 0D) {
