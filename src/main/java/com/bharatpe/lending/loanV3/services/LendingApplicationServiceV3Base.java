@@ -273,7 +273,7 @@ public abstract class LendingApplicationServiceV3Base {
         if (ObjectUtils.isEmpty(currentDraftApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             return;
         }
-        Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_INITIATED.name(), LenderAssociationStatus.EKYC_IN_PROGRESS.name()));
+        Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name()));
         if (!ApplicationStatus.DRAFT.name().equalsIgnoreCase(currentDraftApplication.getStatus())
         || !(LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
                 && validStages.contains(lendingApplicationLenderDetails.getKycStatus()))) {
