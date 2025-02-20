@@ -324,9 +324,10 @@ public abstract class LendingApplicationServiceV3Base {
                     }
                 }
             }
+        } else if (!nbfcRetryObj.isPresent() && LenderAssociationStatus.EKYC_IN_PROGRESS.name().equals(lendingApplicationLenderDetails.getKycStatus())) {
+            lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
-
-
     }
 
     private void modifyAssociationStatusResponse(LenderAssociationStatusResponse associationStatusResponse, LendingApplication currentDraftApplication, LendingApplicationDetails lendingApplicationDetails, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
