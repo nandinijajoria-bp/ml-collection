@@ -40,7 +40,6 @@ import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
-import com.bharatpe.lending.service.RedisNotificationService;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -246,6 +245,8 @@ public abstract class LendingApplicationServiceV3Base {
                             .build());
                 }
                 log.info("Lender assoc at KYC for applicationId {}", currentDraftApplication.getId());
+
+                String originalLaldStatus = lendingApplicationLenderDetails.getStatus();
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
                 if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
                     lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
@@ -263,7 +264,7 @@ public abstract class LendingApplicationServiceV3Base {
                 //If status polling is enabled for lender, then check the latest status of the polling
                 if (statusPollEnabledLenders.contains(currentDraftApplication.getLender())
                         && LoanUtil.isRolledOutByPercentage(String.valueOf(currentDraftApplication.getMerchantId()), ekycStatusPollRolloutPercentage)) {
-                    checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse, userReturnedFromLenderKyc);
+                    checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponse, userReturnedFromLenderKyc, originalLaldStatus);
                 }
 
                 return lenderAssociationStatusResponse;
@@ -273,7 +274,7 @@ public abstract class LendingApplicationServiceV3Base {
     }
 
     private void checkEkycStatusRetry(LendingApplication currentDraftApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails,
-                                      ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse, boolean userReturnedFromLenderKyc) {
+                                      ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse, boolean userReturnedFromLenderKyc, String originalLaldStatus) {
         if (ObjectUtils.isEmpty(currentDraftApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             return;
         }
@@ -336,8 +337,8 @@ public abstract class LendingApplicationServiceV3Base {
                     }
                 }
             }
-        } else if (!nbfcRetryObj.isPresent() && LenderAssociationStatus.EKYC_IN_PROGRESS.name().equals(lendingApplicationLenderDetails.getKycStatus())) {
-            log.info("Resetting to EKYC-PENDING for applciation ID : {}", currentDraftApplication.getId());
+        } else if (!nbfcRetryObj.isPresent() && LenderAssociationStatus.EKYC_IN_PROGRESS.name().equals(originalLaldStatus)) {
+            log.info("Resetting to EKYC-PENDING for application ID : {}", currentDraftApplication.getId());
             lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
             lenderAssociationStatusResponse.getData().setStatus(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())));
