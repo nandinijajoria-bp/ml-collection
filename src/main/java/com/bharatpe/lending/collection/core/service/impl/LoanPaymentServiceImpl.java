@@ -208,6 +208,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
         adjustExtraAmountIfAny(loan, otherAdjustment.getBalance(), payment, true);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
+        log.info("got order for loanId:{} orderId:{} order:{}", loan.getId(), payment.getOrderId(), order);
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
         ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment.getPenaltySettled(), payment.getSource(), false);
         if (payment.isUpdateGlobalTxnlimit()) updateGlobaltxnLimit(loan.getMerchantId(), "CREDIT", otherAdjustment.getPrincipleSettled());

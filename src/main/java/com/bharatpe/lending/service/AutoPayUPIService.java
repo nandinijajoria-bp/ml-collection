@@ -2,8 +2,6 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.common.entities.MerchantBankDetail;
-import com.bharatpe.common.enums.Status;
 import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.LendingPullPayment;
@@ -20,7 +18,6 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
-import com.bharatpe.lending.service.validator.AutoPayUPIServiceValidator;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,10 +26,13 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Sort;
+import org.springframework.util.StringUtils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.AutoPayStatusEnum.REVOKED;
 
 
 @Service
@@ -62,8 +62,8 @@ public class AutoPayUPIService {
     @Autowired
     LoanUtil loanUtil;
 
-    @Value(("${pg.android.version:324}"))
-    Long androidVersion;
+    @Value(("${pg.android.version:7.1.9}"))
+    String androidVersion;
 
     @Value(("${pg.ios.version:254}"))
     Long iosVersion;
@@ -80,6 +80,11 @@ public class AutoPayUPIService {
     @Autowired
     APIGatewayService apiGatewayService;
 
+    @Value("${whitelisted.auto.pay.upi.mandate.plugin.lenders:false}")
+    private String autoPayUPIMandatePluginLenders;
+
+    @Value("${auto.pay.upi.mandate.plugin.enabled:false}")
+    private boolean autoPayUPIMandatePluginEnabled;
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -137,6 +142,10 @@ public class AutoPayUPIService {
             if (request.getPaymentStatus() != null) {
                 if ("FAILURE".equalsIgnoreCase(request.getMandate().getStatus())) {
                     autoPayUPI.setStatus(AutoPayStatusEnum.FAILED);
+                    if(request.getMandate() != null) {
+                        autoPayUPI.setErrorMessage(request.getMandate().getErrorDescription());
+                        autoPayUPI.setErrorCode(request.getMandate().getErrorCode());
+                    }
                 } else {
                     autoPayUPI.setStatus(AutoPayStatusEnum.valueOf(request.getMandate().getStatus()));
                 }
@@ -190,8 +199,14 @@ public class AutoPayUPIService {
                             (mandateApplication.getOrderId(),
                                     Lender.valueOf(mandateApplication.getLender()), mandateApplication.getMerchantId());
 
-            log.info(" PG response is {}", response.getData());
 
+           if(response == null || response.getData() == null || response.getData() == null || response.getData().getMandate() == null) {
+               log.error("No response from PG for mandateId:{} and response {} ", mandateApplication.getOrderId(),response);
+               MandateUPIStatusResponse.Data data = new MandateUPIStatusResponse.Data(mandateApplication.getOrderId()
+                       , mandateApplication.getApplicationId(), mandateApplication.getStatus());
+               return new MandateUPIStatusResponse(data);
+           }
+            log.info(" PG response is {}", response.getData());
             if ("ACTIVE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 log.info("Pg txn Status Check for mandateId:{}", mandateApplication.getOrderId());
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
@@ -199,6 +214,8 @@ public class AutoPayUPIService {
             } else if ("FAILURE".equalsIgnoreCase(response.getData().getPaymentStatus()) ||
                     "FAILURE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
                 mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
+                mandateApplication.setErrorMessage(response.getData().getMandate().getErrorDescription() == null ? response.getData().getErrorDescription() : response.getData().getMandate().getErrorDescription() );
+                mandateApplication.setErrorCode(response.getData().getMandate().getErrorCode() == null ? response.getData().getErrorCode() : response.getData().getMandate().getErrorCode());
                 log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
                 autoPayUPIDao.save(mandateApplication);
             }
@@ -257,7 +274,7 @@ public class AutoPayUPIService {
             List<String> statusList = new ArrayList<>();
             statusList.add(AutoPayStatusEnum.PENDING.name());
             statusList.add(AutoPayStatusEnum.SUCCESS.name());
-            AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(activeLoan.get().getApplicationId(), statusList);
+            AutoPayUPI entity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(activeLoan.get().getApplicationId(), activeLoan.get().getNbfc(), statusList);
             if (entity != null) {
                 log.info("For this application Id, mandate is already in progress {} ", activeLoan.get().getApplicationId());
                 throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", activeLoan.get().getApplicationId()));
@@ -274,6 +291,7 @@ public class AutoPayUPIService {
                 autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
                 autoPayUPI.setApplicationId(activeLoan.get().getApplicationId());
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY);
+                autoPayUPI.setGateway("CASHFREE");
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
                 autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
 
@@ -320,26 +338,26 @@ public class AutoPayUPIService {
         return new UPIRegisterResponseDto(data);
     }
 
-    public UPIRegisterResponseDto registerUPIForNewApplication(BasicDetailsDto merchantBasicDetails, RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto) {
+    public UPIRegisterResponseDto registerUPIForNewApplication(BasicDetailsDto merchantBasicDetails, AutoUPIMandateRegisterRequestDto requestDto, LendingApplication lendingApplication) {
         log.info("Received initiate UPI Register request for new Application  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
 
-        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(requestDto.getPayload().getApplicationId());
+        //Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(requestDto.getApplicationId());
 
         UPIRegisterResponseDto.Data data = null;
-        if (!lendingApplication.isPresent()) {
-            log.info("No application found for merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getPayload().getApplicationId());
+        if (lendingApplication == null) {
+            log.info("No application found for merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getApplicationId());
             return new UPIRegisterResponseDto();
         }
 
-        if (!loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.get().getLender(), lendingApplication.get().getMerchantId(), lendingApplication.get().getLoanAmount())) {
-            log.info("not eligible for autopayUpi  merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getPayload().getApplicationId());
+        if (!loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())) {
+            log.info("not eligible for autopayUpi  merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getApplicationId());
             return new UPIRegisterResponseDto();
         }
 
         Optional<BankDetailsDto> merchantBankDetail = merchantService.fetchMerchantBankDetails(merchantBasicDetails.getId());
 
         if (!merchantBankDetail.isPresent()) {
-            log.error("failed to get merchantBankDetails for merchantId : {} and applicationId : {}", merchantBasicDetails.getId(), requestDto.getPayload().getApplicationId());
+            log.error("failed to get merchantBankDetails for merchantId : {} and applicationId : {}", merchantBasicDetails.getId(), requestDto.getApplicationId());
             return new UPIRegisterResponseDto();
         }
 
@@ -347,19 +365,20 @@ public class AutoPayUPIService {
             List<String> statusList = new ArrayList<>();
             statusList.add(AutoPayStatusEnum.PENDING.name());
             statusList.add(AutoPayStatusEnum.SUCCESS.name());
-            AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.get().getId(), statusList);
+            AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender(), statusList);
             if (autoPayUPIExistingEntity != null) {
-                log.info("For this application Id, mandate is already in progress {} ", lendingApplication.get().getId());
-                throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", lendingApplication.get().getId()));
+                log.info("For this application Id, mandate is already in progress {} ", lendingApplication.getId());
+                throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", lendingApplication.getId()));
             }
 
-            if (merchantBasicDetails.getId().equals(lendingApplication.get().getMerchantId())) {
+            if (merchantBasicDetails.getId().equals(lendingApplication.getMerchantId())) {
                 AutoPayUPI autoPayUPI = new AutoPayUPI();
                 autoPayUPI.setAmount(1D);
                 autoPayUPI.setMerchantId(merchantBasicDetails.getId());
-                autoPayUPI.setLender(lendingApplication.get().getLender());
+                autoPayUPI.setLender(lendingApplication.getLender());
                 autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
-                autoPayUPI.setApplicationId(lendingApplication.get().getId());
+                autoPayUPI.setApplicationId(lendingApplication.getId());
+                autoPayUPI.setGateway("CASHFREE");
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
                 autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
@@ -367,7 +386,7 @@ public class AutoPayUPIService {
                 log.info("autoPayUPI Is {}", autoPayUPI);
 
                 AutoPayUPIRegisterPgRequestDto registerPgRequest = new AutoPayUPIRegisterPgRequestDto();
-                registerPgRequest.setLender(Lender.valueOf(lendingApplication.get().getLender()));
+                registerPgRequest.setLender(Lender.valueOf(lendingApplication.getLender()));
                 registerPgRequest.setPaymentPageHeaderText(PAYMENT_MODE_TEXT);
                 registerPgRequest.setOrderAmount(MANDATE_ORDER_AMOUNT);
                 registerPgRequest.setOrderType(MANDATE_ORDER_TYPE);
@@ -385,7 +404,8 @@ public class AutoPayUPIService {
                 Date tenMinsFromNow = currentTimeNow.getTime();
                 long epochMandateStartDate = tenMinsFromNow.getTime();
                 registerPgRequest.setMandateStartDate(epochMandateStartDate);
-                registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + "&wroute=key-factor-statement&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.get().getId());
+                registerPgRequest.setMandateEndDate(epochMandateStartDate + 157680000000L);
+                registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + "&wroute=key-factor-statement&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
 
 
                 AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
@@ -394,13 +414,190 @@ public class AutoPayUPIService {
                   && "200".equalsIgnoreCase(registerPgResponseDto.getStatusCode())) {
                     autoPayUPI.setStatus(AutoPayStatusEnum.PENDING);
                     autoPayUPI.setPaymentURlDeepLink(registerPgResponseDto.getData().getPaymentURIDeeplink());
+                    autoPayUPI.setMandateEndDate(new Date(registerPgRequest.getMandateEndDate()));
+                    autoPayUPIDao.save(autoPayUPI);
+                }
+                if(registerPgResponseDto == null){
+                    autoPayUPI.setStatus(AutoPayStatusEnum.FAILED);
+                    autoPayUPI.setErrorCode("API_ERROR");
+                    autoPayUPI.setErrorCode("API_ERROR");
                     autoPayUPIDao.save(autoPayUPI);
                 }
                 data = new UPIRegisterResponseDto.Data(autoPayUPI.getAmount(), autoPayUPI.getOrderId(),
                   autoPayUPI.getPaymentURlDeepLink());
             }
 
+        return new UPIRegisterResponseDto(data);
+    }
+
+
+    public UPIRegisterResponseDto registerUPIForNewApplicationMandatePlugin(BasicDetailsDto merchantBasicDetails, AutoUPIMandateRegisterRequestDto requestDto, LendingApplication lendingApplication) {
+        log.info("Received initiate UPI Register request for new Application  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
+
+        //Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(requestDto.getApplicationId());
+
+        UPIRegisterResponseDto.Data data = null;
+        if (lendingApplication == null) {
+            log.info("No application found for merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getApplicationId());
+            return UPIRegisterResponseDto.mandateRegistrationFailureResponse();
+        }
+
+        if (!loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount())) {
+            log.info("not eligible for autopayUpi  merchant id {} with applicationId {}", merchantBasicDetails.getId(), requestDto.getApplicationId());
+            return UPIRegisterResponseDto.mandateRegistrationFailureResponse();
+        }
+
+        Optional<BankDetailsDto> merchantBankDetail = merchantService.fetchMerchantBankDetails(merchantBasicDetails.getId());
+
+        if (!merchantBankDetail.isPresent()) {
+            log.error("failed to get merchantBankDetails for merchantId : {} and applicationId : {}", merchantBasicDetails.getId(), requestDto.getApplicationId());
+            return UPIRegisterResponseDto.mandateRegistrationFailureResponse();
+        }
+
+
+        List<String> statusList = new ArrayList<>();
+        statusList.add(AutoPayStatusEnum.PENDING.name());
+        statusList.add(AutoPayStatusEnum.SUCCESS.name());
+        AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender(), statusList);
+        if (autoPayUPIExistingEntity != null) {
+            log.info("For this application Id, mandate is already in progress {} ", lendingApplication.getId());
+//            throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", lendingApplication.getId()));
+        }
+
+        if (merchantBasicDetails.getId().equals(lendingApplication.getMerchantId())) {
+            AutoPayUPI autoPayUPI = new AutoPayUPI();
+            autoPayUPI.setAmount(1D);
+            autoPayUPI.setMerchantId(merchantBasicDetails.getId());
+            autoPayUPI.setLender(lendingApplication.getLender());
+            autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
+            autoPayUPI.setApplicationId(lendingApplication.getId());
+            autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
+            autoPayUPI.setGateway("UNITY");
+            autoPayUPI = autoPayUPIDao.save(autoPayUPI);
+            autoPayUPI.setOrderId("Auto-UPI" + autoPayUPI.getId());
+
+            log.info("autoPayUPI Is {}", autoPayUPI);
+
+
+            AutoPayUPIRegisterPgRequestDtoNew registerPgRequest = new AutoPayUPIRegisterPgRequestDtoNew();
+            registerPgRequest.setOrderId(autoPayUPI.getOrderId());
+            registerPgRequest.setOrderAmount(MANDATE_ORDER_AMOUNT);
+            registerPgRequest.setPaymentPageHeaderText(PAYMENT_MODE_TEXT);
+            registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + "&wroute=key-factor-statement&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
+            registerPgRequest.setNarration("Register mandate with orderId" + autoPayUPI.getOrderId());
+            registerPgRequest.setCheckout("UNITY");
+            registerPgRequest.setIsPgWebMode("false");
+            BankDetail bankDetail = new BankDetail();
+            bankDetail.setBankCode(merchantBankDetail.get().getBankCode());
+            bankDetail.setIfscCode(merchantBankDetail.get().getIfsc());
+            bankDetail.setAccountNumber(merchantBankDetail.get().getAccountNumber());
+            registerPgRequest.setBankDetail(bankDetail);
+            registerPgRequest.setOrderType(MANDATE_ORDER_TYPE);
+            registerPgRequest.setCustomerId(merchantBasicDetails.getId());
+//            registerPgRequest.setCustomerSubId(activeLoan.get().getMerchantStoreId());
+            registerPgRequest.setLender(Lender.valueOf(lendingApplication.getLender()));
+            Calendar currentTimeNow = Calendar.getInstance();
+            System.out.println("Current time now : " + currentTimeNow.getTime());
+            currentTimeNow.add(Calendar.MINUTE, 10);
+            Date tenMinsFromNow = currentTimeNow.getTime();
+            long epochMandateStartDate = tenMinsFromNow.getTime();
+            registerPgRequest.setMandateStartDate(epochMandateStartDate);
+            registerPgRequest.setMandateEndDate(epochMandateStartDate + 157680000000L);
+            registerPgRequest.setMaxMandateAmount(15000.0);
+
+            AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
+
+            if (registerPgResponseDto != null && registerPgResponseDto.getStatusCode() != null
+                    && "200".equalsIgnoreCase(registerPgResponseDto.getStatusCode())) {
+                autoPayUPI.setStatus(AutoPayStatusEnum.PENDING);
+                autoPayUPI.setPaymentURlDeepLink(registerPgResponseDto.getData().getPaymentURIDeeplink());
+                autoPayUPI.setMandateEndDate(new Date(registerPgRequest.getMandateEndDate()));
+                autoPayUPIDao.save(autoPayUPI);
+            }
+            if(registerPgResponseDto == null){
+                autoPayUPI.setStatus(AutoPayStatusEnum.FAILED);
+                autoPayUPI.setErrorCode("API_ERROR");
+                autoPayUPI.setErrorCode("API_ERROR");
+                autoPayUPIDao.save(autoPayUPI);
+            }
+            data = new UPIRegisterResponseDto.Data(autoPayUPI.getAmount(), autoPayUPI.getOrderId(),
+                    autoPayUPI.getPaymentURlDeepLink());
+        }
 
         return new UPIRegisterResponseDto(data);
+    }
+
+    public List<String> getAllowedLenderForUPIAutoPayMerchantPlugin() {
+        List<String> allowedLender = new ArrayList<>();
+        if (StringUtils.hasLength(autoPayUPIMandatePluginLenders)) {
+            try {
+                allowedLender = Arrays.asList(autoPayUPIMandatePluginLenders.split(","));
+            } catch (Exception e) {
+                log.error("Error in parsing allowedAutoPayUpiLender ",e);
+            }
+        }
+        return allowedLender;
+    }
+
+
+    public UPIRegisterResponseDto registerMandate(BasicDetailsDto merchant, RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto) {
+        if (requestDto.getPayload() == null || requestDto.getMeta() == null || requestDto.getPayload().getApplicationId() == null) {
+            log.info("missing param merchant {} requestDto {}", merchant.getId(), requestDto);
+            return UPIRegisterResponseDto.mandateRegistrationFailureResponse();
+        }
+        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(requestDto.getPayload().getApplicationId());
+
+        if (!lendingApplicationOptional.isPresent()) {
+            log.info("No application found for merchant id {} with applicationId {}", merchant.getId(), requestDto.getPayload().getApplicationId());
+            return UPIRegisterResponseDto.mandateRegistrationFailureResponse();
+        }
+
+        // overriding data with realtime data
+        requestDto.getPayload().setLender(lendingApplicationOptional.get().getLender());
+
+        if(autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                getAllowedLenderForUPIAutoPayMerchantPlugin().contains(requestDto.getPayload().getLender()) && isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersion)) {
+            return registerUPIForNewApplicationMandatePlugin(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
+        }
+        return registerUPIForNewApplication(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
+    }
+
+    public void revokeMandate(LendingApplication loanApplicatioj, AutoPayUPI autoPayUpi) {
+        AutoPayUPIMandatePgRequestDto request = new AutoPayUPIMandatePgRequestDto();
+        request.setMandateId(autoPayUpi.getMandateId());
+        request.setLender(Lender.valueOf((autoPayUpi.getLender())));
+        if (!"LDC".equalsIgnoreCase(loanApplicatioj.getLender())) {
+            String status = apiGatewayService.executeAutoPayUPIMandateRevokeWithPg(autoPayUpi.getMerchantId(), request, autoPayUpi);
+            if (REVOKED.name().equalsIgnoreCase(status)) {
+                autoPayUpi.setStatus(REVOKED);
+                autoPayUPIDao.save(autoPayUpi);
+            }
+            if(status == null){
+                autoPayUpi.setErrorMessage("MANDATE REVOKE FAILED API ERROR");
+                autoPayUPIDao.save(autoPayUpi);
+            }
+        }
+    }
+
+    public static boolean isVersionGreaterOrEqual(String version1, String version2) {
+        if (!version1.contains(".") && !version2.contains(".")) {
+            int v1 = Integer.parseInt(version1);
+            int v2 = Integer.parseInt(version2);
+            return v1 >= v2;
+        }
+        String[] parts1 = version1.split("\\.");
+        String[] parts2 = version2.split("\\.");
+
+        int length = Math.max(parts1.length, parts2.length);
+        for (int i = 0; i < length; i++) {
+            int v1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int v2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            if (v1 < v2) {
+                return false;
+            } else if (v1 > v2) {
+                return true;
+            }
+        }
+        return true;
     }
 }

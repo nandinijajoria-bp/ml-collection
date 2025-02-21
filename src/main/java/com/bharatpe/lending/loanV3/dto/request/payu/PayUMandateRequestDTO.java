@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Date;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -30,6 +32,12 @@ public class PayUMandateRequestDTO {
 
     @JsonProperty("auth_amount")
     private Double authAmount;
+
+    @JsonProperty("start_date")
+    private Date startDate;
+
+    @JsonProperty("end_date")
+    private Date endDate;
 
     @JsonProperty("mandate_account_details")
     private MandateAccountDetails mandateAccountDetails;

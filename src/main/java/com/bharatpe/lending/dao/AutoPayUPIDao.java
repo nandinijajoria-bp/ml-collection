@@ -22,8 +22,11 @@ public interface AutoPayUPIDao extends JpaRepository<AutoPayUPI, Long> {
 
     AutoPayUPI findTop1ByApplicationIdOrderByIdDesc(Long applicationId);
 
-    @Query(nativeQuery = true, value= "select * from autopay_upi where application_id =:applicationId and status IN (:status) order by id desc limit 1")
-    AutoPayUPI findTop1ByApplicationIdAndStatusOrderByIdDesc(long applicationId, List<String> status);
+    @Query(nativeQuery = true, value= "select * from autopay_upi where application_id =:applicationId and lender=:lender and status IN (:status) order by id desc limit 1")
+    AutoPayUPI findTop1ByApplicationIdAndStatusOrderByIdDesc(long applicationId, String lender, List<String> status);
+
+    @Query(nativeQuery = true, value= "select * from autopay_upi where merchant_id =:merchantId and status =:status order by id desc limit 1")
+    AutoPayUPI findTop1ByMerchantIdAndStatusOrderByIdDesc(long merchantId, String status);
 
 
 }

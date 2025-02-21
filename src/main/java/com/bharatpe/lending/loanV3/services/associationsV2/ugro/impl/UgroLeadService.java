@@ -187,7 +187,7 @@ public class UgroLeadService {
     }
 
     public UgroCreateLeadRequest.ProfileData.Address getAddress(LendingApplication lendingApplication, CKycResponseDto cKycResponseDto) {
-        String address = converterUtils.parseData(cKycResponseDto.getAddress());
+        String address = converterUtils.parseData(cKycResponseDto.getAddress()).trim();
         int addressSize = address.length();
         String address1 = "", address2 = "", address3 = "", address4 = "";
         if (addressSize <= 40) {
@@ -220,6 +220,7 @@ public class UgroLeadService {
 
     public UgroCreateLeadRequest.ProfileData.Address getWorkAddress(LendingApplication lendingApplication) {
         String address = Optional.ofNullable(lendingApplication.getArea()).orElse("") + " " + Optional.ofNullable(lendingApplication.getLandmark()).orElse("");
+        address = address.trim();
         int addressSize = address.length();
         String address1 = "", address2 = "", address3 = "";
         if (addressSize <= 40) {

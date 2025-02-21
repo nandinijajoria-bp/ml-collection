@@ -27,7 +27,11 @@ public class NachMandateEligibilityConfig extends BaseEntity{
     @Column(name = "upi_autopay_nach_required")
     private Boolean upiAutopayNachRequired;
 
+    @Column(name = "upi_autopay_required")
+    private Boolean upiAutopayRequired;
+
     @Column(name = "status")
     private Boolean status;
 
 }
+
