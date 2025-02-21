@@ -1069,8 +1069,7 @@ public class LiquiloansService {
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
         Date nextEdiDate = null;
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
-//            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
-            if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
+            if (DateTimeUtil.getStartTimeFromDateTime(lendingEDISchedule.getDate()).after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
                 logger.info("created due before : {} for lps id {}", lendingEDISchedule.getDate(), lendingPaymentSchedule.getId());
                 break;
             }
