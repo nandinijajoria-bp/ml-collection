@@ -66,12 +66,12 @@ public class NbfcRetryRequestListener {
         this.redisNotificationService = redisNotificationService;
     }
 
-
-    @KafkaListener(
-            topics="${nbfc.retry.topic:retry_nbfc_requests}",
-            concurrency = "1",
-            autoStartup = "true",
-            containerFactory = "ConfluentKafkaListenerContainer")
+//      Commented for now. Will be enabled post schedular changes
+//    @KafkaListener(
+//            topics="${nbfc.retry.topic:retry_nbfc_requests}",
+//            concurrency = "1",
+//            autoStartup = "true",
+//            containerFactory = "ConfluentKafkaListenerContainer")
     public void nbfcRetryRequestListener(String message) {
         log.info("Processing the nbfc retry request message: {}", message);
         if (StringUtils.isEmpty(message)) {
