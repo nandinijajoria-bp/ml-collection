@@ -2,9 +2,9 @@ package com.bharatpe.lending.loanV3.services;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.mongo.NbfcRetryRepository;
+import com.bharatpe.lending.common.dao.mongo.NBFCRetryRepository;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.mongo.NbfcRetry;
+import com.bharatpe.lending.common.entity.mongo.NBFCRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.NbfcRetryStatus;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -33,7 +33,7 @@ import static com.bharatpe.lending.enums.Lender.ABFL;
 public class NbfcRequestRetryService {
 
     private final ObjectMapper objectMapper;
-    private final NbfcRetryRepository nbfcRetryRepository;
+    private final NBFCRetryRepository nbfcRetryRepository;
     private final KycRequestKafka kycRequestKafka;
     private final LenderGatewayFactory lenderGatewayFactory;
 
@@ -43,7 +43,7 @@ public class NbfcRequestRetryService {
     @Value("${nbfc.retry.max-retries-count:3}")
     private int maxRetriesCount;
 
-    public NbfcRequestRetryService(ObjectMapper objectMapper, LendingApplicationDao lendingApplicationDao, LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao, NbfcRetryRepository nbfcRetryRepository, KycRequestKafka kycRequestKafka, LenderGatewayFactory lenderGatewayFactory, RedisNotificationService redisNotificationService) {
+    public NbfcRequestRetryService(ObjectMapper objectMapper, LendingApplicationDao lendingApplicationDao, LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao, NBFCRetryRepository nbfcRetryRepository, KycRequestKafka kycRequestKafka, LenderGatewayFactory lenderGatewayFactory, RedisNotificationService redisNotificationService) {
         this.objectMapper = objectMapper;
         this.nbfcRetryRepository = nbfcRetryRepository;
         this.kycRequestKafka = kycRequestKafka;
@@ -57,7 +57,7 @@ public class NbfcRequestRetryService {
      * @param lendingApplicationLenderDetails the lender details of the lending application
      * @param nbfcRetryRequestDto the retry request details
      */
-    public void processRetryRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequestDto) {
+    public void processRetryRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NBFCRetry nbfcRetryRequestDto) {
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.warn("Lender {} not found for application {}", nbfcRetryRequestDto.getApplicationId(), nbfcRetryRequestDto.getLender());
             return;
@@ -69,7 +69,7 @@ public class NbfcRequestRetryService {
         }
     }
 
-    private void processEkycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequest) {
+    private void processEkycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NBFCRetry nbfcRetryRequest) {
         if (lendingApplicationLenderDetails.getLender().equals(ABFL.name())) {
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)
                     || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {

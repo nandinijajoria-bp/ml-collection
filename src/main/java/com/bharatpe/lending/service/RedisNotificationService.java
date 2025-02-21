@@ -7,7 +7,6 @@ import com.bharatpe.cache.DTO.AddCacheDto;
 import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
-import com.bharatpe.lending.common.entity.mongo.NbfcRetry;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -238,25 +237,4 @@ public class RedisNotificationService {
 			logger.error("Error occured while sending pf nudge for merchant {}", merchantId, e);
 		}
 	}
-
-	public boolean sendNbfcRetryRequestMessage(NbfcRetry nbfcRetryRequest, long timeout) {
-		if (ObjectUtils.isEmpty(nbfcRetryRequest)) {
-			return false;
-		}
-		try {
-			logger.info("Sending nbfc retry request message for merchant {}", nbfcRetryRequest.getMerchantId());
-			NbfcRetryRequestDto nbfcRetryRequestDto = NbfcRetryRequestDto.builder()
-					.retryId(nbfcRetryRequest.getId())
-					.merchantId(nbfcRetryRequest.getMerchantId())
-					.applicationId(nbfcRetryRequest.getApplicationId())
-					.lender(nbfcRetryRequest.getLender())
-					.requestType(nbfcRetryRequest.getRequestType())
-					.build();
-			lendingDelayedMessagePublisher.publish("retry_nbfc_requests", nbfcRetryRequest.getMerchantId().toString(), nbfcRetryRequestDto, "nbfc_retry_request_"+nbfcRetryRequest.getMerchantId(), timeout);
-			return true;
-		} catch (Exception e) {
-			logger.error("Error occured while sending nbfc retry request message for merchant {}", nbfcRetryRequest.getMerchantId(), e);
-			return false;
-        }
-    }
 }

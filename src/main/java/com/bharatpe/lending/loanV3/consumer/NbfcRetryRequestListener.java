@@ -2,9 +2,9 @@ package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.mongo.NbfcRetryRepository;
+import com.bharatpe.lending.common.dao.mongo.NBFCRetryRepository;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.mongo.NbfcRetry;
+import com.bharatpe.lending.common.entity.mongo.NBFCRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.NbfcRetryStatus;
 import com.bharatpe.lending.common.enums.Status;
@@ -42,7 +42,7 @@ public class NbfcRetryRequestListener {
     private final ObjectMapper objectMapper;
     private final LendingApplicationDao lendingApplicationDao;
     private final LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
-    private final NbfcRetryRepository nbfcRetryRepository;
+    private final NBFCRetryRepository nbfcRetryRepository;
     private final KycRequestKafka kycRequestKafka;
     private final LenderGatewayFactory lenderGatewayFactory;
     private final RedisNotificationService redisNotificationService;
@@ -56,7 +56,7 @@ public class NbfcRetryRequestListener {
     public NbfcRetryRequestListener(ObjectMapper objectMapper,
                                     LendingApplicationDao lendingApplicationDao,
                                     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao,
-                                    NbfcRetryRepository nbfcRetryRepository, KycRequestKafka kycRequestKafka, LenderGatewayFactory lenderGatewayFactory, RedisNotificationService redisNotificationService) {
+                                    NBFCRetryRepository nbfcRetryRepository, KycRequestKafka kycRequestKafka, LenderGatewayFactory lenderGatewayFactory, RedisNotificationService redisNotificationService) {
         this.objectMapper = objectMapper;
         this.lendingApplicationDao = lendingApplicationDao;
         this.lendingApplicationLenderDetailsDao = lendingApplicationLenderDetailsDao;
@@ -84,7 +84,7 @@ public class NbfcRetryRequestListener {
                 log.warn("Invalid message payload received for processing the nbfc retry request: {}", message);
                 return;
             }
-            Optional<NbfcRetry> nbfcRetryRequest = nbfcRetryRepository.findById(nbfcRetryRequestDto.getRetryId());
+            Optional<NBFCRetry> nbfcRetryRequest = nbfcRetryRepository.findById(nbfcRetryRequestDto.getRetryId());
             if (!nbfcRetryRequest.isPresent()) {
                 log.warn("Unable to find nbfc retry request for application ID: {}", nbfcRetryRequestDto.getApplicationId());
                 return;
@@ -106,7 +106,7 @@ public class NbfcRetryRequestListener {
 
     }
 
-    private void processRetryRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequestDto) {
+    private void processRetryRequest(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NBFCRetry nbfcRetryRequestDto) {
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.warn("Lender {} not found for application {}", nbfcRetryRequestDto.getApplicationId(), nbfcRetryRequestDto.getLender());
             return;
@@ -118,7 +118,7 @@ public class NbfcRetryRequestListener {
         }
     }
 
-    private void processEkycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NbfcRetry nbfcRetryRequest) {
+    private void processEkycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NBFCRetry nbfcRetryRequest) {
         if (lendingApplicationLenderDetails.getLender().equals(ABFL.name())) {
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)
                     || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
@@ -161,8 +161,6 @@ public class NbfcRetryRequestListener {
                     log.error("Retry count exhausted for EKYC Status check for application {}", lendingApplicationLenderDetails.getApplicationId());
                     handleEkycFailureCallback(lendingApplicationLenderDetails);
                     nbfcRetryRequest.setStatus(NbfcRetryStatus.FAILED);
-                } else {
-                    redisNotificationService.sendNbfcRetryRequestMessage(nbfcRetryRequest,  ekycStatusRetryTimeoutsMap.getOrDefault(maxRetriesCount - nbfcRetryRequest.getRetriesRemaining(), 300L));
                 }
                 nbfcRetryRequest.setUpdatedAt(new Date());
                 nbfcRetryRepository.save(nbfcRetryRequest);
