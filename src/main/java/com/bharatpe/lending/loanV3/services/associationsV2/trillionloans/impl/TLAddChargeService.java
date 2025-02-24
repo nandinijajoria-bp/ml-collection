@@ -17,6 +17,7 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.service.MerchantLoansService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -42,6 +43,9 @@ public class TLAddChargeService {
 
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Value("${trillion.chargeId:}")
+    Integer trillionChargeId;
 
     @Transactional
     public boolean invokeAddCharge(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -93,7 +97,6 @@ public class TLAddChargeService {
             log.error("foreclosureAmount <= 0 for merchantId {}, loan : {}", currActiveLendingPaymentSchedule.getMerchantId(), currActiveLendingPaymentSchedule.getId());
             throw new Exception("Unable to fetch foreclosure amount for LPS: " + currActiveLendingPaymentSchedule);
         }
-
         try {
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
@@ -101,7 +104,7 @@ public class TLAddChargeService {
                     .productName("LENDING")
                     .payload(TLAddChargeRequestDto.builder()
                             .leadId(lendingApplicationLenderDetails.getLeadId())
-                            .chargeId(7)
+                            .chargeId(trillionChargeId)
                             .amount(foreclosureAmount)
                             .isAmountNonEditable(Boolean.FALSE)
                             .isMandatory(Boolean.FALSE)

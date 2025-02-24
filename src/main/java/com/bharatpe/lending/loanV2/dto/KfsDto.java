@@ -59,4 +59,7 @@ public class KfsDto {
     private String smbId;
     private String offerId;
     private String leadId;
+    private String parentLender;
+    private Double parentLoanAmount;
+    private String parentLenderCorporateName;
 }

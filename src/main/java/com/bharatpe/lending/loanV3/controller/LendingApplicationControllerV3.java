@@ -49,7 +49,7 @@ public class LendingApplicationControllerV3 {
                                                             @RequestParam(required = false) Long associationId,
                                                             @RequestParam(required = false) String lenderKycStatus,
                                                             @RequestParam(required = false) boolean userReturnedFromLenderKyc) {
-        log.info("fetch application creation v3 status request for {} of merchant:{}", associationId, merchant.getId());
+        log.info("fetch application creation v3 status request for {} of merchant:{} where userReturnedFromLenderKyc : {}", associationId, merchant.getId(), userReturnedFromLenderKyc);
         ApiResponse<?> response = lendingApplicationServiceV3.fetchApplicationStatus(merchant.getId(), lenderKycStatus, userReturnedFromLenderKyc);
         log.info(" application creation status response:{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);

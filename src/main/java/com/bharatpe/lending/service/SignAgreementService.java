@@ -11,17 +11,9 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
-import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingEkycDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.entity.LendingEligibleLoan;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingEkyc;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
@@ -44,12 +36,14 @@ import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -64,6 +58,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 @Service
 public class SignAgreementService {
@@ -167,6 +162,12 @@ public class SignAgreementService {
     @Lazy
 	@Autowired
 	KycUtils kycUtils;
+
+	@Autowired
+	LendingMerchantReferencesDao lendingMerchantReferencesDao;
+
+	@Value("${clone.contact.references.for.topup.enabled:false}")
+	Boolean cloneContactReferenceForTopupEnabled;
 
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
@@ -895,6 +896,10 @@ public class SignAgreementService {
 		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
 
 		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
+		if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender()) && cloneContactReferenceForTopupEnabled) {
+			logger.info("fetch and save contact reference from parent applicationId {} for topup application {} ", prevApplication.getId(), newApplication.getId());
+			saveContactReferenceFromParentApplication(newApplication, prevApplication.getId());
+		}
 		response.put("success", true);
 		response.put("message","Application created Successfully");
 		return response;
@@ -983,6 +988,41 @@ public class SignAgreementService {
 				return LendingViewStates.KYC_PAGE;
 			default:
 				return LendingViewStates.ENACH_PAGE;
+		}
+	}
+
+	private void saveContactReferenceFromParentApplication(LendingApplication currApplication, Long parentApplicationId) {
+		try {
+			List<LendingMerchantReferences> savedContactReferences = lendingMerchantReferencesDao
+					.findByMerchantIdAndApplicationId(currApplication.getMerchantId(), parentApplicationId);
+
+			if (ObjectUtils.isEmpty(savedContactReferences)) {
+				logger.info("No saved contact references found of parent application {} for topup application {}", parentApplicationId, currApplication.getId());
+				return;
+			}
+
+			List<LendingMerchantReferences> clonedReferences = savedContactReferences.stream()
+					.map(ref -> {
+						LendingMerchantReferences newRef = new LendingMerchantReferences();
+						newRef.setMerchantId(ref.getMerchantId());
+						newRef.setApplicationId(currApplication.getId());
+						newRef.setReferenceName(ref.getReferenceName());
+						newRef.setReferenceNumber(ref.getReferenceNumber());
+						newRef.setScore(ref.getScore());
+						newRef.setInferredRelation(ref.getInferredRelation());
+						newRef.setInferredName(ref.getInferredName());
+						newRef.setInferredNameConfidence(ref.getInferredNameConfidence());
+						newRef.setNumHits(ref.getNumHits());
+						newRef.setInferredLocation(ref.getInferredLocation());
+						newRef.setFraudFlag(ref.getFraudFlag());
+						newRef.setInferredOccupation(ref.getInferredOccupation());
+						newRef.setInferredCompany(ref.getInferredCompany());
+						return newRef;
+					})
+					.collect(Collectors.toList());
+			lendingMerchantReferencesDao.saveAll(clonedReferences);
+		} catch (Exception e) {
+			logger.info("Exception saving contact reference from parent application for topup application {} {}", currApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 	}
 }
