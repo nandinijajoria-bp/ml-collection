@@ -63,6 +63,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     //Allowed -  Arrays.asList(NACH, ADVANCE, OTHER)
     public static final List<LoanPaymentMode> PAYMENT_ADJUSTMENT_PREFRENCE_LIST = Arrays.asList(NACH, OTHER);
+    public static final String PAYMENT_EXCESS_SOURCE = "PAYMENT";
+
+    HashSet<String> ALLOWED_POSTING_TRANSFER_BP_MODE = new HashSet<>(Arrays.asList("SETLLEMENT", "FP"));
 
     public static final String LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH = "EXCESS_NACH";
 
@@ -257,6 +260,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingCollectionExcess.setCreditDate(ledgerDate);
         lendingCollectionExcess.setTransferType(payment.getTransferType());
         lendingCollectionExcess.setDeductedAmount(0D);
+        lendingCollectionExcess.setSource(PAYMENT_EXCESS_SOURCE);
         lendingCollectionExcessDao.save(lendingCollectionExcess);
         log.info("created Excess balance Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
         // As we already inform user when NACH excess was created from bank
@@ -266,7 +270,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, String source, Double amount, Long refId, String transferType, Date ledgerDate){
-        if (TRANSFER_BY_BP.name().equalsIgnoreCase(transferType)) {
+        // it is possible from the data sometime excess being created from already excess credit entry
+        // hence to avoid double payment we adding check
+        // allow only mode is strictly = FP, SETTLEMENT
+        if (TRANSFER_BY_BP.name().equalsIgnoreCase(transferType) && !ALLOWED_POSTING_TRANSFER_BP_MODE.contains(source)) {
             log.info("its transfer by bp no lca entry is required {} {} {}", lendingPaymentSchedule.getId(), txnId, source);
             return;
         }
