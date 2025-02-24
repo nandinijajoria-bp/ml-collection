@@ -49,6 +49,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
@@ -682,7 +683,7 @@ public class LiquiloansService {
 
                 // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
                 if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
-                        && !(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()))) {
+                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule)) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
                     lendingApplicationDao.save(lendingApplication);
                     logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
@@ -2298,5 +2299,11 @@ public class LiquiloansService {
             logger.error("autopay upi presentment failed for {}, {}, {}", applicationId, e.getMessage(), e.getStackTrace());
         }
         return false;
+    }
+
+    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
+        return LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) &&
+                (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
+                        (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
     }
 }

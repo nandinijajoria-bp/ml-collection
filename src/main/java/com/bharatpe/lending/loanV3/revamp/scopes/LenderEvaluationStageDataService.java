@@ -50,11 +50,14 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
 
+    @Value("${reference.page.disabled.for.topup:true}")
+    Boolean referencePageDisabledForTopup;
+
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(lendingStateDTO.getData().isTopup() && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingStateDTO.getData().getLender())){
-            //next page for ABFL, TRILLIONLOANS PIRAMAL topup is set in fetchScopeData call
+        if(lendingStateDTO.getData().isTopup() && referencePageDisabledForTopup){
+            //next page for topup is set in fetchScopeData call
             return lendingStateDTO;
         }
         if(offerModifiedEligibleLenders.contains(lendingStateDTO.getData().getLender())

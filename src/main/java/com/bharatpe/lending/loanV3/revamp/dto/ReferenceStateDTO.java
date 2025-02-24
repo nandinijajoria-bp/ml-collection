@@ -19,5 +19,6 @@ public class ReferenceStateDTO {
     private String merchantName;
     private String mobile;
     private Long merchantId;
+    private String loanType;
 
 }
