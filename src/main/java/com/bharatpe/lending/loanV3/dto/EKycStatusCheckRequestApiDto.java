@@ -20,6 +20,7 @@ public class EKycStatusCheckRequestApiDto {
     Payload payload;
     Boolean topup;
     LinkedHashMap<String, Object> identifier;
+    private boolean skipTermination;
 
     @Data
     @NoArgsConstructor

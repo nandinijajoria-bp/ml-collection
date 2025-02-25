@@ -4,7 +4,9 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
+@Data
 public class LoanEligibilityDTO {
 
 	private Long id;
@@ -67,6 +69,15 @@ public class LoanEligibilityDTO {
 	private Integer ioEdi;
 	private Integer ioEdiCount;
 	private Long activeApplicationId;
+
+	@JsonProperty(value = "parent_lan")
+	private String parentLan;
+
+	@JsonProperty(value = "parent_lender")
+	private String parentLender;
+
+	@JsonProperty(value = "parent_loan_no")
+	private String parentLoanNo;
 
 	public Integer getIoEdi() {
 		return ioEdi;

@@ -18,6 +18,7 @@ public class EKycCallbackResponseDto {
     String productName;
     String lender;
     Response data;
+    private int statusCode;
 
     @Data
     @JsonInclude(JsonInclude.Include.NON_NULL)

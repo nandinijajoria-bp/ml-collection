@@ -5,6 +5,7 @@ import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import lombok.Data;
 
 import javax.persistence.*;
+import java.util.Date;
 
 @Entity
 @Data
@@ -19,11 +20,23 @@ public class AutoPayUPI extends BaseEntity {
     @Column(name="application_id")
     private Long applicationId;
 
+    @Column(name="mandate_end_date")
+    private Date mandateEndDate;
+
     @Column(name="lender")
     private String lender;
 
     @Column(name="merchant_id")
     private Long merchantId;
+
+    @Column(name="gateway")
+    private String gateway ;
+
+    @Column(name="error_code")
+    private String errorCode ;
+
+    @Column(name="error_message")
+    private String errorMessage ;
 
     private int frequency;
 

@@ -12,10 +12,7 @@ import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
-import com.bharatpe.lending.common.enums.EdiModel;
-import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.enums.PerpetualDpdAdjusted;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
 import com.bharatpe.lending.common.service.FunnelService;
@@ -287,6 +284,18 @@ public class MerchantLoansService {
 
     @Value("${piramal.topup.max.current.dpd:1}")
     Long piramalTopupMaxCurrentDpd;
+
+    @Value("${ll.balance.transfer.loan.current.dpd.threshold:0}")
+    Integer llBalanceTransferLoanCurrentDpdThreshold;
+
+    @Value("${ll.balance.rejection.banner.tat:1440}")
+    Long llBalanceRejectionBannerTat;
+
+    @Value("${ll.balance.bre.hard.reject.enabled:true}")
+    Boolean llBalanceBreHardRejectEnabled;
+
+    @Value("${ll.balance.transfer.loan.edi.paid.ratio.threshold:50}")
+    Double llBalanceTransferLoanEdiPaidRatioThreshold;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -686,11 +695,15 @@ public class MerchantLoansService {
                         Experian experian = experianDao.getByMerchantId(merchantId);
                         if(!ObjectUtils.isEmpty(experian) && !ObjectUtils.isEmpty(experian.getPancardNumber())) {
                             responseDTO.setIsPanNsdlVerified(loanUtilV3.isPanNsdlVerified(token, experian.getPancardNumber(), merchantId));
+                            if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+                                /** Explicitly setting IsPanNsdlVerified false to open PAN PIN consent Page for LL BT Topup loans **/
+                                responseDTO.setIsPanNsdlVerified(false);
+                            }
                         }
                         funnelService.submitEventV3(merchantId, null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TOPUP_ELIGIBLE, null, LoanDetailsConstant.FUNNEL_VERSION_TAG);
                     }
-                    if(Arrays.asList(ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())) {
-                        responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId()));
+                    if(Arrays.asList(ABFL.name(), TRILLIONLOANS.name(), PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc()) || LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+                        responseDTO.setTopupRejected(checkForTopupRejection(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc()));
                     }
                     if(Arrays.asList(PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())) {
                         LocalTime now = LocalTime.now();
@@ -728,7 +741,7 @@ public class MerchantLoansService {
         return responseDTO;
     }
 
-    private Boolean checkForTopupRejection(Long merchantId) {
+    private Boolean checkForTopupRejection(Long merchantId, String parentLender) {
         try {
             LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             if(!ObjectUtils.isEmpty(prevApplication)) {
@@ -738,9 +751,15 @@ public class MerchantLoansService {
                     if(ABFL.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < abflTopupRejectionBannerTat) {
                         log.info("ABFL topup application rejected for merchantId : {} less than {} minutes ago", merchantId, abflTopupRejectionBannerTat);
                         return Boolean.TRUE;
-                    } else if(TRILLIONLOANS.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < trillionTopupRejectionBannerTat) {
-                        log.info("TRILLIONLOANS topup application rejected for merchantId : {} less than {} minutes ago", merchantId, trillionTopupRejectionBannerTat);
-                        return Boolean.TRUE;
+                    } else if(TRILLIONLOANS.name().equalsIgnoreCase(prevApplication.getLender())) {
+                           if(TRILLIONLOANS.name().equalsIgnoreCase(parentLender) && minutes < trillionTopupRejectionBannerTat) {
+                               log.info("TRILLIONLOANS topup application rejected for merchantId : {} less than {} minutes ago", merchantId, trillionTopupRejectionBannerTat);
+                               return Boolean.TRUE;
+                           }
+                           if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(parentLender) && minutes < llBalanceRejectionBannerTat) {
+                               log.info("Liquiloans balance transfer topup application rejected for merchantId : {} less than {} minutes ago", merchantId, llBalanceRejectionBannerTat);
+                               return Boolean.TRUE;
+                           }
                     } else if(PIRAMAL.name().equalsIgnoreCase(prevApplication.getLender()) && minutes < piramalTopupRejectionBannerTat) {
                         log.info("PIRAMAL topup application rejected for merchantId : {} less than {} minutes ago", merchantId, piramalTopupRejectionBannerTat);
                         return Boolean.TRUE;
@@ -1168,6 +1187,15 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
 
+                if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()) > llBalanceTransferLoanCurrentDpdThreshold) {
+                    logger.info("Merchant current Dpd Greater than 0 merchant:{} for lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
+                    return eligiblity;
+                }
+
+                if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+                    return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
+                }
+
                 double paidRatio = 0d;
                 if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
@@ -1341,7 +1369,7 @@ public class MerchantLoansService {
             lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
             lendingRiskVariablesDao.save(lendingRiskVariables);
         } catch (Exception e) {
-            logger.info("Exception occurred in Additional Topup Rule Engine for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+            logger.info("Exception occurred in Additional Topup Rule Engine for merchantId: {} {}", lendingPaymentSchedule.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return eligiblity;
     }
@@ -1364,7 +1392,7 @@ public class MerchantLoansService {
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (qrPaidRatio < topupMinQrPaidRatioFor12MonthsTenure) {
+            if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && qrPaidRatio < topupMinQrPaidRatioFor12MonthsTenure) {
                 logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
@@ -1416,8 +1444,15 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
                 if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
-                    if (ediPaidRatio < 65D) {
+                    if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && ediPaidRatio < 65D) {
                         logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
+                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+                    }
+                    if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && lendingApplication.getTenureInMonths() > 12 && ediPaidRatio < llBalanceTransferLoanEdiPaidRatioThreshold) {
+                        logger.info("For parent loan tenure {} EDI paid ratio:{} is less than {} % for Liquiloans balance transfer for merchant: {}", lendingApplication.getTenureInMonths(), ediPaidRatio, llBalanceTransferLoanEdiPaidRatioThreshold, lendingPaymentSchedule.getMerchantId());
+                        return eligiblity;
+                    }
+                    if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
                         eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
                     }
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
@@ -1484,11 +1519,14 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
                 loanEligibilityDTO.setId(eligibleLoan.getId());
+                loanEligibilityDTO.setParentLender(lendingApplication.getLender());
+                loanEligibilityDTO.setParentLan(lendingApplication.getNbfcId());
+                loanEligibilityDTO.setParentLoanNo(lendingApplication.getExternalLoanId());
                 eligiblity.add(loanEligibilityDTO);
             }
 
         } catch (Exception e) {
-            logger.info("Exception occurred while existing topup rule engine for merchantId: {}", lendingPaymentSchedule.getMerchantId());
+            logger.info("Exception occurred while existing topup rule engine for merchantId: {} {}", lendingPaymentSchedule.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return eligiblity;
     }
@@ -1816,6 +1854,16 @@ public class MerchantLoansService {
         if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && amountPaidThroughQrPer < 40) {
             logger.info("amt paid through qr check failed for merchant id {}, lender {} : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc(), amountPaidThroughQrPer);
             return true;
+        }
+        if(llBalanceBreHardRejectEnabled && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+            LendingApplication prevApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(lendingPaymentSchedule.getMerchantId());
+            if(!ObjectUtils.isEmpty(prevApplication) && LoanType.TOPUP.name().equalsIgnoreCase(prevApplication.getLoanType()) && "rejected".equalsIgnoreCase(prevApplication.getStatus())) {
+                 LendingApplicationLenderDetailsSlave lendingApplicationLenderDetailsSlave = lendingApplicationLenderDetailsDaoSlave.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(prevApplication.getId(), Status.INACTIVE.name(), prevApplication.getLender());
+                 if(!ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave) && !ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave.getBreRejectionReason())) {
+                     log.info("BRE for liquiloans balance transfer application {} already failed with reason {} for merchantId {}", prevApplication.getId(), lendingApplicationLenderDetailsSlave.getBreRejectionReason(), lendingPaymentSchedule.getMerchantId());
+                     return true;
+                 }
+            }
         }
         return false;
     }

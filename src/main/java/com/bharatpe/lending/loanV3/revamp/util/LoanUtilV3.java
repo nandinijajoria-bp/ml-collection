@@ -2,15 +2,10 @@ package com.bharatpe.lending.loanV3.revamp.util;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
-import com.bharatpe.lending.common.dao.LendingResubmitReasonCountDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
-import com.bharatpe.lending.common.entity.LendingApplicationPriority;
-import com.bharatpe.lending.common.entity.LendingResubmitReasonCount;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -78,6 +73,8 @@ public class LoanUtilV3 {
 
     @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
+
+    public static List<String> LIQUILOANS_BT_LENDERS = Arrays.asList(LendingEnum.LENDER.LIQUILOANS_P2P.name(),LendingEnum.LENDER.LIQUILOANS_P2P_OF.name());
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 

@@ -41,6 +41,7 @@ public class LendingCollectionAuditService {
 
     public void sendCollectionAudit(LendingLedger lendingLedger){
         try {
+            log.info("inside creating lending collection audit for lending ledger {}",lendingLedger);
             if(ObjectUtils.isEmpty(lendingLedger) || lendingLedger.getAmount() <= 0 ||
                     (Objects.nonNull(lendingLedger.getAdjustmentMode()) && "EXCEPTION-WAIVER".equalsIgnoreCase(lendingLedger.getAdjustmentMode())) ||
                     (Objects.nonNull(lendingLedger.getAdjustmentMode()) && "INTEREST_WAIVER".equalsIgnoreCase(lendingLedger.getAdjustmentMode())))  return;

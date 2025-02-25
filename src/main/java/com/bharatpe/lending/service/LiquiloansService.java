@@ -49,6 +49,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
@@ -291,8 +292,12 @@ public class LiquiloansService {
     @Value("${sameDayEdiAdjusment.eligible.lenders:}")
     String sameDayEdiAdjustmentEligibleLenders;
 
+    @Value("${enable.autopayupi.registration:false}")
+    private Boolean enableAutopayUPIRegistration;
+
     @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
     String pdpPartialRollout;
+
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -403,7 +408,7 @@ public class LiquiloansService {
                 logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.", postPayoutRequestDto.getApplicationId(), basicDetailsDto);
                 return new ResponseEntity<>("Duplicate Request", HttpStatus.BAD_REQUEST);
             }
-
+            updateAutoPayUpiApplicationIdForTopUp(lendingApplication);
             lendingPaymentSchedule = new LendingPaymentSchedule();
 
             logger.info("Popualting data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
@@ -516,6 +521,27 @@ public class LiquiloansService {
         }
         loanUtil.publishApplicationEvent(lendingApplication);
         return new ResponseEntity<>("Ok", HttpStatus.OK);
+    }
+
+    private void updateAutoPayUpiApplicationIdForTopUp(LendingApplication lendingApplication) {
+        try {
+            List<String> loanTypes = Arrays.asList("TOPUP", "HALF_TOPUP", "IO_TOPUP");
+            logger.info("inside update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
+
+            if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(),
+                    lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication) && loanTypes.contains(lendingApplication.getLoanType())) {
+                logger.info("checking update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
+                    AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                    if (autoPayUPI != null && autoPayUPI.getLender().equalsIgnoreCase(lendingApplication.getLender())) {
+                        logger.info("going update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
+                        autoPayUPI.setApplicationId(lendingApplication.getId());
+                        autoPayUPIDao.save(autoPayUPI);
+                    }
+                }
+
+        }catch (Exception e){
+            logger.error("Error occured while updating the applicationId on top up loan for applicationId {}", lendingApplication.getId());
+        }
     }
 
     public LendingPaymentSchedule updatePreviousLoan(LendingApplication lendingApplication) {
@@ -657,7 +683,7 @@ public class LiquiloansService {
 
                 // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
                 if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
-                        && !(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()))) {
+                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule)) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
                     lendingApplicationDao.save(lendingApplication);
                     logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
@@ -717,6 +743,9 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setOffDay(lendingApplication.getPayableDays() % 30 == 0 ?
                         LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 
+
+
+                updateAutoPayUpiApplicationIdForTopUp(lendingApplication);
                 if (Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
@@ -851,7 +880,7 @@ public class LiquiloansService {
         if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) ||
                 (pdpPartialRollout.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent))) {
             lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if (lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())) {
+            if (lendingPaymentScheduleLendingCommon.isPresent()) {
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
                 perpetualDpdLoan = true;
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
@@ -1041,8 +1070,7 @@ public class LiquiloansService {
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
         Date nextEdiDate = null;
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
-//            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
-            if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
+            if (DateTimeUtil.getStartTimeFromDateTime(lendingEDISchedule.getDate()).after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
                 logger.info("created due before : {} for lps id {}", lendingEDISchedule.getDate(), lendingPaymentSchedule.getId());
                 break;
             }
@@ -2271,5 +2299,11 @@ public class LiquiloansService {
             logger.error("autopay upi presentment failed for {}, {}, {}", applicationId, e.getMessage(), e.getStackTrace());
         }
         return false;
+    }
+
+    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
+        return LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) &&
+                (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
+                        (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
     }
 }

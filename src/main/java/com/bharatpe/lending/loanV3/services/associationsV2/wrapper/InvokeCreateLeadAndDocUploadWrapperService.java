@@ -49,9 +49,6 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
-    AssociationServiceUtil associationServiceUtil;
-
-    @Autowired
     KycUtils kycUtils;
 
     @Value("${lender.change.enabled:false}")

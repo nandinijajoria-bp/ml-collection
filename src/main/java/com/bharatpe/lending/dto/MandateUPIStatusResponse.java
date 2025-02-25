@@ -9,9 +9,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class MandateUPIStatusResponse {
 
+    private boolean success;
     public Data data;
 
     public MandateUPIStatusResponse(Data data) {
+        this.success = true;
         this.data = data;
     }
 

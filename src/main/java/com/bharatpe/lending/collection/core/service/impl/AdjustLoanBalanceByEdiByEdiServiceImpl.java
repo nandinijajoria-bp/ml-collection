@@ -28,6 +28,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     @Autowired
     LendingEDIScheduleLendingCommonDao lendingEDIScheduleLendingCommonDao;
 
+    @Autowired
+    AdjustLoanBalanceByIPCServiceImpl adjustLoanBalanceByIPCService;
+
     @Override
     public PaymentCalculation adjustLoanBalance(LendingPaymentSchedule loan, double amount) {
         return adjustEdiSchedule(loan, amount, loan.getSettleAllPrinciple());
@@ -48,8 +51,17 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         settleLoanPaymentDTO.setBalance(settleLoanPaymentDTO.getBalance() - charges.getUsed());
 
         if (adjustPrincipleFirst) checkForNPA(loan);
-        if (settleLoanPaymentDTO.isAllDuePaid() && checkForTerminalEdiAmountDiff(loan)) adjustExtraBalance(loan, settleLoanPaymentDTO);
+        if (checkForTerminalEdiAmountDiffV2(loan, settleLoanPaymentDTO)) {
+//            LC-985: Terminal EDI fixes
+            log.info("Adjust the terminal dues block: dueAmount: {}, duePrinciple: {}, dueInterest: {}",
+                    loan.getDueAmount(), loan.getDuePrinciple(), loan.getDueInterest());
+            PaymentCalculation interest = adjustLoanBalanceByIPCService.adjustInterest(loan, settleLoanPaymentDTO.getBalance());
+            PaymentCalculation principle = adjustLoanBalanceByIPCService.adjustPrinciple(loan, interest.getBalance());
 
+            settleLoanPaymentDTO.setBalance(principle.getBalance());
+            settleLoanPaymentDTO.setInterestSettled(settleLoanPaymentDTO.getInterestSettled() + interest.getInterestSettled());
+            settleLoanPaymentDTO.setPrincipleSettled(settleLoanPaymentDTO.getPrincipleSettled() + principle.getPrincipleSettled());
+        }
         return  PaymentCalculation.builder()
                 .received(amount)
                 .used(amount - settleLoanPaymentDTO.getBalance())
@@ -66,6 +78,19 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         return loan != null && loan.getEdiRemainingCount() == 0 && EDI_BY_EDI.name().equalsIgnoreCase(loan.getSettlementMechanism())
                 && ((loan.getEdiAmount() * loan.getEdiCount()) -  loan.getTotalPayableAmount() == loan.getDueAmount())
                 && Objects.equals(loan.getPaidPrinciple(), loan.getLoanAmount());
+    }
+
+    private boolean checkForTerminalEdiAmountDiffV2(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation) {
+        log.info("checkForTerminalEdiAmountDiffV2 for loanId : {} loan: {}", loan.getId(), loan);
+
+        if (loan != null && loan.getEdiRemainingCount() == 0 && EDI_BY_EDI.name().equalsIgnoreCase(loan.getSettlementMechanism())) {
+            boolean dueCheck = loan.getDueAmount() > 0 || loan.getDuePrinciple() > 0 || loan.getDueInterest() > 0;
+            boolean balanceRemaining = paymentCalculation.getBalance() > 0;
+
+            log.info("checkForTerminalEdiAmountDiffV2, Loan: {}, paymentCalculation : {}", loan, paymentCalculation);
+            return dueCheck && balanceRemaining;
+        }
+        return false;
     }
 
     // refer LC- 474 Case 2  https://bharatpe.atlassian.net/wiki/x/KgDGE

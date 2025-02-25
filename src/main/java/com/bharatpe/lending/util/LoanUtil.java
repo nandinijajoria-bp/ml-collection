@@ -309,6 +309,7 @@ public class LoanUtil {
 	@Autowired
 	LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
+
 	@Value("${fore.closure.charges.rollout.date:2024-04-10 00:00}")
 	String foreClosureChargesRolloutDate;
 
@@ -357,10 +358,15 @@ public class LoanUtil {
 	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
 	private List<Integer> lenderPricingEligibleMerchantsPercent;
 
+
+	@Value("${auto.pay.upi.internal.merchant:-}")
+	private List<String> autoPauUpiInternalMerchant;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
 	}
+
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -683,13 +689,17 @@ public class LoanUtil {
 
 	public boolean isApplicationEligibleForAutoPayUpi(String lender, Long merchantId, Double loanAmount) {
 
-		if (autoPayUpiLenders.contains(lender) && loanAmount < maxLoanAmountForAutoPayUPI)
+		if (autoPayUpiLenders.contains(lender))
 		{
 			return true;
 		}
-
-		return false;
+        return  isAutoPayUpiInternalMerchant(merchantId);
 	}
+
+	private boolean isAutoPayUpiInternalMerchant(Long merchantId) {
+		return autoPauUpiInternalMerchant.contains(merchantId);
+	}
+
 
 	/*
 	feature-ML-820 : New logic implemented for displaying message based on TAT days
@@ -2647,9 +2657,19 @@ public class LoanUtil {
 		return null;
 	}
 
+	public boolean checkIfUpiAutoPayNotRequired(LendingApplication lendingApplication) {
+		logger.info("checking if UPI autopay not required for applicationId : {}", lendingApplication.getId());
+		if ( lendingApplication.getLender() == null || lendingApplication.getId() == null)  {
+			return true;
+		}
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+        logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
+		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
+	}
 	public Boolean validateToken(String token){
 		return apiToken.equals(token);
 	}
+
 
 	public boolean isLenderPricingApplicableMerchant(Long merchantId){
 		return LoanUtil.isRolledOutByPercentage(String.valueOf(merchantId), (lenderPricingEligibleMerchantsPercent));
@@ -2720,6 +2740,26 @@ public class LoanUtil {
 
 	}
 
+	public static boolean isRolledOutByPercentage(String value, Integer percentage) {
+		// Percentage not provided or <= 0, not rolled out
+		if(percentage == null || percentage <= 0) return false;
+		// 100% rollout
+		if(percentage >= 100) return true;
+		// Blank value cannot be rolled out
+		if(StringUtils.isEmpty(value)) return false;
+		// extracting last two digit of value
+		int lastTwoDigits;
+		try {
+			lastTwoDigits = Integer.parseInt(value.substring(Math.max(value.length() - 2, 0)));
+		} catch (NumberFormatException e) {
+			logger.error("value is not a number: {}", value);
+			// Invalid value, not rolled out
+			return false;
+		}
+		// Check if the last two digits are less than the percentage
+		return lastTwoDigits < percentage;
+	}
+
 	public boolean checkIfUPIAutoPayIsActive(long merchantId, String lender, Long applicationId)  {
 		logger.info("checkIfUPIAutoPayAllowed: Checking for UPI autopay mandate merchant : {} and lender :{}", merchantId, lender);
 		try {
@@ -2741,6 +2781,20 @@ public class LoanUtil {
 		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
 
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayNachRequired());
+	}
+
+	public LendingApplication fetchParentApplication(Long applicationId){
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
+		if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+			logger.info("No lending application details found for applicationId : {}", applicationId);
+			throw new RuntimeException("unable to fetch lending application details " + applicationId);
+		}
+		LendingApplication prevApplication = lendingApplicationDao.findById(lendingApplicationDetails.getPrevAppId()).orElse(null);
+		if(ObjectUtils.isEmpty(prevApplication)) {
+			logger.info("No previous lending application found for topup application with applicationId : {} and prevAppId : {}", applicationId, lendingApplicationDetails.getPrevAppId());
+			throw new RuntimeException("unable to fetch parent application " + applicationId);
+		}
+		return prevApplication;
 	}
 }
 

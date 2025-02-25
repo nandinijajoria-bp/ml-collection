@@ -51,6 +51,9 @@ public interface LendingConstants {
 	List<String> ESSENTIAL_CATEGORIES = Arrays.asList("Dairy","Dairy_Fresh_Products","Dairy/Fresh Products","Doctor_Clinic","FMCG","Fresh Produce","Fresh_Produce","Fuel","Fuel & Gas","Fuel_","Fuel_&_Gas","Gas_Agency","Grocery","Grocery_General_Store","Grocery_Kirana_Shop","Grocery/General Store","Medical","Medical_Equipment","Medical_Health_Care","Medical_Shop_Chemist","Medical/Health Care","Petrol_CNG_Pump","Vegetable_Fruits","Water_Supply");
 	String CREATE_PG_TXN_V2 = "/v2/client/transaction";
 	String CREATE_PG_TXN_V1 = "/v1/client/transaction";
+
+	String CREATE_PG_TXN_MANDATE_PLUGIN = "/v2/client/mandate/create-mandate";
+	String MANDATE_REVOKE = "/v2/client/mandate/revoke";
 	String PG_STATUS_CHECK = "/v1/client/transaction?orderId=";
 	String HEADER_CLIENT_NAME = "clientName";
 	String HEADER_HASH = "hash";
@@ -88,6 +91,9 @@ public interface LendingConstants {
 	String SIX_DAY_MODEL_OFF_DAY = "SUNDAY";
 
 	String UPI_AUTOPAY_ADJUSTMENT_MODE = "UPI_AUTOPAY";
+
+	String AUTO_PAY_SETTLEMENT = "AutoPaySettlement";
+
 	String UPI = "UPI";
 
 	String PENNYDROP_LOCK_PREFIX = "LENDING_PENNYDROP_";

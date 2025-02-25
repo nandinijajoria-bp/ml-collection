@@ -93,12 +93,14 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
     @Override
     public LendingLedger adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo) {
+        log.info("inside creating lending ledger and audit for loan {} and order {}",loan,order);
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
         return lendingLedger;
     }
     @Override
     public void updateCollectionAuditAndOrder(LendingLedger lendingLedger, LoanPaymentOrder order) {
+        log.info("inside update audit for ledger {} and order {}",lendingLedger,order);
         if (Objects.nonNull(lendingLedger))lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
         if (Objects.nonNull(order)) markOrderSuccess(order);
     }
