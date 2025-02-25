@@ -2684,10 +2684,11 @@ public class LoanUtil {
 		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
 
 		if (StringUtils.isEmpty(rejectedLenders)) {
-			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColor(riskSegment, riskGroup, tenure, pincodeColor);
+			//fetch only active max pricing here.
+			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
 		} else {
 			Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
-			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList);
+			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
 
 		}
 		if(ObjectUtils.isEmpty(maxValuesDto)
