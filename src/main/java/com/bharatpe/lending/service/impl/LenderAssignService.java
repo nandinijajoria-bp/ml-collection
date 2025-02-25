@@ -42,6 +42,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -1324,7 +1325,7 @@ public class LenderAssignService implements ILenderAssignService {
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
         log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, lendingApplication.getId());
 
-        return BigDecimal.valueOf(apr).compareTo(maxApr) > 0;
+        return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxApr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
     private boolean maxIrrCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
@@ -1338,7 +1339,7 @@ public class LenderAssignService implements ILenderAssignService {
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
 
         log.info("Calculated IRR : {}, IRR in DB : {}, application id : {}", apr, maxIrr, lendingApplication.getId());
-        return BigDecimal.valueOf(apr).compareTo(maxIrr) > 0;
+        return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxIrr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
     private boolean maxPfCheckFailedV2(LendingApplication lendingApplication, String lender, RiskVariablesDTO riskVariables) {
