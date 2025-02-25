@@ -1734,20 +1734,18 @@ public class SupportService {
                     if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
                         InputStream inputStream = s3BucketHandler.getObject(sanctionAndLoanAgreementFileName, bucket);
                         return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
-                    } else {
-                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingKfs.getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
-                        return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
-                    }
-                } else {
-                    if (!ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())) {
-                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingApplication.get().getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
-                        return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
                     }
                 }
-                return new ResponseDTO(false, "Error creating agreement");
+//                else {
+//                    if (!ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())) {
+//                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingApplication.get().getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
+//                        return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
+//                    }
+//                }
             }
-            InputStream inputStream = getAgreementForPdf(lendingApplication.get(), lendingApplication.get().getLender(), basicDetailsDto.get());
-            return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
+            return new ResponseDTO(false, "Data not found");
+//            InputStream inputStream = getAgreementForPdf(lendingApplication.get(), lendingApplication.get().getLender(), basicDetailsDto.get());
+//            return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
         } catch (Exception e) {
             logger.error("Exception Occurred while creating agreement for application id: {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
