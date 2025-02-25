@@ -68,7 +68,7 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
     LendingLedger findAdvanceEdiDueOfPerpetualDpdLoan(Long lpsId, Date date);
 
     @Query(value = "select ifnull(sum(interest),0) as totalDueInterest,ifnull(sum(principle),0) as totalDuePrinciple, " +
-            "ifnull(sum(amount),0) as totalDueAmount from lending_ledger where loan_id=:loanId and amount<0", nativeQuery = true)
+            "ifnull(sum(amount),0) as totalDueAmount from lending_ledger where loan_id=:loanId and amount<0 and penalty =0", nativeQuery = true)
     LendingLedgerSummaryDto fetchLedgerEdiSummary(Long loanId);
 
     @Query(value = "select ifnull(sum(interest),0) as totalPaidInterest,ifnull(sum(principle),0) as totalPaidPrinciple, " +

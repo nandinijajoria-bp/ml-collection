@@ -126,11 +126,15 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         if(amount == 0) return null;
 
         Long settlementId = null;
-        if (loan.getSettlementInitiated()) {
-            SettlementDetails details = settlementDetailsDao.findByLoanIdAndStatus(loan.getId(), INIT.name());
-            if (Objects.nonNull(details)) {
-                settlementId = details.getId();
+        try {
+            if (loan.getSettlementInitiated()) {
+                SettlementDetails details = settlementDetailsDao.findByLoanIdAndStatus(loan.getId(), INIT.name());
+                if (Objects.nonNull(details)) {
+                    settlementId = details.getId();
+                }
             }
+        } catch (Exception ex) {
+            log.error("Multiple settlement initiated for loan id: {}, Stack: {}", loan.getId(), Arrays.asList(ex.getStackTrace()));
         }
 
         LendingLedger lendingLedger = new LendingLedger();

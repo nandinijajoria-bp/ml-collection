@@ -577,11 +577,16 @@ public class MerchantLoansService {
                         loan.setAutoPayEligibility(Boolean.FALSE);
 
 //                    Set settlement details if settlement initiated
-                    if (loan.isSettlementInitiated()) {
-                        loan.setSettlementInitiated(loan.isSettlementInitiated());
-                        SettlementDetails settlementDetails = settlemetDetailsDao.findByLoanIdAndStatus(loan.getLoanId(), INIT.name());
-                        loan.setSettlementAmountOffer(settlementDetails.getSettlementAmountOffer());
-                        loan.setSettlementExpiryDate(settlementDetails.getSettlementExpiryDate());
+                    try {
+                        if (loan.isSettlementInitiated()) {
+                            SettlementDetails settlementDetails = settlemetDetailsDao.findByLoanIdAndStatus(loan.getLoanId(), INIT.name());
+                            loan.setSettlementInitiated(loan.isSettlementInitiated());
+                            loan.setSettlementAmountOffer(settlementDetails.getSettlementAmountOffer());
+                            loan.setSettlementExpiryDate(settlementDetails.getSettlementExpiryDate());
+                        }
+                    } catch (Exception ex) {
+                        logger.error("Multiple settlement initiated, Stack: {}", Arrays.asList(ex.getStackTrace()));
+                        loan.setSettlementInitiated(Boolean.FALSE);
                     }
 
                     responseDTO.setShowRenachBanner(showRenachBanner(merchantId, loan.getLender(), responseDTO.getShowChangeBankAccountBanner()));
