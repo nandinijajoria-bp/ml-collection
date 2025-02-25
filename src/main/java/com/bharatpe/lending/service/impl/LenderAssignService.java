@@ -1392,7 +1392,7 @@ public class LenderAssignService implements ILenderAssignService {
                 LendingLenderPricing lendingLenderPricing = null;
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
-                            lendingRiskVariables.getPincodeColor().name());
+                            lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
                 }
                 if (Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender)) {
                     continue;
@@ -1607,7 +1607,7 @@ public class LenderAssignService implements ILenderAssignService {
         if(!loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) return;
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
         LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name());
+                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
         if(!ObjectUtils.isEmpty(lendingLenderPricing)){
             Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
             Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
@@ -1639,9 +1639,13 @@ public class LenderAssignService implements ILenderAssignService {
         //Change 1 : Fetched lender pricing list
         List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
                 lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                application.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name());
+                application.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
         if (!CollectionUtils.isEmpty(lenderPricingList)) {
-            riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(LendingLenderPricing::getLender, java.util.function.Function.identity())));
+            riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(
+                    LendingLenderPricing::getLender,
+                    java.util.function.Function.identity(),
+                    (existing, duplicate) -> existing  // Keep the first occurrence (latest due to id DESC)
+            )));
         }
         try {
             double bureauScore = riskVariables.getBureauScore();
