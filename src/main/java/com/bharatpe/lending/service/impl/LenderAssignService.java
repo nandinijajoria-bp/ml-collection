@@ -1248,7 +1248,7 @@ public class LenderAssignService implements ILenderAssignService {
         return null;
     }
 
-    private boolean maxIrrCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+    public boolean maxIrrCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
         Double irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
         log.info("IRR generated for application_id:{} IRR:{} and lender:{}", lendingApplication.getId(), irr, lender);
         Double maxIrr = 0.0D;
@@ -1278,7 +1278,7 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
 
-    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+    public boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
         Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), ediModel.getNoOfEdiDaysInAWeek(), lender);
         log.info("APR generated for application_id:{} APR:{} and lender:{}", lendingApplication.getId(), apr, lender);
         Double maxApr = 0D;
@@ -1311,7 +1311,7 @@ public class LenderAssignService implements ILenderAssignService {
         return pfPercentage > maxPf;
     }
 
-    private boolean maxAprCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+    public boolean maxAprCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
         BigDecimal maxApr = BigDecimal.ZERO;
         double processingFee = lendingApplication.getProcessingFee();
         LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
@@ -1328,7 +1328,7 @@ public class LenderAssignService implements ILenderAssignService {
         return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxApr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
-    private boolean maxIrrCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+    public boolean maxIrrCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
         BigDecimal maxIrr = BigDecimal.ZERO;
         LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
         log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);

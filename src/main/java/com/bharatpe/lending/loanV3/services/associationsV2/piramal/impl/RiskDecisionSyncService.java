@@ -1,11 +1,14 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.piramal.*;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.piramal.ILenderGateway;
+import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +59,18 @@ public class RiskDecisionSyncService {
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setRoi(riskDecisionResponseDto.getRiskDecision().getRateOfInterest());
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setTenure(riskDecisionResponseDto.getRiskDecision().getLoanTenor());
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+
+                if(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt() < lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount()) {
+                    LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
+                    if(commonService.additionalLenderDowngradeChecksFailed(lendingApplication, lendingApplication.getLender())){
+                        log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
+                                lenderAssociationDetailsRequestDto.getLendingApplication().getId(),lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt(), lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount());
+                        lenderAssociationDetailsRequestDto.setModifyLender(true);
+                        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.APR_IRR_CHECK_FAILED.name());
+                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+                        return false;
+                    }
+                }
 
                 return true;
             }

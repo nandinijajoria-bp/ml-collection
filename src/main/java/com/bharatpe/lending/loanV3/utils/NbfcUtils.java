@@ -1,18 +1,23 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.entity.LendingLenderPricing;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -40,11 +45,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 @Component
 @Slf4j
@@ -91,6 +92,12 @@ public class NbfcUtils {
 
     @Autowired
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    LendingLenderPricingDao lendingLenderPricingDao;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
@@ -303,4 +310,31 @@ public class NbfcUtils {
                 return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
         }
     }
+
+    public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        RiskVariablesDTO riskVariables = new RiskVariablesDTO();
+        LendingLenderPricing lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                lendingRiskVariablesSnapshot.getRiskGroup(),
+                lendingApplication.getTenureInMonths(),
+                lendingApplication.getLender(),
+                lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                lendingApplication.getCreatedAt()
+        );
+
+        riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricingList));
+
+        // Check APR and IRR conditions
+        boolean aprCheckResult = lenderAssignService.maxAprCheckFailedV2(lendingApplication, LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), lendingApplication.getLender(), riskVariables);
+        boolean irrCheckResult = lenderAssignService.maxIrrCheckFailedV2(lendingApplication, LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), lendingApplication.getLender(), riskVariables);
+
+        boolean result = aprCheckResult || irrCheckResult;
+
+        log.info("Additional lender downgrade checks failed for LendingApplication [{}] with lender [{}] -> {}",
+                lendingApplication.getId(), lendingApplication.getLender(), result);
+
+        return result;
+    }
+
 }
