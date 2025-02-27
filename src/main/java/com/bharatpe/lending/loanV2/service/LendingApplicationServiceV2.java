@@ -54,16 +54,19 @@ import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
@@ -371,6 +374,11 @@ public class LendingApplicationServiceV2 {
     @Lazy
     OxyzoConfig oxyzoConfig;
 
+    @Autowired
+    private EmiUtils emiUtils;
+    @Autowired
+    private EmiDashboardService emiDashboardService;
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -585,7 +593,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
     }
 
-    public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
+    public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest, String token) {
         if(Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             log.info("deleting cached key of loan details in create application for merchant: {}",merchant.getId());
@@ -594,6 +602,14 @@ public class LendingApplicationServiceV2 {
             log.info("merchant id not found in create application");
         }
         loanDashboardService.deleteLoanDashboardCache(merchant.getId());
+
+        if(emiUtils.isEmiFlowEnabled()){
+            EmiDashboardResponse emiDashboardResponse = emiDashboardService.getDashboardResponse(merchant.getId(), token);
+            if(!emiUtils.isEligibleForEdiCreateApplication(emiDashboardResponse)){
+                log.warn("application already exist at business loan for merchant: {}", merchant.getId());
+                return new ApiResponse<>(true, "application already exist at bl");
+            }
+        }
 
         if (applicationRequest.getApplicationId() == null) {
             return createNewApplication(merchant, applicationRequest);

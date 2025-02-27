@@ -3,12 +3,14 @@ package com.bharatpe.lending.loanV3.revamp.dto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
+import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 
+import javax.validation.constraints.NotNull;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -99,6 +101,9 @@ public class LoanDetailsV3Response {
     private String message;
     private String screenType;
     private Double loanAmount;
+    private Double emiLoanAmount;
+    private Boolean emiRejected;
+    private String rejectReason;
     private String loanType;
     private String previousLender;
     private Double processingFee;
@@ -128,6 +133,10 @@ public class LoanDetailsV3Response {
                     return loanDetailsV3Response;
                 case PAN_PIN_PAGE:
                     setPanPinResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+                case PLAN_SELECTION_PAGE:
+                    setPlanSelectionPageResponse((EligibilityStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case MASKED_MOBILE:
@@ -203,6 +212,18 @@ public class LoanDetailsV3Response {
             log.error("Exception while casting data for {} {} {}", lendingStateDTO, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return loanDetailsV3Response;
+    }
+
+    private static void setPlanSelectionPageResponse(@NotNull EligibilityStateDTO data, LoanDetailsV3Response loanDetailsV3Response) {
+        if(data.getEmiEligibility() != null){
+            EmiEligibility emiEligibility = data.getEmiEligibility();
+            loanDetailsV3Response.setEmiLoanAmount(emiEligibility.getEmiLoanAmount());
+            loanDetailsV3Response.setEmiRejected(emiEligibility.getEmiRejected());
+            loanDetailsV3Response.setRejectReason(emiEligibility.getRejectReason());
+        }
+        if(data.getEligibility()!=null){
+            loanDetailsV3Response.setLoanAmount(data.getEligibility().getLoanAmount());
+        }
     }
 
     private static void setMaskedMobile(MaskedMobileDTO maskedMobileDTO, LoanDetailsV3Response loanDetailsV3Response) {

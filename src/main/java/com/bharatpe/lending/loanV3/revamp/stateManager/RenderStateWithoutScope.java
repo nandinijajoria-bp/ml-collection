@@ -3,20 +3,18 @@ package com.bharatpe.lending.loanV3.revamp.stateManager;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingMerchantPermissionsDao;
 import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingMerchantPermissions;
 import com.bharatpe.lending.common.entity.LendingMerchantReferences;
-import com.bharatpe.lending.common.enums.RejectionReason;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
@@ -26,7 +24,9 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.KYCStageDataService;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +36,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -69,37 +69,16 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     LendingApplicationServiceV3 lendingApplicationServiceV3;
 
     @Autowired
+    private LendingRiskVariablesDao lendingRiskVariablesDao;
+
+    @Autowired
     private LoanUtilV3 loanUtilV3;
 
+    @Autowired
+    private EmiDashboardService emiDashboardService;
 
-    // creditLineDeepLink - redirect to creditLineDeepLink?
-
-    // check for activeLoan - redirect to active loan page - /all-loans
-
-    // !hasExperian || !pancard || !pincode -> /landing -> PAN_PIN_PAGE
-
-    // (!loanApplicationData || loanApplicationData?.applicationStatus === 'draft') && eligibility
-    // if (!isAllPermissionsGiven && permissionsConsentGiven !== STATUS_YES_NO.YES)  - '/bp-permissions' - PERMISSION_PAGE
-
-    // loanApplicationData && shouldRedirectToEnach(loanDetails) - '/register-nach' - ENACH_PAGE
-
-    // (!loanApplication || !loanApplication?.applicationId) && eligibility - Eligibility page - OFFER_PAGE
-
-    // loanApplication?.applicationStatus === 'draft'
-    // typeof loanApplication?.enachBank === 'boolean' && !loanApplication?.enachBank - '/ineligible' - `/ineligible/${INELIGIBLE.ENACH}` - INELIGIBLE_SCREEN
-    // !hasAddressDetails(loanApplication?.addressDetails) - '/address-business-details' - SHOP_ADDRESS_PAGE
-    // kycStatus && !IsKycApproved(kycStatus)
-    // kycDeepLink - redirect to KYC_PAGE
-    // else /address-business-details' - SHOP_ADDRESS_PAGE
-
-    // dummy_merchant - /agreement AGREEMENT_PAGE else '/additional-details' ADDITIONAL_DETAILS_PAGE (Questions around gst)
-
-    // loanApplication?.applicationStatus
-    // shouldRedirectToEnach - redirect to ENACH_PAGE else /application-status' APP_STATUS_PAGE
-
-    // ineligible - redirect to ineligible page - INELIGIBLE_SCREEN
-
-    // default - /landing page -> PAN_PIN_PAGE
+    @Autowired
+    private EmiUtils emiUtils;
 
     @Override
     public LoanDetailsV3Response fetchLendingStateData(ScopeDataArgs scopeDataArgs) {
@@ -148,12 +127,12 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             log.info("experian is missing {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
-//        if (permissionNotExist(scopeDataArgs, loanDetailsV3Response)) {
-//            log.info("permission doesn't exist {}", scopeDataArgs);
-//            return loanDetailsV3Response;
-//        }
         if (showMaskedMobilePage(scopeDataArgs, loanDetailsV3Response)) {
             log.info("masked mobile page {}", scopeDataArgs);
+            return loanDetailsV3Response;
+        }
+        if(emiUtils.isEmiFlowEnabled() && showPlanSelectionPage(scopeDataArgs, loanDetailsV3Response)){
+            log.info("emi, edi plan selection page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
         if (showOfferPage(scopeDataArgs,loanDetailsV3Response)) {
@@ -168,6 +147,11 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         log.info("returning default state for {}", scopeDataArgs.getMerchant().getId());
         loanDetailsV3Response.setNextPage(LendingViewStates.PAN_PIN_PAGE.name());
         return loanDetailsV3Response;
+    }
+    private boolean showPlanSelectionPage(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+        log.info("checking for plan selection page for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        LendingStateDTO<EligibilityStateDTO> lendingStateDTO = getPlanSelectionPage(scopeDataArgs);
+        return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
     }
 
     public LendingStateDTO<PANPINStateDTO> panPinWorkflow(ScopeDataArgs scopeDataArgs) {
@@ -238,6 +222,34 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         LendingStateDTO<EnachStateDTO> lendingStateDTO = registerEnachworkFlow(scopeDataArgs);
         return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
     }
+    public LendingStateDTO<EligibilityStateDTO> getPlanSelectionPage(ScopeDataArgs scopeDataArgs) {
+        CompletableFuture<EmiDashboardResponse> emiDashboardDataFuture =
+                emiDashboardService.getEmiDashboardResponse(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getToken());
+        EmiDashboardResponse emiDashboardData = emiDashboardService.getData(emiDashboardDataFuture);
+        LendingStateDTO<EligibilityStateDTO> lendingStateDTO;
+        EligibilityStateDTO eligibilityStateDTO = new EligibilityStateDTO();
+        eligibilityStateDTO.setMerchant(scopeDataArgs.getMerchant());
+        lendingStateDTO = new LendingStateDTO<>();
+        if(emiUtils.isActive(emiDashboardData)){
+            // sending null to refresh the loan-dashboard since there is already a emi active loan
+            log.info("invalid state call for merchant: {}",scopeDataArgs.getMerchant().getId());
+            lendingStateDTO.setScopeState(null);
+            scopeDataArgs.setEligibilityStateDTO(eligibilityStateDTO);
+            return lendingStateDTO;
+        }
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(scopeDataArgs.getMerchant().getId());
+        log.info("emi_dashboard_data and lending_risk_variable for merchant_id: {} are {} , {}",
+                scopeDataArgs.getMerchant().getId(), emiDashboardData, lendingRiskVariables);
+
+        if(emiUtils.isEligible(emiDashboardData, lendingRiskVariables)){
+            lendingStateDTO.setScopeState(LendingViewStates.PLAN_SELECTION_PAGE);
+            scopeDataArgs.setEligibilityStateDTO(eligibilityStateDTO);
+            return lendingStateDTO;
+        }
+        return null;
+    }
+
+
 
     public LendingStateDTO<EligibilityStateDTO> offerWorkflow(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = null;
@@ -289,19 +301,6 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = offerWorkflow(scopeDataArgs);
         return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
     }
-
-//    public LendingStateDTO<IneligibleStateDTO> inEligibleWorkflow(ScopeDataArgs scopeDataArgs) {
-//        LendingStateDTO<IneligibleStateDTO> lendingStateDTO = null;
-//        if (!ObjectUtils.isEmpty(scopeDataArgs.getEligibilityStateDTO().getIneligible())) {
-//            lendingStateDTO = new LendingStateDTO<>();
-//            lendingStateDTO.setLendingViewStates(LendingViewStates.INELIGIBLE_PAGE);
-//            lendingStateDTO.setPartialData(false);
-//            lendingStateDTO.setData(IneligibleStateDTO.builder()
-//                    .ineligible(scopeDataArgs.getEligibilityStateDTO().getIneligible())
-//                    .build());
-//        }
-//        return lendingStateDTO;
-//    }
 
 
     public LendingStateDTO<IneligibleStateDTO> inEligibleNonNachableBankWorkflow(ScopeDataArgs scopeDataArgs) {

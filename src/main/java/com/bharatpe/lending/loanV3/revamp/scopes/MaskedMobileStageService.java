@@ -10,6 +10,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +27,9 @@ public class MaskedMobileStageService implements IStageDataService<MaskedMobileD
 
     @Autowired
     MerchantOtpRetryDao merchantOtpRetryDao;
+
+    @Autowired
+    private EmiUtils emiUtils;
 
     @Value("${masked.otp.threshold:3}")
     int otpThreshold;
@@ -48,8 +52,10 @@ public class MaskedMobileStageService implements IStageDataService<MaskedMobileD
         if(!ObjectUtils.isEmpty(merchantOtpRetry) && merchantOtpRetry.getRetries()>=otpThreshold && DateUtils.isSameDay(new Date(), merchantOtpRetry.getUpdatedAt())){
             maskedMobileDTO.setRetryLimitExhausted(true);
         }
+        LendingViewStates lendingViewStates = emiUtils.isEmiFlowEnabled() && emiUtils.isEligible(scopeDataArgs.getMerchant().getId())
+                ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
 
-        return new LendingStateDTO<>(maskedMobileDTO, LendingViewStates.OFFER_PAGE, LendingViewStates.MASKED_MOBILE);
+        return new LendingStateDTO<>(maskedMobileDTO, lendingViewStates, LendingViewStates.MASKED_MOBILE);
     }
 
     @Override

@@ -46,6 +46,9 @@ public class LoanApplicationDetails {
     private String nachSessionMode;
     private Long nachStartedAt;
     private String lender;
+    private String tenure;
+    private Double interestRate;
+    private Double emi;
 
     private List<LoanApplicationStage> loanApplicationStageList=new ArrayList<>();
 
