@@ -101,4 +101,10 @@ public class CommonService {
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
     }
+
+    public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication, String lender){
+        boolean result = false;
+        result = nbfcUtils.additionalLenderDowngradeChecksFailed(lendingApplication);
+        return result;
+    }
 }

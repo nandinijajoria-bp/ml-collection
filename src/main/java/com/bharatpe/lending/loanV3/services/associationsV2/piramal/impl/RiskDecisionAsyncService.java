@@ -84,6 +84,17 @@ public class RiskDecisionAsyncService {
                 lendingApplicationLenderDetails.setTenure(riskDecisionResponseDto.getRiskDecision().getLoanTenor());
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
+                if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.getLoanAmount()) {
+                    if(commonService.additionalLenderDowngradeChecksFailed(lendingApplication, lendingApplication.getLender())){
+                        log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
+                                lendingApplication.getId(),lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt(), lendingApplication.getLoanAmount());
+                        lenderAssociationDetailsRequestDto.setModifyLender(true);
+                        lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.ValidationStatus.APR_IRR_CHECK_FAILED.name());
+                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+                        return;
+                    }
+                }
+
                 //pushing to next stage
                 String currStage =  lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getStage();
                 LenderAssociationStages nextStage =
