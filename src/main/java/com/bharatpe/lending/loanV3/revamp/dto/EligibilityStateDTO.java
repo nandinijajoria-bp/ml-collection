@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
+import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
@@ -39,6 +40,7 @@ public class EligibilityStateDTO {
     private Boolean bpClubMember;
     private Boolean clubV2Member = false;
     private Eligibility eligibility;
+    private EmiEligibility emiEligibility;
 
     private String errorString;
     private String stageOneHitId;

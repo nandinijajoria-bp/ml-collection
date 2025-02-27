@@ -19,6 +19,9 @@ public class StageServiceFactory {
     PANPINStageService panpinStageService;
 
     @Autowired
+    private PlanSelectionStageService planSelectionStageService;
+
+    @Autowired
     KYCStageDataService kycStageDataService;
 
     @Autowired
@@ -66,6 +69,8 @@ public class StageServiceFactory {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
                 return panpinStageService;
+            case PLAN_SELECTION_PAGE:
+                return planSelectionStageService;
             case KYC_PAGE:
                 return kycStageDataService;
             case AGREEMENT_PAGE:

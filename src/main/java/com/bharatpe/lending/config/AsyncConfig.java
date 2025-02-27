@@ -1,6 +1,7 @@
 package com.bharatpe.lending.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.task.TaskExecutorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
@@ -46,5 +47,15 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setThreadNamePrefix("LenderAsyncThread::");
         executor.initialize();
         return executor;
+    }
+
+    @Bean(name = "emiDashboardTaskExecutor")
+    public Executor getEmiDashboardTaskExecutor(){
+        return new TaskExecutorBuilder()
+                .threadNamePrefix("emi-dashboard-task-executor-")
+                .corePoolSize(10)
+                .maxPoolSize(20)
+                .queueCapacity(10)
+                .build();
     }
 }

@@ -5,11 +5,13 @@ import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.ENachIntitiationResponseDTO;
 import com.bharatpe.lending.dto.ENachSubmitRequestDTO;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.BPEnachService;
 import com.bharatpe.lending.service.ENachService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +19,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Map;
 
 @RestController
 @RequestMapping("bpenach")
@@ -36,6 +39,15 @@ public class BPEnachController {
     @Autowired
     EnachHandler enachHandler;
 
+    @Autowired
+    @Qualifier("nachInitiateProxy")
+    private EdiEmiProxyHelper<Map<String,String>, Map<String,String>, Map<String,String>, ENachIntitiationResponseDTO> nachInitiateProxy;
+
+    @Autowired
+    @Qualifier("nachSubmitProxy")
+    private EdiEmiProxyHelper<Map<String,String>, Map<String,String>, ENachSubmitRequestDTO, ENachIntitiationResponseDTO> nachSubmitProxy;
+
+
     @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
     public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute BasicDetailsDto merchant,
                                                                      @RequestHeader("token") String token,
@@ -46,7 +58,9 @@ public class BPEnachController {
                                                                      @RequestParam(name = "reference_number", required = false) String referenceNumber,
                                                                      @RequestParam(name ="owner_id", required = false) String ownerId,
                                                                      @RequestParam(name ="client_name", required = false) String clientName,
-                                                                     @RequestParam(name ="nach_mode", required = false) String nachMode) {
+                                                                     @RequestParam(name ="nach_mode", required = false) String nachMode,
+                                                                     @RequestHeader Map<String,String> headers,
+                                                                     @RequestParam Map<String, String> params) {
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
         responseDTO.setResponse(false);
 
@@ -57,6 +71,10 @@ public class BPEnachController {
                 responseDTO.setMessage("Incorrect Enach service provider mentioned");
                 finalResponse = new ResponseEntity<>(responseDTO, HttpStatus.OK);
             } else {
+                if(nachInitiateProxy.isNotEdiRequest(params, merchant, headers, null)){
+                    logger.info("sending initiate request to bl for merchant: {}",merchant.getId());
+                    return new ResponseEntity<>(nachInitiateProxy.getResponse(params, merchant, headers, null), HttpStatus.OK);
+                }
                 finalResponse = new ResponseEntity<>(bpEnachService.eNachInitiate(merchant, token,
                     appVersion, module, amount, type, referenceNumber, ownerId, clientName, nachMode),
                     HttpStatus.OK);
@@ -71,10 +89,18 @@ public class BPEnachController {
 
 
     @RequestMapping(value = "/submit", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
-    public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant, @RequestHeader("token") String token, @RequestBody ENachSubmitRequestDTO body) {
+    public ResponseEntity<ENachIntitiationResponseDTO> submit(@RequestAttribute BasicDetailsDto merchant,
+                                                              @RequestHeader("token") String token,
+                                                              @RequestHeader Map<String, String> headers,
+                                                              @RequestBody ENachSubmitRequestDTO body) {
         logger.info("Enach Submit request : {}", body);
 
         ResponseEntity<ENachIntitiationResponseDTO> finalResponse = null;
+
+        if(nachSubmitProxy.isNotEdiRequest(null, merchant, headers, body)){
+            logger.info("sending enach submit request to bl for merchant: {}", merchant.getId());
+            return new ResponseEntity<>(nachSubmitProxy.getResponse(null, merchant, headers, body), HttpStatus.OK);
+        }
 
         BharatPeEnachResponseDTO bharatPeEnach = enachHandler.findByMerchantIdAndApplicationIdV2(merchant.getId(), body.getApplicationId());
 

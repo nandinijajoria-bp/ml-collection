@@ -9,11 +9,14 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.LoanUtil;
+import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,7 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -65,6 +69,10 @@ public class LoanDetailsController {
 
 	@Autowired
 	private LoanUtil loanUtil;
+
+	@Autowired
+	@Qualifier("documentDetailProxy")
+	private EdiEmiProxyHelper<Map<String,String>, Map<String,String>, Map<String,String>, DocumentDetailsDto> documentDetailProxy;
 
 	@RequestMapping(value="/loanDetails", method = RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<LoanDetailsResponseDTO> loanDetails(@RequestAttribute(required = false) BasicDetailsDto merchant, @RequestAttribute(required = false) String clientIp
@@ -301,7 +309,14 @@ public class LoanDetailsController {
 	}
 
 	@RequestMapping(value="/document_details", method = RequestMethod.GET, consumes="application/json", produces="application/json")
-	public ResponseEntity<DocumentDetailsDto> documentDetails(@RequestParam(name = "application_id") Long loanId) {
+	public ResponseEntity<DocumentDetailsDto> documentDetails(@RequestParam(name = "application_id") Long loanId,
+															  @RequestParam Map<String, String> parameters,
+															  @RequestHeader Map<String, String> headers) {
+		if(documentDetailProxy.isNotEdiRequest(parameters, null, headers, null)){
+			logger.info("sending document detail request to bl for application_id: {} and plan_type: {}",
+					loanId, MapUtils.getString(parameters, "plan_type"));
+			return new ResponseEntity<>(documentDetailProxy.getResponse(parameters,null,headers,null), HttpStatus.OK);
+		}
 		try {
 			Optional<LendingPaymentSchedule> lendingPaymentSchedule = lendingPaymentScheduleDao.findById(loanId);
 			if (!lendingPaymentSchedule.isPresent()) {
