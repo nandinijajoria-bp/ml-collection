@@ -297,7 +297,7 @@ public class SettlementService {
                 return new ResponseDTO(false, "No active loan found");
             }
 //            Reversal is currently available only for Scheme1
-            if (!SCHEME1.name().equals(waiverType)) {
+            if (!SCHEME1.equals(waiverType)) {
                 return new ResponseDTO(false, "Invalid Waiver reversal type");
             }
             LoanStatus status = SETTLED;
