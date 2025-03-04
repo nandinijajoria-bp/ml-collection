@@ -245,6 +245,9 @@ public class MerchantLoansService {
     @Value("${toup.min.qrpaidRatio.moreThan12MonthsTenure:54}")
     Double topupMinQrPaidRatioForMoreThan12MonthsTenure;
 
+    @Value("${toup.min.qrpaidRatio:40}")
+    Double topupMinQrPaidRatio;
+
     @Value("${piramal.topup.rollout.percent:}")
     Integer piramalTopupRolloutPercent;
 
@@ -1187,10 +1190,11 @@ public class MerchantLoansService {
                     logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
-                if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && maxDpd.intValue() > 15) {
+                //No Lender specific checks for topup
+               /* if (PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && maxDpd.intValue() > 15) {
                     logger.info("Merchant Dpd Greater than 15 merchant:{} for lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
                     return eligiblity;
-                }
+                }*/
 
                 if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()) > llBalanceTransferLoanCurrentDpdThreshold) {
                     logger.info("Merchant current Dpd Greater than 0 merchant:{} for lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
@@ -1200,21 +1204,27 @@ public class MerchantLoansService {
                 if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
+                Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
+                double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
+                if (qrPaidRatio <= topupMinQrPaidRatio) {
+                    logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
+                    return eligiblity;
+                }
 
                 double paidRatio = 0d;
                 if (lendingPaymentSchedule.getPaidPrinciple() != null && lendingPaymentSchedule.getLoanAmount() != null) {
                     paidRatio = lendingPaymentSchedule.getPaidPrinciple() / lendingPaymentSchedule.getLoanAmount();
                 }
-
-                if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && paidRatio > 0.95D) {
+                //No Lender specific checks for topup
+                /*if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && paidRatio > 0.95D) {
                     logger.info("paid ratio is {} for ABFL loan of merchantId {}", paidRatio, lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
-                }
-                if (lendingApplication.getTenureInMonths() < 12 && paidRatio > 0.5D) {
+                }*/
+                if (lendingApplication.getTenureInMonths() < 12 && paidRatio > 0.5D && paidRatio <= 0.95D) {
                     logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return ExistingTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
-                if (lendingApplication.getTenureInMonths() >= 12 && paidRatio > 0.75D) {
+                if (lendingApplication.getTenureInMonths() >= 12 && paidRatio > 0.75D && paidRatio <= 0.95D) {
                     logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
@@ -1228,13 +1238,6 @@ public class MerchantLoansService {
     private List<LoanEligibilityDTO> AdditionalTopupRuleEngine(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck) {
         List<LoanEligibilityDTO> eligiblity = new ArrayList<>();
         try {
-            Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
-            double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (qrPaidRatio < topupMinQrPaidRatioForMoreThan12MonthsTenure) {
-                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
-                return eligiblity;
-            }
-
             String shopType;
             LmsFieldValues lmsFieldValues = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(38L, lendingPaymentSchedule.getApplicationId());
             if (!ObjectUtils.isEmpty(lmsFieldValues)) {
@@ -1249,10 +1252,10 @@ public class MerchantLoansService {
                 logger.info("Photo shop is not permanent of merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return eligiblity;
             }
-            Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
+            /*Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
             int paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
             logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchantId());
-            double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
+            double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;*/
 
             Long experianId = null;
 
@@ -1290,10 +1293,10 @@ public class MerchantLoansService {
                 }
                 eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
                 if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
-                    if (ediPaidRatio < 50D) {
+                   /* if (ediPaidRatio < 50D) {
                         logger.info("EDI paid ratio:{} is less than 50% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
                         return eligiblity;
-                    }
+                    }*/
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                     if (eligibleAmount - posAmount < 10000) {
                         logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
@@ -1397,8 +1400,8 @@ public class MerchantLoansService {
         try {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
-            if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && qrPaidRatio < topupMinQrPaidRatioFor12MonthsTenure) {
-                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatioForMoreThan12MonthsTenure, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
+            if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && qrPaidRatio <= topupMinQrPaidRatio) {
+                logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
@@ -1449,10 +1452,11 @@ public class MerchantLoansService {
                     return eligiblity;
                 }
                 if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
-                    if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && ediPaidRatio < 65D) {
+                    //Removing ediPaidRatio check, handled by Scienaptics
+                   /* if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && ediPaidRatio < 65D) {
                         logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
                         eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
-                    }
+                    }*/
                     if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && lendingApplication.getTenureInMonths() > 12 && ediPaidRatio < llBalanceTransferLoanEdiPaidRatioThreshold) {
                         logger.info("For parent loan tenure {} EDI paid ratio:{} is less than {} % for Liquiloans balance transfer for merchant: {}", lendingApplication.getTenureInMonths(), ediPaidRatio, llBalanceTransferLoanEdiPaidRatioThreshold, lendingPaymentSchedule.getMerchantId());
                         return eligiblity;
