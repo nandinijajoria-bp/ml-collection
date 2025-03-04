@@ -245,7 +245,7 @@ public class MerchantLoansService {
     @Value("${toup.min.qrpaidRatio.moreThan12MonthsTenure:54}")
     Double topupMinQrPaidRatioForMoreThan12MonthsTenure;
 
-    @Value("${toup.min.qrpaidRatio:40}")
+    @Value("${topup.min.qrpaidRatio:40}")
     Double topupMinQrPaidRatio;
 
     @Value("${piramal.topup.rollout.percent:}")
