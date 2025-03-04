@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.mongo.NBFCRetryRepository;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.mongo.NBFCRetry;
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.NbfcRetryStatus;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -12,6 +13,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.EKycCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.EKycStatusCheckRequestApiDto;
+import com.bharatpe.lending.loanV3.dto.KycCallbackResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.service.RedisNotificationService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -25,6 +27,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.bharatpe.lending.enums.Lender.ABFL;
 
@@ -62,17 +65,45 @@ public class NbfcRequestRetryService {
             log.warn("Lender {} not found for application {}", nbfcRetryRequestDto.getApplicationId(), nbfcRetryRequestDto.getLender());
             return;
         }
-        if (nbfcRetryRequestDto.getRequestType().equals("EKYC_STATUS")) {
-            processEkycStatusRetry(lendingApplication, lendingApplicationLenderDetails, nbfcRetryRequestDto);
+        if (nbfcRetryRequestDto.getRequestType().equals(LenderAssociationStages.EKYC_STATUS.name())) {
+            switch (LenderAssociationStatus.valueOf(lendingApplicationLenderDetails.getKycStatus())) {
+                /*
+                * TODO: To explore creating common interface for status retry
+                *  and use patterns to implement each type of retry
+                */
+                case EKYC_IN_PROGRESS:
+                    processEkycStatusRetry(lendingApplication, lendingApplicationLenderDetails, nbfcRetryRequestDto);
+                    break;
+                case KYC_IN_PROGRESS:
+                    processKycStatusRetry(lendingApplication, lendingApplicationLenderDetails, nbfcRetryRequestDto);
+                    break;
+                default:
+                    log.info("Request Type currently not supported in delayed nbfc retry {}", nbfcRetryRequestDto);
+            }
         } else {
             log.info("Request Type currently not supported in delayed nbfc retry {}", nbfcRetryRequestDto);
+        }
+    }
+
+    private void processKycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NBFCRetry nbfcRetryRequest) {
+        //TODO: Add polling logic once needed.
+        log.info("Skipping retry as KYC is in progress for application {}", lendingApplicationLenderDetails.getApplicationId());
+        if (NbfcRetryStatus.INIT.equals(nbfcRetryRequest.getStatus())) {
+            nbfcRetryRequest.setRetriesRemaining(nbfcRetryRequest.getRetriesRemaining() - 1);
+            if (nbfcRetryRequest.getRetriesRemaining() <= 0) {
+                log.error("Retry count exhausted for KYC Status check for application {}", lendingApplicationLenderDetails.getApplicationId());
+                handleKycFailureCallback(lendingApplicationLenderDetails);
+                nbfcRetryRequest.setStatus(NbfcRetryStatus.FAILED);
+            }
+            nbfcRetryRequest.setUpdatedAt(new Date());
+            nbfcRetryRepository.save(nbfcRetryRequest);
         }
     }
 
     private void processEkycStatusRetry(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, NBFCRetry nbfcRetryRequest) {
         if (lendingApplicationLenderDetails.getLender().equals(ABFL.name())) {
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)
-                    || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.EKYC_INITIATED.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
+                    || !Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name()).contains(lendingApplicationLenderDetails.getKycStatus())) {
                 log.info("Kyc Status is not correct in lender details for eKyc status check for application {}", lendingApplicationLenderDetails.getApplicationId());
                 nbfcRetryRequest.setStatus(NbfcRetryStatus.SUCCESS);
                 nbfcRetryRequest.setUpdatedAt(new Date());
@@ -134,5 +165,34 @@ public class NbfcRequestRetryService {
         } catch (JsonProcessingException e) {
             log.error("Json processing exception while triggering failure ekyc callback for application {}", lendingApplicationLenderDetails.getApplicationId(), e);
         }
+    }
+
+    private void handleKycFailureCallback(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+        KycCallbackResponseDto kycCallbackResponseDto = KycCallbackResponseDto.builder()
+                .success(false)
+                .applicationId(String.valueOf(lendingApplicationLenderDetails.getApplicationId()))
+                .lender(lendingApplicationLenderDetails.getLender())
+                .productName("LENDING")
+                .build();
+        try {
+            kycRequestKafka.kycCallbackListener(objectMapper.writeValueAsString(kycCallbackResponseDto));
+        } catch (JsonProcessingException e) {
+            log.error("Json processing exception while triggering failure ekyc callback for application {}", lendingApplicationLenderDetails.getApplicationId(), e);
+        }
+    }
+
+    /**
+     * Forcefully updates the retry status of the given NBFC retry object.
+     *
+     * @param nbfcRetryObj the NBFC retry object to update
+     * @param nbfcRetryStatus the new status to set
+     */
+    public void forceUpdateRetryStatus(NBFCRetry nbfcRetryObj, NbfcRetryStatus nbfcRetryStatus) {
+        if (ObjectUtils.isEmpty(nbfcRetryObj)) {
+            return;
+        }
+        nbfcRetryObj.setStatus(nbfcRetryStatus);
+        nbfcRetryObj.setUpdatedAt(new Date());
+        nbfcRetryRepository.save(nbfcRetryObj);
     }
 }
