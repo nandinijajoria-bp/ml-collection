@@ -14,6 +14,7 @@ import com.bharatpe.lending.loanV3.dto.request.payu.PayUForeclosureRequestDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUCommonResponseDTO;
 import com.bharatpe.lending.loanV3.dto.response.payu.PayUForeclosureDetailsResponseDTO;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,7 +75,7 @@ public class PayUForeclosureService {
     public NBFCRequestDTO getForeclosureReceiptRequest(Long applicationId, LendingLedger lendingLedger) {
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PAYU.name());
-            String paymentDate = DateTimeUtil.getDateInFormat(lendingLedger.getDate(), "yyyy-MM-dd");
+            String paymentDate = DateTimeUtil.getDateInFormat( LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate()), "yyyy-MM-dd");
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             LinkedHashMap<String, Object> identifier = new LinkedHashMap<>();
             identifier.put("loanId", lendingApplicationLenderDetails.getLan());

@@ -12,6 +12,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.request.oxyzo.OxyzoForeclosureDetailsRequestDTO;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +63,7 @@ public class OxyzoForeclosureService {
             LinkedHashMap<String, Object> identifier = new LinkedHashMap<>();
             identifier.put("loanId", lendingApplicationLenderDetails.getLan());
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
-
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             boolean loanCoolOffPeriod = checkLoanCoolOffPeriod(lendingPaymentSchedule.getCreatedAt());
 
 
@@ -74,8 +75,8 @@ public class OxyzoForeclosureService {
                             .loanId(String.valueOf(lendingApplicationLenderDetails.getLan()))
                             .amount(loanCoolOffPeriod ? BigDecimal.valueOf(lendingLedger.getAmount() - lendingApplication.getProcessingFee() - lendingPaymentSchedule.getDueInterest()) : BigDecimal.valueOf(lendingLedger.getAmount()))
                             .referenceNo(txnId)
-                            .repaymentDate(lendingLedger.getDate().getTime())
-                            .closureDate(lendingLedger.getDate().getTime())
+                            .repaymentDate(txnDate.getTime())
+                            .closureDate(txnDate.getTime())
                             .foreclosureCharges(getForeclosureCharges(loanForeClosureCharges))
                             .bounceCharges(BigDecimal.valueOf(0))
                             .penalCharges(BigDecimal.valueOf(0))
