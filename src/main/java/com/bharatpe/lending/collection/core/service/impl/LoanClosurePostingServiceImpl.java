@@ -38,6 +38,7 @@ import com.bharatpe.lending.service.PaymentService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -123,6 +124,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return;
             }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
@@ -137,7 +139,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                                     .receiptAmount(lendingLedger.getAmount())
                                     .paidByContactNo(mobile.substring(2))
                                     .transactionRefNumber(String.valueOf(lendingLedger.getId()))
-                                    .receiptDateTime(lendingLedger.getDate())
+                                    .receiptDateTime(txnDate)
                                     .build())
                             .build())
                     .build();
@@ -168,11 +170,12 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             String adjustmentMode = PaymentAdjustmentModesPiramal.valueOf(lendingLedger.getAdjustmentMode()).getAdjustedModeEquivalent();
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             logger.info("inside the post foreclosure-  adjustmentMode - {}, txnId - {} ", adjustmentMode,txnId);
             LoanReceiptRequestDTO.PaymentReceiptData paymentReceiptData = new LoanReceiptRequestDTO.PaymentReceiptData();
             paymentReceiptData.setTransactionReference(txnId);
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            paymentReceiptData.setReceivedDate(simpleDateFormat.format(lendingLedger.getDate()));
+            paymentReceiptData.setReceivedDate(simpleDateFormat.format(txnDate));
             paymentReceiptData.setRemarks(lendingLedger.getAdjustmentMode());
 
 
@@ -276,7 +279,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             }
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
-            Date txnDate = getNonFutureTransactionDate(lendingLedger.getDate());
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.TRILLIONLOANS.name())
@@ -313,13 +316,6 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             loanForeClosureCharges.setChargePostingStatus(postingStatus);
             loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
-    }
-
-    private Date getNonFutureTransactionDate(Date providedDate) {
-        Date currentDate = new Date();
-
-        // Check if the provided date is in the future
-        return (providedDate != null && providedDate.after(currentDate)) ? DateTimeUtil.getCurrentDayStartTime() : providedDate;
     }
 
     @Override

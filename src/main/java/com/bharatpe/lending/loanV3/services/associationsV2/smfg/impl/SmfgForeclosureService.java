@@ -13,6 +13,7 @@ import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgGetForeclosureDetailsReq
 import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgPostLoanReceiptRequest;
 import com.bharatpe.lending.loanV3.dto.response.smfg.SmfgForeclosureDetailsResponse;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -77,7 +78,7 @@ public class SmfgForeclosureService {
     public NBFCRequestDTO getForeclosureReceiptRequest(Long applicationId, LendingLedger lendingLedger) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
-            String paymentDate = DateTimeUtil.getDateInFormat(lendingLedger.getDate(), "dd-MMM-yyyy").toUpperCase();
+            String paymentDate = DateTimeUtil.getDateInFormat(LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate()), "dd-MMM-yyyy").toUpperCase();
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             return NBFCRequestDTO.builder()
                     .applicationId(applicationId)

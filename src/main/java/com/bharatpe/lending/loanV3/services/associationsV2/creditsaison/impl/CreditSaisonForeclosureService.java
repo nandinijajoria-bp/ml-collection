@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -69,9 +70,8 @@ public class CreditSaisonForeclosureService {
 
             LinkedHashMap<String, Object> identifier = new LinkedHashMap<>();
             identifier.put("loanId", lendingApplicationLenderDetails.getLan());
-
-            String paymentDate = DateTimeUtil.getDateInFormat(lendingLedger.getDate(), "yyyy-MM-dd'T'HH:mm:ss");
-            String chargePaymentDate = DateTimeUtil.getDateInFormat(lendingLedger.getDate(), "dd-MM-yyyy HH:mm:ss");
+            String paymentDate = DateTimeUtil.getDateInFormat(LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate()), "yyyy-MM-dd'T'HH:mm:ss");
+            String chargePaymentDate = DateTimeUtil.getDateInFormat(LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate()), "dd-MM-yyyy HH:mm:ss");
             Double charges = lendingLedger.getOtherCharges() > 0.0 ? Math.abs(lendingLedger.getOtherCharges())/1.18 : null;
 
             if(!ObjectUtils.isEmpty(charges)) {

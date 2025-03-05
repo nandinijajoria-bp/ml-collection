@@ -13,6 +13,7 @@ import com.bharatpe.lending.loanV3.dto.request.capri.CapriForeclosureRequestDTO;
 import com.bharatpe.lending.loanV3.dto.response.capri.CapriForeclosureDetailsResponseDTO;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -73,7 +74,7 @@ public class CapriForeclosureService {
     public NBFCRequestDTO getForeclosureReceiptRequest(Long applicationId, LendingLedger lendingLedger) {
         try {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.CAPRI.name());
-            String paymentDate = DateTimeUtil.getDateInFormat(lendingLedger.getDate(), "dd-MM-yyyy");
+            String paymentDate = DateTimeUtil.getDateInFormat(LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate()), "dd-MM-yyyy");
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             LinkedHashMap<String, Object> identifier = new LinkedHashMap<>();
             identifier.put("loanId", lendingApplicationLenderDetails.getLan());
