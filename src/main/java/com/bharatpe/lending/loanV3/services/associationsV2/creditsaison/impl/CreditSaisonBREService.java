@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.entity.LmsFieldValues;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -23,6 +24,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -74,6 +76,9 @@ public class CreditSaisonBREService {
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
 
+    @Lazy
+    @Autowired
+    LendingApplicationServiceV2 lendingApplicationServiceV2;
     @Transactional
     public boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         try {
@@ -132,6 +137,7 @@ public class CreditSaisonBREService {
         try {
             Double sixtyDaysTpv = ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getSummaryTpv()) ? 0D : lendingRiskVariablesSnapshot.getSummaryTpv() * 60;
             String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
+            Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
                     .productName(csConfig.getLendingProduct())
@@ -149,6 +155,13 @@ public class CreditSaisonBREService {
                                     .tenure(Math.toIntExact(lendingApplication.getPayableDays()))
                                     .monthlyRoi(lendingApplication.getInterestRate())
                                     .loanProduct(csConfig.getLoanProduct())
+                                    .apr(truncateToTwoDecimals(apr))
+                                    .deductibles(lendingApplication.getProcessingFee().intValue())
+                                    .disbursalAmount(lendingApplication.getDisbursalAmount().intValue())
+                                    .firstEmiAmount(lendingApplication.getEdi().intValue())
+                                    .lastEmiAmount(lendingApplication.getEdi().intValue())
+                                    .regularEmiAmount(lendingApplication.getEdi().intValue())
+                                    .loanStartDate(DateTimeUtil.getDateInFormat(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getCreatedAt(), "yyyy-MM-dd'T'HH:mm:ss"))
                                     .build())
                             .linkedIndividuals(
                                     Arrays.asList(
@@ -350,5 +363,8 @@ public class CreditSaisonBREService {
         return "NO";
     }
 
+    public static double truncateToTwoDecimals(Double value) {
+        return ((int) (value * 100)) / 100.0;
+    }
 
 }
