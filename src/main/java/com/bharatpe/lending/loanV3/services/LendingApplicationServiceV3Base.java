@@ -141,7 +141,7 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
 
-    public final Set<String> validStages = new HashSet<>(Collections.singletonList(LenderAssociationStatus.EKYC_IN_PROGRESS.name()));
+    public final Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.KYC_IN_PROGRESS.name()));
 
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
@@ -161,7 +161,7 @@ public abstract class LendingApplicationServiceV3Base {
             return new ApiResponse<>(false,"open draft lending application not found");
         }
         if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
-            return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus);
+            return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus, userReturnedFromLenderKyc);
         }
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
@@ -281,15 +281,16 @@ public abstract class LendingApplicationServiceV3Base {
         if (ObjectUtils.isEmpty(currentDraftApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             return;
         }
+        Optional<NBFCRetry> nbfcRetryObj = nbfcRetryRepository.findByApplicationIdAndLenderAndRequestTypeAndStatus(currentDraftApplication.getId(),
+                lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), NbfcRetryStatus.INIT);
         if (!ApplicationStatus.DRAFT.name().equalsIgnoreCase(currentDraftApplication.getStatus())
         || !(LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())
                 && validStages.contains(lendingApplicationLenderDetails.getKycStatus()))) {
+             nbfcRequestRetryService.forceUpdateRetryStatus(nbfcRetryObj.orElse(null), NbfcRetryStatus.SUCCESS);
             return;
         }
 
         log.info("Checking for ekyc status retries for applicationId {}", currentDraftApplication.getId());
-        Optional<NBFCRetry> nbfcRetryObj = nbfcRetryRepository.findByApplicationIdAndLenderAndRequestTypeAndStatus(currentDraftApplication.getId(),
-                lendingApplicationLenderDetails.getLender(), LenderAssociationStages.EKYC_STATUS.name(), NbfcRetryStatus.INIT);
         if (nbfcRetryObj.isPresent()) {
             NBFCRetry nbfcRequestRetry = nbfcRetryObj.get();
             log.info("Ekyc Retry request found with id {} for application {}", nbfcRequestRetry.getId(), nbfcRequestRetry.getApplicationId());
@@ -544,7 +545,7 @@ public abstract class LendingApplicationServiceV3Base {
         return new ApiResponse<>(true,"success");
     }
 
-    public ApiResponse<?> fetchTopupApplicationStatus(LendingApplication currentDraftApplication, String lenderKycStatus) {
+    public ApiResponse<?> fetchTopupApplicationStatus(LendingApplication currentDraftApplication, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
         log.info("Fetching topup loan application status for : {}", currentDraftApplication.getId());
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -581,11 +582,12 @@ public abstract class LendingApplicationServiceV3Base {
                     .lender(currentDraftApplication.getLender())
                     .build());
         } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+            String originalLaldKycStatus = lendingApplicationLenderDetails.getKycStatus();
             String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
             if(eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender()) && ObjectUtils.isEmpty(lenderKycRedirectionUrl)) {
                 lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
             }
-            return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+            ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponseApiResponse = new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.valueOf(Optional.ofNullable(lendingApplicationLenderDetails.getKycStatus()).orElse(LenderAssociationStatus.KYC_PENDING.name())))
                     .stage(LenderAssociationStages.KYC)
                     .ediModelModified(lendingApplicationDetails.getEdiModelModified())
@@ -593,6 +595,14 @@ public abstract class LendingApplicationServiceV3Base {
                     .lenderKycRedirectionUrl(lenderKycRedirectionUrl)
                     .lenderKycRetry(LenderAssociationStatus.EKYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus()))
                     .build());
+
+            //If status polling is enabled for lender, then check the latest status of the polling
+            if (statusPollEnabledLenders.contains(currentDraftApplication.getLender())
+                    && LoanUtil.isRolledOutByPercentage(String.valueOf(currentDraftApplication.getMerchantId()), ekycStatusPollRolloutPercentage)) {
+                checkEkycStatusRetry(currentDraftApplication, lendingApplicationLenderDetails, lenderAssociationStatusResponseApiResponse, userReturnedFromLenderKyc, originalLaldKycStatus);
+            }
+
+            return lenderAssociationStatusResponseApiResponse;
         }
         return new ApiResponse<>(false, "something went wrong");
     }
