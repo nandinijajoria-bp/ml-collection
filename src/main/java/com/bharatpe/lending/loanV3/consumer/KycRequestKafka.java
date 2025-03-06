@@ -338,7 +338,6 @@ public class KycRequestKafka {
                         lendingApplicationLenderDetails.setStage(nextStage.name());
                         lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
                         if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender())) {
                             final LendingApplication finalLendingApplication = lendingApplication.get();
                             new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
