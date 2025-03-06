@@ -21,10 +21,16 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingApplicationDetailsSlaveDao;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingRiskVariablesSnapshotSlaveDao;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.query.entity.LendingApplicationDetailsSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
+import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSnapshotSlave;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -83,7 +89,10 @@ public class LoanDetailsService {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@Autowired
-	private LendingApplicationDao lendingApplicationDao;
+	private LendingApplicationDaoSlave lendingApplicationDaoSlave;
+
+	@Autowired
+	LendingApplicationDao lendingApplicationDao;
 
 	@Autowired
 	LendingGstDao lendingGstDao;
@@ -226,13 +235,13 @@ public class LoanDetailsService {
 	@Autowired
 	ForeClosureConfigDao foreClosureDao;
 	@Autowired
-	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+	LendingApplicationDetailsSlaveDao lendingApplicationDetailsDao;
 
 	@Autowired
 	LendingRiskVariablesDaoSlave lendingRiskVariablesDaoSlave;
 
 	@Autowired
-	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+	LendingRiskVariablesSnapshotSlaveDao lendingRiskVariablesSnapshotDao;
 	@Value("${bureau.credit.score.pull.days:45}")
 	private Long bureauScorePullDays;
 	@Autowired
@@ -1617,7 +1626,7 @@ public class LoanDetailsService {
 	}
 
 	public ApplicationDataResponseDTO getApplicationData(Long merchantId){
-		LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+		LendingApplicationSlave lendingApplication = lendingApplicationDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
 		LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
 		String loanEligibility;
 		loanEligibility = !ObjectUtils.isEmpty(lendingRiskVariables) && !ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() >= 10000D ? LendingConstants.ELIGIBLE :LendingConstants.INELIGIBLE;
@@ -1631,7 +1640,7 @@ public class LoanDetailsService {
 					.loanSegment(!ObjectUtils.isEmpty(lendingRiskVariables)?lendingRiskVariables.getLoanSegment():null)
 					.build();
 		}
-		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		LendingApplicationDetailsSlave lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		String viewState = ObjectUtils.isEmpty(lendingApplicationDetails)?null:lendingApplicationDetails.getApplicationViewState();
 		if(lendingRiskVariables.getUpdatedAt().after(lendingApplication.getUpdatedAt())){
 			return ApplicationDataResponseDTO.builder()
@@ -1641,9 +1650,10 @@ public class LoanDetailsService {
 					.callRequired(!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()>10000D)
 					.loanEligibility(loanEligibility)
 					.applicationViewState(viewState)
+					.applicationStatus(lendingApplication.getStatus())
 					.build();
 		}
-		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		LendingRiskVariablesSnapshotSlave lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
 		return ApplicationDataResponseDTO.builder()
 				.applicationId(lendingApplication.getId())
 				.merchantId(merchantId)
