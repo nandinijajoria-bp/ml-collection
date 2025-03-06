@@ -1830,7 +1830,8 @@ public class LoanDetailsServiceV2 {
                 funnelService.submitEvent(merchant.getId(), null, applicationId,
                         FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             }
-            loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, LendingViewStates.AGREEMENT_PAGE);
+            LendingViewStates nextPage = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? LendingViewStates.ENACH_PAGE : LendingViewStates.AGREEMENT_PAGE;
+            loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, nextPage);
             return new ApiResponse<>(true, "Successfully updated merchant References!");
         } catch (Exception e) {
             log.error("Error occurred while updating merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
