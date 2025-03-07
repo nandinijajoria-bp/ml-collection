@@ -56,7 +56,7 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(lendingStateDTO.getData().isTopup() && referencePageDisabledForTopup){
+        if(lendingStateDTO.getData().isTopup()){
             //next page for topup is set in fetchScopeData call
             return lendingStateDTO;
         }
@@ -118,7 +118,11 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                        nextPage = LendingViewStates.ENACH_PAGE;
+                        nextPage = referencePageDisabledForTopup ? LendingViewStates.ENACH_PAGE : LendingViewStates.REFERENCE_PAGE;
+                        if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
+                            log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
+                            nextPage = LendingViewStates.ENACH_PAGE;
+                        }
                     }
                 }
             }
