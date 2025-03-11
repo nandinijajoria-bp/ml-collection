@@ -154,6 +154,7 @@ public class TLDocUploadService {
                             .fileName(docName.name() + docName.getFileExtension())
                             .url("URL".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(docName, lenderAssociationDetailsRequestDto.getCKycResponseDto(), null) : null)
                             .data("RAW_DATA".equalsIgnoreCase(docName.getContentType()) ? getFileBlob(docName, lenderAssociationDetailsRequestDto.getCKycResponseDto(), null) : null)
+                            .score(!ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getCKycResponseDto().getSelfieLivelinessScore()) ? String.format("%.2f", (lenderAssociationDetailsRequestDto.getCKycResponseDto().getSelfieLivelinessScore() * 100)) : "0.0")
                             .build())
                     .build();
 
