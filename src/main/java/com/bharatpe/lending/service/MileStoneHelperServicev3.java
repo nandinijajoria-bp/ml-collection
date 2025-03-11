@@ -258,6 +258,10 @@ public class MileStoneHelperServicev3 {
                 log.info("bureauResponse {} for merchantId {}", bureauResponseDTO, merchant.getId());
                 bureauResponsechecks(merchant, bureauResponseDTO, responseDto, experian, pinCodeColor, kycPancard);
                 if(!ObjectUtils.isEmpty(responseDto.getMilStoneEligibility()) && !responseDto.getMilStoneEligibility()) {
+                    log.info("Invalid bureau response for {}", merchant.getId());
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), null, merchant.getMid()));
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "Invalid Bureau response");
                     return responseDto;
                 }
             }

@@ -271,4 +271,34 @@ public class LendingApplicationController {
 		return new ResponseEntity<>(new ApiResponse<>(response), HttpStatus.OK);
 	}
 
+	@RequestMapping(value="/loan/active/merchant", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<?> getMerchantActiveLoanDetails(@RequestParam(name = "merchantId") Long merchantId) {
+		logger.info("Get active loan details request for merchant: {}", merchantId);
+		if (ObjectUtils.isEmpty(merchantId)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields merchantId not sent"),
+					HttpStatus.BAD_REQUEST);
+		}
+        ApiResponse<?> response = lendingApplicationService.getMerchantActiveLoanDetails(merchantId);
+		if (!response.isSuccess()) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+		}
+
+		return ResponseEntity.ok(response);
+	}
+
+	@RequestMapping(value="/internal/loan/active/merchant", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<?> getMerchantActiveLoanDetailsInternal(@RequestParam(name = "merchantId") Long merchantId) {
+		logger.info("Get active loan details request for merchant: {}", merchantId);
+		if (ObjectUtils.isEmpty(merchantId)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields merchantId not sent"),
+					HttpStatus.BAD_REQUEST);
+		}
+		ApiResponse<?> response = lendingApplicationService.getMerchantActiveLoanDetails(merchantId);
+		if (!response.isSuccess()) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+		}
+
+		return ResponseEntity.ok(response);
+	}
+
 }
