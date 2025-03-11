@@ -144,7 +144,7 @@ public class OxyzoBreService {
                             .processingAmount(BigDecimal.valueOf(processingFeeWithoutGst))
                             .tpvMultiplier(BigDecimal.valueOf((lendingApplication.getLoanAmount() + unsecuredPos)/lendingRiskVariablesSnapshot.getMonthlyTpv()))
                             .tpv(tpv)
-                            .dailyTpv(tpv)
+                            .dailyTpv(BigDecimal.valueOf(lendingRiskVariablesSnapshot.getMonthlyTpv()/30))
                             .ediDailyTpvRatio(ediTpvRatio)
                             .productType(oxyzoConfig.getProductType())
                             .callbackUrl(oxyzoConfig.getCallbackUrl())
