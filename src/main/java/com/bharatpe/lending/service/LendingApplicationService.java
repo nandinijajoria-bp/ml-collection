@@ -36,12 +36,16 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
+import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -193,6 +197,15 @@ public class LendingApplicationService {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
+
+    @Autowired
+    LendingPancardDetailsDao lendingPancardDetailsDao;
+
+    @Autowired
+    KycUtils kycUtils;
 
 //    public LendingApplicationResponseDTO createApplication(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<LendingApplicationRequestDTO> requestDTO) {
 //        LendingApplicationResponseDTO lendingApplicationResponse = null;
@@ -2358,4 +2371,69 @@ public class LendingApplicationService {
 
         return LendingApplicationDTO.from(lendingApplication);
     }
+
+    public ApiResponse<?> getMerchantActiveLoanDetails(Long merchantId) {
+        try {
+            // Fetch oldest active loan
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.getOldestActiveLoan(merchantId);
+            if (activeLoan == null) {
+                return new ApiResponse<>(false, "No active loan");
+            }
+
+            // Fetch lending application, KYC data, and merchant KYC details
+            LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(activeLoan.getApplicationId(), merchantId);
+            CKycResponseDto cKycResponseDto = kycUtils.getKycData(merchantId);
+            LendingApplicationKycDetails lendingApplicationKycDetails =
+                    lendingApplicationKycDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+
+            if (lendingApplication == null) {
+                return new ApiResponse<>(false, "Application not found");
+            }
+            if(lendingApplicationKycDetails == null || cKycResponseDto == null) {
+                return new ApiResponse<>(false, "Kyc details not found");
+            }
+
+            // Fetch business category and subcategory
+            Map<String, String> businessCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(merchantId);
+
+            // Build response DTO
+            MerchantActiveLoanDetailsDTO responseDTO = MerchantActiveLoanDetailsDTO.builder()
+                    .loanAmount(activeLoan.getLoanAmount())
+                    .loanTenure(lendingApplication.getTenureInMonths())
+                    .merchantId(merchantId)
+                    .kycDetails(
+                            MerchantActiveLoanDetailsDTO.MerchantKycDetails.builder()
+                                    .nameAsPerPan(cKycResponseDto.getPanName())
+                                    .panNumber(cKycResponseDto.getPanNumber())
+                                    .dob(cKycResponseDto.getDob())
+                                    .mobileNumber(cKycResponseDto.getMobile())
+                                    .gender(!ObjectUtils.isEmpty(lendingApplicationKycDetails.getGender()) ? lendingApplicationKycDetails.getGender() : cKycResponseDto.getGender())
+                                    .permanentAddress(MerchantActiveLoanDetailsDTO.AddressDTO.builder()
+                                            .city(!ObjectUtils.isEmpty(lendingApplicationKycDetails.getAadharCity()) ? lendingApplicationKycDetails.getAadharCity() : cKycResponseDto.getCity())
+                                            .state(!ObjectUtils.isEmpty(lendingApplicationKycDetails.getAadharState()) ? lendingApplicationKycDetails.getAadharState() : cKycResponseDto.getState())
+                                            .address(!ObjectUtils.isEmpty(lendingApplicationKycDetails.getAadharAddress()) ? lendingApplicationKycDetails.getAadharAddress() : cKycResponseDto.getAddress())
+                                            .pincode(!ObjectUtils.isEmpty(lendingApplicationKycDetails.getAadharPinCode()) ? lendingApplicationKycDetails.getAadharPinCode() : cKycResponseDto.getPincode())
+                                            .build())
+                                    .build())
+                    .shopDetails(
+                            MerchantActiveLoanDetailsDTO.MerchantShopDetails.builder()
+                                    .shopOwnerName(lendingApplication.getMerchantName())
+                                    .shopName(lendingApplication.getBusinessName())
+                                    .shopCategory(businessCategoryMap.getOrDefault("businessCategory", ""))
+                                    .shopSubCategory(businessCategoryMap.getOrDefault("businessSubcategory", ""))
+                                    .shopAddress(MerchantActiveLoanDetailsDTO.AddressDTO.builder()
+                                            .city(lendingApplication.getCity())
+                                            .state(lendingApplication.getState())
+                                            .address(lendingApplication.getStreetAddress())
+                                            .pincode(lendingApplication.getPincode().toString())
+                                            .build())
+                                    .build())
+                    .build();
+            return new ApiResponse<>(responseDTO);
+        } catch (Exception e) {
+            logger.error("Exception while fetching active loan details for merchant {}: {}", merchantId, e.getMessage(), e);
+            return new ApiResponse<>(false, "Something went wrong");
+        }
+    }
+
 }
