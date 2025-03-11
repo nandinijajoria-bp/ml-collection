@@ -2776,7 +2776,7 @@ public class LendingApplicationServiceV2 {
 
 
         //Authorization Letter
-        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())){
+        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name(),Lender.PIRAMAL.name(), Lender.CREDITSAISON.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())){
             generateAuthorizationLetterDoc(lendingApplication, merchant, lendingKfs, null);
             lendingKfs.setAuthorizationLetterSignedAt(dateTimeUtil.getCurrentDate());
         }

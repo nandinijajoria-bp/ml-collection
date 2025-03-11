@@ -186,7 +186,7 @@ public class OxyzoLeadService {
                             .vintageOnPlatform(lendingRiskVariablesSnapshot.getVintage().intValue())
                             .tpvMultiplier(BigDecimal.valueOf((lendingApplication.getLoanAmount() + unsecuredPos)/lendingRiskVariablesSnapshot.getMonthlyTpv()))
                             .tpv(tpv)
-                            .dailyTpv(tpv)
+                            .dailyTpv(BigDecimal.valueOf(lendingRiskVariablesSnapshot.getMonthlyTpv()/30))
                             .ediDailyTpvRatio(ediTpvRatio)
                             .customerType(oxyzoConfig.getCustomerType())
                             .paymentFrequency(oxyzoConfig.getPaymentFrequency())

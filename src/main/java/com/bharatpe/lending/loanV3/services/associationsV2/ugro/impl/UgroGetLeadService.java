@@ -150,4 +150,33 @@ public class UgroGetLeadService {
         }
         return null;
     }
+
+    @Transactional
+    public NBFCResponseDTO<?>  getDedupeGetLeadResponse(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto){
+        try {
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("DEDUPE_" + LenderAssociationStages.GET_LEAD.name());
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_PENDING.name());
+            commonService.manageApplicationState(lenderAssociationDetailsDto);
+
+            NBFCRequestDTO<?> getLeadRequest = getPayload(lenderAssociationDetailsDto);
+            if (ObjectUtils.isEmpty(getLeadRequest)) {
+                log.info("UGRO: error in get lead status payload for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.GET_LEAD_FAILED);
+                return null;
+            }
+
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(getLeadRequest, LenderAssociationStages.GET_LEAD);
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsDto);
+                return nbfcResponseDto;
+            }
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_FAILED.name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.GET_LEAD_FAILED);
+        } catch (Exception e) {
+            log.info("UGRO: exception occurred while processing get lead for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
 }

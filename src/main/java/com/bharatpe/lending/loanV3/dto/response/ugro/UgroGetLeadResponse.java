@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.dto.response.ugro;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,12 +34,15 @@ public class UgroGetLeadResponse {
         private Integer processingFee;
         private Integer interestPercent;
         private Integer emiAmount;
+        @JsonProperty("opportunity_id")
         private String opportunityId;
-        private Integer applicationId;
+        @JsonProperty("application_id")
+        private String applicationId;
         private Integer amount;
         private Integer tenureMonths;
         private String productCode;
-        private Integer loanId;
+        @JsonProperty("loan_id")
+        private String loanId;
         private Integer dueDayOfMonth;
         private Double convenienceFeePct;
         private Double installmentAmount;
