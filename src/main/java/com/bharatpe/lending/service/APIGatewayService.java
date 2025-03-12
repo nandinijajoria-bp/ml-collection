@@ -40,7 +40,6 @@ import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LoanAgreementDao;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.enums.KycDocStatus;
@@ -98,7 +97,7 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.util.*;
 
-import static com.bharatpe.lending.constant.AutoPayStatusEnum.REVOKED;
+import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.REVOKED;
 import static com.bharatpe.lending.constant.LendingConstants.MANDATE_REVOKE;
 
 @Service
