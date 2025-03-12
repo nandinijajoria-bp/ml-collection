@@ -3012,7 +3012,7 @@ public class LendingApplicationServiceV2 {
                 edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
             }
 
-            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi);
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi, lendingApplication);
             if(!response.isSuccess()){
                 log.info(response.getMessage());
                 log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
