@@ -352,11 +352,9 @@ public class LendingEdiScheduleService {
         return new CommonResponse(false, "Something went wrong in V3 edi schedule");
     }
 
-    public CommonResponse getEdiScheduleForEdi(long merchantId, long applicationId, Double edi) {
+    public CommonResponse getEdiScheduleForEdi(long merchantId, long applicationId, Double edi , LendingApplication lendingApplication) {
         logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
         try {
-            LendingApplication lendingApplication =
-                    lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (lendingApplication == null) {
                 return new CommonResponse(false, "Lending application not found");
             }

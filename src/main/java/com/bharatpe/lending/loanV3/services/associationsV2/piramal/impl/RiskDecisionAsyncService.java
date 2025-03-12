@@ -85,7 +85,8 @@ public class RiskDecisionAsyncService {
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
                 if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.getLoanAmount()) {
-                    if(commonService.additionalLenderDowngradeChecksFailed(lendingApplication, lendingApplication.getLender())){
+                    LendingApplication newApplication = commonService.createDuplicateApplication(lendingApplication,lendingApplicationLenderDetails);
+                    if(commonService.additionalLenderDowngradeChecksFailed(newApplication, lendingApplication.getLender())){
                         log.info("modifying lender for applicationId {}, as nbfc approved loan amount {} is less than loan amount {}",
                                 lendingApplication.getId(),lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt(), lendingApplication.getLoanAmount());
                         lenderAssociationDetailsRequestDto.setModifyLender(true);

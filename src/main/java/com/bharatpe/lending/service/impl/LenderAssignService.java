@@ -1322,6 +1322,7 @@ public class LenderAssignService implements ILenderAssignService {
             processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
         }
 
+        log.info("Approved loan amount - TBD : {}", lendingApplication.getLoanAmount());
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
         log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, lendingApplication.getId());
 
