@@ -1,6 +1,5 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.MerchantOtpRetry;
 import org.springframework.data.jpa.repository.JpaRepository;
 

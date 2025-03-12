@@ -7,6 +7,7 @@ import com.bharatpe.common.dao.MerchantScoreSnapshotDao;
 import com.bharatpe.common.dao.MerchantSummarySnapshotDao;
 import com.bharatpe.common.entities.*;
 import com.bharatpe.common.utils.CurrencyUtils;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -26,11 +27,11 @@ import com.bharatpe.lending.common.service.merchant.dto.PincodeCityStateMappingD
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.constant.AutoPayStatusEnum;
+
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.entity.AutoPayUPI;
+
 import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
 import com.bharatpe.lending.enums.ApplicationStatus;

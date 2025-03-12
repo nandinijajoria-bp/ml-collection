@@ -14,6 +14,8 @@ import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.service.LoanPaymentService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.Constants.DeductionStatusEnum;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.FunnelEventDto;
@@ -304,6 +306,15 @@ public class PaymentService {
 
     @Value("${autopay.upi.lock.timeout:10}")
     int autoPayUpiLockTimeout;
+
+    @Value("${previous.mandate.failed:7}")
+    int previouMandateFailed;
+
+    @Value("${auto.pay.upi.dpd.penalty.enabled:false}")
+    boolean autoPayUpiDpdPenaltyEnabled;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Autowired
     UgroConfig ugroConfig;
@@ -818,6 +829,7 @@ public class PaymentService {
                                 handleUpiAutoPaySucessOrder(request, lendingPullPayment);
                                 lendingPullPayment.setStatus(request.getPaymentStatus());
                                 lendingPullPaymentDao.save(lendingPullPayment);
+                                if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             } else {
                                 log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
                                 return "OK";
@@ -826,6 +838,18 @@ public class PaymentService {
                             lendingPullPayment.setErrorDescription(request.getErrorDescription());
                             lendingPullPayment.setStatus(request.getPaymentStatus());
                             lendingPullPaymentDao.save(lendingPullPayment);
+                            if("FAILED".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                            List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),previouMandateFailed -1);
+                            log.info("consecutive records for id {} lendingPullPaymentList size is {}",lendingPullPayment.getId(),lendingPullPaymentList.size());
+                            if(checkConsecutiveFailures(lendingPullPaymentList,previouMandateFailed -1) ){
+                                log.info("Consecutive failures found for mandateId {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                                List<String> statusList = new ArrayList<>();
+                                statusList.add(AutoPayStatusEnum.PENDING.name());
+                                statusList.add(AutoPayStatusEnum.SUCCESS.name());
+                                AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc(), statusList);
+                                autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.HARD_QR_DEDUCTION.name());
+                                autoPayUPIDao.save(autoPayUPI);
+                            }
                             return "OK";
                         }
                     }
@@ -2802,5 +2826,28 @@ public class PaymentService {
         String orderId = "LOAN" + (10000000L + order.getId());
         order.setOrderId(orderId);
         return loanPaymentOrderDao.save(order);
+    }
+
+    public boolean checkConsecutiveFailures(List<LendingPullPayment> lendingPullPaymentList, int x) {
+        if (lendingPullPaymentList.isEmpty()) {
+            return false;
+        }
+
+        int failedCount = 0;
+        for (LendingPullPayment pullPayment : lendingPullPaymentList) {
+            String status = pullPayment.getStatus(); // Assuming status is a String
+
+            if (status.equals("FAILURE") || status.equals("FAILED") || status.equals("CANCELLED")) {
+                log.info("failed count incremented for pullpaymentId {} and loanId {}", pullPayment.getId(), pullPayment.getLoanId());
+                failedCount++;
+                if (failedCount >= x) {
+                    return true;
+                }
+            } else {
+                failedCount = 0; // Reset
+            }
+        }
+
+        return false;
     }
 }
