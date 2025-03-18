@@ -2636,6 +2636,7 @@ public class SupportService {
                 return upgradeLoanOfferEligibilityDTO;
             }
             upgradeLoanOfferEligibilityDTO = checkMerchantBankEligibilityForBankStatementAndAccountAggregator(merchantId, upgradeLoanOfferEligibilityDTO);
+            logger.info("Final upgrade loan offer eligibility for merchantId {}: {}", merchantId, upgradeLoanOfferEligibilityDTO);
             return upgradeLoanOfferEligibilityDTO;
         } catch (Exception e) {
             logger.error("Exception in checking upgrade loan Offer Eligibility for merchantId : {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
