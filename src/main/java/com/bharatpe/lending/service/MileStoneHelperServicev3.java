@@ -31,6 +31,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -475,8 +477,7 @@ public class MileStoneHelperServicev3 {
 
             boolean isMileStoneExpiry = false;
             if (!ObjectUtils.isEmpty(entity)) {
-                Date date = new Date();
-                isMileStoneExpiry = entity.getExpiryDate().getTime() < date.getTime();
+                isMileStoneExpiry = entity.getExpiryDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().isBefore(LocalDate.now());
                 if (isMileStoneExpiry == Boolean.TRUE) {
                     if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
                         lendingCache.delete(mileStoneCacheKey);
