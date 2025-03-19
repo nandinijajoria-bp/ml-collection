@@ -217,7 +217,7 @@ public class LoanDetailsServiceV2 {
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
 
-    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name()));
+    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name(), ReferenceRelation.PARENT.name(), ReferenceRelation.BROTHER_SISTER.name(), ReferenceRelation.HUSBAND_WIFE.name(), ReferenceRelation.FRIEND_OTHER.name()));
 
     public static final Integer MAX_UNIQUE_RELATION = 2;
 
