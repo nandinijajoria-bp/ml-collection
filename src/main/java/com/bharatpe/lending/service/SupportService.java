@@ -2909,6 +2909,10 @@ public class SupportService {
                     logger.info("achievementResponse is null");
                     return new MilestoneSupportDto();
                 }
+                if(ObjectUtils.isEmpty(mileStoneResponse.getTarget())) {
+                    logger.error("targets are null for {}", merchantId);
+                    return new MilestoneSupportDto();
+                }
                 List<MileStoneDataForSupport> mapList = new ArrayList<>();
                 Map<Integer, Target> targetMileStoneNoMap = mileStoneResponse.getTarget().stream().
                         collect(Collectors.toMap(Target::getMilestone_no, Function.identity()));
