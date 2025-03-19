@@ -871,7 +871,7 @@ public class FosService {
 //            }
             logger.info("Checking for lending applications for merchantId: {}", merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-            logger.info("Lending application {} found for merchantId: {}", lendingApplication.toString(), merchantId);
+            logger.info("Lending application {} found for merchantId: {}", lendingApplication, merchantId);
             // lending applications
             if (Objects.nonNull(lendingApplication)) {
                 //draft
@@ -944,7 +944,7 @@ public class FosService {
             String finalOfferEligibility = hasFinalOfferGtZero(merchantId);
             logger.info("final offer eligibility for merchant:{} is {}", merchantId, finalOfferEligibility);
             ResponseDTO responseDTO = finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId, null) : computeEligibilityParams(finalOfferEligibility, null, merchantId, "no existing offer found");
-            logger.info("final response for merchant:{} is {}", merchantId, responseDTO.toString());
+            logger.info("final response for merchant:{} is {}", merchantId, responseDTO);
             return responseDTO;
         } catch (Exception e) {
             logger.error("error while checking fos loan eligibility for merchant: {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
@@ -1056,7 +1056,7 @@ public class FosService {
         ResponseDTO responseDTO = new ResponseDTO();
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);
-        logger.info("Returning response DTO for merchantId {}: {}", merchantId, responseDTO.toString());
+        logger.info("Returning response DTO for merchantId {}: {}", merchantId, responseDTO);
         return responseDTO;
     }
 
@@ -1102,7 +1102,7 @@ public class FosService {
                 fosTaskStatusDto.setMessage("no application found against this task");
                 responseDTO.setData(fosTaskStatusDto);
                 responseDTO.setSuccess(Boolean.TRUE);
-                logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto.toString());
+                logger.info("no application found against this task for merchant {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
             } else {
                 if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
@@ -1137,7 +1137,7 @@ public class FosService {
                 fosTaskStatusDto.setApplicationId(lendingApplication.getId());
                 responseDTO.setData(fosTaskStatusDto);
                 responseDTO.setSuccess(Boolean.TRUE);
-                logger.info("fos task status for merchant, {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto.toString());
+                logger.info("fos task status for merchant, {} {}", lendingApplication.getMerchantId(), fosTaskStatusDto);
                 return responseDTO;
             }
         } catch (Exception e) {
