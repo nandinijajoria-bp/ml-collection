@@ -1085,15 +1085,15 @@ public class LiquiloansService {
                     0D, null);
             lendingLedgerList.add(lendingLedger);
             nextEdiDate = lendingEDISchedule.getDate();
+            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         }
         lendingPaymentSchedule.setDueAmount(dueAmount);
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  lendingLedgerList.size());
 
-        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
-        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
-        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         lendingLedgerDao.saveAll(lendingLedgerList);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
