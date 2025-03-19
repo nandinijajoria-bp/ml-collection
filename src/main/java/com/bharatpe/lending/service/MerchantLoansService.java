@@ -1461,9 +1461,9 @@ public class MerchantLoansService {
                         logger.info("For parent loan tenure {} EDI paid ratio:{} is less than {} % for Liquiloans balance transfer for merchant: {}", lendingApplication.getTenureInMonths(), ediPaidRatio, llBalanceTransferLoanEdiPaidRatioThreshold, lendingPaymentSchedule.getMerchantId());
                         return eligiblity;
                     }
-                    if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
-                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
-                    }
+//                    if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+//                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+//                    }
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                     if (eligibleAmount - posAmount < 10000) {
                         logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
