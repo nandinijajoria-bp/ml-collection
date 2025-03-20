@@ -21,8 +21,11 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.service.LendingCollectionAuditService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -64,6 +67,9 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
     @Autowired
     LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
+    @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
 
     @Autowired
     private SettlementDetailsDao settlementDetailsDao;
@@ -96,6 +102,10 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         log.info("inside creating lending ledger and audit for loan {} and order {}",loan,order);
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
+        if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
+            //push loanId to kafka
+            confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+        }
         return lendingLedger;
     }
     @Override
@@ -110,14 +120,16 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
         Date ledgerDate;
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId());
-        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())){
+        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted()) && !("UPI_AUTOPAY".equalsIgnoreCase(source) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(source))){
             ledgerDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), 1);
         }
         else{
             ledgerDate = DateTimeUtil.getCurrentDayStartTime();
         }
-        return createLendingLedger(loan, ledgerDate, paymentAdjusted.getUsed(), paymentAdjusted.getPrincipleSettled(),
+
+      LendingLedger lendingLedger =   createLendingLedger(loan, ledgerDate, paymentAdjusted.getUsed(), paymentAdjusted.getPrincipleSettled(),
                 paymentAdjusted.getInterestSettled(), description, source, transferType, terminalOrderId, paymentAdjusted.getPenaltySettled(), paymentAdjusted.getChargesSettled());
+       return lendingLedger;
     }
 
     @Override

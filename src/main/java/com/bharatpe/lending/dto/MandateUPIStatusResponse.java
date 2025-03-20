@@ -1,6 +1,6 @@
 package com.bharatpe.lending.dto;
 
-import com.bharatpe.lending.constant.AutoPayStatusEnum;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -32,6 +32,7 @@ public class MandateUPIStatusResponse {
             this.applicationId = applicationId;
             this.status = status;
         }
+
     }
 
 }

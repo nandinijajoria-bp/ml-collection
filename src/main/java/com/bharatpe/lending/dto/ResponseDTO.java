@@ -102,8 +102,12 @@ public class ResponseDTO {
     public String toString() {
         return "ResponseDTO{" +
                 "success=" + success +
+                ", uuid='" + uuid + '\'' +
                 ", message='" + message + '\'' +
+                ", data=" + data +
                 ", maskedMobiles=" + maskedMobiles +
+                ", mobile='" + mobile + '\'' +
                 '}';
     }
+
 }

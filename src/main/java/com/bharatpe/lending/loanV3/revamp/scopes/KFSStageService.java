@@ -1,11 +1,11 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.dao.AutoPayUPIDao;
+import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.constant.AutoPayStatusEnum;
-import com.bharatpe.lending.dao.AutoPayUPIDao;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
-import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.common.entities.LendingApplication;

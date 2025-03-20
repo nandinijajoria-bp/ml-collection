@@ -1728,10 +1728,13 @@ public class SupportService {
         }
         try {
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            logger.info("Lending KFS for application: {}: {}", applicationId, lendingKfs);
             if (!ObjectUtils.isEmpty(lendingKfs)) {
                 if (lendingKfs.getLender().equals(lendingApplication.get().getLender())) {
                     String sanctionAndLoanAgreementFileName = ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
-                    if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
+                    logger.info("sanctionAndLoanAgreementFileName: {}", sanctionAndLoanAgreementFileName);
+                    if (s3BucketHandler.doesS3ObjectExist(bucket, sanctionAndLoanAgreementFileName)) {
+                        logger.info("SanctionAndLoanAgreement file exists in S3 with name: {}", sanctionAndLoanAgreementFileName);
                         InputStream inputStream = s3BucketHandler.getObject(sanctionAndLoanAgreementFileName, bucket);
                         return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
                     }
@@ -2636,6 +2639,7 @@ public class SupportService {
                 return upgradeLoanOfferEligibilityDTO;
             }
             upgradeLoanOfferEligibilityDTO = checkMerchantBankEligibilityForBankStatementAndAccountAggregator(merchantId, upgradeLoanOfferEligibilityDTO);
+            logger.info("Final upgrade loan offer eligibility for merchantId {}: {}", merchantId, upgradeLoanOfferEligibilityDTO);
             return upgradeLoanOfferEligibilityDTO;
         } catch (Exception e) {
             logger.error("Exception in checking upgrade loan Offer Eligibility for merchantId : {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
@@ -2906,6 +2910,10 @@ public class SupportService {
                 DSMileStoneAchievementResponse achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
                 if (ObjectUtils.isEmpty(achievementResponse)) {
                     logger.info("achievementResponse is null");
+                    return new MilestoneSupportDto();
+                }
+                if(ObjectUtils.isEmpty(mileStoneResponse.getTarget())) {
+                    logger.error("targets are null for {}", merchantId);
                     return new MilestoneSupportDto();
                 }
                 List<MileStoneDataForSupport> mapList = new ArrayList<>();

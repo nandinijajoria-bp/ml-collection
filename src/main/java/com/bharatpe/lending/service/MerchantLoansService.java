@@ -300,6 +300,9 @@ public class MerchantLoansService {
     @Value("${ll.balance.transfer.loan.edi.paid.ratio.threshold:50}")
     Double llBalanceTransferLoanEdiPaidRatioThreshold;
 
+    @Value("${show.pan.pin.page.enabled:true}")
+    private boolean showPanPinPage;
+
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
         List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(merchantId, merchantStoreId, "ACTIVE");
@@ -720,6 +723,12 @@ public class MerchantLoansService {
                         Boolean isTimeBasedTopupDisabled = now.isAfter(topupDisabledStartTime) || now.isBefore(topupDisabledEndTime);
                         responseDTO.setTimeBasedTopupDisabled(isTimeBasedTopupDisabled);
                     }
+
+                    if(showPanPinPage){
+                        /** Explicitly setting IsPanNsdlVerified false to open PAN PIN consent Page for Topup loans **/
+                        responseDTO.setIsPanNsdlVerified(false);
+                    }
+
                 } catch (Exception e) {
                     logger.error("Exception while calculating TOPUP loan for merchant:{}", merchantId, e);
                 }
@@ -1461,9 +1470,9 @@ public class MerchantLoansService {
                         logger.info("For parent loan tenure {} EDI paid ratio:{} is less than {} % for Liquiloans balance transfer for merchant: {}", lendingApplication.getTenureInMonths(), ediPaidRatio, llBalanceTransferLoanEdiPaidRatioThreshold, lendingPaymentSchedule.getMerchantId());
                         return eligiblity;
                     }
-                    if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
-                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
-                    }
+//                    if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+//                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+//                    }
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                     if (eligibleAmount - posAmount < 10000) {
                         logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());

@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -27,12 +28,10 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -1086,15 +1085,15 @@ public class LiquiloansService {
                     0D, null);
             lendingLedgerList.add(lendingLedger);
             nextEdiDate = lendingEDISchedule.getDate();
+            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         }
         lendingPaymentSchedule.setDueAmount(dueAmount);
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  lendingLedgerList.size());
 
-        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
-        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
-        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         lendingLedgerDao.saveAll(lendingLedgerList);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }

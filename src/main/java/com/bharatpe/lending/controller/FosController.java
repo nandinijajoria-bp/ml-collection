@@ -51,6 +51,7 @@ public class FosController {
 
     @RequestMapping(value = "/merchant_eligibility",method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<ResponseDTO> getMerchantEligibilityForLoan(@RequestParam Long merchantId) {
+        logger.info("Request for merchant eligibility for merchantId: {}", merchantId);
         return new ResponseEntity<>(fosService.checkMerchantEligibilty(merchantId, Boolean.TRUE),HttpStatus.OK);
     }
 
@@ -59,6 +60,7 @@ public class FosController {
                                                                      @RequestParam Long visitTimestamp,
                                                                      @RequestParam Long refCode,
                                                                      @RequestParam Integer timeWindow) {
+        logger.info("Request for task status for merchantId: {}, visitTimestamp: {}, refCode: {}, timeWindow: {}", merchantId, visitTimestamp, refCode, timeWindow);
         return new ResponseEntity<>(fosService.getFosTaskStatus(merchantId, visitTimestamp, refCode, timeWindow),HttpStatus.OK);
     }
 
