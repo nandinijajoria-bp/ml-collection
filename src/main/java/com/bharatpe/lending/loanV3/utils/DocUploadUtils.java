@@ -12,10 +12,13 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.dto.response.ugro.UgroUdyamRegistrationResponse;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
 import com.itextpdf.text.pdf.PdfCopy;
@@ -68,6 +71,9 @@ public class DocUploadUtils {
     @Lazy
     @Autowired
     AssociationServiceUtil associationServiceUtil;
+
+    @Autowired
+    ObjectMapper objectMapper;
 
     public void saveESignedDocs(Long applicationId, byte[] signedKFSBytes, byte[] signedSanctionBytes) {
         try {
@@ -450,20 +456,16 @@ public class DocUploadUtils {
     public Boolean isUdyamRegistrationRequired(LendingApplicationLenderDetails lendingApplicationLenderDetails, LendingApplication lendingApplication) {
         if(LendingEnum.LENDER.MUTHOOT.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             return LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus());
-        } else if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
-            if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus())
-                    && LenderAssociationStatus.UDYAM_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus())) {
-                // in case the registration is success, status check else return true
-                if (LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLeadStatus())) {
-                    LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = LenderAssociationDetailsRequestDto.builder()
-                            .applicationId(lendingApplication.getId()).merchantId(lendingApplication.getMerchantId())
-                            .lendingApplication(lendingApplication).lendingApplicationLenderDetails(lendingApplicationLenderDetails).build();
-                    boolean isStatusCheckSuccess = associationServiceUtil.invokeUdyamStatusCheckService(lendingApplication.getLender(), lenderAssociationDetailsRequestDto);
-                    return !isStatusCheckSuccess;
-                } else {
-                    return Boolean.TRUE;
-                }
-            }
+        }
+        else if(LendingEnum.LENDER.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())
+                && Arrays.asList(LenderAssociationStatus.UDYAM_PENDING.name(), LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name()).contains(lendingApplicationLenderDetails.getDataUploadStatus())) {
+
+            LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto = LenderAssociationDetailsRequestDto.builder()
+                    .applicationId(lendingApplication.getId()).merchantId(lendingApplication.getMerchantId())
+                    .lendingApplication(lendingApplication).lendingApplicationLenderDetails(lendingApplicationLenderDetails).build();
+            boolean isUdaymStatusSuccess = associationServiceUtil.invokeUdyamStatusCheckService(lendingApplication.getLender(), lenderAssociationDetailsRequestDto);
+            // if isUdaymStatusSuccess is true when (GetLeadAPI Udyam Values Marked Success)
+            return !isUdaymStatusSuccess;
         }
         return false;
     }
@@ -472,6 +474,18 @@ public class DocUploadUtils {
         if(LendingEnum.LENDER.MUTHOOT.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             return lendingApplicationLenderDetails.getNbfcKycAsyncId();
         }
+        return null;
+    }
+
+    public String getUdyamRegistrationLink(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+       if(LendingEnum.LENDER.UGRO.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLender())){
+
+           NBFCResponseDTO<?> fetchUdyamResponse = associationServiceUtil.getDocsGenerateService(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLender(), lenderAssociationDetailsRequestDto);
+           if(!ObjectUtils.isEmpty(fetchUdyamResponse) && fetchUdyamResponse.getSuccess()){
+               UgroUdyamRegistrationResponse udyamRegistrationResponse = objectMapper.convertValue(fetchUdyamResponse.getData(), UgroUdyamRegistrationResponse.class);
+               return udyamRegistrationResponse.getLink();
+           }
+       }
         return null;
     }
 

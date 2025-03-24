@@ -9,10 +9,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingConsent;
 import com.bharatpe.lending.common.entity.LendingLoanInsurance;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
@@ -34,6 +31,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.services.gateway.PiramalApiGateway;
+import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -89,15 +87,33 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     @Autowired
     LendingApplicationDao lendingApplicationDao;
 
+    @Autowired
+    DocUploadUtils docUploadUtils;
+
     @Value("${piramal.insurance.rollout.percent:0}")
     Integer piramalInsuranceRolloutPercent;
 
     private static final String SELECTED = "SELECTED";
 
+    @Value("${udyam.registration.required.lenders.v2:}")
+    String udyamRegistrationRequiredLendersV2;
+
+    @Value("${ugro.udaym.before.nach.rollout.percent:0}")
+    Integer ugroUdyamBeforeNachRolloutPercentage;
+
     @Override
     public LendingStateDTO<AgreementStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<AgreementStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        lendingStateDTO.setLendingViewStates(LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
+
+        if(udyamRegistrationRequiredLendersV2.contains(lendingStateDTO.getData().getLendingApplicationLenderDetails().getLender()) ) {
+            if(Lender.UGRO.name().equalsIgnoreCase(lendingStateDTO.getData().getLendingApplicationLenderDetails().getLender())) {
+                Boolean isUdyamRequired = docUploadUtils.isUdyamRegistrationRequired(lendingStateDTO.getData().getLendingApplicationLenderDetails(), lendingStateDTO.getData().getLendingApplication());
+                Boolean isUnderRolloutPercentage = easyLoanUtil.percentScaleUp(lendingStateDTO.getData().getLendingApplication().getMerchantId(), ugroUdyamBeforeNachRolloutPercentage);
+                lendingStateDTO.setLendingViewStates((isUnderRolloutPercentage && isUdyamRequired)? LendingViewStates.UDYAM_REGISTRATION_PAGE : LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
+            }
+        }else {
+            lendingStateDTO.setLendingViewStates(LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
+        }
         return lendingStateDTO;
     }
 
@@ -159,7 +175,10 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 .loanInsurances(insurances)
                 .isInsured(isInsured)
                 .apr(updateApr(lendingApplication, isInsured))
-                .externalLoanId(lendingApplication.getExternalLoanId()).build();
+                .externalLoanId(lendingApplication.getExternalLoanId())
+                .lendingApplication(lendingApplication)
+                .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
+                .build();
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))agreementResponseV3.setTopup(true);
 
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);

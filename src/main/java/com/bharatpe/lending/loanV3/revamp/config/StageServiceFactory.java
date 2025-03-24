@@ -65,6 +65,9 @@ public class StageServiceFactory {
     @Autowired
     MaskedMobileStageService maskedMobileStageService;
 
+    @Autowired
+    UdyamRegistrationStageDataService udyamRegistrationStageDataService;
+
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
@@ -105,6 +108,8 @@ public class StageServiceFactory {
                 return blDocUploadStageDataService;
             case MASKED_MOBILE:
                 return maskedMobileStageService;
+            case UDYAM_REGISTRATION_PAGE:
+                return udyamRegistrationStageDataService;
             default:
                 return null;
         }
