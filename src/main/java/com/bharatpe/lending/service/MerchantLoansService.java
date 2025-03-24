@@ -1466,10 +1466,10 @@ public class MerchantLoansService {
                         logger.info("EDI paid ratio:{} is less than 65% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
                         eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
                     }*/
-                    if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && lendingApplication.getTenureInMonths() > 12 && ediPaidRatio < llBalanceTransferLoanEdiPaidRatioThreshold) {
-                        logger.info("For parent loan tenure {} EDI paid ratio:{} is less than {} % for Liquiloans balance transfer for merchant: {}", lendingApplication.getTenureInMonths(), ediPaidRatio, llBalanceTransferLoanEdiPaidRatioThreshold, lendingPaymentSchedule.getMerchantId());
-                        return eligiblity;
-                    }
+//                    if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && lendingApplication.getTenureInMonths() > 12 && ediPaidRatio < llBalanceTransferLoanEdiPaidRatioThreshold) {
+//                        logger.info("For parent loan tenure {} EDI paid ratio:{} is less than {} % for Liquiloans balance transfer for merchant: {}", lendingApplication.getTenureInMonths(), ediPaidRatio, llBalanceTransferLoanEdiPaidRatioThreshold, lendingPaymentSchedule.getMerchantId());
+//                        return eligiblity;
+//                    }
 //                    if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
 //                        eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
 //                    }
