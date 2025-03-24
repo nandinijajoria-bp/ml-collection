@@ -1300,7 +1300,7 @@ public class MerchantLoansService {
                     logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
-                eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
+//                eligibleAmount = Math.min(eligibleAmount, lendingPaymentSchedule.getLoanAmount());
                 if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
                    /* if (ediPaidRatio < 50D) {
                         logger.info("EDI paid ratio:{} is less than 50% for merchant:{}", ediPaidRatio, lendingPaymentSchedule.getMerchantId());
