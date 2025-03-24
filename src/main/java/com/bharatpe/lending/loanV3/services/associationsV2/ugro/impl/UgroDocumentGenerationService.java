@@ -46,13 +46,13 @@ public class UgroDocumentGenerationService {
                 return NBFCResponseDTO.builder().success(Boolean.FALSE).error("application id not found for merchant: " + lenderAssociationDetailsDto.getMerchantId()).build();
             }
 
-            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_GENERATION_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsDto);
 
             NBFCRequestDTO<?> udyamRegistrationPayload = getPayload(lenderAssociationDetailsDto);
             if (ObjectUtils.isEmpty(udyamRegistrationPayload)) {
                 log.error("UGRO: error in udyam registration payload for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_FAILED.name());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_GENERATION_FAILED.name());
                 commonService.manageApplicationState(lenderAssociationDetailsDto);
                 return NBFCResponseDTO.builder()
                         .applicationId(lenderAssociationDetailsDto.getApplicationId().toString())
@@ -63,7 +63,7 @@ public class UgroDocumentGenerationService {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 UgroUdyamRegistrationResponse udyamRegistrationResponse = objectMapper.convertValue(nbfcResponseDto.getData(), UgroUdyamRegistrationResponse.class);
                 if (!ObjectUtils.isEmpty(udyamRegistrationResponse) && !ObjectUtils.isEmpty(udyamRegistrationResponse.getLink())) {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_GENERATION_SUCCESS.name());
                     commonService.manageApplicationState(lenderAssociationDetailsDto);
                     return nbfcResponseDto;
                 }
@@ -71,7 +71,8 @@ public class UgroDocumentGenerationService {
         } catch (Exception e) {
             log.info("UGRO: exception occurred while processing udyam registration for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_FAILED.name());
+
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UDYAM_GENERATION_FAILED.name());
         commonService.manageApplicationState(lenderAssociationDetailsDto);
         return NBFCResponseDTO.builder()
                 .applicationId(lenderAssociationDetailsDto.getApplicationId().toString())

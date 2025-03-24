@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import lombok.Builder;
@@ -34,6 +36,8 @@ public class AgreementStateDTO {
     private Boolean isInsured;
     private String externalLoanId;
     private Long merchantId;
+    private LendingApplication lendingApplication;
+    private LendingApplicationLenderDetails lendingApplicationLenderDetails;
 
     @Data
     @ToString

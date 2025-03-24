@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.ugro.UgroGetLeadResponse;
@@ -36,9 +37,11 @@ public class UgroKycService {
     @Autowired
     CommonService commonService;
 
-
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
+
+    @Autowired
+    UgroConfig ugroConfig;
 
     public Boolean processKycCallback(NBFCResponseDTO nbfcResponseDTO) {
         try {
@@ -70,6 +73,16 @@ public class UgroKycService {
                 if (!ObjectUtils.isEmpty(getLeadResponse) && nbfcResponseDTO.getSuccess() && getLeadResponse.getStatus().equalsIgnoreCase("APPLICATION_APPROVED")
                         && !ObjectUtils.isEmpty(getLeadResponse.getApprovedParameters().getInstallmentAmount()) && lendingApplication.getEdi().equals(getLeadResponse.getApprovedParameters().getInstallmentAmount())) {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
+
+                    // Here the application is approved and now we will check Udyam Status
+                    if ((ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBusinessProofVerification())
+                            || (!ObjectUtils.isEmpty(getLeadResponse.getKybRemarks())
+                            && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getKybRemarks().getUdyamFormFilled())))) {
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
+                    }else {
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
+                    }
+
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                     return true;
                 }

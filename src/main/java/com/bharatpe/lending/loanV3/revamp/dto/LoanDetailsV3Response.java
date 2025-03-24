@@ -205,6 +205,10 @@ public class LoanDetailsV3Response {
                     setBLDocUploadStageResponse((BLDocUploadStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
+
+                case UDYAM_REGISTRATION_PAGE:
+                    setUdyamRegistrationPageResponse((UdyamRegistrationStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                 default:
 
             }
@@ -486,5 +490,13 @@ public class LoanDetailsV3Response {
             log.error("Exception while casting data for {} {}", lendingStateDTO, e.getMessage());
         }
         return loanDetailsV3Response;
+    }
+
+    public static void setUdyamRegistrationPageResponse(UdyamRegistrationStateDTO udyamRegistrationStateDTO, LoanDetailsV3Response loanDetailsV3Response){
+        loanDetailsV3Response.setLender(udyamRegistrationStateDTO.getLender());
+        loanDetailsV3Response.setUdyamRegistrationLink(udyamRegistrationStateDTO.getUdyamRegistrationLink());
+        loanDetailsV3Response.setMerchantId(udyamRegistrationStateDTO.getMerchantId());
+        loanDetailsV3Response.setApplicationId(udyamRegistrationStateDTO.getApplicationId());
+        loanDetailsV3Response.setUdyamRegistrationRequired(udyamRegistrationStateDTO.getIsUdyamRequired());
     }
 }
