@@ -46,6 +46,9 @@ public class DsHandler {
 
     @Autowired
     ObjectMapper mapper;
+    @Value("${validate.merhcnat.refrence.token:-}")
+    String validateMerchantRefrenceToken;
+
 
 
     public List<MerchantReference> validateMerchantReferences(Long merchantId, List<ValidateMerchantReferencesRequestDto> referenceList) {
@@ -56,7 +59,8 @@ public class DsHandler {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Authorization", "Basic ZHNfdXNlcjpkc0BiaGFyYXRwZTEyMw==");
+            //TODO : infosec issue, need to remove hardcoded value
+            headers.set("Authorization", validateMerchantRefrenceToken);
             headers.add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/54.0.2840.99 Safari/537.36");
 
             String url =

@@ -20,7 +20,9 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.service.LendingCollectionAuditService;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,7 @@ import java.util.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
+import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.NACH_BOUNCE_CHARGES;
 
 @Service
 @Slf4j
@@ -73,6 +76,10 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
     @Autowired
     private SettlementDetailsDao settlementDetailsDao;
+    @Autowired
+    LoanUtil loanUtil;
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -290,6 +297,12 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                 double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
                 penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
                 penalCharge.setPaidNachBounce(paidNachBounce);
+                LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                        lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+                PenaltyFeeLedger nachBounceLedgerApplied = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(loan.getId());
+                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && paidNachBounce > 0 && nachBounceLedgerApplied != null && !nachBounceLedgerApplied.getIsPosted()) {
+                    loanUtil.piramalPenaltyPosting(lendingApplicationLenderDetails, nachBounceLedgerApplied,nachBounceLedgerApplied.getAmount()*-1,NACH_BOUNCE_CHARGES.name());
+                }
             }
 
             if (Objects.nonNull(penalCharge.getDuePenalty())) {

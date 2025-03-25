@@ -601,7 +601,6 @@ public class KycHandler {
 
     public PanVerifyKYCResponseDto verifyPanDetailsInternal(String panNumber, String name, String dob, Long merchantId) {
         if (ObjectUtils.isEmpty(panNumber) || ObjectUtils.isEmpty(name) || ObjectUtils.isEmpty(dob)) {
-            log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
             return null;
         }
         try {

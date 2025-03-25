@@ -8,6 +8,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -20,12 +21,15 @@ public class GupShupOTPHandler {
 	@Autowired
 	RestTemplate restTemplate;
 
+	@Value("${gupshup.otp.api.password:-}")
+	String gupshupOtpApiPassword;
+
 	public Boolean sendOTP(String mobile, String message) {
 Boolean responseFlag = false;
 
 		Map<String, String> urlParams = new LinkedHashMap<>();
 		urlParams.put("userId", LendingConstants.GUPSHUP_OTP_API_USERID);
-		urlParams.put("password", LendingConstants.GUPSHUP_OTP_API_PASSWORD);
+		urlParams.put("password", gupshupOtpApiPassword);
 		urlParams.put("method", LendingConstants.GUPSHUP_SEND_OTP_METHOD);
 		urlParams.put("version", LendingConstants.GUPSHUP_API_VERSION);
 		urlParams.put("phoneNumber", mobile);
@@ -63,7 +67,7 @@ Boolean responseFlag = false;
 		
 		Map<String, String> urlParams = new LinkedHashMap<>();
 		urlParams.put("userId", LendingConstants.GUPSHUP_OTP_API_USERID);
-		urlParams.put("password", LendingConstants.GUPSHUP_OTP_API_PASSWORD);
+		urlParams.put("password", gupshupOtpApiPassword);
 		urlParams.put("method", LendingConstants.GUPSHUP_VERIFY_OTP_METHOD);
 		urlParams.put("version", LendingConstants.GUPSHUP_API_VERSION);
 		urlParams.put("phoneNumber", mobile);
