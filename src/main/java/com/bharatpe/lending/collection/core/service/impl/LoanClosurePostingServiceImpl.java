@@ -14,6 +14,7 @@ import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.config.OxyzoConfig;
@@ -35,6 +36,7 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustme
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.PaymentService;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,6 +79,12 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Lazy
     @Autowired
@@ -353,7 +361,14 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         String postingStatus = "FAILURE";
         String status="SUCCESS";
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
-        if (loanForeClosureCharges == null) {
+        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
+
+        if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
+            logger.info("Payu: Lending Payment Schedule does not exist for {}", applicationId);
+            return;
+        }
+
+        if (loanForeClosureCharges == null && !loanUtil.checkLoanCoolOffPeriod(lendingPaymentSchedule.getCreatedAt())) {
             logger.info("Payu : No foreclosure charges exist for the orderId {}", orderId);
             return;
         }
@@ -375,8 +390,10 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             logger.info("Payu: updated LCA for foreclosed event for application id : {} and status :{} ", applicationId, status);
         }
 
-        loanForeClosureCharges.setChargePostingStatus(postingStatus);
-        loanForeClosureChargesDao.save(loanForeClosureCharges);
+        if(loanForeClosureCharges != null){
+            loanForeClosureCharges.setChargePostingStatus(postingStatus);
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+        }
     }
 
     @Override
