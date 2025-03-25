@@ -114,6 +114,7 @@ public class LoanDetailsV3Response {
     private boolean retryLimitExhausted;
     private Boolean udyamRegistrationRequired;
     private String udyamRegistrationLink;
+    private String kycAddress;
 
     @Data
     @ToString
@@ -307,7 +308,6 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEdiModelModified(agreementStateDTO.isEdiModelModified());
         loanDetailsV3Response.setRepayment(agreementStateDTO.getRepayment());
         loanDetailsV3Response.setAccountDetails(agreementStateDTO.getAccountDetails());
-
     }
 
 
