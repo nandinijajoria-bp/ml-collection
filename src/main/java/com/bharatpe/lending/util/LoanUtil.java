@@ -46,13 +46,17 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
+import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
 import lombok.Setter;
 import org.apache.commons.io.FileUtils;
@@ -94,6 +98,8 @@ public class LoanUtil {
 	private static final Logger logger = LoggerFactory.getLogger(LoanUtil.class);
 	public static final int NO_OF_DAYS_IN_A_MONTH = 30;
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
+	public static final String CLOSURE = "ANY";
+	private static final String RECEIVABLE = "RECEIVABLE";
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -333,7 +339,8 @@ public class LoanUtil {
 	@Value("${fore.closure.charges.rollout.date.OXYZO:2025-01-16 00:00}")
 	String oxyzoForeClosureChargesRolloutDate;
 
-
+	@Value("${penalty.charges.rollout.date.PIRAMAL:2025-03-25 00:00}")
+	String piramalPenaltyChargesRolloutDate;
 	@Value("${autopay.upi.lenders:}")
 	String autoPayUpiLenders;
 
@@ -362,6 +369,19 @@ public class LoanUtil {
 
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
+	@Autowired
+	ObjectMapper objectMapper;
+	@Autowired
+	NbfcLenderGateway nbfcLenderGateway;
+
+	@Value("${nbfc.foreclosure.charge:api/v3/lender/post-charges}")
+	String nbfcChargePosting;
+	@Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
+	String nbfcBaseUrl;
+	@Value("${fore.closure.charges.rollout.date.PIRAMAL:-}")
+	String piramalForeClosureChargesRolloutDate;
+	@Autowired
+	PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
 	@PostConstruct
 	public void init(){
@@ -2420,6 +2440,13 @@ public class LoanUtil {
 		return isForeClosureChargesAllowed && foreClosureChargesWhitelistedLenders.contains(lender) && checkForeClosureChargesEligibility(loanCreatedAt, lender);
 	}
 
+	public boolean checkIfForeClosureChargesApplicableKfs(Date loanCreatedAt, String lender)  {
+		if("PIRAMAL".equalsIgnoreCase(lender)) {
+			return checkChargesEligibility(loanCreatedAt, lender);
+		}
+		return isForeClosureChargesAllowed && foreClosureChargesWhitelistedLenders.contains(lender) && checkForeClosureChargesEligibility(loanCreatedAt, lender);
+	}
+
 	public boolean checkForeClosureChargesEligibility(Date createdAt, String lender)  {
         try {
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
@@ -2466,6 +2493,32 @@ public class LoanUtil {
 			}
 		}
 		return date;
+	}
+
+	private String getLenderChargesRolloutDate(String lender) {
+		String date = null;
+		if (!StringUtils.isEmpty(lender)) {
+            if (lender.equals("PIRAMAL")) {
+                date = piramalPenaltyChargesRolloutDate;
+            }
+		}
+		return date;
+	}
+
+	public boolean checkChargesEligibility(Date createdAt, String lender)  {
+		try {
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+			String rolloutDate = getLenderChargesRolloutDate(lender);
+			if (!StringUtils.isEmpty(rolloutDate)) {
+				Date date = sdf.parse(rolloutDate);
+				if (createdAt.after(date)) {
+					return true;
+				}
+			}
+		} catch (Exception e) {
+			logger.info("An exception occured while checking fore closure charges eligibilty");
+		}
+		return false;
 	}
 
 	public ForeClosureDetailDTO calculateForeClosureCharges(LendingPaymentSchedule activeLoan, PaymentDetailsResponseDTO.Data data) {
@@ -2786,6 +2839,44 @@ public class LoanUtil {
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayNachRequired());
 	}
 
+	public void piramalPenaltyPosting(LendingApplicationLenderDetails lendingApplicationLenderDetails, PenaltyFeeLedger penaltyFeeLedger, double amount, String type) {
+		PiramalForeclosureChargesRequestDto piramalForeclosureChargesRequestDto = createPiramalPostChargesDto(lendingApplicationLenderDetails, penaltyFeeLedger,amount,type);
+		logger.info("Piramal: posting penalty  to lender {}", piramalForeclosureChargesRequestDto);
+		try {
+			NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(piramalForeclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcChargePosting);
+			logger.info("Piramal: response penalty  posting request :{} and response : {}", objectMapper.writeValueAsString(piramalForeclosureChargesRequestDto), nbfcResponseDto);
+			if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+				logger.info("Piramal: penalty charges posted to lender{}",nbfcResponseDto);
+				penaltyFeeLedger.setIsPosted(Boolean.TRUE);
+				penaltyFeeLedgerDao.save(penaltyFeeLedger);
+			}
+			else {
+				logger.info("Piramal: penalty  posting failed to request {} response {}",piramalForeclosureChargesRequestDto, nbfcResponseDto);
+			}
+		} catch (JsonProcessingException e) {
+			logger.error("error in posting the penalty");
+		}
+	}
+
+	private PiramalForeclosureChargesRequestDto createPiramalPostChargesDto(LendingApplicationLenderDetails lendingApplicationLenderDetails, PenaltyFeeLedger penaltyFeeLedger, double amount, String type) {
+		return PiramalForeclosureChargesRequestDto.builder()
+				.applicationId(lendingApplicationLenderDetails.getApplicationId())
+				.productName("LENDING")
+				.lender(Lender.PIRAMAL.name())
+				.payload(PiramalForeclosureChargesRequestDto.Payload.builder()
+						.productId("BRTPE")
+						.uniqueReferenceId(String.valueOf(penaltyFeeLedger.getId()))
+						.loanAccountNumber(lendingApplicationLenderDetails.getLan())
+						.adviseType(RECEIVABLE)
+						.adviseAmount(amount)
+						.adviseDate(penaltyFeeLedger.getCreatedAt())
+						.feeTypeCode(type)
+						.isTopup(false)
+						.build())
+				.build();
+	}
+
+
 	public LendingApplication fetchParentApplication(Long applicationId){
 		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
 		if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
@@ -2798,6 +2889,7 @@ public class LoanUtil {
 			throw new RuntimeException("unable to fetch parent application " + applicationId);
 		}
 		return prevApplication;
+
 	}
 }
 

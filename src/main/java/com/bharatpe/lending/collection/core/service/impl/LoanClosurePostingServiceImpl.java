@@ -192,8 +192,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             allocationDetails.add(LoanReceiptRequestDTO.AllocationDetail.builder().allocationItem("I").paidAmount(lendingLedger.getInterest()).build());
 
             loanReceiptRequestDTO.setProductId(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())? "BPETU" : "BRTPE");
-            loanReceiptRequestDTO.setLoanAccountNumber(lendingApplicationLenderDetails.getLan());
 
+            loanReceiptRequestDTO.setLoanAccountNumber(lendingApplicationLenderDetails.getLan());
             BigDecimal amount = BigDecimal.valueOf(lendingLedger.getAmount());
             loanReceiptRequestDTO.setPaymentAmount(amount);
             loanReceiptRequestDTO.setLedgerId(lendingLedger.getId());
@@ -201,8 +201,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             loanReceiptRequestDTO.setPaymentType(PaymentTypePiramal.FORECLOSURE_PAYMENT);
             loanReceiptRequestDTO.setPaymentRequestType(PaymentRequestType.POST);
             loanReceiptRequestDTO.setPaymentReceiptData(paymentReceiptData);
-            loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
 
+            loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
             NbfcRequestDto<LoanReceiptRequestDTO> dtoNbfcRequestDto = new NbfcRequestDto<>();
             dtoNbfcRequestDto.setLender("PIRAMAL");
             dtoNbfcRequestDto.setTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()));

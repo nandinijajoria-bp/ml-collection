@@ -2694,7 +2694,7 @@ public class LendingApplicationServiceV2 {
                     .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(monthlyIncome)
                     .annualRoi(annualRoi)
-                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .insurancePremium(insurancePremium)
                     .lenderKfsUrl(lenderKfsUrl)
@@ -3247,7 +3247,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = getFilePathLiquiloans(lendingApplication, penaltyDate, penaltyDateLiquiloans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired());
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
+                filePath = (Objects.nonNull(lendingApplication.getCreatedAt()) && kfsDto.isForeclosureChargesRequired())? "/templates/PIRAMAL/" + "KFS_NONP2P_PIRAMAL" + language + ".html" : "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL" + language +".html";
             } else if(lender.equalsIgnoreCase(Lender.USFB.name())) {
@@ -3397,7 +3397,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
+                filePath = (Objects.nonNull(lendingApplication.getCreatedAt()) && kfsDto.isForeclosureChargesRequired())? "/templates/PIRAMAL/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html" : "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.USFB.name())) {

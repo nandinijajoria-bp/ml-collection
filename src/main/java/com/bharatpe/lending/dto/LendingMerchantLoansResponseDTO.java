@@ -53,6 +53,7 @@ public class LendingMerchantLoansResponseDTO {
     private List<PenaltyConfig> penaltyConfig;
     private Boolean topupRejected;
     private Boolean timeBasedTopupDisabled;
+    private double configNachBounceAmount;
 
 
     @JsonIgnoreProperties(ignoreUnknown = true)

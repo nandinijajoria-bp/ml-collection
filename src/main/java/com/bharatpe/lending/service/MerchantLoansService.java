@@ -602,9 +602,31 @@ public class MerchantLoansService {
                 if(!ObjectUtils.isEmpty(lendingApplicationLenderDetailsSlave)){
                     loan.setAnnualRoi(lendingApplicationLenderDetailsSlave.getAnnualRoi());
                 }
+
+
+                Double nachBounce=0.0;
+                if(lendingApplicationLenderDetailsSlave != null) {
+                    switch (lendingApplicationLenderDetailsSlave.getLender()) {
+                        case "PIRAMAL":
+                        case "TRILLIONLOANS":
+                        case "LIQUILOANS_NBFC":
+                            nachBounce = 500.0;
+                            break;
+                        case "LIQUILOANS_P2P_OF":
+                        case "LIQUILOANS_P2P":
+                            nachBounce = 650.0;
+                            break;
+                        default:
+                            nachBounce = 0.0;
+                            break;
+                    }
+                }
+                responseDTO.setConfigNachBounceAmount(nachBounce);
             }
 
             LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+
+
             if (Objects.nonNull(lendingPaymentSchedule)) {
                 List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves;
 
