@@ -249,7 +249,7 @@ public class BreRequestKafka {
             String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
-            Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId());
+            Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId(), lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor());
             String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
@@ -312,12 +312,16 @@ public class BreRequestKafka {
         return "";
     }
 
-    private Boolean checkForABFLRepeatCase(Long merchantId) {
+    private Boolean checkForABFLRepeatCase(Long merchantId, String riskGroup, PincodeColor pincodeColor) {
         List<LendingPaymentScheduleSlave> previousLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(merchantId, "CLOSED");
         for(LendingPaymentScheduleSlave loan : previousLoans) {
             if(Lender.ABFL.name().equalsIgnoreCase(loan.getNbfc())) {
                 return true;
             }
+        }
+        // for other lenders send segment as TOPUP when below true
+        if ("R1".equals(riskGroup) && Arrays.asList(PincodeColor.DARK_GREEN, PincodeColor.GREEN, PincodeColor.LIGHT_GREEN).contains(pincodeColor)) {
+            return true;
         }
         return false;
     }
