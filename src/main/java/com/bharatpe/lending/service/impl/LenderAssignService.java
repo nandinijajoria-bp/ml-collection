@@ -466,7 +466,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    private boolean isPanAndAadhaarLinked(Long merchantId) {
+    public boolean isPanAndAadhaarLinked(Long merchantId) {
         LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if (!ObjectUtils.isEmpty(lendingPancardDetails) && !ObjectUtils.isEmpty(lendingPancardDetails.getName()) && !ObjectUtils.isEmpty(lendingPancardDetails.getPancardNumber()) && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())) {
 
