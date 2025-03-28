@@ -80,6 +80,12 @@ public class BreRequestKafka {
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
 
+    @Value("${non.abfl.repeat.min.loan.amount:250000}")
+    Double nonAbflRepeatMinLoanAmount;
+
+    @Value("${non.abfl.repeat.max.loan.amount:500000}")
+    Double nonAbflRepeatMaxLoanAmount;
+
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
             concurrency = "5",
@@ -249,7 +255,7 @@ public class BreRequestKafka {
             String productCode = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()) ? "TopupLoan" : "BharatPe";
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.get().getMerchantId());
             String dob = DateTimeUtil.formatDate(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy","yyyy-MM-dd");
-            Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId(), lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor());
+            Boolean isABFLRepeat = RiskSegment.REPEAT.name().equalsIgnoreCase(lendingRiskVariablesSnapshot.getRiskSegment().name()) && checkForABFLRepeatCase(lendingApplication.get().getMerchantId(), lendingRiskVariablesSnapshot.getRiskGroup(), lendingRiskVariablesSnapshot.getPincodeColor(), lendingApplication.get().getLoanAmount());
             String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
             BreApiRequestDto breRequestKafkaDto = BreApiRequestDto.builder()
                     .applicationId(applicationId)
@@ -312,7 +318,7 @@ public class BreRequestKafka {
         return "";
     }
 
-    private Boolean checkForABFLRepeatCase(Long merchantId, String riskGroup, PincodeColor pincodeColor) {
+    private Boolean checkForABFLRepeatCase(Long merchantId, String riskGroup, PincodeColor pincodeColor, Double loanAmount) {
         List<LendingPaymentScheduleSlave> previousLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(merchantId, "CLOSED");
         for(LendingPaymentScheduleSlave loan : previousLoans) {
             if(Lender.ABFL.name().equalsIgnoreCase(loan.getNbfc())) {
@@ -320,7 +326,7 @@ public class BreRequestKafka {
             }
         }
         // for other lenders send segment as TOPUP when below true
-        if ("R1".equals(riskGroup) && Arrays.asList(PincodeColor.DARK_GREEN, PincodeColor.GREEN, PincodeColor.LIGHT_GREEN).contains(pincodeColor)) {
+        if ("R1".equals(riskGroup) && Arrays.asList(PincodeColor.DARK_GREEN, PincodeColor.GREEN, PincodeColor.LIGHT_GREEN).contains(pincodeColor) && loanAmount >= nonAbflRepeatMinLoanAmount && loanAmount <= nonAbflRepeatMaxLoanAmount) {
             return true;
         }
         return false;
