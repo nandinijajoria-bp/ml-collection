@@ -286,12 +286,10 @@ public class CreditSaisonKYCService {
                 .collect(Collectors.joining(","));
 
         int addressSize = address.length();
-        String address1 = "", address2 = null;
-        if (addressSize <= csConfig.getMaxLengthAddressLine1()) {
-            address1 = poa.getAddress();
-        } else {
-            address1 = poa.getAddress().substring(csConfig.getMinLengthAddressLine1(), csConfig.getMaxLengthAddressLine1());
-            address2 = poa.getAddress().substring(csConfig.getMaxLengthAddressLine1(), csConfig.getMaxLengthAddressLine2());
+        String address1 = address.replaceFirst("^(C/O|S/O|D/O|W/O)\\s*", ""), address2 = null;
+        if(addressSize > csConfig.getMaxLengthAddressLine1()) {
+            address1 = address1.substring(csConfig.getMinLengthAddressLine1(), csConfig.getMaxLengthAddressLine1());
+            address2 = address1.substring(csConfig.getMaxLengthAddressLine1(), csConfig.getMaxLengthAddressLine2());
         }
         CreditSasionKYCRequestDTO.LinkedIndividual.Address currentAddress = CreditSasionKYCRequestDTO.LinkedIndividual.Address.builder()
                 .type(csConfig.getCurrentAddressType())
