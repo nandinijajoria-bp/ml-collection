@@ -4,6 +4,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,6 +19,7 @@ public class StageServiceFactory {
     @Autowired
     PANPINStageService panpinStageService;
 
+    @Lazy
     @Autowired
     private PlanSelectionStageService planSelectionStageService;
 
