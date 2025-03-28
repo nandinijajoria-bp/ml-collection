@@ -2530,18 +2530,25 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("NO ACTIVE LOAN");
             }
             Integer amount = request.getPayload().getAmount();
+            double penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
             if(amount < 1 ) {
                 logger.info("Amount is less than 1 for merchant id {}", merchantId);
                 return new InitiatePaymentResponseDTO("Amount is less than 1");
             }
             String paymentType = request.getPayload().getPaymentType();
-            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
-                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
-                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
-            }
-            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
-                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
-                return new InitiatePaymentResponseDTO("No dues left.");
+            //TODO: Add Due penalty handling too if enabling this
+//            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+//                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
+//                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
+//            }
+//            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+//                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
+//                return new InitiatePaymentResponseDTO("No dues left.");
+//            }
+            // foreclosure and advance payment, extra payment not allowed
+            if (amount > (Math.ceil(activeLoan.getDueAmount()) + penaltyFee)) {
+                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, (Math.ceil(activeLoan.getDueAmount()) + penaltyFee), merchantId);
+                return new InitiatePaymentResponseDTO("Amount grater than current dues.");
             }
 
 
