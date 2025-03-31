@@ -1,8 +1,12 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
@@ -18,14 +22,17 @@ import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.Set;
 
 @Component
@@ -52,6 +59,16 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
 
     @Value("${reference.page.disabled.for.topup:true}")
     Boolean referencePageDisabledForTopup;
+
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
+    private LendingEligibleLoanDao eligibleLoanDao;
+
+    @Autowired
+    @Lazy
+    LoanUtil loanUtil;
 
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -124,12 +141,6 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                             nextPage = LendingViewStates.ENACH_PAGE;
                         }
                     }
-                }
-            }
-            if(offerModifiedEligibleLenders.contains(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) && lendingApplication.getLoanAmount() > lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) {
-                    nextPage = LendingViewStates.MODIFIED_OFFER;
                 }
             }
 

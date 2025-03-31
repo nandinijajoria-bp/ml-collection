@@ -107,6 +107,9 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.pre.rps.api.url:api/v3/lender/pre-repayment-schedule}")
     String preRpsUrl;
 
+    @Value("${nbfc.update.loan:api/v3/lender/update-loan}")
+    String nbfcUpdateLoanUrl;
+
     @Value("${http.payu.read.timeout:20000}")
     int payuReadTimeout;
 
@@ -189,6 +192,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+generateDocumentUrl;
             case "PRE_RPS":
                 return nbfcBaseUrl+preRpsUrl;
+            case "UPDATE_LOAN":
+                return  nbfcBaseUrl+nbfcUpdateLoanUrl;
             default:
                 return null;
         }

@@ -279,6 +279,8 @@ public class NbfcUtils {
                 return  associationServiceUtil.invokeConsentPostingService(lender, lenderAssociationDetailsDto);
             case "GET_LEAD":
                 return  associationServiceUtil.invokeGetLeadService(lender, lenderAssociationDetailsDto);
+            case "UPDATE_LOAN":
+                return associationServiceUtil.invokeUpdateLoan(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }

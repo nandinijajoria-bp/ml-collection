@@ -20,6 +20,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDt
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLNachMandateRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLeadRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLeadRequestV2Dto;
+import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLoanRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
@@ -137,6 +138,68 @@ public class TLUpdateLeadService {
         }
         return null;
     }
+
+    @Transactional
+    public boolean invokeUpdateLoan(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto){
+        log.info("calling update loan for application:{}", lenderAssociationDetailsRequestDto.getApplicationId());
+        LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
+        try{
+            if(!LenderAssociationStatus.OFFER_MODIFICATION_PENDING.name().equals(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getDrawDownStatus())){
+                log.info("offer modification is not in pending state for application:{}", lenderAssociationDetailsRequestDto.getApplicationId());
+            }
+            NBFCRequestDTO updateLoanRequestDTO = getPayloadForUpdateLoan(lenderAssociationDetailsRequestDto);
+            if (Objects.isNull(updateLoanRequestDTO)){
+                log.info("error in update lead payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.OFFER_MODIFICATION_FAILED);
+                return false;
+            }
+            NBFCResponseDTO updateLoanResponseDTO = lenderAPIGateway.invokeStage(updateLoanRequestDTO, LenderAssociationStages.UPDATE_LOAN);
+            log.info("update loan response of TrillionLoans from nbfc: {} with applicationId: {}", updateLoanResponseDTO, lenderAssociationDetailsRequestDto.getApplicationId());
+            if(Objects.nonNull(updateLoanResponseDTO) && updateLoanResponseDTO.getSuccess() && Objects.nonNull(updateLoanResponseDTO.getData())){
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_COMPLETED.name());
+                commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
+                return true;
+            } else {
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.OFFER_MODIFICATION_FAILED);
+                return false;
+            }
+        } catch(Exception ex){
+            log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+        }
+        return false;
+    }
+
+    private NBFCRequestDTO getPayloadForUpdateLoan(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
+        try {
+            TLUpdateLoanRequestDto tlUpdateLoanRequestDto = null;
+            tlUpdateLoanRequestDto =  TLUpdateLoanRequestDto.builder()
+                    .tenure(lendingApplication.getTenureInMonths())
+                    .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
+                    .loanAmountRequested(String.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt()))
+                    .lender(lendingApplication.getLender())
+                    .rateOfInterest(String.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getAnnualRoi()))
+                    .build();
+            if(payloadValidation.isInvalidUpdateLoanPayload(tlUpdateLoanRequestDto)){
+                log.info("Error in getting update lead details payload for TrillionLoans merchantId {} and application {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                return null;
+            }
+
+            return NBFCRequestDTO.builder()
+                    .applicationId(lendingApplication.getId())
+                    .lender(lendingApplication.getLender())
+                    .productName("LENDING")
+                    .payload(tlUpdateLoanRequestDto)
+                    .build();
+        } catch (Exception ex){
+            log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
+
 
     private String getAccountType(String accountType) {
         if (Arrays.asList("CURRENT", "SAVINGS").contains(accountType))

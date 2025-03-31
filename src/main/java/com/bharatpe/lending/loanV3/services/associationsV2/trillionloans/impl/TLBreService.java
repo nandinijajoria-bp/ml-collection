@@ -163,7 +163,23 @@ public class TLBreService {
                 breCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLBreCallbackResponseDto.class);
                 log.info("BRE callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), breCallbackResponseDto);
                 if (!ObjectUtils.isEmpty(breCallbackResponseDto) && breCallbackResponseDto.getSuccess() && breCallbackResponseDto.getAction().equalsIgnoreCase("Eligible")) {
-                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
+                    if(!ObjectUtils.isEmpty(breCallbackResponseDto.getLimit()) && Double.parseDouble(breCallbackResponseDto.getLimit()) < lendingApplication.getLoanAmount()){
+                        log.info("offer downgraded for application:{}", lendingApplication.getId());
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setNbfcApprovedLoanOfferAmt(Double.parseDouble(breCallbackResponseDto.getLimit()));
+                        LendingApplication lendingApplication1 = commonService.createDuplicateApplication(lendingApplication, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
+                        boolean shouldLenderNotBeConsidered = commonService.additionalLenderDowngradeChecksFailed(lendingApplication1, "TRILLIONLOANS");
+                        if(shouldLenderNotBeConsidered){
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.RISK_FAILED);
+                            return false;
+                        } else {
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_PENDING.name());
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setStage(LenderAssociationStages.COMPLETED.name());
+                            commonService.manageApplicationState(lenderAssociationDetailsRequest);
+                            return true;
+                        }
+                    }
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_PENDING.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                     log.info("LALD DAO - {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
                     return true;
