@@ -271,7 +271,7 @@ public class CreditSaisonKYCService {
 
     public List<CreditSasionKYCRequestDTO.LinkedIndividual.Address> getAddress(CKycResponseDto cKycResponseDto, Long applicationId, Long merchantId) {
 
-        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoAXml(), merchantId, cKycResponseDto, applicationId);
+        CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), merchantId, cKycResponseDto, applicationId);
 
         String address = Stream.of(
                         poa.getHouse(),
