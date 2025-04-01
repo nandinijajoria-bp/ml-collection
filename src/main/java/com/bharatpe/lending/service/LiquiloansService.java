@@ -687,7 +687,7 @@ public class LiquiloansService {
                 if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
                         && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule,postPayoutRequestDto )) {
                     logger.info("In amount mismatch check for application_id: {}", postPayoutRequestDto.getApplicationId());
-                    return getPostPayoutResponseDtoResponseEntity(postPayoutRequestDto, lendingApplication, postPayoutResponseDto, postPayoutAuditDto, kafkaAudit);
+                    return markDisbursalAmountMismatch(postPayoutRequestDto, lendingApplication, postPayoutResponseDto, postPayoutAuditDto, kafkaAudit);
                 }
 
                 logger.info("Changing loan_disbursal_status to 'DISBURSED' application_id : {}", lendingApplication.getId());
@@ -950,7 +950,7 @@ public class LiquiloansService {
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
     }
 
-    private ResponseEntity<PostPayoutResponseDto> getPostPayoutResponseDtoResponseEntity(PostPayoutRequestDto postPayoutRequestDto, LendingApplication lendingApplication, PostPayoutResponseDto postPayoutResponseDto, PostPayoutAuditDto postPayoutAuditDto, KafkaAudit<PostPayoutAuditDto> kafkaAudit) {
+    private ResponseEntity<PostPayoutResponseDto> markDisbursalAmountMismatch(PostPayoutRequestDto postPayoutRequestDto, LendingApplication lendingApplication, PostPayoutResponseDto postPayoutResponseDto, PostPayoutAuditDto postPayoutAuditDto, KafkaAudit<PostPayoutAuditDto> kafkaAudit) {
         lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
         lendingApplicationDao.save(lendingApplication);
         logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
@@ -2314,7 +2314,7 @@ public class LiquiloansService {
             return false;
         }
         if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage)){
-            logger.info("Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}",
+            logger.info("In llbt to trillion topup amount mismatch check, Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}",
                     postPayoutRequestDto.getDisbursedAmount(),
                     lendingApplication.getDisbursalAmount(),
                     lendingPaymentSchedule.getEdiAmount(),
