@@ -297,6 +297,9 @@ public class LiquiloansService {
     @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
     String pdpPartialRollout;
 
+    @Value("${llBT.to.TlTop.Amount.Mismatch.RollOut.Percentage:1}")
+    Integer llBTtoTlTopAmountMismatchRollOutPercentage;
+
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -680,7 +683,7 @@ public class LiquiloansService {
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
 
-                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())
+                if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())
                         && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())
                         && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevLendingPaymentSchedule.getNbfc())){
                         logger.info("In amount mismatch check for Trillion topup for application_id: {}",postPayoutRequestDto.getApplicationId());
