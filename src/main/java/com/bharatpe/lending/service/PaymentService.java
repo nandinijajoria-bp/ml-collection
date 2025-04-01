@@ -43,6 +43,7 @@ import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.handlers.EmiHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
@@ -123,6 +124,9 @@ public class PaymentService {
     @Autowired
     LoyaltyService loyaltyService;
 
+    @Autowired
+    EmiHandler emiHandler;
+
 //	@Autowired
 //	MerchantDao merchantDao;
 
@@ -178,6 +182,11 @@ public class PaymentService {
     @Value(("${pg.ios.version:254}"))
     Long iosVersion;
 
+    @Value("${pg.emi-order-id.prefix:QA_EMI_LOAN_}")
+    String pgEmiOrderIdPrefix;
+
+    @Value("${pg.emi.callback.enable:true}")
+    boolean pgEmiCallbackEnable;
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
@@ -793,6 +802,11 @@ public class PaymentService {
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
         log.info("Pg callback reciverd from pg {}",request);
+        if (pgEmiCallbackEnable && request != null && request.getOrderId() != null && request.getOrderId().startsWith(pgEmiOrderIdPrefix)) {
+            log.info("Callback received for EMI LOAN orderId: {}", request.getOrderId());
+            emiHandler.handleEmiPgCallback(request);
+            return "OK";
+        }
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
