@@ -297,6 +297,9 @@ public class LiquiloansService {
     @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
     String pdpPartialRollout;
 
+    @Value("${llBT.to.TlTop.Amount.Mismatch.RollOut.Percentage:1}")
+    Integer llBTtoTlTopAmountMismatchRollOutPercentage;
+
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -682,16 +685,9 @@ public class LiquiloansService {
 
                 // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
                 if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
-                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule)) {
-                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
-                    lendingApplicationDao.save(lendingApplication);
-                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
-                    postPayoutResponseDto.setStatus("FAILED");
-                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
-                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
-                    kafkaAudit.setData(postPayoutAuditDto);
-                    pushKafkaAudit(kafkaAudit);
-                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
+                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule,postPayoutRequestDto )) {
+                    logger.info("In amount mismatch check for application_id: {}", postPayoutRequestDto.getApplicationId());
+                    return markDisbursalAmountMismatch(postPayoutRequestDto, lendingApplication, postPayoutResponseDto, postPayoutAuditDto, kafkaAudit);
                 }
 
                 logger.info("Changing loan_disbursal_status to 'DISBURSED' application_id : {}", lendingApplication.getId());
@@ -952,6 +948,18 @@ public class LiquiloansService {
         }
         savePaymentLink(lendingApplication.getMerchantId().toString(), lendingApplication.getExternalLoanId());
         return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
+    }
+
+    private ResponseEntity<PostPayoutResponseDto> markDisbursalAmountMismatch(PostPayoutRequestDto postPayoutRequestDto, LendingApplication lendingApplication, PostPayoutResponseDto postPayoutResponseDto, PostPayoutAuditDto postPayoutAuditDto, KafkaAudit<PostPayoutAuditDto> kafkaAudit) {
+        lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
+        lendingApplicationDao.save(lendingApplication);
+        logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
+        postPayoutResponseDto.setStatus("FAILED");
+        postPayoutResponseDto.setMessage("disbursal amount mismatch");
+        postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+        kafkaAudit.setData(postPayoutAuditDto);
+        pushKafkaAudit(kafkaAudit);
+        return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
     }
 
     private void savePaymentLink(String merchantId, String externalLoanId) {
@@ -2300,9 +2308,19 @@ public class LiquiloansService {
         return false;
     }
 
-    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
-        return LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) &&
-                (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
-                        (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
+    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule,PostPayoutRequestDto postPayoutRequestDto) {
+        if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ||
+                !Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())){
+            return false;
+        }
+        if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage)){
+            logger.info("In llbt to trillion topup amount mismatch check, Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}",
+                    postPayoutRequestDto.getDisbursedAmount(),
+                    lendingApplication.getDisbursalAmount(),
+                    lendingPaymentSchedule.getEdiAmount(),
+                    lendingApplication.getId());
+            return Math.abs(postPayoutRequestDto.getDisbursedAmount() - lendingApplication.getDisbursalAmount()) > (lendingPaymentSchedule.getEdiAmount()*5);
+        }
+        return false;
     }
 }
