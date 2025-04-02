@@ -682,19 +682,18 @@ public class LiquiloansService {
                     pushKafkaAudit(kafkaAudit);
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
-
-                if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())
-                        && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())
-                        && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevLendingPaymentSchedule.getNbfc())){
-                        logger.info("In amount mismatch check for llbt to Trillion topup for application_id: {}",postPayoutRequestDto.getApplicationId());
-                        if(amountMismatchCheckApplicableForLlBtToTrillionTopup(postPayoutRequestDto, lendingApplication, prevLendingPaymentSchedule)){
-                            return markDisbursalAmountMismatch(postPayoutRequestDto, lendingApplication, postPayoutResponseDto, postPayoutAuditDto, kafkaAudit);
-                        }
-                }
                 // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
-                else if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
-                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule)) {
-                    return markDisbursalAmountMismatch(postPayoutRequestDto, lendingApplication, postPayoutResponseDto, postPayoutAuditDto, kafkaAudit);
+                if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
+                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule,postPayoutRequestDto)) {
+                    lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
+                    lendingApplicationDao.save(lendingApplication);
+                    logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
+                    postPayoutResponseDto.setStatus("FAILED");
+                    postPayoutResponseDto.setMessage("disbursal amount mismatch");
+                    postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
+                    kafkaAudit.setData(postPayoutAuditDto);
+                    pushKafkaAudit(kafkaAudit);
+                    return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
                 }
 
                 logger.info("Changing loan_disbursal_status to 'DISBURSED' application_id : {}", lendingApplication.getId());
@@ -2303,34 +2302,20 @@ public class LiquiloansService {
         return false;
     }
 
-    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
-        return LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) &&
-                (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
+    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule,PostPayoutRequestDto postPayoutRequestDto) {
+        if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+            return false;
+        }
+        if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())
+                && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())
+                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage)){
+            logger.info("In amount mismatch check for llbt to Trillion topup, Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getDisbursalAmount(), lendingPaymentSchedule.getEdiAmount(), lendingApplication.getId());
+            return (postPayoutRequestDto.getDisbursedAmount() > lendingApplication.getDisbursalAmount()
+                    && ((postPayoutRequestDto.getDisbursedAmount() - lendingApplication.getDisbursalAmount()) > (lendingPaymentSchedule.getEdiAmount()*5)))
+                    || (postPayoutRequestDto.getDisbursedAmount() < lendingApplication.getDisbursalAmount());
+        }
+        return (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
                         (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
     }
 
-
-    private boolean amountMismatchCheckApplicableForLlBtToTrillionTopup(PostPayoutRequestDto postPayoutRequestDto,LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule){
-        logger.info("Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}",
-                postPayoutRequestDto.getDisbursedAmount(),
-                lendingApplication.getDisbursalAmount(),
-                lendingPaymentSchedule.getEdiAmount(),
-                lendingApplication.getId());
-        return (postPayoutRequestDto.getDisbursedAmount() > lendingApplication.getDisbursalAmount()
-                && ((postPayoutRequestDto.getDisbursedAmount() - lendingApplication.getDisbursalAmount()) > (lendingPaymentSchedule.getEdiAmount()*5)))
-        || (postPayoutRequestDto.getDisbursedAmount() < lendingApplication.getDisbursalAmount());
-    }
-
-    private ResponseEntity<PostPayoutResponseDto> markDisbursalAmountMismatch(PostPayoutRequestDto postPayoutRequestDto, LendingApplication lendingApplication, PostPayoutResponseDto postPayoutResponseDto, PostPayoutAuditDto postPayoutAuditDto, KafkaAudit<PostPayoutAuditDto> kafkaAudit) {
-        logger.info("In amount mismatch check for LL_BT to Trillion, application_id: {}", postPayoutRequestDto.getApplicationId());
-        lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
-        lendingApplicationDao.save(lendingApplication);
-        logger.error("In LL_BT to Trillion, amount mismatch check is applicable for application_id {}", postPayoutRequestDto.getApplicationId());
-        postPayoutResponseDto.setStatus("FAILED");
-        postPayoutResponseDto.setMessage("disbursal amount mismatch");
-        postPayoutAuditDto.setPostPayoutResponse(postPayoutResponseDto);
-        kafkaAudit.setData(postPayoutAuditDto);
-        pushKafkaAudit(kafkaAudit);
-        return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.BAD_REQUEST);
-    }
 }
