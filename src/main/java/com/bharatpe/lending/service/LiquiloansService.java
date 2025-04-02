@@ -2304,7 +2304,7 @@ public class LiquiloansService {
 
     private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule,PostPayoutRequestDto postPayoutRequestDto) {
         if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
-            return false;
+            return true;
         }
         if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())
                 && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())
