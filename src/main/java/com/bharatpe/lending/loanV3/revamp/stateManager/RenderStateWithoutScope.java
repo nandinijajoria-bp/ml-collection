@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingMerchantPermissionsDao;
 import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingMerchantPermissions;
 import com.bharatpe.lending.common.entity.LendingMerchantReferences;
@@ -83,6 +84,8 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
 
     @Autowired
     private EmiDashboardService emiDashboardService;
+    @Autowired
+    private LendingShopDocumentsDao lendingShopDocumentsDao;
 
     @Autowired
     private EmiUtils emiUtils;
@@ -105,6 +108,10 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             if(!ObjectUtils.isEmpty(lendingApplicationDetails) && !ObjectUtils.isEmpty(lendingApplicationDetails.getApplicationViewState())){
                 loanDetailsV3Response.setNextPage(lendingApplicationDetails.getApplicationViewState());
                 log.info("returning next page from db for {} : {}", scopeDataArgs.getMerchant().getId(), loanDetailsV3Response.getNextPage());
+                return loanDetailsV3Response;
+            }
+            if(isShopPicture(scopeDataArgs, loanDetailsV3Response)){
+                log.info("shop picture page pending: {}", scopeDataArgs);
                 return loanDetailsV3Response;
             }
 
@@ -166,6 +173,23 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         loanDetailsV3Response.setNextPage(LendingViewStates.PAN_PIN_PAGE.name());
         return loanDetailsV3Response;
     }
+
+    private boolean isShopPicture(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+        log.info("checking for shop picture page for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        LendingStateDTO<?> lendingStateDTO = getShopPicturePage(scopeDataArgs);
+        return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
+    }
+
+    private LendingStateDTO<?> getShopPicturePage(ScopeDataArgs scopeDataArgs) {
+        int hasValidProofTypeResponse = lendingShopDocumentsDao.hasValidProofTypes(
+                scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
+        if(hasValidProofTypeResponse!=1){
+            log.info("shop picture does not exist for application: {}", scopeDataArgs.getApplicationId());
+            return LendingStateDTO.builder().scopeState(LendingViewStates.SHOP_PICTURES_PAGE).build();
+        }
+        return null;
+    }
+
     private boolean showPlanSelectionPage(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
         log.info("checking for plan selection page for merchant_id: {}", scopeDataArgs.getMerchant().getId());
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = getPlanSelectionPage(scopeDataArgs);
