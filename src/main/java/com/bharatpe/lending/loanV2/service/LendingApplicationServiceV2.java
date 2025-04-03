@@ -129,6 +129,7 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Slf4j
 public class LendingApplicationServiceV2 {
 
+    public static final String LOAN_FORECLOSURE_CACHE_PREFIX = "loan_foreclosure_";
     @Autowired
     private LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
@@ -378,6 +379,13 @@ public class LendingApplicationServiceV2 {
     private EmiUtils emiUtils;
     @Autowired
     private EmiDashboardService emiDashboardService;
+
+    @Value("${lender.enable.foreclosure.amount.cache:PIRAMAL}")
+    private String lenderEnableForeclosureAmountCache;
+
+    @Value("${piramal.foreclosure.cache.minutes:2}")
+    int piramalForeclosureCacheMinutes;
+
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -4502,17 +4510,62 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong!");
     }
 
-    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
-        Double foreClosureAmount = 0D;
-        foreClosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
-        if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
-            foreClosureAmount = (double) loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+        if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+            return validateForeclosureAmount(Double.valueOf(loanUtil.getForeclosureAmount(lendingPaymentSchedule)).doubleValue(), lendingPaymentSchedule);
         }
-        if(foreClosureAmount <= 0){
-            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+
+        if (lenderEnableForeclosureAmountCache.contains(lendingPaymentSchedule.getNbfc())) {
+            return validateForeclosureAmount(getForeclosureAmountFromCacheOrFetch(lendingPaymentSchedule), lendingPaymentSchedule);
         }
-        return foreClosureAmount;
+
+        return validateForeclosureAmount(fetchForeclosureAmountWithFallback(lendingPaymentSchedule), lendingPaymentSchedule);
+    }
+
+    private Double getForeclosureAmountFromCacheOrFetch(LendingPaymentSchedule lendingPaymentSchedule) {
+        String cacheKey = LOAN_FORECLOSURE_CACHE_PREFIX + lendingPaymentSchedule.getId();
+        log.info("Searching foreclosure amount in cache with key: {} applicationId: {}", cacheKey, lendingPaymentSchedule.getApplicationId());
+
+        try {
+            Object cachedValue = lendingCache.get(cacheKey);
+            if (cachedValue != null) {
+                Double cachedAmount = commonUtil.convertToDouble(cachedValue);
+                log.info("Cache hit: foreclosure amount for key {} is {}", cacheKey, cachedAmount);
+                return cachedAmount;
+            }
+
+            log.info("Cache miss: fetching foreclosure amount for key: {}", cacheKey);
+            Double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+            storeForeclosureAmountInCache(cacheKey, foreclosureAmount, lendingPaymentSchedule.getNbfc());
+            return foreclosureAmount;
+        } catch (Exception e) {
+            log.error("Error fetching foreclosure amount from cache for merchantId: {}, loanId: {}, error: {}",
+                    lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId(), e.getMessage(), e);
+            return fetchForeclosureAmountWithFallback(lendingPaymentSchedule);
+        }
+    }
+
+    private void storeForeclosureAmountInCache(String cacheKey, Double foreclosureAmount, String nbfc) {
+        log.info("Storing foreclosure amount {} in cache with key {}", foreclosureAmount, cacheKey);
+        AddCacheDto addCacheDto = new AddCacheDto();
+        addCacheDto.setKey(cacheKey);
+        addCacheDto.setTtl(getLenderTTL(nbfc.toUpperCase()));
+        addCacheDto.setValue(foreclosureAmount);
+
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        log.info("Cache updated for key: {} with value {}", cacheKey, foreclosureAmount);
+    }
+
+    private Double fetchForeclosureAmountWithFallback(LendingPaymentSchedule lendingPaymentSchedule) {
+        return loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+    }
+
+    private Double validateForeclosureAmount(Double foreclosureAmount, LendingPaymentSchedule lendingPaymentSchedule) {
+        if (foreclosureAmount == null || foreclosureAmount <= 0) {
+            log.error("Foreclosure amount <= 0 for merchantId {}, loanId {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new RuntimeException("Unable to fetch foreclosure amount for parent loan");
+        }
+        return foreclosureAmount;
     }
 
     public ApiResponse<?> generateLenderKfs(LendingApplication lendingApplication, Boolean preSigned) {
@@ -5073,6 +5126,16 @@ public class LendingApplicationServiceV2 {
             lendingKfs.setKfsDocUrl(kfsShortUrl);
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    Integer getLenderTTL(String lender) {
+        switch (lender) {
+            case "PIRAMAL": {
+                return piramalForeclosureCacheMinutes;
+            }
+            default:
+                return 2;
         }
     }
 }

@@ -147,4 +147,19 @@ public class CommonUtil {
         }
         return stringBuilder.toString();
     }
+
+    public Double convertToDouble(Object obj) {
+        if (obj instanceof Number) {
+            return ((Number) obj).doubleValue();
+        } else if (obj instanceof String) {
+            try {
+                return Double.parseDouble((String) obj);
+            } catch (NumberFormatException e) {
+                return  0D;
+            }
+        }
+        return  0D;
+    }
+
+
 }
