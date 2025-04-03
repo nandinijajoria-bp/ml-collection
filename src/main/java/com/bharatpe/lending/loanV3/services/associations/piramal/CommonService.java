@@ -156,4 +156,7 @@ public class CommonService {
         return newApplication;
     }
 
+    public boolean offerDowngradeThresholdChecksFailed(double offerDowngradeThreshold, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto){
+        return nbfcUtils.offerDowngradeThresholdChecksFailed(offerDowngradeThreshold, lenderAssociationDetailsRequestDto);
+    }
 }

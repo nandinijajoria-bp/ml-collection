@@ -142,6 +142,9 @@ public interface LendingConstants {
 	String ELIGIBLE = "ELIGIBLE";
 	String INELIGIBLE = "INELIGIBLE";
 	String CALL_MASKED_MOBILE_FLOW="CALL_MASKED_MOBILE_FLOW";
+	String OFFER_DOWNGRADE_PERCENTAGE = "offer_downgrade_percentage";
+	String OFFER_DOWNGRADE_THRESHOLD = "offer_downgrade_threshold";
+
 	String HEADER_X_API_KEY = "X-API-KEY";
 }
 
