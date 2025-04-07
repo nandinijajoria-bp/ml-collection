@@ -383,6 +383,12 @@ public class LoanUtil {
 	@Autowired
 	PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
+	@Value("${pricing.experiment.enable: false}")
+	boolean pricingExpEnabled;
+
+	@Autowired
+	PricingExperimentDao pricingExperimentDao;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
@@ -2736,29 +2742,38 @@ public class LoanUtil {
 		String pincodeColor = lendingRiskVariables.getPincodeColor().name();
 		String rejectedLenders = lendingRiskVariables.getRejectedLenders();
 		LendingLenderPricingDao.MaxValuesDto maxValuesDto= null;
-		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
-
-		if (StringUtils.isEmpty(rejectedLenders)) {
-			//fetch only active max pricing here.
-			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
-		} else {
-			Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
-			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
-
-		}
-		if(ObjectUtils.isEmpty(maxValuesDto)
-		|| ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
-				|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
-				|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
-				|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
-			logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
-			return null;
-		}
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
-		maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
-		maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
-		maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
-		maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
+
+		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
+		PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
+		if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+			logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
+			maxPricingValuesDTO.setMaxProcessingFeeRate(pricingExperiment.getProcessingFeeRate());
+			maxPricingValuesDTO.setMaxApr(pricingExperiment.getApr());
+			maxPricingValuesDTO.setMaxIrr(pricingExperiment.getIrr());
+			maxPricingValuesDTO.setMaxInterestRate(pricingExperiment.getInterestRate());
+		}else {
+			if (StringUtils.isEmpty(rejectedLenders)) {
+				//fetch only active max pricing here.
+				maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
+			} else {
+				Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
+				maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
+
+			}
+			if (ObjectUtils.isEmpty(maxValuesDto)
+					|| ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
+					|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
+					|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
+					|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())) {
+				logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
+				return null;
+			}
+			maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
+			maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
+			maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
+			maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
+		}
 		logger.info("fetched max pricing values -> {}", maxPricingValuesDTO);
 		return maxPricingValuesDTO;
 	}

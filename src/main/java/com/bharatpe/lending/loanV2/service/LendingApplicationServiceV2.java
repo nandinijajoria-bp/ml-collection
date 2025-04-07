@@ -2995,7 +2995,7 @@ public class LendingApplicationServiceV2 {
         * This method is to be used specifically for calculating APR for base checks only.
         * This caters the case of using lender pricing config for APR calculation
      */
-    public Double getAprForBaseChecks(LendingApplication lendingApplication, Double amountToCalculateAprOn, Integer ediModel, String lender, LendingLenderPricing lenderPricing){
+    public Double getAprForBaseChecks(LendingApplication lendingApplication, Double amountToCalculateAprOn, Integer ediModel, String lender, double interestRate){
         try{
             long applicationId = lendingApplication.getId();
             long merchantId = lendingApplication.getMerchantId();
@@ -3006,11 +3006,11 @@ public class LendingApplicationServiceV2 {
 
             //Get Lender pricing config for APR calculation
             Double edi = lendingApplication.getEdi();
-            if (!ObjectUtils.isEmpty(lenderPricing)) {
-                Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                Double interestAmt = (lendingApplication.getLoanAmount() * (lenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-            }
+
+            Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
+            Double interestAmt = (lendingApplication.getLoanAmount() * (interestRate * lendingApplication.getTenureInMonths()) / 100) ;
+            edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+
 
             CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi, lendingApplication);
             if(!response.isSuccess()){

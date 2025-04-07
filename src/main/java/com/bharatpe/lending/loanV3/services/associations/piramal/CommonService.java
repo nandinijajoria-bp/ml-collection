@@ -17,6 +17,7 @@ import com.bharatpe.lending.util.CommonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -54,6 +55,12 @@ public class CommonService {
     private LendingEligibleLoanDao eligibleLoanDao;
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
+    PricingExperimentDao pricingExperimentDao;
+
+    @Value("${pricing.experiment.enable: false}")
+    boolean pricingExpEnabled;
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -124,6 +131,16 @@ public class CommonService {
         LendingApplication newApplication = new LendingApplication();
         BeanUtils.copyProperties(lendingApplication, newApplication);
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        PricingExperiment pricingExperiment = null;
+
+        if(pricingExpEnabled) {
+            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    (int) (lendingApplication.getMerchantId()%10),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+        }
 
         LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
                 lendingRiskVariablesSnapshot.getRiskSegment().name(),
@@ -140,7 +157,11 @@ public class CommonService {
         Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
 
         Double pfRate;
-        if(ObjectUtils.isEmpty(lendingLenderPricing)){
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("experiment available for {}", pricingExperiment);
+            pfRate = pricingExperiment.getProcessingFeeRate();
+        }
+        else if(ObjectUtils.isEmpty(lendingLenderPricing)){
             log.info("Lending lender pricing not available, using eligible loan values");
             pfRate = eligibleLoan.get().getProcessingFeeRate();
         } else {

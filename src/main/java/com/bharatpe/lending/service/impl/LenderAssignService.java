@@ -174,6 +174,9 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.pf.eligible.lenders:}")
     String maxPfEligibleLender;
 
+    @Value("${pricing.experiment.enable: false}")
+    boolean pricingExpEnabled;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
@@ -232,6 +235,9 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${lender.apr.enable_new_logic:true}")
     private boolean enableNewLenderAprLogic;
+
+    @Autowired
+    PricingExperimentDao pricingExperimentDao;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -1314,16 +1320,26 @@ public class LenderAssignService implements ILenderAssignService {
     public boolean maxAprCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
         BigDecimal maxApr = BigDecimal.ZERO;
         double processingFee = lendingApplication.getProcessingFee();
-        LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
-        log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+        double interestRate = lendingApplication.getInterestRate();
 
-        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
-            maxApr = BigDecimal.valueOf(lendingLenderPricing.getApr());
-            processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+        PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(lendingApplication.getMerchantId()) : null;
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("Experiment fetched for {}: {}", lendingApplication.getId(), pricingExperiment);
+            maxApr = BigDecimal.valueOf(pricingExperiment.getApr());
+            processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
+            interestRate = pricingExperiment.getInterestRate();
+        }else  {
+            LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
+            log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+
+            if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+                maxApr = BigDecimal.valueOf(lendingLenderPricing.getApr());
+                processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                interestRate = lendingLenderPricing.getInterestRate();
+            }
         }
-
         log.info("Approved loan amount - TBD : {}", lendingApplication.getLoanAmount());
-        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
+        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate);
         log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, lendingApplication.getId());
 
         return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxApr.setScale(2, RoundingMode.DOWN)) > 0;
@@ -1331,13 +1347,23 @@ public class LenderAssignService implements ILenderAssignService {
 
     public boolean maxIrrCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
         BigDecimal maxIrr = BigDecimal.ZERO;
-        LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
-        log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
-        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
-            maxIrr = BigDecimal.valueOf(lendingLenderPricing.getIrr());
+        double interestRate = lendingApplication.getInterestRate();
+
+        PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(lendingApplication.getMerchantId()) : null;
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("Experiment fetched for {}: {}", lendingApplication.getId(), pricingExperiment);
+            maxIrr = BigDecimal.valueOf(pricingExperiment.getIrr());
+            interestRate = pricingExperiment.getInterestRate();
+        }else {
+            LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
+            log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+            if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+                maxIrr = BigDecimal.valueOf(lendingLenderPricing.getIrr());
+                interestRate = lendingLenderPricing.getInterestRate();
+            }
         }
 
-        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
+        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate);
 
         log.info("Calculated IRR : {}, IRR in DB : {}, application id : {}", apr, maxIrr, lendingApplication.getId());
         return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxIrr.setScale(2, RoundingMode.DOWN)) > 0;
@@ -1349,11 +1375,18 @@ public class LenderAssignService implements ILenderAssignService {
         log.info("PF generated for application_id:{} PF:{} and lender:{}", lendingApplication.getId(), processingFee, lender);
         Double pfPercentage = (processingFee/loanAmount)*100D;
 
-        LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
-        log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
-        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
-            pfPercentage = lendingLenderPricing.getProcessingFeeRate();
+        PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(lendingApplication.getMerchantId()) : null;
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("Experiment fetched for {}: {}", lendingApplication.getId(), pricingExperiment);
+            pfPercentage = pricingExperiment.getProcessingFeeRate();
+        }else {
+            LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
+            log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+            if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+                pfPercentage = lendingLenderPricing.getProcessingFeeRate();
+            }
         }
+
         Double maxPf = 0D;
         switch (lender) {
             case "SMFG":
@@ -1391,9 +1424,16 @@ public class LenderAssignService implements ILenderAssignService {
 
             for (String lender : eligibleLenders) {
                 LendingLenderPricing lendingLenderPricing = null;
+                PricingExperiment pricingExperiment = null;
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
-                            lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                    if(pricingExpEnabled) {
+                        pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                                (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                    }
+                    else {
+                        lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
+                                lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                    }
                 }
                 if (Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender)) {
                     continue;
@@ -1401,7 +1441,11 @@ public class LenderAssignService implements ILenderAssignService {
                 log.info("adding lender {} to list", lender);
                 Double apr;
                 Double irr;
-                if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
+                if(!ObjectUtils.isEmpty(pricingExperiment)) {
+                    apr = pricingExperiment.getApr();
+                    irr = pricingExperiment.getIrr();
+                }
+                else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     apr = lendingLenderPricing.getApr();
                     irr = lendingLenderPricing.getIrr();
                 }
@@ -1607,26 +1651,46 @@ public class LenderAssignService implements ILenderAssignService {
     public void updateOfferDetails(LendingApplication lendingApplication, String newLender){
         if(!loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) return;
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
-        if(!ObjectUtils.isEmpty(lendingLenderPricing)){
-            Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
-            Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-            Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-            Double repayment = ediAmount * payableDays;
-            Double processingFee = Math.ceil((lendingLenderPricing.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
+        if(pricingExpEnabled) {
+            PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(
+                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+            if(!ObjectUtils.isEmpty(pricingExperiment)) {
+                log.info("experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
+                Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
+                Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+                Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+                Double repayment = ediAmount * payableDays;
+                Double processingFee = Math.ceil((pricingExperiment.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
 
-            log.info("Values to set for lender {} : payableDays : {} , interestAmt : {} , ediAmount : {} , repayment : {} , processingFee : {}", newLender, payableDays, interestAmt, ediAmount, repayment, processingFee);
+                log.info("Values to set for lender {} : payableDays : {} , interestAmt : {} , ediAmount : {} , repayment : {} , processingFee : {}", newLender, payableDays, interestAmt, ediAmount, repayment, processingFee);
 
-            lendingApplication.setProcessingFee(processingFee);
-            lendingApplication.setInterestRate(lendingLenderPricing.getInterestRate());
-            lendingApplication.setEdi(ediAmount);
-            lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-lendingApplication.getProcessingFee());
-            lendingApplication.setRepayment(repayment);
+                lendingApplication.setProcessingFee(processingFee);
+                lendingApplication.setInterestRate(pricingExperiment.getInterestRate());
+                lendingApplication.setEdi(ediAmount);
+                lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-lendingApplication.getProcessingFee());
+                lendingApplication.setRepayment(repayment);
+            }
+        }else {
+            LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+            if(!ObjectUtils.isEmpty(lendingLenderPricing)){
+                Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
+                Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+                Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+                Double repayment = ediAmount * payableDays;
+                Double processingFee = Math.ceil((lendingLenderPricing.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
 
-            log.info("Values set for lender {} : interest rate {}, edi {}, disbursal {}", newLender, lendingApplication.getInterestRate(), lendingApplication.getEdi(), lendingApplication.getDisbursalAmount());
-            lendingApplicationDao.save(lendingApplication);
+                log.info("Values to set for lender {} : payableDays : {} , interestAmt : {} , ediAmount : {} , repayment : {} , processingFee : {}", newLender, payableDays, interestAmt, ediAmount, repayment, processingFee);
+
+                lendingApplication.setProcessingFee(processingFee);
+                lendingApplication.setInterestRate(lendingLenderPricing.getInterestRate());
+                lendingApplication.setEdi(ediAmount);
+                lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-lendingApplication.getProcessingFee());
+                lendingApplication.setRepayment(repayment);
+            }
         }
+        log.info("Values set for lender {} : interest rate {}, edi {}, disbursal {}", newLender, lendingApplication.getInterestRate(), lendingApplication.getEdi(), lendingApplication.getDisbursalAmount());
+        lendingApplicationDao.save(lendingApplication);
     }
 
     public String lenderAssignmentHandlerV2(LendingApplication application, EdiModel ediModel, BasicDetailsDto merchantDetails, Boolean isApplicableForAggregation) {
@@ -1636,18 +1700,25 @@ public class LenderAssignService implements ILenderAssignService {
         RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
 
         log.info("riskVariables in lender assignment v2 {}", riskVariables);
-
-        //Change 1 : Fetched lender pricing list
-        List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
-                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                application.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
-        if (!CollectionUtils.isEmpty(lenderPricingList)) {
-            riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(
-                    LendingLenderPricing::getLender,
-                    java.util.function.Function.identity(),
-                    (existing, duplicate) -> existing  // Keep the first occurrence (latest due to id DESC)
-            )));
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(),
+                lendingRiskVariables.getRiskGroup(), (int) (application.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
+        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("experiment available for {}: {}", application.getMerchantId(), pricingExperiment);
+            riskVariables.setPricingExperimentMap(Collections.singletonMap(application.getMerchantId(), pricingExperiment));
+        }else {
+            //Change 1 : Fetched lender pricing list
+            List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
+                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                    application.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
+            if (!CollectionUtils.isEmpty(lenderPricingList)) {
+                riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(
+                        LendingLenderPricing::getLender,
+                        java.util.function.Function.identity(),
+                        (existing, duplicate) -> existing  // Keep the first occurrence (latest due to id DESC)
+                )));
+            }
         }
+
         try {
             double bureauScore = riskVariables.getBureauScore();
             String riskSegment = riskVariables.getRiskSegment();
@@ -1818,11 +1889,20 @@ public class LenderAssignService implements ILenderAssignService {
         }
 
         double edi = application.getEdi();
-        LendingLenderPricing lenderPricing = riskVariables.getLenderPricingMap().get(lender);
-        if (!ObjectUtils.isEmpty(lenderPricing)) {
+        if(!CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap())) {
+            PricingExperiment pricingExperiment = riskVariables.getPricingExperimentMap().get(application.getMerchantId());
+            log.info("experiment available for {}: {}", application.getMerchantId(), pricingExperiment);
             Long payableDays = (long) OfferUtils.getEdiDays(application.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-            Double interestAmt = (loanAmount * (lenderPricing.getInterestRate() * application.getTenureInMonths()) / 100) ;
+            Double interestAmt = (loanAmount * (pricingExperiment.getInterestRate() * application.getTenureInMonths()) / 100) ;
             edi = Math.ceil((loanAmount + interestAmt) / payableDays);
+        }
+        else {
+            LendingLenderPricing lenderPricing = riskVariables.getLenderPricingMap().get(lender);
+            if (!ObjectUtils.isEmpty(lenderPricing)) {
+                Long payableDays = (long) OfferUtils.getEdiDays(application.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
+                Double interestAmt = (loanAmount * (lenderPricing.getInterestRate() * application.getTenureInMonths()) / 100);
+                edi = Math.ceil((loanAmount + interestAmt) / payableDays);
+            }
         }
 
         switch (lenderEnum) {
