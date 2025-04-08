@@ -8,7 +8,12 @@ public enum ReferenceRelation {
     WIFE("WIFE"),
     HUSBAND("HUSBAND"),
     FRIEND("FRIEND"),
-    OTHER("OTHER");
+    OTHER("OTHER"),
+    PARENT("Parent"),
+    BROTHER_SISTER("Brother/Sister"),
+    HUSBAND_WIFE("Husband/Wife"),
+    FRIEND_OTHER("Friend/Other");
+
 
     String val;
 

@@ -205,8 +205,8 @@ public class LendingApplicationController {
 	}
 
 	@GetMapping(value="/edi_schedule/v2", produces = "application/json")
-	public ResponseEntity<CommonResponse> getEdiScheduleV2(@RequestParam Long merchantId, @RequestParam Long applicationId){
-		return new ResponseEntity<>(lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId), HttpStatus.OK);
+	public ResponseEntity<CommonResponse> getEdiScheduleV2(@RequestParam Long merchantId, @RequestParam Long applicationId, @RequestParam(required = false) Long paymentDate){
+		return new ResponseEntity<>(lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId, paymentDate), HttpStatus.OK);
 	}
 
 	@RequestMapping(value="/allow_bankaccount_change", method = RequestMethod.GET, produces="application/json")
@@ -269,6 +269,36 @@ public class LendingApplicationController {
 		logger.info("singAgreement request {} for merchant id : {}", requestDTO, merchant.getId());
 		Map<String, Object> response = signAgreementService.createNewApplicationAndSendOTPForTopup(merchant, requestDTO);
 		return new ResponseEntity<>(new ApiResponse<>(response), HttpStatus.OK);
+	}
+
+	@RequestMapping(value="/loan/active/merchant", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<?> getMerchantActiveLoanDetails(@RequestParam(name = "merchantId") Long merchantId) {
+		logger.info("Get active loan details request for merchant: {}", merchantId);
+		if (ObjectUtils.isEmpty(merchantId)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields merchantId not sent"),
+					HttpStatus.BAD_REQUEST);
+		}
+        ApiResponse<?> response = lendingApplicationService.getMerchantActiveLoanDetails(merchantId);
+		if (!response.isSuccess()) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+		}
+
+		return ResponseEntity.ok(response);
+	}
+
+	@RequestMapping(value="/internal/loan/active/merchant", method = RequestMethod.GET, produces="application/json")
+	public ResponseEntity<?> getMerchantActiveLoanDetailsInternal(@RequestParam(name = "merchantId") Long merchantId) {
+		logger.info("Get active loan details request for merchant: {}", merchantId);
+		if (ObjectUtils.isEmpty(merchantId)) {
+			return new ResponseEntity<>(new ApiResponse<>(false, "Required fields merchantId not sent"),
+					HttpStatus.BAD_REQUEST);
+		}
+		ApiResponse<?> response = lendingApplicationService.getMerchantActiveLoanDetails(merchantId);
+		if (!response.isSuccess()) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+		}
+
+		return ResponseEntity.ok(response);
 	}
 
 }

@@ -20,10 +20,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.List;
+import java.util.*;
 import java.text.SimpleDateFormat;
 
 @Service
@@ -135,7 +132,7 @@ public class LendingEdiScheduleService {
         return bd.doubleValue();
     }
 
-    public CommonResponse getEdiScheduleV2(Long merchantId, Long applicationId) {
+    public CommonResponse getEdiScheduleV2(Long merchantId, Long applicationId, Long scheduleStartDate) {
         logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
         try {
             LendingApplication lendingApplication =
@@ -161,6 +158,14 @@ public class LendingEdiScheduleService {
                 int ioInstallmentNo = 1;
                 if (lendingPaymentSchedule != null) {
                     cal.setTime(lendingPaymentSchedule.getInterestOnlyStartDate());
+                }
+                else if(lendingApplication.getLender().equalsIgnoreCase(Lender.OXYZO.name())){
+                    if(Objects.nonNull(scheduleStartDate)){
+                        Date paymentDate = new Date(scheduleStartDate);
+                        cal.setTime(paymentDate);
+                    }
+                    cal.add(Calendar.DAY_OF_MONTH, 1);
+                    logger.info("oxyzo : creating rps for oxyzo, starting date :{}", cal.getTime());
                 }
                 while(ioInstallmentNo <= lendingApplication.getIoPayableDays()) {
                     // skip for sunday for six day modal
@@ -189,6 +194,14 @@ public class LendingEdiScheduleService {
             }
             if (lendingPaymentSchedule != null) {
                 cal.setTime(lendingPaymentSchedule.getStartDate());
+            }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.OXYZO.name())){
+                if(Objects.nonNull(scheduleStartDate)){
+                    Date paymentDate = new Date(scheduleStartDate);
+                    cal.setTime(paymentDate);
+                }
+                cal.add(Calendar.DAY_OF_MONTH, 1);
+                logger.info("oxyzo : creating rps for oxyzo, starting date :{}", cal.getTime());
             }
 
             double reducingInterestRateDaily =
@@ -339,11 +352,9 @@ public class LendingEdiScheduleService {
         return new CommonResponse(false, "Something went wrong in V3 edi schedule");
     }
 
-    public CommonResponse getEdiScheduleForEdi(long merchantId, long applicationId, Double edi) {
+    public CommonResponse getEdiScheduleForEdi(long merchantId, long applicationId, Double edi , LendingApplication lendingApplication) {
         logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
         try {
-            LendingApplication lendingApplication =
-                    lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (lendingApplication == null) {
                 return new CommonResponse(false, "Lending application not found");
             }

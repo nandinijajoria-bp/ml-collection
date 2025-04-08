@@ -49,9 +49,6 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
-    AssociationServiceUtil associationServiceUtil;
-
-    @Autowired
     KycUtils kycUtils;
 
     @Value("${lender.change.enabled:false}")
@@ -197,6 +194,8 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
             case UGRO:
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(),
                         LenderAssociationStages.AADHAR_UPLOAD.name(), LenderAssociationStages.CREATE_CLIENT.name());
+            case OXYZO:
+                return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.KYC.name());
             default:
                 throw new RuntimeException("Invalid lender " + lender + " for applicationId " + applicationId);
         }

@@ -2,10 +2,12 @@ package com.bharatpe.lending.consumer;
 
 import com.bharatpe.lending.common.dto.PayoutResponseDTO;
 import com.bharatpe.lending.common.service.PennyDropService;
+import com.bharatpe.lending.handlers.EmiHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -26,6 +28,13 @@ public class PennyDropPayoutConsumer {
     @Autowired
     private ObjectMapper mapper;
 
+    @Autowired
+    EmiHandler emiHandler;
+
+    @Value("${emi.pennydrop.enable:false}")
+    private boolean isEmiPennydropEnable;
+
+
     @KafkaListener(
             concurrency = "${kafka.consumerGroup.pennydrop.payout.status.callback.concurrency:1}",
             topics = PENNYDROP_CALLBACK_TOPIC,
@@ -38,6 +47,11 @@ public class PennyDropPayoutConsumer {
         log.info("Start processing Pennydrop payout status callback for : {}, partition: {}, offset: {}", rawData, partition, offset);
         try {
             PayoutResponseDTO payoutStatus = mapper.readValue(rawData, PayoutResponseDTO.class);
+            if (isEmiPennydropEnable && payoutStatus.getOrderId().contains("EMI")) {
+                log.info("updating EMI penny drop status for orderId : {}", payoutStatus.getOrderId());
+                emiHandler.updatePennyDropStatus(payoutStatus);
+                return;
+            }
             pennyDropService.updatePayoutByStatusData(payoutStatus);
             log.info("Pennydrop update completed for orderId : {}", payoutStatus.getOrderId());
         } catch (Exception ex) {

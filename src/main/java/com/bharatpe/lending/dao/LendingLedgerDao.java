@@ -2,6 +2,7 @@ package com.bharatpe.lending.dao;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -66,6 +67,49 @@ public interface LendingLedgerDao extends JpaRepository<LendingLedger, Long> {
     @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND created_at >= :date AND amount < 0 AND adjustment_mode is null ORDER BY id DESC limit 1", nativeQuery = true)
     LendingLedger findAdvanceEdiDueOfPerpetualDpdLoan(Long lpsId, Date date);
 
+    @Query(value = "select ifnull(sum(interest),0) as totalDueInterest,ifnull(sum(principle),0) as totalDuePrinciple, " +
+            "ifnull(sum(amount),0) as totalDueAmount from lending_ledger where loan_id=:loanId and amount<0 and penalty =0", nativeQuery = true)
+    LendingLedgerSummaryDto fetchLedgerEdiSummary(Long loanId);
+
+    @Query(value = "select ifnull(sum(interest),0) as totalPaidInterest,ifnull(sum(principle),0) as totalPaidPrinciple, " +
+            "ifnull(sum(amount),0) as totalPaidAmount from lending_ledger where loan_id=:loanId and amount>0", nativeQuery = true)
+    LendingLedgerSummaryDto fetchLedgerSummaryPaid(Long loanId);
+
+    @Query(value = "select ifnull(sum(interest),0) as totalPaidInterest,ifnull(sum(principle),0) as totalPaidPrinciple, " +
+            "ifnull(sum(amount),0) as totalPaidAmount from lending_ledger where loan_id=:loanId AND settlement_id = :settlementId " +
+            "AND amount>0 and created_at >= :settlementInitDate", nativeQuery = true)
+    LendingLedgerSummaryDto fetchLedgerSummaryPaidAfterSettlementInit(Long loanId, Long settlementId, Date settlementInitDate);
+
+    @Query(value = "select ifnull(sum(interest),0) as totalPaidInterest,ifnull(sum(principle),0) as totalPaidPrinciple, " +
+            "ifnull(sum(amount),0) as totalPaidAmount, ifnull(sum(penalty),0) as totalPaidPenalty, " +
+            "ifnull(sum(other_charges),0) as totalPaidOtherCharges from lending_ledger where loan_id=:loanId and amount>0 " +
+            "and description = :desc", nativeQuery = true)
+    LendingLedgerSummaryDto fetchLedgerSummaryWaiverEntry(Long loanId, String desc);
+
+    interface LendingLedgerSummaryDto {
+        Double getTotalDueInterest();
+
+        Double getTotalDuePrinciple();
+
+        Double getTotalPaidPrinciple();
+
+        Double getTotalPaidInterest();
+
+        Double getTotalPaidAmount();
+
+        Double getTotalDueAmount();
+
+        Double getTotalPaidPenalty();
+        Double getTotalPaidOtherCharges();
+    }
+    @Query(nativeQuery = true, value ="SELECT COALESCE(SUM(amount), 0) AS amount, COALESCE(SUM(principle), 0) AS principle, COALESCE(SUM(interest), 0) AS interest FROM lending_ledger WHERE loan_id = :loanId AND amount < 0")
+    Map<String, Object> totalNegativeEdiAmount(Long loanId);
+
+    @Query(nativeQuery = true, value = "SELECT COALESCE(SUM(amount), 0) AS amount, COALESCE(SUM(principle), 0) AS principle, COALESCE(SUM(interest), 0) AS interest FROM lending_ledger WHERE loan_id = :loanId AND amount > 0")
+    Map<String, Object> totalPositiveEdiAmount(Long loanId);
+
+    @Query(nativeQuery = true, value ="SELECT * FROM lending_ledger WHERE loan_id = :loanId AND amount > 0")
+    List<LendingLedger> positiveEdiEntries(Long loanId);
     @Query(value = "SELECT * FROM lending_ledger WHERE loan_id = :lpsId AND created_at >= :date ORDER BY id DESC", nativeQuery = true)
     List<LendingLedger> findAdvanceEdiLedgerList(Long lpsId, Date date);
 

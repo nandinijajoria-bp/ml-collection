@@ -21,12 +21,14 @@ import java.util.Date;
 public class LoanDashboardResponse {
     private KycStatus kycStatus;
     private boolean activeLoan = false;
+    private Boolean activeEMILoan;
     private String ineligible;
 
     private boolean changeBankAccount;
     private Eligibility eligibility;
     private LoanApplicationDetailsV3 loanApplication;
     private LoanApplicationDetailsV3 topupLoanApplication;
+    private LoanApplicationDetails emiLoanApplication;
     private BankAccountDetails accountDetails;
     private String merchantName;
     private boolean repeatLoan = false;

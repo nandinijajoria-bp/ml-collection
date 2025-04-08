@@ -1,10 +1,11 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.LendingEDIScheduleDao;
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingEDISchedule;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.service.LoyaltyService;
 import com.bharatpe.common.utils.NotificationUtil;
@@ -13,6 +14,8 @@ import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.service.LoanPaymentService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.Constants.DeductionStatusEnum;
 import com.bharatpe.lending.common.Handler.LendingPayoutsHandler;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.FunnelEventDto;
@@ -36,13 +39,11 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.PaymentConstants;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.dao.LoanPaymentOrderDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.handlers.EmiHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
@@ -90,15 +91,19 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
+import static com.bharatpe.lending.constant.LendingConstants.AUTO_PAY_SETTLEMENT;
+import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
 import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
 
 @Service
 @Slf4j
 public class PaymentService {
 
+    private static final String UPI_AUTO_PAY = "UPI_AUTO_PAY";
     Logger logger = LoggerFactory.getLogger(PaymentService.class);
 
     @Autowired
@@ -118,6 +123,9 @@ public class PaymentService {
 
     @Autowired
     LoyaltyService loyaltyService;
+
+    @Autowired
+    EmiHandler emiHandler;
 
 //	@Autowired
 //	MerchantDao merchantDao;
@@ -168,13 +176,17 @@ public class PaymentService {
 
     @Autowired
     LendingInterestWaiverDao lendingInterestWaiverDao;
-
     @Value(("${pg.android.version:324}"))
     Long androidVersion;
 
     @Value(("${pg.ios.version:254}"))
     Long iosVersion;
 
+    @Value("${pg.emi-order-id.prefix:QA_EMI_LOAN_}")
+    String pgEmiOrderIdPrefix;
+
+    @Value("${pg.emi.callback.enable:true}")
+    boolean pgEmiCallbackEnable;
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
@@ -298,6 +310,20 @@ public class PaymentService {
 
     @Autowired
     LoanClosurePostingService loanClosurePostingService;
+    @Autowired
+    LendingCache lendingCache;
+
+    @Value("${autopay.upi.lock.timeout:10}")
+    int autoPayUpiLockTimeout;
+
+    @Value("${previous.mandate.failed:7}")
+    int previouMandateFailed;
+
+    @Value("${auto.pay.upi.dpd.penalty.enabled:false}")
+    boolean autoPayUpiDpdPenaltyEnabled;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Autowired
     UgroConfig ugroConfig;
@@ -776,13 +802,75 @@ public class PaymentService {
 
     public String handlePgCallback(PgPaymentCallbackDTO request) {
         log.info("Pg callback reciverd from pg {}",request);
+        if (pgEmiCallbackEnable && request != null && request.getOrderId() != null && request.getOrderId().startsWith(pgEmiOrderIdPrefix)) {
+            log.info("Callback received for EMI LOAN orderId: {}", request.getOrderId());
+            emiHandler.handleEmiPgCallback(request);
+            return "OK";
+        }
         if (request.getEvent() != null && request.getMandate() !=null) {
             if ("MANDATE".equalsIgnoreCase(request.getEvent())) {
                 logger.info("Mandate Object found for this request merchantId{}", request.getMandate().getCustomerId());
                 return autoPayUPIService.handleMandatePgCallback(request);
-            } else if ("transaction".equalsIgnoreCase(request.getEvent())) {
-                log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
-                return "OK";
+            } else if ("transaction".equalsIgnoreCase(request.getEvent()) && !request.getMandate().getOrderId().equalsIgnoreCase(request.getOrderId())) {
+                log.info("inside settlement of amount of autopay upi presentment");
+                try {
+                    log.info("mandate presentment transaction {}", request.getMandate().getOrderId());
+                    if (request.getOrderId().startsWith("LENDING")) {
+                        request.setOrderId( request.getOrderId().replaceFirst("LENDING", ""));
+                    }
+                    Optional<LendingPullPayment> optionalLendingPullPayment = lendingPullPaymentDao.findById(Long.valueOf(request.getOrderId()));
+                    if (!optionalLendingPullPayment.isPresent()) {
+                        logger.error("Order not found in mandate settlement transaction for orderId {}",request.getOrderId());
+                        return "OK";
+                    }
+                    LendingPullPayment lendingPullPayment = optionalLendingPullPayment.get();
+                    if("SUCCESS".equalsIgnoreCase( lendingPullPayment.getStatus())){
+                        logger.info("lendingPullPayment status is success for id {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                        return "OK";
+                    }
+                    Optional<LendingPaymentSchedule> optionalLendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
+                    if(!optionalLendingPaymentSchedule.isPresent()){
+                        logger.error("LPS not found in mandate settlement transaction for request {}",request);
+                        return "OK";
+                    }
+                    LendingPaymentSchedule lendingPaymentSchedule = optionalLendingPaymentSchedule.get();
+                    if (lendingPullPayment != null && !"LDC".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) {
+                        if ("SUCCESS".equalsIgnoreCase(request.getPaymentStatus())) {
+                            Long loanId = lendingPullPayment.getLoanId();
+                            String lockKey = AUTO_PAY_SETTLEMENT + loanId;
+                            if (lendingCache.acquireLock(lockKey, autoPayUpiLockTimeout)) {
+                                log.info("Acquired lock on lockKey {} , loanId {}",lockKey,loanId);
+                                handleUpiAutoPaySucessOrder(request, lendingPullPayment);
+                                lendingPullPayment.setStatus(request.getPaymentStatus());
+                                lendingPullPaymentDao.save(lendingPullPayment);
+                                if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                            } else {
+                                log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
+                                return "OK";
+                            }
+                        } else {
+                            lendingPullPayment.setErrorDescription(request.getErrorDescription());
+                            lendingPullPayment.setStatus(request.getPaymentStatus());
+                            lendingPullPaymentDao.save(lendingPullPayment);
+                            if("FAILED".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                            List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),previouMandateFailed -1);
+                            log.info("consecutive records for id {} lendingPullPaymentList size is {}",lendingPullPayment.getId(),lendingPullPaymentList.size());
+                            if(checkConsecutiveFailures(lendingPullPaymentList,previouMandateFailed -1) ){
+                                log.info("Consecutive failures found for mandateId {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                                List<String> statusList = new ArrayList<>();
+                                statusList.add(AutoPayStatusEnum.PENDING.name());
+                                statusList.add(AutoPayStatusEnum.SUCCESS.name());
+                                AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc(), statusList);
+                                autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.HARD_QR_DEDUCTION.name());
+                                autoPayUPIDao.save(autoPayUPI);
+                            }
+                            return "OK";
+                        }
+                    }
+                    return "OK";
+                } catch (Exception e){
+                    logger.error("Exception occurred while progressing autopay callback {} {}",e.getMessage(), Arrays.asList(e.getStackTrace()));
+                }
             }
         }
 
@@ -960,6 +1048,12 @@ public class PaymentService {
 
         if (!ObjectUtils.isEmpty(source) && source.toUpperCase().contains("UPI")) {
             transferType = "EXTERNAL";
+        }
+
+        if(!ObjectUtils.isEmpty(source) && "LMS_PRECLOSURE".equals(source)){
+            transferType = "EXTERNAL";
+            if(amount > 0)    description = "PRECLOSER_IMPS/NEFT";
+            lendingLedger.setAdjustmentMode("DIRECT_TRANSFER");
         }
 
         lendingLedger.setDescription(description);
@@ -1607,7 +1701,7 @@ public class PaymentService {
     public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
         try {
             logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
-            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger);
+            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger, null);
             if(ObjectUtils.isEmpty(nbfcRequest)) {
                 log.info("Error in generating request for foreclosure receipt of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
                 return;
@@ -2450,18 +2544,25 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("NO ACTIVE LOAN");
             }
             Integer amount = request.getPayload().getAmount();
+            double penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
             if(amount < 1 ) {
                 logger.info("Amount is less than 1 for merchant id {}", merchantId);
                 return new InitiatePaymentResponseDTO("Amount is less than 1");
             }
             String paymentType = request.getPayload().getPaymentType();
-            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
-                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
-                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
-            }
-            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
-                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
-                return new InitiatePaymentResponseDTO("No dues left.");
+            //TODO: Add Due penalty handling too if enabling this
+//            if (PaymentType.CUSTOM_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+//                logger.info("custom amount:{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
+//                return new InitiatePaymentResponseDTO("Custom amount should be less than due amount");
+//            }
+//            if (PaymentType.DUE_AMOUNT.name().equalsIgnoreCase(paymentType) && amount > activeLoan.getDueAmount().intValue()) {
+//                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, activeLoan.getDueAmount().intValue(), merchantId);
+//                return new InitiatePaymentResponseDTO("No dues left.");
+//            }
+            // foreclosure and advance payment, extra payment not allowed
+            if (amount > (Math.ceil(activeLoan.getDueAmount()) + penaltyFee)) {
+                logger.info("Due Amount in request :{} more than due amount:{} for merchant:{}", amount, (Math.ceil(activeLoan.getDueAmount()) + penaltyFee), merchantId);
+                return new InitiatePaymentResponseDTO("Amount grater than current dues.");
             }
 
 
@@ -2633,4 +2734,141 @@ public class PaymentService {
     }
 
 
+
+    private void handleUpiAutoPaySucessOrder(PgPaymentCallbackDTO request, LendingPullPayment lendingPullPayment) {
+        try{
+            Optional<LendingPaymentSchedule> optionalLPS =
+                    lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
+            if (!optionalLPS.isPresent()) {
+                log.error("loan does not exist with id:{}", lendingPullPayment.getLoanId());
+                return;
+            }
+            List<PgPaymentCallbackDTO.Payments> list =
+                    request.getPayments().stream().
+                            filter(payments -> payments.getBreakupType().equals("PG_AMOUNT")).
+                            collect(Collectors.toList());
+            log.info("payment list is {}", list);
+            LendingPaymentSchedule lendingPaymentSchedule = optionalLPS.get();
+            Double orderAmount = lendingPullPayment.getDeductedAmount();
+            Double adjustedAmount = 0d;
+            Double refundAmount = 0d;
+            if (lendingPaymentSchedule.getStatus().equals("CLOSED")) {
+                log.info("Refund for Excess AutoPay has been pulled for closed loanId:{}, " +
+                        "initiating full UPI refund", lendingPaymentSchedule.getId());
+                refundAmount = orderAmount;
+                LendingRefundAudit  lendingRefundAudit = new LendingRefundAudit();
+                lendingRefundAudit.setLoanId(lendingPaymentSchedule.getId());
+                lendingRefundAudit.setMerchantId(lendingPaymentSchedule.getMerchantId());
+                lendingRefundAudit.setRefundAmount(refundAmount);
+                lendingRefundAudit.setOrderAmount(refundAmount);
+                lendingRefundAudit.setBankRefNo(request.getPaymentRefId());
+                lendingRefundAudit.setMode(UPI_AUTO_PAY);
+
+                log.info("creating refund entry in lending refund audit  for lending pull payment {}",lendingPullPayment.getId());
+                log.info("going to save the refund audit for loanId {} and status {}",lendingPaymentSchedule.getId(),lendingPaymentSchedule.getStatus());
+                lendingRefundAuditDao.save(lendingRefundAudit);
+                lendingPullPayment.setStatus("SUCCESS");
+                lendingPullPaymentDao.save(lendingPullPayment);
+                return;
+            }
+            double dueAmount = lendingPaymentSchedule.getDueAmount();
+            double penaltyFee = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0;
+            double netDueAmount = dueAmount + penaltyFee;
+            double adjustedPenalty = 0;
+            if (orderAmount > netDueAmount) {
+                log.info("Settlement entry for order Amount is {} for loanId {}", orderAmount, lendingPaymentSchedule.getId());
+                adjustedAmount = lendingPaymentSchedule.getDueAmount();
+                adjustedPenalty = Math.min(orderAmount - adjustedAmount, penaltyFee);
+                refundAmount = orderAmount - adjustedAmount - adjustedPenalty;
+                log.info("adjusted amount: {}, penaltyFee: {}, refund AMount: {} for loanId: {}", adjustedAmount, adjustedPenalty, refundAmount, lendingPaymentSchedule.getId());
+            }else {
+                adjustedAmount = orderAmount;
+            }
+            if (adjustedAmount + adjustedPenalty > 0) {
+                log.info("adjusted or order amount for loanPayment order entity is {} for loanId {}", adjustedAmount,lendingPaymentSchedule.getId());
+                if (request.getPaymentRefId() != null) {
+                    LoanPaymentOrder order = createOrder(lendingPaymentSchedule, adjustedAmount + adjustedPenalty, request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
+
+
+                    if (!list.isEmpty()) {
+                        order.setTerminalOrderId(list.get(0).getTerminalOrderId());
+                        order.setFinalGateway(list.get(0).getFinalGateway());
+                    }
+                    order.setCheckoutType(request.getCheckoutType());
+                    loanPaymentOrderDao.save(order);
+                    // TODO : call handle callback method
+                    log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
+                    handleCallback(convertToPgPaymentCallbackDTO(order));
+
+                }
+            }
+            if (refundAmount > 0) {
+                log.info("AutoPay UPI amount {} is more than due amount {} for loanId {}", orderAmount, lendingPaymentSchedule.getDueAmount(), lendingPaymentSchedule.getId());
+                // TODO: add this amount to lending collection excess with proper description
+                if (!list.isEmpty()) {
+                    LendingCollectionExcess lendingCollectionExcess = new LendingCollectionExcess();
+                    lendingCollectionExcess.setMerchantId(lendingPaymentSchedule.getMerchantId());
+                    lendingCollectionExcess.setLoanId(lendingPaymentSchedule.getId());
+                    lendingCollectionExcess.setExcessNachCreditAmount(refundAmount);
+                    lendingCollectionExcess.setAmount(refundAmount);
+                    lendingCollectionExcess.setDeductedAmount(0.0);
+                    lendingCollectionExcess.setDeductionCount(0);
+                    lendingCollectionExcess.setTerminalOrderId(list.get(0).getTerminalOrderId());
+                    lendingCollectionExcess.setStatus("ACTIVE");
+                    lendingCollectionExcess.setMode(UPI_AUTO_PAY);
+                    lendingCollectionExcessDao.save(lendingCollectionExcess);
+
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Exception Occur while handling callback loanId {} ex {},", lendingPullPayment.getLoanId(), ex.getMessage());
+        }
+    }
+
+    private PaymentCallbackRequestDTO convertToPgPaymentCallbackDTO(LoanPaymentOrder order) {
+        PaymentCallbackRequestDTO paymentCallbackRequestDTO = new PaymentCallbackRequestDTO();
+        paymentCallbackRequestDTO.setAmount(order.getAmount());
+        paymentCallbackRequestDTO.setBankReferenceNumber(order.getBankRefNo());
+        paymentCallbackRequestDTO.setTerminalOrderId(order.getTerminalOrderId());
+        paymentCallbackRequestDTO.setStatus("SUCCESS");
+        paymentCallbackRequestDTO.setOrderId(order.getOrderId());
+        return paymentCallbackRequestDTO;
+    }
+    private LoanPaymentOrder createOrder(LendingPaymentSchedule lendingPaymentSchedule, Double amount, String bankRefNo, String source) {
+        LoanPaymentOrder order = new LoanPaymentOrder();
+        order.setMerchantId(lendingPaymentSchedule.getMerchantId());
+        order.setOwner("lending_payment_schedule");
+        order.setOwnerId(lendingPaymentSchedule.getId());
+        order.setAmount(amount);
+        order.setStatus("PENDING");
+        order.setSource(source);
+        order.setBankRefNo(bankRefNo);
+        order = loanPaymentOrderDao.save(order);
+        String orderId = "LOAN" + (10000000L + order.getId());
+        order.setOrderId(orderId);
+        return loanPaymentOrderDao.save(order);
+    }
+
+    public boolean checkConsecutiveFailures(List<LendingPullPayment> lendingPullPaymentList, int x) {
+        if (lendingPullPaymentList.isEmpty()) {
+            return false;
+        }
+
+        int failedCount = 0;
+        for (LendingPullPayment pullPayment : lendingPullPaymentList) {
+            String status = pullPayment.getStatus(); // Assuming status is a String
+
+            if (status.equals("FAILURE") || status.equals("FAILED") || status.equals("CANCELLED")) {
+                log.info("failed count incremented for pullpaymentId {} and loanId {}", pullPayment.getId(), pullPayment.getLoanId());
+                failedCount++;
+                if (failedCount >= x) {
+                    return true;
+                }
+            } else {
+                failedCount = 0; // Reset
+            }
+        }
+
+        return false;
+    }
 }

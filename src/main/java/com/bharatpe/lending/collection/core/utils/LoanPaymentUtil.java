@@ -7,6 +7,7 @@ import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
@@ -82,6 +83,13 @@ public class LoanPaymentUtil {
     public static String getOrDefaultSettlementMechanismFromLoan(String name, String defaultMechanism) {
         LoanSettlementMechanism loanSettlementMechanism = EnumUtils.getEnumIgnoreCase(LoanSettlementMechanism.class, name);
         return loanSettlementMechanism != null ? loanSettlementMechanism.name() : defaultMechanism;
+    }
+
+    public static Date getNonFutureTransactionDate(Date providedDate) {
+        Date currentDate = new Date();
+
+        // Check if the provided date is in the future
+        return (providedDate != null && providedDate.after(currentDate)) ? DateTimeUtil.getCurrentDayStartTime() : providedDate;
     }
 
     public static long getDateDiffInDays(Date startTime, Date endTime) {

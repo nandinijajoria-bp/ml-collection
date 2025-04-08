@@ -180,7 +180,8 @@ public class ENachService {
         String deep_link = apiGatewayService.getEnachProvider(token, lendingApplication.getLender(), merchant.getId());
         String providerName = deep_link.equals("bharatpe://enachdigio")?"DIGIO":"TECHPROCESS";
         return apiGatewayService.initiateEnach(new EnachInitiateRequestDTO(token, merchant.getId(), lendingApplication.getId(),
-                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode), lendingApplication.getLoanType());
+                String.valueOf(nachAmount), providerName, lendingApplication.getLender(), nachMode, lendingApplication.getTenureInMonths()),
+                lendingApplication.getLoanType());
     }
 
     public ENachIntitiationResponseDTO submitEnach(BasicDetailsDto merchant, ENachSubmitRequestDTO requestDTO, String token)    {
@@ -293,8 +294,8 @@ public class ENachService {
             if("NTB".equalsIgnoreCase(lendingApplication.getLoanType()) || "NTB_SMS_1".equalsIgnoreCase(lendingApplication.getLoanType())){
                 apiGatewayService.fosAttribution(merchant.getId(),"NTB_LOAN","CLOSED");
             }
-            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name()).contains(lendingApplication.getLender())) {
-                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name()).contains(lendingApplication.getLender())) {
+            if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
+                if (!"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
                     logger.info("skipping invoke sanction workflow for application {} as nach status is {} ", lendingApplication.getId(), lendingApplication.getNachStatus());
                 } else if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                     LendingApplicationLenderDetails lendingApplicationLenderDetails =

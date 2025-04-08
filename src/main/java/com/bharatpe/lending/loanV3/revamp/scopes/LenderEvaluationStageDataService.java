@@ -1,21 +1,12 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.*;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.dto.LenderEvaluationStateDTO;
@@ -34,6 +25,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Set;
 
 @Component
 @Slf4j
@@ -57,11 +50,14 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
 
+    @Value("${reference.page.disabled.for.topup:true}")
+    Boolean referencePageDisabledForTopup;
+
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderEvaluationStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(lendingStateDTO.getData().isTopup() && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name()).contains(lendingStateDTO.getData().getLender())){
-            //next page for ABFL, TRILLIONLOANS topup is set in fetchScopeData call
+        if(lendingStateDTO.getData().isTopup()){
+            //next page for topup is set in fetchScopeData call
             return lendingStateDTO;
         }
         if(offerModifiedEligibleLenders.contains(lendingStateDTO.getData().getLender())
@@ -122,14 +118,12 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                        nextPage = LendingViewStates.ENACH_PAGE;
+                        nextPage = referencePageDisabledForTopup ? LendingViewStates.ENACH_PAGE : LendingViewStates.REFERENCE_PAGE;
+                        if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
+                            log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
+                            nextPage = LendingViewStates.ENACH_PAGE;
+                        }
                     }
-                }
-            }
-            if(offerModifiedEligibleLenders.contains(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) && lendingApplication.getLoanAmount() > lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) {
-                    nextPage = LendingViewStates.MODIFIED_OFFER;
                 }
             }
 

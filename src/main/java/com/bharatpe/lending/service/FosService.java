@@ -841,6 +841,7 @@ public class FosService {
             logger.info("Fos checkMerchantEligibilty for merchantId : {}", merchantId);
             Experian experian = experianDao.getByMerchantId(merchantId);
             if (Objects.nonNull(experian)) {
+                logger.info("Found Experian data {} for merchantId: {}", experian,merchantId);
                 // blocked pan card
                 if (Objects.nonNull(experian.getPancardNumber())) {
                     LendingBlockedPancard lendingBlockedPancard = lendingBlockedPancardDao.findTop1ByPancard(experian.getPancardNumber());
@@ -848,6 +849,7 @@ public class FosService {
                         logger.info("merchant {} 's pan card is blocked", merchantId);
                         return computeEligibilityParams("ineligible", null, merchantId, "blocked pan card");
                     }
+                    logger.info("No blocked PAN card check needed for merchant {}", merchantId);
                 }
                 // rejected experian
                 if (experian.getRejected() && !"LIMIT BLOCKED: Pending application".equalsIgnoreCase(experian.getReason()) &&
@@ -867,12 +869,14 @@ public class FosService {
 //                    return computeEligibilityParams("ineligible", null, merchantId, "non nachable bank");
 //                }
 //            }
-
+            logger.info("Checking for lending applications for merchantId: {}", merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+            logger.info("Lending application {} found for merchantId: {}", lendingApplication, merchantId);
             // lending applications
             if (Objects.nonNull(lendingApplication)) {
                 //draft
                 Long reapplyTimeline = loanDetailsServiceV2.getReapplyTime(lendingApplication);
+                logger.info("reapply time {} for merchant {}", reapplyTimeline, merchantId);
                 if (lendingApplication.getStatus().equalsIgnoreCase("draft")) {
                     logger.info("merchant {} has a draft application", merchantId);
                     return computeEligibilityParams("eligible", "draft", merchantId, "draft application");
@@ -884,15 +888,21 @@ public class FosService {
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("pending_verification")) {
                     // pending nach
                     logger.info("merchant {} has a pending application", merchantId);
-                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 20000 ) {
+                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 100 ) {
                         if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), fosNachPercent)){
-                            if(Math.abs(dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date())) > 7){
-                                logger.info("fos nach task pending for application:{}", lendingApplication.getId());
+                            long dateDiffInDays = dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date());
+                            logger.info("Date difference between agreement date and current date {}", dateDiffInDays);
+                            if(Math.abs(dateDiffInDays) > 7){
+                                logger.info("under percentscale up method fos nach task pending for application:{}", lendingApplication.getId());
                                 return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                             }
+                            else {
+                                logger.info("under percentscale up method merchant {} has a pending nach application", merchantId);
+                                return computeEligibilityParams("ineligible", "pending_nach", merchantId, "no nach application and loan within 7 days");
+                            }
                         } else {
-                            logger.info("merchant {} has a pending nach application", merchantId);
-                            return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
+                            logger.info("outside percentscale up method merchant {} has a pending nach application", merchantId);
+                            return computeEligibilityParams("ineligible", "pending_nach", merchantId, "no nach application");
                         }
                     }
                     // pending applications
@@ -930,8 +940,12 @@ public class FosService {
                     }
                 }
             }
+            logger.info("Checking for fos loan eligibility for merchant:{}", merchantId);
             String finalOfferEligibility = hasFinalOfferGtZero(merchantId);
-            return finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId, null) : computeEligibilityParams(finalOfferEligibility, null, merchantId, "no existing offer found");
+            logger.info("final offer eligibility for merchant:{} is {}", merchantId, finalOfferEligibility);
+            ResponseDTO responseDTO = finalOfferEligibility.equalsIgnoreCase("eligible") ? computeEligibilityParams("eligible", "not_started", merchantId, null) : computeEligibilityParams(finalOfferEligibility, null, merchantId, "no existing offer found");
+            logger.info("final response for merchant:{} is {}", merchantId, responseDTO);
+            return responseDTO;
         } catch (Exception e) {
             logger.error("error while checking fos loan eligibility for merchant: {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
         }
@@ -958,6 +972,7 @@ public class FosService {
         catch (Exception e) {
             logger.error("Exception occurred for merchantId while checking eligibilty:{},execption:{}", merchantId,Arrays.asList(e.getStackTrace()));
         }
+        logger.info("In hasfinalOfferGtZero method returning Ineligible for merchant:{}", merchantId);
         return "ineligible";
     }
 
@@ -1029,6 +1044,8 @@ public class FosService {
     }
 
     public ResponseDTO computeEligibilityParams(String eligibility, String applicationStatus, Long merchantId, String reason) {
+        logger.info("Starting to compute eligibility parameters for merchantId: {}, eligibility: {}, applicationStatus: {}, reason: {}",
+                merchantId, eligibility, applicationStatus, reason);
         String loanType = getLoanType(eligibility, merchantId);
         String offerType = getOfferType(eligibility);
         Integer priority = getEligibilityWeight(eligibility) * 100 + getLoanTypeWeight(loanType) * 10 + getApplicationStatusWeight(applicationStatus);
@@ -1039,6 +1056,7 @@ public class FosService {
         ResponseDTO responseDTO = new ResponseDTO();
         responseDTO.setData(fosMerchantEligibilityDto);
         responseDTO.setSuccess(Boolean.TRUE);
+        logger.info("Returning response DTO for merchantId {}: {}", merchantId, responseDTO);
         return responseDTO;
     }
 
@@ -1050,6 +1068,7 @@ public class FosService {
             Date taskStartTimestamp = dateTimeUtil.getDatePlusMinutes(new Date(taskTimestampEpoch * 1000), -1 * timeWindow);
             logger.info("taskStartTimestamp: {} for merchantId : {} ", taskStartTimestamp, merchantId);
             Date taskEndTimeStamp = dateTimeUtil.getEndTimeFromDateTime(taskStartTimestamp);
+            logger.info("Calculated taskEndTimeStamp: {} for merchantId: {}", taskEndTimeStamp, merchantId);
 //            Merchant merchant = merchantDao.getById(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
             if(ObjectUtils.isEmpty(lendingApplication)){
@@ -1059,6 +1078,7 @@ public class FosService {
                 responseDTO.setData(fosTaskStatusDto);
                 return responseDTO;
             }
+            logger.info("Found lending application for merchantId: {} with applicationId: {} and application data: {}", merchantId, lendingApplication.getId(), lendingApplication);
             Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
             if (ObjectUtils.isEmpty(basicDetailsDto)) {
                 logger.info("invalid merchant ID for merchantId : {}", merchantId);
@@ -1067,7 +1087,9 @@ public class FosService {
                 responseDTO.setSuccess(Boolean.TRUE);
                 return responseDTO;
             }
+            logger.info("Fetched basic details {} for merchantId: {}", basicDetailsDto, merchantId);
             MerchantNachDetailsResponseDTO bpEnach = enachHandler.findSuccessEnach(merchantId, lendingApplication.getId());
+            logger.info("Fetched NACH details for merchantId: {}: {}", merchantId, bpEnach);
             if (ObjectUtils.isEmpty(lendingApplication) ||
                     ((lendingApplication.getCreatedAt().before(taskStartTimestamp) || lendingApplication.getCreatedAt().after(taskEndTimeStamp)) &&
                             (ObjectUtils.isEmpty(lendingApplication.getAgreementAt()) || (lendingApplication.getAgreementAt().before(taskStartTimestamp) ||
@@ -1086,13 +1108,13 @@ public class FosService {
                 if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                     fosTaskStatusDto.setStatus("COMPLETE");
                     fosTaskStatusDto.setMessage("task completed");
-                    logger.info("nach done for merchant {}", merchantId);
+                    logger.info("agreement done for merchant {}", merchantId);
                 } else {
                     fosTaskStatusDto.setStatus("INCOMPLETE");
                     fosTaskStatusDto.setMessage("Nach pending for the application");
                     logger.info("nach pending for merchant {}", merchantId);
                 }
-                logger.info("agreement done for merchant {} and applicationId : {}", lendingApplication.getMerchantId(), lendingApplication.getId());
+                logger.info("agreement done for merchant {} and applicationId : {} and agreement date is {}", lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getAgreementAt());
                 LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
                 if(ObjectUtils.isEmpty(lendingApplicationDetails)){
                     lendingApplicationDetails = new LendingApplicationDetails();
@@ -1110,6 +1132,7 @@ public class FosService {
                     LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
                     fosTaskStatusDto.setEligibleForPayout("YES");
                     fosTaskStatusDto.setLoanType(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)? null:lendingRiskVariablesSnapshot.getRiskSegment().name());
+                    logger.info("MerchantId: {} has loan type {}. Eligible for payout: YES", merchantId, lendingApplication.getLoanType());
                 }
                 fosTaskStatusDto.setApplicationId(lendingApplication.getId());
                 responseDTO.setData(fosTaskStatusDto);
@@ -1125,6 +1148,8 @@ public class FosService {
 
     private void populateApplicationStage(LendingApplication lendingApplication, FosTaskStatusDto fosTaskStatusDto) {
         try {
+            logger.info("Entering populateApplicationStage for merchantId: {}, lendingApplicationId: {}, status: {}",
+                    lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getStatus());
             if ("draft".equalsIgnoreCase(lendingApplication.getStatus())) {
                 fosTaskStatusDto.setStage(ApplicationStage.DRAFT.getStage());
             } else if ("pending_verification".equalsIgnoreCase(lendingApplication.getStatus())) {
@@ -1140,6 +1165,8 @@ public class FosService {
             } else if ("approved".equalsIgnoreCase(lendingApplication.getStatus())) {
                 fosTaskStatusDto.setStage(ApplicationStage.RELEVANT.getStage());
             }
+            logger.info("Application stage populated for merchant: {}, lendingApplicationId: {}, stage: {}",
+                    lendingApplication.getMerchantId(), lendingApplication.getId(), fosTaskStatusDto.getStage());
         } catch (Exception ex) {
             logger.error("Exception Occurred while populating Application stage for merchant: {}, {}", lendingApplication.getMerchantId(), ex);
         }
@@ -1179,6 +1206,7 @@ public class FosService {
                 nachFlag = "YES";
             }
             else nachFlag = "NO";
+            logger.info("nachFlag:{} disbursalFlag:{}", nachFlag, disbursalFlag);
             return createCompoundStatusForAttribution(nachFlag, disbursalFlag);
         } catch(Exception ex){
             logger.error("Error occurred while checking task status for applicationId:{}, {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
@@ -1260,12 +1288,14 @@ public class FosService {
                     response.put("message", "nach done for the application");
                     response.put("status", true);
                     response.put("application_id", lendingApplication.getId());
+                    logger.info("nach done for the application:{} and response is {}", lendingApplication.getId(), response);
                     return new ResponseDTO(Boolean.TRUE, "nach done for the application", response);
                 } else{
                     logger.info("nach is pending for application:{}", lendingApplication.getId());
                     response.put("message", "nach is pending for the application");
                     response.put("status", false);
                     response.put("application_id", null);
+                    logger.info("nach is pending for the application:{} and response is {}", lendingApplication.getId(), response);
                     return new ResponseDTO(Boolean.FALSE, "nach is pending for the application", response);
                 }
             } else{
@@ -1285,6 +1315,7 @@ public class FosService {
     }
 
     private void saveRefCodeAudit(LendingApplicationDetails lendingApplicationDetails, String refCode, LendingApplication lendingApplication, String auditType){
+
         logger.info("Auditing lending Application Details changes for :{}", auditType);
         LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
         lendingAuditTrial.setApplicationId(lendingApplicationDetails.getApplicationId());
@@ -1295,6 +1326,7 @@ public class FosService {
         lendingAuditTrial.setNewStatus(refCode);
         logger.info("lendingAuditTrial -> {}", lendingAuditTrial);
         lendingAuditTrialDao.save(lendingAuditTrial);
+        logger.info("LendingAuditTrial data {} saved successfully for applicationId: {}, merchantId: {}", lendingAuditTrial,lendingAuditTrial.getApplicationId(), lendingAuditTrial.getMerchantId());
     }
 
     public ResponseDTO nachAttribution(Long refCode, Long applicationId){
@@ -1320,6 +1352,7 @@ public class FosService {
             } else disbursalStatus = "NO";
         } else disbursalStatus = "NO";
         response.put("disbursal_status", disbursalStatus);
+        logger.info("disbursal status {} and response {} for application:{} is {}", disbursalStatus, response, applicationId);
         return new ResponseDTO(Boolean.TRUE, null, response);
     }
 
@@ -1331,10 +1364,12 @@ public class FosService {
             upgradeLoanOfferEligibility.setBsActive(upgradeLoanOfferEligibilityDTO.getBankStatementEligibility());
             upgradeLoanOfferEligibility.setAaActive(upgradeLoanOfferEligibilityDTO.getAccountAggregatorEligibility());
             upgradeLoanOfferEligibility.setGst3bActive(upgradeLoanOfferEligibilityDTO.getGst3bEligibility());
+            logger.info("Upgrade loan offer eligibility for merchantId : {} is {}", merchantId, upgradeLoanOfferEligibility);
             return upgradeLoanOfferEligibility;
         } catch (Exception e) {
             logger.error("Exception in getting upgradeLoan offer eligibility for merchantId : {}, {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+        logger.info("Upgrade loan offer eligibility outside try block for merchantId : {} is {}", merchantId, upgradeLoanOfferEligibility);
         return upgradeLoanOfferEligibility;
     }
 }

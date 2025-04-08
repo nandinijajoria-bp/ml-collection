@@ -57,6 +57,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.CommonUtil;
@@ -216,7 +217,7 @@ public class LoanDetailsServiceV2 {
 
     public static List<Long> exceptedMerchantList = Arrays.asList(123455L, 1334555L);
 
-    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name()));
+    public static Set<String> restrictedRelations = new HashSet<>(Arrays.asList(ReferenceRelation.MOTHER.name(), ReferenceRelation.FATHER.name(), ReferenceRelation.WIFE.name(), ReferenceRelation.HUSBAND.name(), ReferenceRelation.PARENT.name(), ReferenceRelation.BROTHER_SISTER.name(), ReferenceRelation.HUSBAND_WIFE.name(), ReferenceRelation.FRIEND_OTHER.name()));
 
     public static final Integer MAX_UNIQUE_RELATION = 2;
 
@@ -348,6 +349,17 @@ public class LoanDetailsServiceV2 {
     MongoPublisherUtil mongoPublisherUtil;
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.PAN_CARD, KycDocType.SELFIE, KycDocType.POA);
+
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    CommonService commonService;
+
+    @Value("${reference.page.disabled.for.topup:true}")
+    Boolean referencePageDisabledForTopup;
+
+    private static final String UPTO_3_LAKH = "UPTO_3_LAKH";
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
         try {
@@ -1127,7 +1139,9 @@ public class LoanDetailsServiceV2 {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
-            }else if ("PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "BRE".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
+            } else if ("PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.PNC, lendingApplication.getMerchantId());
             } else {
                 reapplyDayDiff = 0;
@@ -1150,7 +1164,10 @@ public class LoanDetailsServiceV2 {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getManualKycReason(), RejectionStage.KYC, lendingApplication.getMerchantId());
             } else if ("REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
-            } else {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && RejectionStage.BRE.name().equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
+            }
+            else {
                 reapplyDayDiff = 0;
             }
             if (Objects.nonNull(reapplyDayDiff)) {
@@ -1175,6 +1192,9 @@ public class LoanDetailsServiceV2 {
         }
         if (!StringUtils.isEmpty(openApplication.getPhysicalReason())) {
             return "Incomplete documents submitted during physical visit";
+        }
+        if (!StringUtils.isEmpty(openApplication.getRejectionReason())) {
+            return openApplication.getRejectionReason();
         }
         LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(openApplication.getId());
         boolean disbursalCallingRejected = lendingDisbursalStage != null && ("NO".equalsIgnoreCase(lendingDisbursalStage.getReadyStage()) || "NO".equalsIgnoreCase(lendingDisbursalStage.getCallStage()));
@@ -1539,7 +1559,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
 
-            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
+            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && referencePageDisabledForTopup)
             {
                 log.info("lending application loan Type is {} ",lendingApplication.getLoanType());
                 return new ApiResponse<>(false,"Application type is Topup");
@@ -1811,7 +1831,8 @@ public class LoanDetailsServiceV2 {
                 funnelService.submitEvent(merchant.getId(), null, applicationId,
                         FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
             }
-            loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, LendingViewStates.AGREEMENT_PAGE);
+            LendingViewStates nextPage = LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) ? LendingViewStates.ENACH_PAGE : LendingViewStates.AGREEMENT_PAGE;
+            loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, applicationId, nextPage);
             return new ApiResponse<>(true, "Successfully updated merchant References!");
         } catch (Exception e) {
             log.error("Error occurred while updating merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
@@ -2948,11 +2969,15 @@ public class LoanDetailsServiceV2 {
                 log.info("lending application not found for {}", applicationId);
                 return new ApiResponse<>(false, "lending application not found for " + applicationId);
             }
-
             LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
             if (ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
                 log.info("lending application kyc details not found for {}", applicationId);
                 return new ApiResponse<>(false, "lending application kyc details not found for " + applicationId);
+            }
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingApplication.getLender());
+            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                log.info("lending application lender details not found for {}", applicationId);
+                return new ApiResponse<>(false, "lending application lender details not found for " + applicationId);
             }
             AdditionalLoanDetailsDTO additionalLoanDetails = AdditionalLoanDetailsDTO.builder()
                     .applicationId(lendingApplication.getId())
@@ -2973,9 +2998,16 @@ public class LoanDetailsServiceV2 {
                         .build()
                 );
             }
+            if (requiredInputs.contains("MFI_DECLARATION") && ObjectUtils.isEmpty(lendingApplicationLenderDetails.getAccountState())) {
+                inputs.add(AdditionalLoanDetailsDTO.Input.builder()
+                        .inputType("MFI_DECLARATION")
+                        .editable(true)
+                        .build()
+                );
+            }
             additionalLoanDetails.setInputs(inputs);
             additionalLoanDetails.setShowModal(!ObjectUtils.isEmpty(inputs));
-            log.info("get additional details response {} for lending application {}",additionalLoanDetails, lendingApplication.getId());
+            log.info("get additional details response {} for lending application {}", additionalLoanDetails, lendingApplication.getId());
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(), FunnelEnums.StageId.ADDITIONAL_DETAILS_MODAL,
                     FunnelEnums.StageEvent.INITIATED, inputs.stream().map(AdditionalLoanDetailsDTO.Input::getInputType).collect(Collectors.joining(",")));
             return new ApiResponse<>(additionalLoanDetails);
@@ -2990,7 +3022,7 @@ public class LoanDetailsServiceV2 {
             case "IIFL":
                 return Arrays.asList("FATHER_NAME");
             case "SMFG":
-                return Arrays.asList("FATHER_NAME","EMAIL");
+                return Arrays.asList("FATHER_NAME", "EMAIL", "MFI_DECLARATION");
         }
         return new ArrayList<>();
     }
@@ -2998,10 +3030,11 @@ public class LoanDetailsServiceV2 {
     public ApiResponse<?> saveAdditionalLoanDetails(BasicDetailsDto merchant, AdditionalLoanDetailsDTO loanDetails) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(loanDetails.getApplicationId(), merchant.getId());
-            log.info("additional details data received {} for lending application {}",loanDetails, loanDetails.getApplicationId());
+            log.info("additional details data received {} for lending application {}", loanDetails, loanDetails.getApplicationId());
+            Boolean applicationRejected = false;
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("lending application not found for {}", loanDetails.getApplicationId());
-                return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").errorCode("APP_NOT_FOUND").detailSaved(false).build());
+                return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").errorCode("APP_NOT_FOUND").detailSaved(false).applicationRejected(applicationRejected).build());
             }
             LendingApplicationKycDetails lendingApplicationKycDetails = null;
             for (AdditionalLoanDetailsDTO.Input input : loanDetails.getInputs()) {
@@ -3009,6 +3042,21 @@ public class LoanDetailsServiceV2 {
                     case "FATHER_NAME":
                     case "EMAIL":
                         lendingApplicationKycDetails = saveAdditionalKycDetails(lendingApplication.getId(), lendingApplicationKycDetails, input);
+                        break;
+                    case "MFI_DECLARATION":
+                        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), "ACTIVE", lendingApplication.getLender());
+                        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+                            log.info("lending application lender details not found for {}", loanDetails.getApplicationId());
+                            return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").errorCode("APP_NOT_FOUND").detailSaved(false).applicationRejected(applicationRejected).build());
+                        }
+                        lendingApplicationLenderDetails.setAccountState("MFI_" + input.getValue());
+                        if (UPTO_3_LAKH.equalsIgnoreCase(input.getValue())) {
+                            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.ValidationStatus.MFI_DECLARATION_FAILED.name());
+                            commonService.rejectApplication(lendingApplication, lendingApplicationLenderDetails);
+                            applicationRejected = true;
+                            break;
+                        }
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                         break;
                 }
             }
@@ -3018,11 +3066,11 @@ public class LoanDetailsServiceV2 {
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(), FunnelEnums.StageId.ADDITIONAL_DETAILS_MODAL,
                     FunnelEnums.StageEvent.COMPLETED, null);
             log.info("additional details successfully saved for lending application {}", loanDetails.getApplicationId());
-            return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("Successfully saved additional loan details for applicationId + lendingApplication.getId()").detailSaved(true).build());
+            return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("Successfully saved additional loan details for applicationId" + lendingApplication.getId()).detailSaved(true).applicationRejected(applicationRejected).build());
         } catch (Exception e) {
-            log.error("exception in saving additional loan details for applicationId {} {}", loanDetails.getApplicationId(), Arrays.asList(e.getStackTrace()));
+            log.error("exception in saving additional loan details for applicationId {} {} {}", loanDetails.getApplicationId(), e.getLocalizedMessage(), Arrays.asList(e.getStackTrace()));
         }
-        return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").detailSaved(false).errorCode("DATA_NOT_SAVED").build());
+        return new ApiResponse<>(AdditionalLoanDetailsResponseDTO.builder().message("We are facing technical issues - Please retry after 5 min").detailSaved(false).applicationRejected(false).errorCode("DATA_NOT_SAVED").build());
     }
 
     private LendingApplicationKycDetails saveAdditionalKycDetails(Long applicationId, LendingApplicationKycDetails lendingApplicationKycDetails, AdditionalLoanDetailsDTO.Input input) {

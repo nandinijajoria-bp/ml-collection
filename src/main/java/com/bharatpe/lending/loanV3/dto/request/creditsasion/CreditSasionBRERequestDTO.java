@@ -152,5 +152,12 @@ public class CreditSasionBRERequestDTO {
         private Double monthlyRoi;
         private Integer tenure;
         private Double amount;
+        private Double apr;
+        private Integer deductibles;
+        private Integer disbursalAmount;
+        private Integer firstEmiAmount;
+        private Integer lastEmiAmount;
+        private Integer regularEmiAmount;
+        private String loanStartDate;
     }
 }

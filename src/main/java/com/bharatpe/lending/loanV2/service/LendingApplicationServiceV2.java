@@ -45,6 +45,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.config.OxyzoConfig;
 import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.*;
@@ -53,15 +54,19 @@ import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
+import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
@@ -104,6 +109,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
@@ -123,6 +129,7 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Slf4j
 public class LendingApplicationServiceV2 {
 
+    public static final String LOAN_FORECLOSURE_CACHE_PREFIX = "loan_foreclosure_";
     @Autowired
     private LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
@@ -364,6 +371,22 @@ public class LendingApplicationServiceV2 {
     @Lazy
     UgroConfig ugroConfig;
 
+    @Autowired
+    @Lazy
+    OxyzoConfig oxyzoConfig;
+
+    @Autowired
+    private EmiUtils emiUtils;
+    @Autowired
+    private EmiDashboardService emiDashboardService;
+
+    @Value("${lender.enable.foreclosure.amount.cache:PIRAMAL}")
+    private String lenderEnableForeclosureAmountCache;
+
+    @Value("${piramal.foreclosure.cache.minutes:2}")
+    int piramalForeclosureCacheMinutes;
+
+
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
             if (Objects.isNull(merchant.getId())) {
@@ -578,7 +601,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationKycDetailsDao.save(lendingApplicationKycDetails);
     }
 
-    public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest) {
+    public ApiResponse<?> createApplication(BasicDetailsDto merchant, CreateApplicationRequest applicationRequest, String token) {
         if(Objects.nonNull(merchant.getId())) {
             String loanDetailsCacheKey = "LENDING_LOAN_DETAILS_" + merchant.getId();
             log.info("deleting cached key of loan details in create application for merchant: {}",merchant.getId());
@@ -587,6 +610,14 @@ public class LendingApplicationServiceV2 {
             log.info("merchant id not found in create application");
         }
         loanDashboardService.deleteLoanDashboardCache(merchant.getId());
+
+        if(emiUtils.isEmiFlowEnabled()){
+            EmiDashboardResponse emiDashboardResponse = emiDashboardService.getDashboardResponse(merchant.getId(), token);
+            if(!emiUtils.isEligibleForEdiCreateApplication(emiDashboardResponse)){
+                log.warn("application already exist at business loan for merchant: {}", merchant.getId());
+                return new ApiResponse<>(true, "application already exist at bl");
+            }
+        }
 
         if (applicationRequest.getApplicationId() == null) {
             return createNewApplication(merchant, applicationRequest);
@@ -757,30 +788,40 @@ public class LendingApplicationServiceV2 {
 
     private LendingApplication saveLendingApplication(BasicDetailsDto merchantBasicDetails, Boolean isPreApproved, LendingEligibleLoan eligibleLoan, CreateApplicationRequest lendingApplicationRequest, LendingCategories lendingCategory, AddressValidationDto addressValidationDto, Boolean isApplicableForAggregationFlow) {
         LendingApplication lendingApplication = new LendingApplication();
-        int processingFee;
+        BigDecimal processingFee;
+        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
         MaxPricingValuesDTO maxPricingValuesDTO = null;
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantBasicDetails.getId());
             maxPricingValuesDTO = loanUtil.getMaxPricingValues(lendingRiskVariables, eligibleLoan.getTenureInMonths());
         }
         if (apiGatewayService.eligibleForProcessingFee(merchantBasicDetails.getId())) {
-            processingFee = 0;
+            processingFee = BigDecimal.ZERO;
         } else if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            processingFee = (int) Math.ceil(maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100);
+            BigDecimal maxProcessingFeeRateBD = BigDecimal.valueOf(maxPricingValuesDTO.getMaxProcessingFeeRate());
+           // processingFee = (int) Math.ceil(maxPricingValuesDTO.getMaxProcessingFeeRate() * eligibleLoan.getAmount()/100);
+            processingFee = maxProcessingFeeRateBD.multiply(amountBD)
+                    .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
         }
         else {
-            processingFee = eligibleLoan.getProcessingFee();
+            if(eligibleLoan.getProcessingFee() != null) {
+                processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+
+            }else{
+                throw new NullPointerException("processing fee cannot be null for eligible loan");
+            }
+
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
             eligibleLoan.setRateOfInterest(maxPricingValuesDTO.getMaxInterestRate());
             Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
             Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
             Double repayment = ediAmount * eligibleLoan.getEdiCount();
-            eligibleLoan.setProcessingFee(processingFee);
+            eligibleLoan.setProcessingFee(processingFee.intValue());
             eligibleLoan.setRepayment(repayment.intValue());
             eligibleLoan.setEdi(ediAmount.intValue());
             eligibleLoan.setIrr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId(), null));
-            eligibleLoan.setApr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount() - processingFee, eligibleLoan.getMerchantId(), null));
+            eligibleLoan.setApr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount() - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
             log.info("eligibleLoan values -> {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest());
             eligibleLoanDao.save(eligibleLoan);
         }
@@ -792,8 +833,8 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
         lendingApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
         lendingApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-        lendingApplication.setProcessingFee((double) processingFee);
-        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+        lendingApplication.setProcessingFee(processingFee.doubleValue());
+        lendingApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
         lendingApplication.setStatus("draft");
         lendingApplication.setMode("AUTO");
         lendingApplication.setMerchantId(merchantBasicDetails.getId());
@@ -2096,18 +2137,26 @@ public class LendingApplicationServiceV2 {
                 return false;
             }
             Double amountDiffrence = lendingApplication.getLoanAmount() - loanAmount;
-            int processingFee = 0;
-            if (lendingApplication.getProcessingFee() > 0) {
-                processingFee = (int) Math.ceil((loanAmount * lendingApplication.getProcessingFee())/lendingApplication.getLoanAmount());
+            //ProcessingFee change to BigDecimal for calculation and then store the double value in lending_application table
+            BigDecimal processingFee = BigDecimal.ZERO;
+            if (lendingApplication.getProcessingFee() > 0 && lendingApplication.getProcessingFee() != null) {
+                BigDecimal loanAmountBD = new BigDecimal(loanAmount);
+                BigDecimal processingFeeRate = BigDecimal.valueOf(lendingApplication.getProcessingFee());
+                BigDecimal loanAmountInApp = BigDecimal.valueOf(lendingApplication.getLoanAmount());
+
+                processingFee = loanAmountBD.multiply(processingFeeRate)
+                        .divide(loanAmountInApp, 0, RoundingMode.CEILING);
+            }
+            else{
+                throw new NullPointerException("processing Fee can not be null for lending application");
             }
             Integer edi,repayment;
             edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingApplication.getInterestRate() / 100) * lendingApplication.getTenureInMonths()))) / lendingApplication.getPayableDays());
             repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
-
             lendingApplication.setEdi(Double.valueOf(edi));
             lendingApplication.setRepayment(Double.valueOf(repayment));
-            lendingApplication.setProcessingFee((double) processingFee);
-            lendingApplication.setDisbursalAmount(loanAmount - processingFee);
+            lendingApplication.setProcessingFee(processingFee.doubleValue());
+            lendingApplication.setDisbursalAmount(loanAmount - processingFee.intValue());
             lendingApplication.setLoanAmount(loanAmount);
             lendingApplicationDao.save(lendingApplication);
 
@@ -2484,6 +2533,7 @@ public class LendingApplicationServiceV2 {
             String colenderCorporateName = "";
             String colenderBusinessAddress = "";
             String lenderGrievanceTime = "";
+            String parentLenderCorporateName = "NA";
 
             if(lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lendingApplication.getLender().equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())){
                 lenderCorporateName = KfsConstants.LENDER_CORPORATE_NAME_LIQUILOANS;
@@ -2565,7 +2615,15 @@ public class LendingApplicationServiceV2 {
                 lenderContactEmail = ugroConfig.getContactEmail();
                 lenderContactNumber = ugroConfig.getContactNumber();
                 lenderGrievanceTime = ugroConfig.getGrievanceTIme();
-            } else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
+            } else if (lendingApplication.getLender().equalsIgnoreCase(Lender.OXYZO.toString())) {
+                lenderCorporateName = oxyzoConfig.getCorporateName();
+                lenderBusinessAddress = oxyzoConfig.getBusinessAddress();
+                lenderContactName = oxyzoConfig.getContactName();
+                lenderContactEmail = oxyzoConfig.getContactEmail();
+                lenderContactNumber = oxyzoConfig.getContactNumber();
+                lenderGrievanceTime = oxyzoConfig.getGrievanceTIme();
+            }
+            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA0.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA1.toString())
               || lendingApplication.getLender().equalsIgnoreCase(Lender.MAMTA2.toString()) ){
@@ -2585,9 +2643,9 @@ public class LendingApplicationServiceV2 {
 
             String shopAddress = constructShopAddress(lendingApplication);
             Double insurancePremium = getInsurancePremium(lendingApplication);
-            if (insurancePremium.equals(0D)) {
-                insurancePremium = null;
-            }
+//            if (insurancePremium.equals(0D)) {
+//                insurancePremium = null;
+//            }
 
             Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (lendingApplication.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (lendingApplication.getLoanAmount()) * 100));
 
@@ -2605,6 +2663,13 @@ public class LendingApplicationServiceV2 {
             if(Lender.UGRO.name().equalsIgnoreCase(lendingApplication.getLender())) {
                 monthlyIncome = lendingRiskVariablesSnapshot.getMonthlyTpv();
             }
+            Double processingFeePercentage;
+            if(lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.toString())){
+                processingFeePercentage =  (Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee() + insurancePremium) * 100))));
+            }else{
+                processingFeePercentage =  (Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))));
+
+            }
 
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
@@ -2621,7 +2686,7 @@ public class LendingApplicationServiceV2 {
                     .lenderGrievanceTime(lenderGrievanceTime)
                     .loanAmount(lendingApplication.getLoanAmount())
                     .processingFee(lendingApplication.getProcessingFee())
-                    .processingFeePercentage(Double.valueOf(String.format("%.2f", (lendingApplication.getProcessingFee()/(lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee()) * 100))))
+                    .processingFeePercentage(processingFeePercentage)
                     .processingFeeWithoutGst(processingFeeWithoutGst)
                     .processingFeePercentageWithoutGst(processingFeePercentageWithoutGst)
                     .tenureInMonths(lendingApplication.getTenureInMonths())
@@ -2649,7 +2714,7 @@ public class LendingApplicationServiceV2 {
                     .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(monthlyIncome)
                     .annualRoi(annualRoi)
-                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicable(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .insurancePremium(insurancePremium)
                     .lenderKfsUrl(lenderKfsUrl)
@@ -2660,7 +2725,7 @@ public class LendingApplicationServiceV2 {
 
             if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
-                if(ObjectUtils.isEmpty(lendingPaymentSchedule) || !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingPaymentSchedule.getNbfc())){
+                if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
                     log.error("Unable to fetch parent loan details for merchant: {}", lendingApplication.getMerchantId());
                     throw new Exception("Unable to fetch parent loan details");
                 }
@@ -2671,6 +2736,12 @@ public class LendingApplicationServiceV2 {
                 }
                 kfsDto.setLenderForeclosureAmount(fetchLenderForeclosureAmount(lendingPaymentSchedule));
                 kfsDto.setParentLoanBplId(parentLendingApplicationOptional.get().getExternalLoanId());
+                kfsDto.setParentLender(parentLendingApplicationOptional.get().getLender());
+                kfsDto.setParentLoanAmount(parentLendingApplicationOptional.get().getLoanAmount());
+                if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(parentLendingApplicationOptional.get().getLender())) {
+                    parentLenderCorporateName = LENDER_CORPORATE_NAME_LIQUILOANS;
+                }
+                kfsDto.setParentLenderCorporateName(parentLenderCorporateName);
             }
             return new ApiResponse<>(kfsDto);
         }
@@ -2725,7 +2796,7 @@ public class LendingApplicationServiceV2 {
 
 
         //Authorization Letter
-        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name(), Lender.UGRO.name()).contains(lendingApplication.getLender())){
+        if (Arrays.asList(Lender.ABFL.name(),Lender.TRILLIONLOANS.name(),Lender.LIQUILOANS_NBFC.name(),Lender.LIQUILOANS_P2P.name(),Lender.LIQUILOANS_P2P_OF.name(),Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name(),Lender.PIRAMAL.name(), Lender.CREDITSAISON.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lendingApplication.getLender())){
             generateAuthorizationLetterDoc(lendingApplication, merchant, lendingKfs, null);
             lendingKfs.setAuthorizationLetterSignedAt(dateTimeUtil.getCurrentDate());
         }
@@ -2898,7 +2969,7 @@ public class LendingApplicationServiceV2 {
             log.info("calculating APR for applicationId : {}", applicationId);
             Double guess = 0.01;
             ArrayList<Double> values = new ArrayList<>();
-            CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId);
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleV2(merchantId, applicationId, null);
             if(!response.isSuccess()){
                 log.info(response.getMessage());
                 log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
@@ -2925,7 +2996,7 @@ public class LendingApplicationServiceV2 {
             double[] valuesDouble = new double[values.size()];
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
-            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lender)) ? 360 : 365;
+            int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lender)) ? 360 : 365;
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
@@ -2961,7 +3032,7 @@ public class LendingApplicationServiceV2 {
                 edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
             }
 
-            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi);
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi, lendingApplication);
             if(!response.isSuccess()){
                 log.info(response.getMessage());
                 log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
@@ -3196,7 +3267,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
                 filePath = getFilePathLiquiloans(lendingApplication, penaltyDate, penaltyDateLiquiloans, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, kfsDto.isForeclosureChargesRequired());
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                filePath = "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
+                filePath = (Objects.nonNull(lendingApplication.getCreatedAt()) && kfsDto.isForeclosureChargesRequired())? "/templates/PIRAMAL/" + "KFS_NONP2P_PIRAMAL" + language + ".html" : "/templates/" + "KFS_NONP2P_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/KFS_NONP2P_ABFL" + language +".html";
             } else if(lender.equalsIgnoreCase(Lender.USFB.name())) {
@@ -3217,6 +3288,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/" + "KFS_NONP2P_SMFG" + ".html";
             } else if(lender.equalsIgnoreCase(Lender.UGRO.name())) {
                 filePath = "/templates/" + "UGRO/" + "KFS.html";
+            } else if(lender.equalsIgnoreCase(Lender.OXYZO.name())) {
+                filePath = "/templates/OXYZO/" + "KFS_OXYZO" + ".html";
             } else {
                 filePath = "/templates/" + "KFS_NONP2P" + ".html";
             }
@@ -3344,7 +3417,7 @@ public class LendingApplicationServiceV2 {
             } else if (lender.equalsIgnoreCase(Lender.MAMTA1.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_MAMTA1.html";
             } else if (lender.equalsIgnoreCase(Lender.PIRAMAL.toString())) {
-                filePath = "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
+                filePath = (Objects.nonNull(lendingApplication.getCreatedAt()) && kfsDto.isForeclosureChargesRequired())? "/templates/PIRAMAL/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html" : "/templates/SANCTION_LOAN_AGREEMENT_PIRAMAL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.ABFL.toString())) {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_NONP2P_ABFL" + language + ".html";
             } else if (lender.equalsIgnoreCase(Lender.USFB.name())) {
@@ -3365,6 +3438,8 @@ public class LendingApplicationServiceV2 {
                 filePath = "/templates/SANCTION_LOAN_AGREEMENT_SMFG.html";
             } else if(lender.equalsIgnoreCase(Lender.UGRO.name())) {
                 filePath = "/templates/" + "UGRO/" + "SANCTION_LETTER.html";
+            } else if (lender.equalsIgnoreCase(Lender.OXYZO.name())) {
+                filePath = "/templates/OXYZO/" + "SANCTION_LOAN_AGREEMENT_OXYZO.html";
             } else {
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_NONP2P" + ".html";
             }
@@ -3563,6 +3638,8 @@ public class LendingApplicationServiceV2 {
         Map<String, Object> data = new HashMap<>();
         data.put("lsp_contact_name", KfsConstants.LSP_CONTACT_NAME);
         data.put("lsp_contact_number", KfsConstants.LSP_CONTACT_NUMBER_FORMATTED);
+        data.put("nodal_officer_name", KfsConstants.NODAL_OFFICER_NAME);
+        data.put("nodal_officer_contact_number", KfsConstants.NODAL_OFFICER_CONTACT_NUMBER);
         data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
         data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
@@ -3738,6 +3815,7 @@ public class LendingApplicationServiceV2 {
         data.put("annual_turnover",kfsDto.getAnnualTurnover()); // summaryTPV * 360
         data.put("monthlyIncome",Optional.ofNullable(kfsDto.getMonthlyIncome()).map(String::valueOf).orElse(""));
         data.put("annual_roi", kfsDto.getAnnualRoi());
+        data.put("parent_lender_corporate_name", kfsDto.getParentLenderCorporateName());
 
         if(kfsDto.isForeclosureChargesRequired()) {
             List<ForeClosureConfig> foreClosureConfigList = foreClosureConfigDao.findByLender(kfsDto.getLender());
@@ -3866,7 +3944,7 @@ public class LendingApplicationServiceV2 {
                 data.put("udyam_number", businessDocs.peek() != null ? businessDocs.peek().getDocIdentifier() : null);
             }
         }
-
+        data.put("parent_lender", ObjectUtils.isEmpty(kfsDto.getParentLender()) ? "NA" : kfsDto.getParentLender());
         //log.info("data ****** {}", new ObjectMapper().writeValueAsString(data));
         return data;
     }
@@ -3934,13 +4012,18 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
         } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SMICC-Logo-1724934813170_1-1728285292259.png";
+        } else if(lender.equalsIgnoreCase(Lender.OXYZO.name()) && applicationDocType.equals(ApplicationDocType.OXYZO_LETTERHEAD_FOOTER)){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Oxyzo_footer-1737110322362.png";
+        }
+        else if(lender.equalsIgnoreCase(Lender.OXYZO.name())){
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Oxyzo_header-1737110280049.png";
         }
         return logoUrl;
     }
 
     public String getRepaymentSchedule(Long applicationId, BasicDetailsDto merchant, String lender) {
         CommonResponse response = Lender.SMFG.name().equalsIgnoreCase(lender) ? lendingEdiScheduleService.getEdiScheduleV3(merchant.getId(), applicationId)
-        : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId);
+        : lendingEdiScheduleService.getEdiScheduleV2(merchant.getId(), applicationId,null);
         if (!response.isSuccess()) {
             log.info(response.getMessage());
             log.info("Unable to fetch edi schedule for applicationId : {}", applicationId);
@@ -4439,13 +4522,62 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong!");
     }
 
-    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
-        Double foreClosureAmountForABFL = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
-        if(foreClosureAmountForABFL <= 0){
-            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+        if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+            return validateForeclosureAmount(Double.valueOf(loanUtil.getForeclosureAmount(lendingPaymentSchedule)).doubleValue(), lendingPaymentSchedule);
         }
-        return foreClosureAmountForABFL;
+
+        if (lenderEnableForeclosureAmountCache.contains(lendingPaymentSchedule.getNbfc())) {
+            return validateForeclosureAmount(getForeclosureAmountFromCacheOrFetch(lendingPaymentSchedule), lendingPaymentSchedule);
+        }
+
+        return validateForeclosureAmount(fetchForeclosureAmountWithFallback(lendingPaymentSchedule), lendingPaymentSchedule);
+    }
+
+    private Double getForeclosureAmountFromCacheOrFetch(LendingPaymentSchedule lendingPaymentSchedule) {
+        String cacheKey = LOAN_FORECLOSURE_CACHE_PREFIX + lendingPaymentSchedule.getId();
+        log.info("Searching foreclosure amount in cache with key: {} applicationId: {}", cacheKey, lendingPaymentSchedule.getApplicationId());
+
+        try {
+            Object cachedValue = lendingCache.get(cacheKey);
+            if (cachedValue != null) {
+                Double cachedAmount = commonUtil.convertToDouble(cachedValue);
+                log.info("Cache hit: foreclosure amount for key {} is {}", cacheKey, cachedAmount);
+                return cachedAmount;
+            }
+
+            log.info("Cache miss: fetching foreclosure amount for key: {}", cacheKey);
+            Double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+            storeForeclosureAmountInCache(cacheKey, foreclosureAmount, lendingPaymentSchedule.getNbfc());
+            return foreclosureAmount;
+        } catch (Exception e) {
+            log.error("Error fetching foreclosure amount from cache for merchantId: {}, loanId: {}, error: {}",
+                    lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId(), e.getMessage(), e);
+            return fetchForeclosureAmountWithFallback(lendingPaymentSchedule);
+        }
+    }
+
+    private void storeForeclosureAmountInCache(String cacheKey, Double foreclosureAmount, String nbfc) {
+        log.info("Storing foreclosure amount {} in cache with key {}", foreclosureAmount, cacheKey);
+        AddCacheDto addCacheDto = new AddCacheDto();
+        addCacheDto.setKey(cacheKey);
+        addCacheDto.setTtl(getLenderTTL(nbfc.toUpperCase()));
+        addCacheDto.setValue(foreclosureAmount);
+
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        log.info("Cache updated for key: {} with value {}", cacheKey, foreclosureAmount);
+    }
+
+    private Double fetchForeclosureAmountWithFallback(LendingPaymentSchedule lendingPaymentSchedule) {
+        return loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+    }
+
+    private Double validateForeclosureAmount(Double foreclosureAmount, LendingPaymentSchedule lendingPaymentSchedule) {
+        if (foreclosureAmount == null || foreclosureAmount <= 0) {
+            log.error("Foreclosure amount <= 0 for merchantId {}, loanId {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new RuntimeException("Unable to fetch foreclosure amount for parent loan");
+        }
+        return foreclosureAmount;
     }
 
     public ApiResponse<?> generateLenderKfs(LendingApplication lendingApplication, Boolean preSigned) {
@@ -5006,6 +5138,16 @@ public class LendingApplicationServiceV2 {
             lendingKfs.setKfsDocUrl(kfsShortUrl);
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    Integer getLenderTTL(String lender) {
+        switch (lender) {
+            case "PIRAMAL": {
+                return piramalForeclosureCacheMinutes;
+            }
+            default:
+                return 2;
         }
     }
 }

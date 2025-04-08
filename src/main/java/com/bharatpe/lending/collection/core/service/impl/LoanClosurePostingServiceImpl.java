@@ -12,9 +12,12 @@ import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
+import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.config.OxyzoConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
@@ -24,6 +27,7 @@ import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+import com.bharatpe.lending.loanV3.dto.request.oxyzo.OxyzoForeclosureDetailsRequestDTO;
 import com.bharatpe.lending.loanV3.dto.trillions.TrillionForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
@@ -32,9 +36,11 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.PaymentAdjustme
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.PaymentService;
+import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -49,10 +55,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -76,6 +79,12 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LoanUtil loanUtil;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Lazy
     @Autowired
@@ -106,6 +115,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     @Autowired
     UgroConfig ugroConfig;
 
+    @Autowired
+    OxyzoConfig oxyzoConfig;
+
     @Override
     public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
         try{
@@ -120,6 +132,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return;
             }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
@@ -134,7 +147,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                                     .receiptAmount(lendingLedger.getAmount())
                                     .paidByContactNo(mobile.substring(2))
                                     .transactionRefNumber(String.valueOf(lendingLedger.getId()))
-                                    .receiptDateTime(lendingLedger.getDate())
+                                    .receiptDateTime(txnDate)
                                     .build())
                             .build())
                     .build();
@@ -165,11 +178,12 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             String adjustmentMode = PaymentAdjustmentModesPiramal.valueOf(lendingLedger.getAdjustmentMode()).getAdjustedModeEquivalent();
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             logger.info("inside the post foreclosure-  adjustmentMode - {}, txnId - {} ", adjustmentMode,txnId);
             LoanReceiptRequestDTO.PaymentReceiptData paymentReceiptData = new LoanReceiptRequestDTO.PaymentReceiptData();
             paymentReceiptData.setTransactionReference(txnId);
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-            paymentReceiptData.setReceivedDate(simpleDateFormat.format(lendingLedger.getDate()));
+            paymentReceiptData.setReceivedDate(simpleDateFormat.format(txnDate));
             paymentReceiptData.setRemarks(lendingLedger.getAdjustmentMode());
 
 
@@ -178,8 +192,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             allocationDetails.add(LoanReceiptRequestDTO.AllocationDetail.builder().allocationItem("I").paidAmount(lendingLedger.getInterest()).build());
 
             loanReceiptRequestDTO.setProductId(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())? "BPETU" : "BRTPE");
-            loanReceiptRequestDTO.setLoanAccountNumber(lendingApplicationLenderDetails.getLan());
 
+            loanReceiptRequestDTO.setLoanAccountNumber(lendingApplicationLenderDetails.getLan());
             BigDecimal amount = BigDecimal.valueOf(lendingLedger.getAmount());
             loanReceiptRequestDTO.setPaymentAmount(amount);
             loanReceiptRequestDTO.setLedgerId(lendingLedger.getId());
@@ -187,8 +201,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             loanReceiptRequestDTO.setPaymentType(PaymentTypePiramal.FORECLOSURE_PAYMENT);
             loanReceiptRequestDTO.setPaymentRequestType(PaymentRequestType.POST);
             loanReceiptRequestDTO.setPaymentReceiptData(paymentReceiptData);
-            loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
 
+            loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
             NbfcRequestDto<LoanReceiptRequestDTO> dtoNbfcRequestDto = new NbfcRequestDto<>();
             dtoNbfcRequestDto.setLender("PIRAMAL");
             dtoNbfcRequestDto.setTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()));
@@ -214,7 +228,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     public void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
         try {
             logger.info("inside the post foreclosure of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
-            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger);
+            NBFCRequestDTO nbfcRequest = associationServiceUtil.foreclosureReceiptRequest(activeLoan.getNbfc(), activeLoan.getApplicationId(), lendingLedger, null);
             if(ObjectUtils.isEmpty(nbfcRequest)) {
                 log.info("Error in generating request for foreclosure receipt of {} for {}", activeLoan.getNbfc(), activeLoan.getApplicationId());
                 return;
@@ -273,6 +287,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             }
 
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
             TrillionForeclosureRequestDto trillionForeclosureRequestDto = TrillionForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.TRILLIONLOANS.name())
@@ -282,7 +297,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .note("Foreclosure")
                             .preClosureReasonId(192)
                             .transactionAmount(String.valueOf(Math.ceil(lendingLedger.getAmount())))
-                            .transactionDate(lendingLedger.getDate())
+                            .transactionDate(txnDate)
                             .paymentTypeId(1)
                             .interestWaiverAmount(0.0)
                             .receiptNumber(txnId)
@@ -346,12 +361,19 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         String postingStatus = "FAILURE";
         String status="SUCCESS";
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
-        if (loanForeClosureCharges == null) {
+        LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(applicationId);
+
+        if(ObjectUtils.isEmpty(lendingPaymentSchedule)){
+            logger.info("Payu: Lending Payment Schedule does not exist for {}", applicationId);
+            return;
+        }
+
+        if (loanForeClosureCharges == null && !loanUtil.checkLoanCoolOffPeriod(lendingPaymentSchedule.getCreatedAt())) {
             logger.info("Payu : No foreclosure charges exist for the orderId {}", orderId);
             return;
         }
         try {
-            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(Lender.PAYU.name(), applicationId, lendingLedger);
+            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(Lender.PAYU.name(), applicationId, lendingLedger, null);
             logger.info("Payu :  foreclosure charges event Sending {}", nbfcRequestDTO);
             Object metadata = confluentKafkaTemplate.send(nbfcPayuForeclosureTopic, objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequestDTO), new TypeReference<Map<String, Object>>() {}));
             logger.info("Payu : foreclosure charges event sent {}", objectMapper.writeValueAsString(nbfcRequestDTO));
@@ -368,8 +390,47 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             logger.info("Payu: updated LCA for foreclosed event for application id : {} and status :{} ", applicationId, status);
         }
 
-        loanForeClosureCharges.setChargePostingStatus(postingStatus);
-        loanForeClosureChargesDao.save(loanForeClosureCharges);
+        if(loanForeClosureCharges != null){
+            loanForeClosureCharges.setChargePostingStatus(postingStatus);
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+        }
+    }
+
+    @Override
+    public void sendForeclosureEventToLender(Long applicationId, LendingLedger lendingLedger, Long orderId, String lender) {
+        String status = "SUCCESS";
+        String postingStatus = "FAILURE";
+        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            logger.info("{} no lending app details record found for the app {}", lender, applicationId);
+            return;
+        }
+
+        try {
+            NBFCRequestDTO nbfcRequestDTO = associationServiceUtil.foreclosureReceiptRequest(lender, applicationId, lendingLedger, orderId);
+            logger.info("{} :  foreclosure charges event Sending {}", lender, nbfcRequestDTO);
+            Object metadata = confluentKafkaTemplate.send(getLenderForeclsoureReceiptTopic(lender), objectMapper.readValue(objectMapper.writeValueAsString(nbfcRequestDTO), new TypeReference<Map<String, Object>>() {
+            }));
+            logger.info("{} : foreclosure charges event sent {}", lender, objectMapper.writeValueAsString(nbfcRequestDTO));
+            postingStatus = "POSTED";
+        } catch (Exception e) {
+            logger.error("{} : error occurred while sending foreclosure event {}", lender, e.getMessage());
+            status = "FAILED";
+        }
+
+
+        logger.info("{}: updating LCA for foreclosed event for application id : {}  and status is {}", lender,applicationId, status);
+        LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(), 1);
+        if (lendingCollectionAudit != null) {
+            lendingCollectionAudit.setStatus(status);
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            logger.info("{}: updated LCA for foreclosed event for application id : {} and status :{} ", lender, applicationId, status);
+        }
+        if (loanForeClosureCharges != null) {
+            loanForeClosureCharges.setChargePostingStatus(postingStatus);
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+        }
     }
 
     private String getLenderForeclsoureReceiptTopic(String lender) {
@@ -384,6 +445,8 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                 return smfgConfig.getForeclosureTopic();
             case "UGRO":
                 return ugroConfig.getForeclosureTopic();
+            case "OXYZO":
+                return oxyzoConfig.getForeclosureTopic();
             default:
                 return null;
         }

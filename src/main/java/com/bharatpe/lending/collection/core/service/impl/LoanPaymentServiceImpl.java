@@ -27,10 +27,10 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
-import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.SettlementService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +40,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,6 +51,7 @@ import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.DIRECT_TRANSFER_LENDER;
 import static com.bharatpe.lending.common.enums.TransferTypeModes.TRANSFER_BY_BP;
+import static com.bharatpe.lending.constant.LendingConfigKeys.ADVANCE_EDI;
 import static com.bharatpe.lending.enums.Lender.PIRAMAL;
 
 
@@ -60,6 +63,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     //Allowed -  Arrays.asList(NACH, ADVANCE, OTHER)
     public static final List<LoanPaymentMode> PAYMENT_ADJUSTMENT_PREFRENCE_LIST = Arrays.asList(NACH, OTHER);
+    public static final String PAYMENT_EXCESS_SOURCE = "PAYMENT";
+
+    HashSet<String> ALLOWED_POSTING_TRANSFER_BP_MODE = new HashSet<>(Arrays.asList("SETLLEMENT", "FP"));
 
     public static final String LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH = "EXCESS_NACH";
 
@@ -126,26 +132,30 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Autowired
     LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
+    @Autowired
+    SettlementService settlementService;
+
     @Override
     @Transactional
     public LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
         log.info("adjustMoney for loan: {} and payment {} started ", loan, payment);
 
         if (Objects.isNull(loan) || Objects.isNull(payment)) return loan;
-
-        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
-        if (Objects.nonNull(payment.getSource()) && waiverList.contains(payment.getSource()) &&
-                (loan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || loan.getNbfc().equalsIgnoreCase(PIRAMAL.name()))) {
-            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
-            Double excessCollectionBalance = 0D;
-            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
-                if(lendingCollectionExcess.getAmount() > 0){
-                    excessCollectionBalance += lendingCollectionExcess.getAmount();
-                }
-            }
-            loanStatusService.waiverSettlement(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), "SETTLED", payment.getTerminalOrderId(), excessCollectionBalance, lendingCollectionExcessList);
-            return loan;
-        }
+//        Settlement adjustment moved to adjust money block
+//
+//        List<String> waiverList = Arrays.asList(WaiverType.EXCEPTION.name(), WaiverType.DECEASED_SCHEME.name(), WaiverType.SCHEME1.name(), WaiverType.SCHEME.name());
+//        if (Objects.nonNull(payment.getSource()) && waiverList.contains(payment.getSource()) &&
+//                (loan.getNbfc().equalsIgnoreCase(Lender.ABFL.name()) || loan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name()))) {
+//            List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(loan.getMerchantId(), loan.getId(), "ACTIVE");
+//            Double excessCollectionBalance = 0D;
+//            for(LendingCollectionExcess lendingCollectionExcess : lendingCollectionExcessList){
+//                if(lendingCollectionExcess.getAmount() > 0){
+//                    excessCollectionBalance += lendingCollectionExcess.getAmount();
+//                }
+//            }
+//            loanStatusService.waiverSettlement(loan, payment.getOtherAmount(), payment.getBankRefNo(), payment.getSource(), "SETTLED", payment.getTerminalOrderId(), excessCollectionBalance, lendingCollectionExcessList);
+//            return loan;
+//        }
         String mechanism = LoanPaymentUtil.getLoanSettlementMechanism(loan);
         adjustMoney(loan, payment, mechanism);
         log.info("adjustMoney for loan: {} and payment {} complete", loan, payment);
@@ -170,12 +180,21 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             if (!loanForeClosed) {
                 for (LoanPaymentMode paymentMode : loanPaymentModes) {
                     log.info("adjustMoney for loanId: {} paymentMode {} by mechanism {} ", loan.getId(), paymentMode, settlementMechanism.name());
+//                    Raise Dues for settlement initiated cases if received amount is more then dues created
+                    if (loan.getSettlementInitiated() && ((ADVANCE.equals(paymentMode) && payment.getAdvanceEdiAmount() > loan.getDueAmount())
+                            || (OTHER.equals(paymentMode) && payment.getOtherAmount() > loan.getDueAmount()))) {
+                        raiseDuesInLedger(loan, payment);
+                    }
                     if (NACH.equals(paymentMode) && payment.isAdjustExcessNach())
                         adjustExcessNachBalanceAndLedger(loan, settlementMechanism.name());
                     if (ADVANCE.equals(paymentMode))
                         adjustAdvancePaymentAndLedger(loan, payment.getAdvanceEdiAmount(), settlementMechanism.name());
                     if (OTHER.equals(paymentMode))
                         adjustOtherPaymentAndLedger(loan, payment, settlementMechanism.name());
+                }
+                lendingPaymentScheduleDao.save(loan);
+                if (loan.getSettlementInitiated()) {
+                    settlementService.checkForLoanSettlement(loan);
                 }
             }
             lendingPaymentScheduleDao.save(loan);
@@ -192,6 +211,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         PaymentCalculation otherAdjustment = adjustPayment(loan, payment.getOtherAmount(), mode);
         adjustExtraAmountIfAny(loan, otherAdjustment.getBalance(), payment, true);
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
+        log.info("got order for loanId:{} orderId:{} order:{}", loan.getId(), payment.getOrderId(), order);
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
         ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment.getPenaltySettled(), payment.getSource(), false);
         if (payment.isUpdateGlobalTxnlimit()) updateGlobaltxnLimit(loan.getMerchantId(), "CREDIT", otherAdjustment.getPrincipleSettled());
@@ -224,7 +244,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     private void createLoanExcess(LendingPaymentSchedule loan, double amount, LoanPaymentDetailDTO payment) {
         Date ledgerDate = new Date();
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId());
-        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())){
+        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted()) && !"UPI_AUTOPAY".equalsIgnoreCase(payment.getSource())){
             ledgerDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), 1);
         }
         log.info("Creating Excess balance for merchant:{} amount:{} source:{}", loan.getMerchantId(), amount, payment.getSource());
@@ -240,6 +260,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         lendingCollectionExcess.setCreditDate(ledgerDate);
         lendingCollectionExcess.setTransferType(payment.getTransferType());
         lendingCollectionExcess.setDeductedAmount(0D);
+        lendingCollectionExcess.setSource(PAYMENT_EXCESS_SOURCE);
         lendingCollectionExcessDao.save(lendingCollectionExcess);
         log.info("created Excess balance Collection credit entry of amount:{} for merchant:{}", amount, loan.getMerchantId());
         // As we already inform user when NACH excess was created from bank
@@ -249,7 +270,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private void createLendingCollectionAuditForExcessNachCredit(LendingPaymentSchedule lendingPaymentSchedule, String txnId, String source, Double amount, Long refId, String transferType, Date ledgerDate){
-        if (TRANSFER_BY_BP.name().equalsIgnoreCase(transferType)) {
+        // it is possible from the data sometime excess being created from already excess credit entry
+        // hence to avoid double payment we adding check
+        // allow only mode is strictly = FP, SETTLEMENT
+        if (TRANSFER_BY_BP.name().equalsIgnoreCase(transferType) && !ALLOWED_POSTING_TRANSFER_BP_MODE.contains(source)) {
             log.info("its transfer by bp no lca entry is required {} {} {}", lendingPaymentSchedule.getId(), txnId, source);
             return;
         }
@@ -633,5 +657,59 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
                 + (lendingPaymentSchedule.getDueOtherCharges() != null ? lendingPaymentSchedule.getDueOtherCharges() : 0)
                 - advanceEdiAmount - excessCollectionBalance - extraInterestofPerpetualDpdLoan);
+    }
+
+    private void raiseDuesInLedger(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment) {
+        double amount = 0;
+        if (Objects.nonNull(payment.getAdvanceEdiAmount()) && payment.getAdvanceEdiAmount() > 0) {
+            amount = payment.getAdvanceEdiAmount();
+        } else if (Objects.nonNull(payment.getOtherAmount()) && payment.getOtherAmount() > 0) {
+            amount = payment.getOtherAmount();
+        }
+        if (amount <= 0) {
+            return;
+        }
+
+        double dueAmount = loan.getDueAmount();
+        double duePrinciple = loan.getDuePrinciple();
+
+        double raiseDueAmount = amount - dueAmount;
+        double raiseDuePrinciple = amount - duePrinciple;
+
+        int ediSkipCount = (int) (raiseDueAmount/loan.getEdiAmount());
+        int ediRemainingCount = loan.getEdiRemainingCount();
+        if (ediRemainingCount > 0 && ediRemainingCount < ediSkipCount) {
+            ediSkipCount = ediRemainingCount;
+        }
+//        LPS Changes to raise advance EDI
+        if (ediSkipCount >= 1) {
+            Date nextEdiDate = loan.getNextEdiDate();
+            LocalDate localDate = nextEdiDate.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+
+            loan.setNextEdiDate(Date.from(localDate.plusDays(ediSkipCount).atStartOfDay(ZoneId.systemDefault()).toInstant()) );
+            loan.setEdiRemainingCount(ediRemainingCount - ediSkipCount);
+        }
+
+        loan.setDueAmount(amount);
+        loan.setDuePrinciple(duePrinciple + raiseDuePrinciple);
+
+//        Ledger Advance EDI
+        LendingLedger lendingLedger = getLendingLedger(loan, raiseDueAmount, raiseDuePrinciple);
+        lendingLedgerDao.save(lendingLedger);
+    }
+
+    private LendingLedger getLendingLedger(LendingPaymentSchedule loan, double raiseDueAmount, double raiseDuePrinciple) {
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchantId(loan.getMerchantId());
+        lendingLedger.setLendingPaymentSchedule(loan);
+        lendingLedger.setAmount(-1 * raiseDueAmount);
+        lendingLedger.setPrinciple(-1 * raiseDuePrinciple);
+        lendingLedger.setInterest(0.0);
+        lendingLedger.setPenalty(0.0);
+        lendingLedger.setOtherCharges(0.0);
+        lendingLedger.setDescription(ADVANCE_EDI);
+        lendingLedger.setTxnType("EDI");
+        lendingLedger.setDate(new Date());
+        return lendingLedger;
     }
 }

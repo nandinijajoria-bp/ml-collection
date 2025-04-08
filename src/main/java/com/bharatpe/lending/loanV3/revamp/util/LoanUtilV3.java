@@ -2,15 +2,10 @@ package com.bharatpe.lending.loanV3.revamp.util;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
-import com.bharatpe.lending.common.dao.LendingApplicationPriorityDao;
-import com.bharatpe.lending.common.dao.LendingResubmitReasonCountDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
-import com.bharatpe.lending.common.entity.LendingApplicationPriority;
-import com.bharatpe.lending.common.entity.LendingResubmitReasonCount;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.FunnelEnums;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -31,6 +26,7 @@ import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -78,6 +74,8 @@ public class LoanUtilV3 {
 
     @Autowired
     LendingPancardDetailsDao lendingPancardDetailsDao;
+
+    public static List<String> LIQUILOANS_BT_LENDERS = Arrays.asList(LendingEnum.LENDER.LIQUILOANS_P2P.name(),LendingEnum.LENDER.LIQUILOANS_P2P_OF.name());
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -218,10 +216,10 @@ public class LoanUtilV3 {
 
     private void saveLendingPancardData(PanFetchKYCResponseDto.Data panFetchResponseData, LendingPancardDetails lendingPancard, Long merchantId){
         if (!ObjectUtils.isEmpty(lendingPancard)) {
-            lendingPancard.setName(panFetchResponseData.getName());
+            lendingPancard.setName(panFetchResponseData.getVerifiedName());
             lendingPancard.setPancardNumber(panFetchResponseData.getPanNumber());
             lendingPancard.setVersion(LendingConstants.PAN_VERIFICATION_VERSION);
-            lendingPancard.setDob(panFetchResponseData.getDateOfBirth());
+            lendingPancard.setDob(panFetchResponseData.getVerifiedDob());
             lendingPancardDetailsDao.save(lendingPancard);
         } else {
             lendingPancardDetailsDao.save(new LendingPancardDetails(merchantId, panFetchResponseData.getPanNumber(), panFetchResponseData.getName(), null, LendingConstants.PAN_VERIFICATION_VERSION, panFetchResponseData.getDateOfBirth()));

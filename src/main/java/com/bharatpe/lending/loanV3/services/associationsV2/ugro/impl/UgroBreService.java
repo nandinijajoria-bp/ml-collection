@@ -160,4 +160,61 @@ public class UgroBreService {
         }
         return null;
     }
+
+    @Transactional
+    public Boolean invokeConsentWithFalse(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto){
+        try {
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("DEDUPE_" + LenderAssociationStages.POST_CONSENT.name());
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.DEDUPE_CONSENT_PENDING.name());
+
+            if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails()) || ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())) {
+                log.error("UGRO: LALD/LeadId is not present for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.DEDUPE_CONSENT_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.DEDUPE_CONSENT_FAILED);
+                return false;
+            }
+
+            NBFCRequestDTO<?> dedupeConsentRequest = getConsentFalsePayload(lenderAssociationDetailsDto);
+            if (ObjectUtils.isEmpty(dedupeConsentRequest)) {
+                log.info("UGRO: dedupe consent false payload is empty for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.DEDUPE_CONSENT_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.DEDUPE_CONSENT_FAILED);
+                return false;
+            }
+
+            NBFCResponseDTO<?> consentResponseDto = lenderAPIGateway.invokeStage(dedupeConsentRequest, LenderAssociationStages.POST_CONSENT);
+            if (consentResponseDto.getSuccess() && !ObjectUtils.isEmpty(consentResponseDto.getData())) {
+                UgroConsentResponse consentResponseDTO = objectMapper.convertValue(consentResponseDto.getData(), UgroConsentResponse.class);
+                if (ugroConfig.getSuccessResponse().equalsIgnoreCase(consentResponseDTO.getStatus())) {
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.DEDUPE_CONSENT_SUCCESS.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsDto);
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.error("UGRO: error while invoking dedupe consent false for  {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.DEDUPE_CONSENT_FAILED.name());
+        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.DEDUPE_CONSENT_FAILED);
+        return false;
+    }
+
+    private NBFCRequestDTO<?> getConsentFalsePayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+        LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
+        LendingApplicationLenderDetails lendingApplicationLenderDetails = lenderAssociationDetailsRequest.getLendingApplicationLenderDetails();
+        try {
+            return NBFCRequestDTO.builder()
+                    .applicationId(lendingApplication.getId())
+                    .lender(lendingApplication.getLender())
+                    .productName("LENDING")
+                    .payload(UgroConsentRequest.builder()
+                            .leadId(lendingApplicationLenderDetails.getLeadId())
+                            .consent(Boolean.FALSE)
+                            .build())
+                    .build();
+        } catch (Exception e) {
+            log.info("UGRO: Exception in creating BRE payload for application {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
 }

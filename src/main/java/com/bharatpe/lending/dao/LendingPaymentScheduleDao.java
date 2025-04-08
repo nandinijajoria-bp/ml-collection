@@ -1,7 +1,6 @@
 package com.bharatpe.lending.dao;
 
-import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Repository;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
@@ -11,6 +10,8 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+
+import javax.transaction.Transactional;
 
 @Repository
 public interface LendingPaymentScheduleDao extends CrudRepository<LendingPaymentSchedule, Long> {
@@ -75,4 +76,5 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 
 	@Query(nativeQuery = true, value = "select lps.* from lending_payment_schedule lps where lps.merchant_id =:merchantId and lps.id =:id and lps.status =:status")
 	Optional<LendingPaymentSchedule> findByMerchantIdAndIdAndStatus(Long merchantId,Long id,String status);
+
 }

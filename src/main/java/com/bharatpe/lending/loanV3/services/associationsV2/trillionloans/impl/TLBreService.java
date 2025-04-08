@@ -11,10 +11,12 @@ import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.enums.TlBreExceptionEnum;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MerchantAggregateDataDao;
 import com.bharatpe.lending.entity.MerchantAggregateData;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -22,6 +24,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDt
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLBreRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLBreCallbackResponseDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLBreResponseDto;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -37,7 +40,14 @@ import javax.transaction.Transactional;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static com.bharatpe.lending.common.enums.TlBreExceptionEnum.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -78,6 +88,13 @@ public class TLBreService {
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
 
+    @Value("${trillion.bre.retry.intervals:}")
+    List<Integer> trillionBreRetryIntervals;
+
+    private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+
+    private static int attempt = 0;
+
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
@@ -91,22 +108,28 @@ public class TLBreService {
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
             NBFCRequestDTO breRequest = getPayload(lenderAssociationDetailsRequestDto);
-            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE);
-            log.info("Bre response of TrillionLoans from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
-
-            if (nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
-                TLBreResponseDto breResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLBreResponseDto.class);
-                if (breResponseDTO.getStatus().equalsIgnoreCase("INITIATED")) {
-                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
-                    commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-                    log.info("LALD DAO - {}", lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails());
-                    return true;
-                }
+            if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
+                LendingApplication parentApplication = loanUtil.fetchParentApplication(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
+                lenderAssociationDetailsRequestDto.setTopupParentLender(parentApplication.getLender());
+            }
+            if (executeBre(breRequest, lenderAssociationDetailsRequestDto)) {
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                log.info("Updated LendingApplicationLenderDetails: {}", lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails());
+                return true;
+            }
+            if (!ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getTopupParentLender()) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lenderAssociationDetailsRequestDto.getTopupParentLender())) {
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.BRE_RETRY.name());
+                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                scheduleBreExecution(breRequest, lenderAssociationDetailsRequestDto);
+                return false;
             }
         } catch (Exception e) {
             log.error("error while invoking Bre of TrillionLoans for  {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreRejectionReason(INTERNAL_ERROR.name());
+        log.info("invoke bre failed for TrillionLoans for applicationId : {} due to : {}", lenderAssociationDetailsRequestDto.getApplicationId(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getBreRejectionReason());
         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
         return false;
     }
@@ -124,7 +147,7 @@ public class TLBreService {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
                 return false;
             }
-            if (!LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage()) || !LenderAssociationStatus.RISK_IN_PROGRESS.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
+            if (!LenderAssociationStages.BRE.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage()) || !Arrays.asList(LenderAssociationStatus.RISK_IN_PROGRESS.name(), LenderAssociationStatus.BRE_RETRY.name()).contains(lendingApplicationLenderDetails.getBreStatus())) {
                 log.info("Application not in correct state for BRE callback for applicationId {}", lendingApplication.getId());
                 return false;
             }
@@ -135,8 +158,9 @@ public class TLBreService {
                     .modifyLender(enableLenderChange)
                     .manageState(true)
                     .build();
+            TLBreCallbackResponseDto breCallbackResponseDto = null;
             if (Objects.nonNull(nbfcResponseDTO.getData()) && nbfcResponseDTO.getSuccess()) {
-                TLBreCallbackResponseDto breCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLBreCallbackResponseDto.class);
+                breCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLBreCallbackResponseDto.class);
                 log.info("BRE callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), breCallbackResponseDto);
                 if (!ObjectUtils.isEmpty(breCallbackResponseDto) && breCallbackResponseDto.getSuccess() && breCallbackResponseDto.getAction().equalsIgnoreCase("Eligible")) {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
@@ -144,8 +168,29 @@ public class TLBreService {
                     log.info("LALD DAO - {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
                     return true;
                 }
+            } else if (Objects.nonNull(nbfcResponseDTO.getData())) {
+                breCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLBreCallbackResponseDto.class);
+                if (!ObjectUtils.isEmpty(breCallbackResponseDto) && !ObjectUtils.isEmpty(breCallbackResponseDto.getReasons())) {
+                    String rejectionReason = Arrays.stream(breCallbackResponseDto.getReasons())
+                            .map(Object::toString)
+                            .collect(Collectors.joining(","));
+                    Arrays.stream(TlBreExceptionEnum.values())
+                            .filter(exceptionEnum -> exceptionEnum.getCompleteReason(exceptionEnum).equals(rejectionReason))
+                            .findFirst()
+                            .ifPresent(exceptionEnum -> lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreRejectionReason(exceptionEnum.name()));
+                    if (ObjectUtils.isEmpty(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getBreRejectionReason())) {
+                        if (!ObjectUtils.isEmpty(rejectionReason)) {
+                            log.error("Unhandled rejection reason received for BRE for TrillionLoans for applicationId {} : {}", nbfcResponseDTO.getApplicationId(), rejectionReason);
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreRejectionReason(UNIDENTIFIED_REASON.name());
+                        }
+                    }
+                }
             }
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+            if (ObjectUtils.isEmpty(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getBreRejectionReason())) {
+                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreRejectionReason(EMPTY_RESPONSE.name());
+            }
+            log.info("bre call back failed for TrillionLoans for applicationId : {} due to : {}", nbfcResponseDTO.getApplicationId(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getBreRejectionReason());
             commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.RISK_FAILED);
         } catch (Exception e) {
             log.error("exception while processing BRE callback of TrillionLoans for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -240,5 +285,53 @@ public class TLBreService {
                         .eligCompDate(lendingRiskVariables.getUpdatedAt().toString())
                         .build())
                 .build();
+    }
+
+    private boolean executeBre(NBFCRequestDTO breRequest, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        try {
+            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE);
+            log.info("BRE response from NBFC: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
+                TLBreResponseDto breResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLBreResponseDto.class);
+                if ("INITIATED".equalsIgnoreCase(breResponseDTO.getStatus())) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.error("Exception executing BRE of {} for applicationId: {} {}", lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto.getLendingApplication().getId(), Arrays.asList(e.getStackTrace()));
+        }
+        return false;
+    }
+
+    private void scheduleBreExecution(NBFCRequestDTO breRequest, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        if (attempt >= trillionBreRetryIntervals.size()) {
+            log.info("Max retries reached for BRE invocation. Stopping further attempts.");
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+            commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequestDto);
+            scheduler.shutdown();
+            return;
+        }
+        int delay = trillionBreRetryIntervals.get(attempt);
+        scheduler.schedule(() -> {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getBreStatus())) {
+                log.info("BRE invocation of {} already completed for applicationId {}", lendingApplicationLenderDetails.getLender(), lendingApplicationLenderDetails.getApplicationId());
+                scheduler.shutdown();
+                return;
+            }
+            boolean success = executeBre(breRequest, lenderAssociationDetailsRequestDto);
+            if (success) {
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_IN_PROGRESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                log.info("BRE initiated successfully. Stopping retries.");
+                scheduler.shutdown();
+                return;
+            }
+
+            attempt++;
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.BRE_RETRY.name());
+            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+            scheduleBreExecution(breRequest, lenderAssociationDetailsRequestDto);
+        }, delay, TimeUnit.SECONDS);
     }
 }

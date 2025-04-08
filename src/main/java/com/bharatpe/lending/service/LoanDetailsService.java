@@ -21,10 +21,16 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingApplicationDetailsSlaveDao;
 import com.bharatpe.lending.common.query.dao.LendingRiskVariablesDaoSlave;
+import com.bharatpe.lending.common.query.dao.LendingRiskVariablesSnapshotSlaveDao;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.query.entity.LendingApplicationDetailsSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSlave;
+import com.bharatpe.lending.common.query.entity.LendingRiskVariablesSnapshotSlave;
 import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -63,6 +69,8 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
 import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -81,7 +89,10 @@ public class LoanDetailsService {
 	LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
 	@Autowired
-	private LendingApplicationDao lendingApplicationDao;
+	private LendingApplicationDaoSlave lendingApplicationDaoSlave;
+
+	@Autowired
+	LendingApplicationDao lendingApplicationDao;
 
 	@Autowired
 	LendingGstDao lendingGstDao;
@@ -224,13 +235,13 @@ public class LoanDetailsService {
 	@Autowired
 	ForeClosureConfigDao foreClosureDao;
 	@Autowired
-	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+	LendingApplicationDetailsSlaveDao lendingApplicationDetailsDao;
 
 	@Autowired
 	LendingRiskVariablesDaoSlave lendingRiskVariablesDaoSlave;
 
 	@Autowired
-	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+	LendingRiskVariablesSnapshotSlaveDao lendingRiskVariablesSnapshotDao;
 	@Value("${bureau.credit.score.pull.days:45}")
 	private Long bureauScorePullDays;
 	@Autowired
@@ -300,7 +311,6 @@ public class LoanDetailsService {
 				if (experian == null) {
 					experian = experianDao.save(new Experian(merchantBasicDetailsDto.getId(), clientIp, merchantBasicDetailsDto.getLatitude() != null && merchantBasicDetailsDto.getLatitude() <= 90 ? merchantBasicDetailsDto.getLatitude() : null, merchantBasicDetailsDto.getLongitude() != null && merchantBasicDetailsDto.getLongitude() <= 90 ? merchantBasicDetailsDto.getLongitude() : null, 0, requestDTO.getPayload().getPanCard(), (merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D, experian != null ? experian.getRetryCount() : 0, requestDTO.getPayload().getPincode()));
 				} else if (experian != null && !experian.getPancardNumber().equalsIgnoreCase(panCard)) {
-					logger.info("Found different pancard for merchant:{}, old pancard:{}, new pancard:{}", merchantBasicDetailsDto.getId(), experian.getPancardNumber(), panCard);
 					experian.setPancardNumber(requestDTO.getPayload().getPanCard());
 					experian.setBpScore((merchantResponseDTO != null && merchantResponseDTO.getBpScore() != null) ? merchantResponseDTO.getBpScore() : 0D);
 					experian.setPincode(requestDTO.getPayload().getPincode());
@@ -311,7 +321,6 @@ public class LoanDetailsService {
 					experian.setExperianScore(null);
 					experianDao.save(experian);
 				} else if (requestDTO.getPayload().getPincode() != null) {
-					logger.info("updating experian pincode:{} for merchant:{}", requestDTO.getPayload().getPincode(), merchantBasicDetailsDto.getId());
 					experian.setPincode(requestDTO.getPayload().getPincode());
 					experianDao.save(experian);
 				}
@@ -804,17 +813,20 @@ public class LoanDetailsService {
 				loanEligibilityDTO.setAmount(eligibleLoan.getAmount().intValue());
 				loanEligibilityDTO.setEdi(eligibleLoan.getEdi());
 				loanEligibilityDTO.setInterestRate(eligibleLoan.getRateOfInterest());
-				int processingFee;
-				if (apiGatewayService.eligibleForProcessingFee(merchantId)) {
-					processingFee = 0;
+				BigDecimal processingFee;
+				if(apiGatewayService.eligibleForProcessingFee(merchantId)){
+					processingFee = BigDecimal.ZERO;
 				} else {
-					processingFee = (int) Math.ceil(eligibleLoan.getAmount() * eligibleLoan.getProcessingFee());
+					BigDecimal amount = BigDecimal.valueOf(eligibleLoan.getAmount());
+					BigDecimal feePercentage = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+					processingFee = amount.multiply(feePercentage).setScale(0, RoundingMode.CEILING);
 				}
+
 				LoanCalculationUtil.LoanBreakupDetail breakup = new LoanCalculationUtil.LoanBreakupDetail();
 				breakup.setEdi(eligibleLoan.getEdi());
 				breakup.setRepayment(eligibleLoan.getRepayment());
-				loanEligibilityDTO.setProcessingFee(processingFee);
-				loanEligibilityDTO.setDisbursementAmount((int) (eligibleLoan.getAmount() - processingFee));
+				loanEligibilityDTO.setProcessingFee(processingFee.intValue());
+				loanEligibilityDTO.setDisbursementAmount((int) (eligibleLoan.getAmount() - processingFee.intValue()));
 				loanEligibilityDTO.setTenure(eligibleLoan.getTenure());
 				loanEligibilityDTO.setInterestAmount((int) (eligibleLoan.getRepayment() - eligibleLoan.getAmount()));
 				loanEligibilityDTO.setRepayment(eligibleLoan.getRepayment());
@@ -1612,7 +1624,7 @@ public class LoanDetailsService {
 	}
 
 	public ApplicationDataResponseDTO getApplicationData(Long merchantId){
-		LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+		LendingApplicationSlave lendingApplication = lendingApplicationDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
 		LendingRiskVariablesSlave lendingRiskVariables = lendingRiskVariablesDaoSlave.findTop1ByMerchantIdOrderByIdDesc(merchantId);
 		String loanEligibility;
 		loanEligibility = !ObjectUtils.isEmpty(lendingRiskVariables) && !ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer() >= 10000D ? LendingConstants.ELIGIBLE :LendingConstants.INELIGIBLE;
@@ -1626,7 +1638,7 @@ public class LoanDetailsService {
 					.loanSegment(!ObjectUtils.isEmpty(lendingRiskVariables)?lendingRiskVariables.getLoanSegment():null)
 					.build();
 		}
-		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		LendingApplicationDetailsSlave lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		String viewState = ObjectUtils.isEmpty(lendingApplicationDetails)?null:lendingApplicationDetails.getApplicationViewState();
 		if(lendingRiskVariables.getUpdatedAt().after(lendingApplication.getUpdatedAt())){
 			return ApplicationDataResponseDTO.builder()
@@ -1636,9 +1648,10 @@ public class LoanDetailsService {
 					.callRequired(!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()>10000D)
 					.loanEligibility(loanEligibility)
 					.applicationViewState(viewState)
+					.applicationStatus(lendingApplication.getStatus())
 					.build();
 		}
-		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		LendingRiskVariablesSnapshotSlave lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
 		return ApplicationDataResponseDTO.builder()
 				.applicationId(lendingApplication.getId())
 				.merchantId(merchantId)

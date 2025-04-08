@@ -50,6 +50,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.wrapper.InvokeAdditionalDocUploadWrapperService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -630,7 +631,7 @@ public class VerifyOTPService {
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked push audit workflow of piramal for application {} since NACH is is skipped for  merchanId {}", lendingApplication.getId(), lendingApplication.getMerchantId());
             }
-            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name()).contains(lendingApplication.getLender())) {
+            if("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && Arrays.asList(Lender.USFB.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.ASSC_COMPLETED.name(),
                         LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()),LenderAssociationStages.ASSC_COMPLETED));
                 logger.info("invoked doc upload workflow of {} for application {} since NACH is skipped for  merchanId {}", lendingApplication.getLender(), lendingApplication.getId(), lendingApplication.getMerchantId());
@@ -671,6 +672,7 @@ public class VerifyOTPService {
         lendingAuditTrialDao.save(lendingAuditTrial);
 
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+            markParentLoanInActiveTopup(lendingApplication);
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
             logger.info("saving next page as : {}", LendingViewStates.APPLICATION_STATUS_PAGE);
         }
@@ -1187,5 +1189,14 @@ public class VerifyOTPService {
             logger.info("lendingAuditTrial -> {}", lendingAuditTrial);
             lendingAuditTrialDao.save(lendingAuditTrial);
         }
+    }
+
+    public void markParentLoanInActiveTopup(LendingApplication lendingApplication) {
+        LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+        if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) {
+             logger.info("marking parent loan {} with lender {} status INACTIVE_TOPUP for applicationId {} ", activeLoan.getId(), activeLoan.getNbfc(), lendingApplication.getId());
+             activeLoan.setStatus("INACTIVE_TOPUP");
+             lendingPaymentScheduleDao.save(activeLoan);
+         }
     }
 }

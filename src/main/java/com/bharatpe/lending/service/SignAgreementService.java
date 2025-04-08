@@ -11,17 +11,9 @@ import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
-import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingEkycDao;
-import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
-import com.bharatpe.lending.common.entity.LendingEligibleLoan;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingEkyc;
-import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
@@ -44,17 +36,21 @@ import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
@@ -62,6 +58,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 @Service
 public class SignAgreementService {
@@ -165,6 +162,12 @@ public class SignAgreementService {
     @Lazy
 	@Autowired
 	KycUtils kycUtils;
+
+	@Autowired
+	LendingMerchantReferencesDao lendingMerchantReferencesDao;
+
+	@Value("${clone.contact.references.for.topup.enabled:false}")
+	Boolean cloneContactReferenceForTopupEnabled;
 
 	public Map<String, Object> signAgreement(BasicDetailsDto merchantBasicDetails, RequestDTO<SignAgreementDTO> requestDTO) {
 
@@ -346,14 +349,18 @@ public class SignAgreementService {
 			logger.info("Last loan not closed for merchant ID {}", merchant.getId());
 			return response;
 		}
-		int processingFee;
+		BigDecimal processingFee;
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-			processingFee = 0;
+			processingFee = BigDecimal.ZERO;
 		}else {
-			processingFee = eligibleLoan.getProcessingFee();
+			if(eligibleLoan.getProcessingFee() != null){
+				processingFee = BigDecimal.valueOf(eligibleLoan.getProcessingFee());
+			}else{
+				throw new NullPointerException("Processing Fee cannot be mull in eligible loan");
+			}
 		}
 		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-			processingFee = loanUtil.getIoHalfPF(prevLendingSchedule);
+			processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
 		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
@@ -364,9 +371,9 @@ public class SignAgreementService {
 //            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-		newApplication.setProcessingFee((double)processingFee);
+		newApplication.setProcessingFee(processingFee.doubleValue());
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee);
+		newApplication.setDisbursalAmount(eligibleLoan.getAmount() - processingFee.intValue());
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -753,7 +760,7 @@ public class SignAgreementService {
 			response.put("message","Last loan not closed for merchant {}");
 			return response;
 		}
-		Double processingFee;
+		BigDecimal processingFee;
 
 		double previousAmount = 0;
 
@@ -778,12 +785,17 @@ public class SignAgreementService {
 		}
 
 		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-			processingFee = 0D;
+			processingFee = BigDecimal.ZERO;
 		}else {
-			processingFee = disbursalAmount * eligibleLoan.getProcessingFeeRate();
+			if(disbursalAmount != null && eligibleLoan.getProcessingFeeRate() != null){
+				processingFee = BigDecimal.valueOf(disbursalAmount).multiply(BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate()));
+			}else{
+				throw new NullPointerException("Either disbursal amount or processing fee rate is null");
+			}
+
 		}
 		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-			processingFee = Double.valueOf(loanUtil.getIoHalfPF(prevLendingSchedule));
+			processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
 		}
 		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
 		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
@@ -795,8 +807,8 @@ public class SignAgreementService {
 //        }
 		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee));
-		newApplication.setProcessingFee(Math.ceil(processingFee));
+		newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee.doubleValue()));
+		newApplication.setProcessingFee(processingFee.setScale(0, RoundingMode.CEILING).doubleValue());
 		newApplication.setMerchantId(merchant.getId());
 		newApplication.setShopNumber(prevApplication.getShopNumber());
 		newApplication.setStreetAddress(prevApplication.getStreetAddress());
@@ -884,6 +896,10 @@ public class SignAgreementService {
 		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
 
 		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
+		if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender()) && cloneContactReferenceForTopupEnabled) {
+			logger.info("fetch and save contact reference from parent applicationId {} for topup application {} ", prevApplication.getId(), newApplication.getId());
+			saveContactReferenceFromParentApplication(newApplication, prevApplication.getId());
+		}
 		response.put("success", true);
 		response.put("message","Application created Successfully");
 		return response;
@@ -972,6 +988,41 @@ public class SignAgreementService {
 				return LendingViewStates.KYC_PAGE;
 			default:
 				return LendingViewStates.ENACH_PAGE;
+		}
+	}
+
+	private void saveContactReferenceFromParentApplication(LendingApplication currApplication, Long parentApplicationId) {
+		try {
+			List<LendingMerchantReferences> savedContactReferences = lendingMerchantReferencesDao
+					.findByMerchantIdAndApplicationId(currApplication.getMerchantId(), parentApplicationId);
+
+			if (ObjectUtils.isEmpty(savedContactReferences)) {
+				logger.info("No saved contact references found of parent application {} for topup application {}", parentApplicationId, currApplication.getId());
+				return;
+			}
+
+			List<LendingMerchantReferences> clonedReferences = savedContactReferences.stream()
+					.map(ref -> {
+						LendingMerchantReferences newRef = new LendingMerchantReferences();
+						newRef.setMerchantId(ref.getMerchantId());
+						newRef.setApplicationId(currApplication.getId());
+						newRef.setReferenceName(ref.getReferenceName());
+						newRef.setReferenceNumber(ref.getReferenceNumber());
+						newRef.setScore(ref.getScore());
+						newRef.setInferredRelation(ref.getInferredRelation());
+						newRef.setInferredName(ref.getInferredName());
+						newRef.setInferredNameConfidence(ref.getInferredNameConfidence());
+						newRef.setNumHits(ref.getNumHits());
+						newRef.setInferredLocation(ref.getInferredLocation());
+						newRef.setFraudFlag(ref.getFraudFlag());
+						newRef.setInferredOccupation(ref.getInferredOccupation());
+						newRef.setInferredCompany(ref.getInferredCompany());
+						return newRef;
+					})
+					.collect(Collectors.toList());
+			lendingMerchantReferencesDao.saveAll(clonedReferences);
+		} catch (Exception e) {
+			logger.info("Exception saving contact reference from parent application for topup application {} {}", currApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 	}
 }

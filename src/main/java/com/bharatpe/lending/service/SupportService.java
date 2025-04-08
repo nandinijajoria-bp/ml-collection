@@ -1728,26 +1728,27 @@ public class SupportService {
         }
         try {
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+            logger.info("Lending KFS for application: {}: {}", applicationId, lendingKfs);
             if (!ObjectUtils.isEmpty(lendingKfs)) {
                 if (lendingKfs.getLender().equals(lendingApplication.get().getLender())) {
                     String sanctionAndLoanAgreementFileName = ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
-                    if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
+                    logger.info("sanctionAndLoanAgreementFileName: {}", sanctionAndLoanAgreementFileName);
+                    if (s3BucketHandler.doesS3ObjectExist(bucket, sanctionAndLoanAgreementFileName)) {
+                        logger.info("SanctionAndLoanAgreement file exists in S3 with name: {}", sanctionAndLoanAgreementFileName);
                         InputStream inputStream = s3BucketHandler.getObject(sanctionAndLoanAgreementFileName, bucket);
                         return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
-                    } else {
-                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingKfs.getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
-                        return new ResponseDTO(true, "Agreement Created Successfully.", convertToBase64(inputStream));
-                    }
-                } else {
-                    if (!ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())) {
-                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingApplication.get().getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
-                        return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
                     }
                 }
-                return new ResponseDTO(false, "Error creating agreement");
+//                else {
+//                    if (!ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocUrl())) {
+//                        InputStream inputStream = lendingApplicationServiceV2.generateSanctionCumLoanAgreementDocAsPdf(lendingApplication.get(), basicDetailsDto.get(), lendingApplication.get().getLender(), lendingKfs.getSanctionLoanAgreementSignedAt());
+//                        return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
+//                    }
+//                }
             }
-            InputStream inputStream = getAgreementForPdf(lendingApplication.get(), lendingApplication.get().getLender(), basicDetailsDto.get());
-            return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
+            return new ResponseDTO(false, "Data not found");
+//            InputStream inputStream = getAgreementForPdf(lendingApplication.get(), lendingApplication.get().getLender(), basicDetailsDto.get());
+//            return new ResponseDTO(true, "Agreement Created Successfully", convertToBase64(inputStream));
         } catch (Exception e) {
             logger.error("Exception Occurred while creating agreement for application id: {}, {}, {}",applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
@@ -2385,21 +2386,21 @@ public class SupportService {
                     String sanctionAndLoanAgreementFileName= ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
                     String authorizationLetterFileName = ObjectUtils.isEmpty(lendingKfs.getAuthorizationLetterDocFile()) ? AUTHORIZATION_S3_KEY_PREFIX + applicationId : lendingKfs.getAuthorizationLetterDocFile();
 
-                    if (s3BucketHandler.doesS3ObjectExist(kfsFileName, bucket)) {
+                    if (s3BucketHandler.doesS3ObjectExist(bucket, kfsFileName)) {
                         String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get().getId(), kfsFileName);
                         lendingKfs.setKfsDocUrl(kfsShorturl);
                     } else {
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getKfsSignedAt());
                     }
 
-                    if (s3BucketHandler.doesS3ObjectExist(sanctionAndLoanAgreementFileName, bucket)) {
+                    if (s3BucketHandler.doesS3ObjectExist(bucket, sanctionAndLoanAgreementFileName)) {
                         String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get().getId(), sanctionAndLoanAgreementFileName);
                         lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
                     } else {
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
                     }
                     if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.LIQUILOANS_NBFC.name(), Lender.LIQUILOANS_P2P.name(), Lender.LIQUILOANS_P2P_OF.name(), Lender.UGRO.name()).contains(lendingApplication.get().getLender())) {
-                        if (s3BucketHandler.doesS3ObjectExist(authorizationLetterFileName, bucket)) {
+                        if (s3BucketHandler.doesS3ObjectExist(bucket, authorizationLetterFileName)) {
                             String authorizationLetterUrl = lendingApplicationServiceV2.fetchAuthorizationLetterFromS3andGenerateShortUrl(lendingApplication.get().getId(), authorizationLetterFileName);
                             lendingKfs.setAuthorizationLetterDocUrl(authorizationLetterUrl);
                         } else {
@@ -2638,6 +2639,7 @@ public class SupportService {
                 return upgradeLoanOfferEligibilityDTO;
             }
             upgradeLoanOfferEligibilityDTO = checkMerchantBankEligibilityForBankStatementAndAccountAggregator(merchantId, upgradeLoanOfferEligibilityDTO);
+            logger.info("Final upgrade loan offer eligibility for merchantId {}: {}", merchantId, upgradeLoanOfferEligibilityDTO);
             return upgradeLoanOfferEligibilityDTO;
         } catch (Exception e) {
             logger.error("Exception in checking upgrade loan Offer Eligibility for merchantId : {}, {}", merchantId, Arrays.asList(e.getStackTrace()));
@@ -2908,6 +2910,10 @@ public class SupportService {
                 DSMileStoneAchievementResponse achievementResponse = mileStoneHelperService.getAchievementData(dsHandler, entity);
                 if (ObjectUtils.isEmpty(achievementResponse)) {
                     logger.info("achievementResponse is null");
+                    return new MilestoneSupportDto();
+                }
+                if(ObjectUtils.isEmpty(mileStoneResponse.getTarget())) {
+                    logger.error("targets are null for {}", merchantId);
                     return new MilestoneSupportDto();
                 }
                 List<MileStoneDataForSupport> mapList = new ArrayList<>();

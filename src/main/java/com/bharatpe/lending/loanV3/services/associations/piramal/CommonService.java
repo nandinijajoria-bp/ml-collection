@@ -1,8 +1,8 @@
 package com.bharatpe.lending.loanV3.services.associations.piramal;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
@@ -15,12 +15,14 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.CommonUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -42,6 +44,16 @@ public class CommonService {
     @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+    @Autowired
+    LendingLenderPricingDao lendingLenderPricingDao;
+
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+    @Autowired
+    private LendingEligibleLoanDao eligibleLoanDao;
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -85,12 +97,13 @@ public class CommonService {
     }
 
     public void rejectApplication(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
-        log.info("rejecting application due to {} for applicationId {}", lendingApplicationLenderDetails.getLeadStatus(), lendingApplication.getId());
+        String rejectReason = lendingApplication.getLender() + "_" + lendingApplicationLenderDetails.getLeadStatus();
+        log.info("rejecting application due to {} for applicationId {} with rejectReason {}", lendingApplicationLenderDetails.getLeadStatus(), lendingApplication.getId(), rejectReason);
         if (!ObjectUtils.isEmpty(lendingApplication)) {
             String oldStatus = lendingApplication.getStatus();
             lendingApplication.setStatus("rejected");
             lendingApplication.setManualKyc("rejected");
-            lendingApplication.setManualKycReason(lendingApplication.getLender() + "_" + lendingApplicationLenderDetails.getLeadStatus());
+            lendingApplication.setManualKycReason(rejectReason);
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
             commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected", oldStatus, "APP_STATUS", lendingApplication.getManualKyc());
@@ -99,5 +112,51 @@ public class CommonService {
             lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
+    }
+
+    public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication, String lender){
+        boolean result = false;
+        result = nbfcUtils.additionalLenderDowngradeChecksFailed(lendingApplication);
+        return result;
+    }
+
+    public LendingApplication createDuplicateApplication(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails){
+        LendingApplication newApplication = new LendingApplication();
+        BeanUtils.copyProperties(lendingApplication, newApplication);
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+
+        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                lendingRiskVariablesSnapshot.getRiskGroup(),
+                lendingApplication.getTenureInMonths(),
+                lendingApplication.getLender(),
+                lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                lendingApplication.getCreatedAt()
+        );
+
+        log.info("Requested loan amount : {}", lendingApplication.getLoanAmount());
+        Double loanAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
+        Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+
+        Double pfRate;
+        if(ObjectUtils.isEmpty(lendingLenderPricing)){
+            log.info("Lending lender pricing not available, using eligible loan values");
+            pfRate = eligibleLoan.get().getProcessingFeeRate();
+        } else {
+            pfRate = lendingLenderPricing.getProcessingFeeRate();
+        }
+
+        Double processingFee = Math.ceil((pfRate * loanAmount) / 100);
+        Double interestAmt = (loanAmount * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+        Double ediAmount = Math.ceil((loanAmount + interestAmt) / lendingApplication.getPayableDays());
+        newApplication.setLoanAmount(loanAmount);
+        newApplication.setProcessingFee(processingFee);
+        newApplication.setEdi(ediAmount);
+        return newApplication;
+    }
+
+    public boolean offerDowngradeThresholdChecksFailed(double offerDowngradeThreshold, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto){
+        return nbfcUtils.offerDowngradeThresholdChecksFailed(offerDowngradeThreshold, lenderAssociationDetailsRequestDto);
     }
 }

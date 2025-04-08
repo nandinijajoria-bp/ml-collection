@@ -4,6 +4,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.AdjustLoanBalanceService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
+import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingEDIScheduleLendingCommonDao;
 import com.bharatpe.lending.common.entity.LendingEDIScheduleLendingCommon;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,12 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     @Autowired
     LendingEDIScheduleLendingCommonDao lendingEDIScheduleLendingCommonDao;
 
+    @Autowired
+    AdjustLoanBalanceByIPCServiceImpl adjustLoanBalanceByIPCService;
+
+    @Autowired
+    LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
+
     @Override
     public PaymentCalculation adjustLoanBalance(LendingPaymentSchedule loan, double amount) {
         return adjustEdiSchedule(loan, amount, loan.getSettleAllPrinciple());
@@ -48,8 +55,17 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         settleLoanPaymentDTO.setBalance(settleLoanPaymentDTO.getBalance() - charges.getUsed());
 
         if (adjustPrincipleFirst) checkForNPA(loan);
-        if (settleLoanPaymentDTO.isAllDuePaid() && checkForTerminalEdiAmountDiff(loan)) adjustExtraBalance(loan, settleLoanPaymentDTO);
+        if (checkForTerminalEdiAmountDiffV2(loan, settleLoanPaymentDTO)) {
+//            LC-985: Terminal EDI fixes
+            log.info("Adjust the terminal dues block: dueAmount: {}, duePrinciple: {}, dueInterest: {}",
+                    loan.getDueAmount(), loan.getDuePrinciple(), loan.getDueInterest());
+            PaymentCalculation interest = adjustLoanBalanceByIPCService.adjustInterest(loan, settleLoanPaymentDTO.getBalance());
+            PaymentCalculation principle = adjustLoanBalanceByIPCService.adjustPrinciple(loan, interest.getBalance());
 
+            settleLoanPaymentDTO.setBalance(principle.getBalance());
+            settleLoanPaymentDTO.setInterestSettled(settleLoanPaymentDTO.getInterestSettled() + interest.getInterestSettled());
+            settleLoanPaymentDTO.setPrincipleSettled(settleLoanPaymentDTO.getPrincipleSettled() + principle.getPrincipleSettled());
+        }
         return  PaymentCalculation.builder()
                 .received(amount)
                 .used(amount - settleLoanPaymentDTO.getBalance())
@@ -66,6 +82,19 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
         return loan != null && loan.getEdiRemainingCount() == 0 && EDI_BY_EDI.name().equalsIgnoreCase(loan.getSettlementMechanism())
                 && ((loan.getEdiAmount() * loan.getEdiCount()) -  loan.getTotalPayableAmount() == loan.getDueAmount())
                 && Objects.equals(loan.getPaidPrinciple(), loan.getLoanAmount());
+    }
+
+    private boolean checkForTerminalEdiAmountDiffV2(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation) {
+        log.info("checkForTerminalEdiAmountDiffV2 for loanId : {} loan: {}", loan.getId(), loan);
+
+        if (loan != null && loan.getEdiRemainingCount() == 0 && EDI_BY_EDI.name().equalsIgnoreCase(loan.getSettlementMechanism())) {
+            boolean dueCheck = loan.getDueAmount() > 0 || loan.getDuePrinciple() > 0 || loan.getDueInterest() > 0;
+            boolean balanceRemaining = paymentCalculation.getBalance() > 0;
+
+            log.info("checkForTerminalEdiAmountDiffV2, Loan: {}, paymentCalculation : {}", loan, paymentCalculation);
+            return dueCheck && balanceRemaining;
+        }
+        return false;
     }
 
     // refer LC- 474 Case 2  https://bharatpe.atlassian.net/wiki/x/KgDGE
@@ -106,7 +135,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     }
 
     private PaymentCalculation settleEDIPrincipleAndInterest(LendingPaymentSchedule loan, double amount, Boolean settleAllPrinciple) {
-        PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loan.getId(), loan.getEdiCount(), loan.getEdiRemainingCount(), settleAllPrinciple, amount);
+        PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loan.getId(), loan.getEdiCount(), loan.getEdiRemainingCount(), settleAllPrinciple, amount, loan.getSettlementInitiated());
         double paidPrincipalAmount = settleLoanPaymentDTO.getPrincipleSettled();
         double paidInterestAmount = settleLoanPaymentDTO.getInterestSettled();
 
@@ -166,9 +195,24 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .build();
     }
 
-    public PaymentCalculation settleLoanDuePayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid) {
+    public PaymentCalculation settleLoanDuePayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid, boolean settlementInitiated) {
         Integer ediCreatedTillDate = ediCount - ediRemainingCount;
         log.info("ediCreatedTillDate : {} for loanId : {}", ediCreatedTillDate, loanId);
+
+        // Note - On creation of adjusted edi schedule and the ediRemainingCount was updated
+        // due to ediRemainingCount adjustment the deserving edi schedule was not picked due to less ediCreatedTillDate
+        // hence manually reversing the lending edi schedule adjustEdiScheduleCount
+        if (ediRemainingCount < 2) { // 1 and 0
+            int adjustEdiScheduleCount =  lendingAdjustedEDIScheduleDao.scheduleCount(loanId);
+            ediCreatedTillDate += adjustEdiScheduleCount;
+            log.info("updated ediCreatedTillDate : {} for loanId : {} and adjustEdiScheduleCount:{}", ediCreatedTillDate, loanId, adjustEdiScheduleCount);
+        }
+
+//        For settlement initiated cases the received amount needs to be adjusted for future schedules also, if possible
+//        (in case if enough amount received).
+        if(settlementInitiated) {
+            ediCreatedTillDate = ediCount;
+        }
 
         Double paidPrinciple = 0d;
         Double paidInterest = 0d;
@@ -222,7 +266,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     public PaymentCalculation settlePreClosureLoanPayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid) {
 
         // settle all due amount first
-        final PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loanId, ediCount, ediRemainingCount, settleAllPrinciple, amountBeingPaid);
+        final PaymentCalculation settleLoanPaymentDTO = settleLoanDuePayment(loanId, ediCount, ediRemainingCount, settleAllPrinciple, amountBeingPaid, false);
 
         log.info("Remaining amount to settle in after all due are settled for loanId : {} is : {}", loanId, amountBeingPaid);
 

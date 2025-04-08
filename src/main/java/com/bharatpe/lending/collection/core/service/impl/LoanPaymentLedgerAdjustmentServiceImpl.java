@@ -20,9 +20,14 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.service.LendingCollectionAuditService;
+import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -30,7 +35,9 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
+import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
+import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.NACH_BOUNCE_CHARGES;
 
 @Service
 @Slf4j
@@ -63,6 +70,16 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
     @Autowired
     LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
+    @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
+
+    @Autowired
+    private SettlementDetailsDao settlementDetailsDao;
+    @Autowired
+    LoanUtil loanUtil;
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -89,12 +106,18 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
     @Override
     public LendingLedger adjustLendingLedger(LendingPaymentSchedule loan, PaymentCalculation paymentAdjustment, LoanPaymentOrder order, String desc, String adjustmentMode, String transferType, String bankReferenceNo) {
+        log.info("inside creating lending ledger and audit for loan {} and order {}",loan,order);
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
+        if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
+            //push loanId to kafka
+            confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+        }
         return lendingLedger;
     }
     @Override
     public void updateCollectionAuditAndOrder(LendingLedger lendingLedger, LoanPaymentOrder order) {
+        log.info("inside update audit for ledger {} and order {}",lendingLedger,order);
         if (Objects.nonNull(lendingLedger))lendingCollectionAuditService.sendCollectionAudit(lendingLedger);
         if (Objects.nonNull(order)) markOrderSuccess(order);
     }
@@ -104,20 +127,34 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
         Date ledgerDate;
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId());
-        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())){
+        if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted()) && !("UPI_AUTOPAY".equalsIgnoreCase(source) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(source))){
             ledgerDate = DateTimeUtil.addDays(DateTimeUtil.getCurrentDayStartTime(), 1);
         }
         else{
             ledgerDate = DateTimeUtil.getCurrentDayStartTime();
         }
-        return createLendingLedger(loan, ledgerDate, paymentAdjusted.getUsed(), paymentAdjusted.getPrincipleSettled(),
+
+      LendingLedger lendingLedger =   createLendingLedger(loan, ledgerDate, paymentAdjusted.getUsed(), paymentAdjusted.getPrincipleSettled(),
                 paymentAdjusted.getInterestSettled(), description, source, transferType, terminalOrderId, paymentAdjusted.getPenaltySettled(), paymentAdjusted.getChargesSettled());
+       return lendingLedger;
     }
 
     @Override
     public LendingLedger createLendingLedger(LendingPaymentSchedule loan, Double amount, Double principle,
                                              Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges) {
         if(amount == 0) return null;
+
+        Long settlementId = null;
+        try {
+            if (loan.getSettlementInitiated()) {
+                SettlementDetails details = settlementDetailsDao.findByLoanIdAndStatus(loan.getId(), INIT.name());
+                if (Objects.nonNull(details)) {
+                    settlementId = details.getId();
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Multiple settlement initiated for loan id: {}, Stack: {}", loan.getId(), Arrays.asList(ex.getStackTrace()));
+        }
 
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchantId(loan.getMerchantId());
@@ -134,6 +171,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setDescription(description);
         lendingLedger.setTransferType(transferType);
         lendingLedger.setTerminalOrderId(terminalOrderId);
+        lendingLedger.setSettlementId(settlementId);
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
     }
@@ -143,6 +181,17 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                                              Double interest, String description, String source, String transferType, String terminalOrderId, Double penaltyFee, Double charges) {
         if(amount == 0) return null;
 
+        Long settlementId = null;
+        try {
+            if (loan.getSettlementInitiated()) {
+                SettlementDetails details = settlementDetailsDao.findByLoanIdAndStatus(loan.getId(), INIT.name());
+                if (Objects.nonNull(details)) {
+                    settlementId = details.getId();
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Multiple settlement initiated for loan id: {}, Stack: {}", loan.getId(), Arrays.asList(ex.getStackTrace()));
+        }
         LendingLedger lendingLedger = new LendingLedger();
         lendingLedger.setMerchantId(loan.getMerchantId());
         if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
@@ -158,6 +207,16 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setDescription(description);
         lendingLedger.setTransferType(transferType);
         lendingLedger.setTerminalOrderId(terminalOrderId);
+        lendingLedger.setSettlementId(settlementId);
+
+        if(!ObjectUtils.isEmpty(source) && "LMS_PRECLOSURE".equals(source)){
+            lendingLedger.setAdjustmentMode("DIRECT_TRANSFER");
+            lendingLedger.setTransferType("DIRECT_TRANSFER_LENDER");
+            if(amount > 0) {
+                lendingLedger.setDescription("PRECLOSER_IMPS/NEFT");
+            }
+        }
+
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
     }
@@ -238,6 +297,12 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                 double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
                 penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
                 penalCharge.setPaidNachBounce(paidNachBounce);
+                LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                        lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+                PenaltyFeeLedger nachBounceLedgerApplied = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(loan.getId());
+                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && paidNachBounce > 0 && nachBounceLedgerApplied != null && !nachBounceLedgerApplied.getIsPosted()) {
+                    loanUtil.piramalPenaltyPosting(lendingApplicationLenderDetails, nachBounceLedgerApplied,nachBounceLedgerApplied.getAmount()*-1,NACH_BOUNCE_CHARGES.name());
+                }
             }
 
             if (Objects.nonNull(penalCharge.getDuePenalty())) {

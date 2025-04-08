@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.revamp.services;
 
 
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Request;
 import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Response;
@@ -20,6 +22,8 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates.AGREEMENT_PAGE;
+
 @Service
 @Slf4j
 public class LoanDetailsV3Service {
@@ -30,6 +34,8 @@ public class LoanDetailsV3Service {
     @Autowired
     RenderStateWithoutScope renderStateWithoutScope;
 
+    @Autowired
+    LendingApplicationKycDetailsDao lendingApplicationKycDetailsDao;
     @Autowired
     private LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
@@ -46,6 +52,13 @@ public class LoanDetailsV3Service {
                     .applicationId(request.getApplicationId())
                     .build();
             renderStateViaScope.populateNextLendingState(scopeDataArgs);
+            if (AGREEMENT_PAGE.equals(scopeDataArgs.getCurrentState())) {
+                loanDetailsV3Response.setKycAddress("");
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(request.getApplicationId());
+                if (!ObjectUtils.isEmpty(lendingApplicationKycDetails) && !ObjectUtils.isEmpty(lendingApplicationKycDetails.getAadharAddress())) {
+                    loanDetailsV3Response.setKycAddress(lendingApplicationKycDetails.getAadharAddress());
+                }
+            }
             LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response);
             log.info("LoanDetailsV3Response for {} : {} ", merchant.getId(), loanDetailsV3Response);
             return loanDetailsV3Response;
@@ -70,6 +83,13 @@ public class LoanDetailsV3Service {
                     .merchant(merchant)
                     .token(token)
                     .build();
+            if (AGREEMENT_PAGE.equals(scopeDataArgs.getCurrentState())) {
+                loanDetailsV3Response.setKycAddress("");
+                LendingApplicationKycDetails lendingApplicationKycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+                if (!ObjectUtils.isEmpty(lendingApplicationKycDetails) && !ObjectUtils.isEmpty(lendingApplicationKycDetails.getAadharAddress())) {
+                    loanDetailsV3Response.setKycAddress(lendingApplicationKycDetails.getAadharAddress());
+                }
+            }
             renderStateViaScope.fetchLendingStateData(scopeDataArgs);
            return LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response);
         }

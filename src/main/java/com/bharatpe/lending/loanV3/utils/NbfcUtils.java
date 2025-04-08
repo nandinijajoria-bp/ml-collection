@@ -1,17 +1,23 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
+import com.bharatpe.lending.common.entity.LendingLenderPricing;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.common.enums.RejectionStage;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.ApplicationStatus;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -26,6 +32,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
@@ -39,11 +46,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.*;
+
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_PERCENTAGE;
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_THRESHOLD;
 
 @Component
 @Slf4j
@@ -91,6 +99,14 @@ public class NbfcUtils {
     @Autowired
     LenderDisbursalLimitsDao lenderDisbursalLimitsDao;
 
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
+    LendingLenderPricingDao lendingLenderPricingDao;
+    @Autowired
+    CommonService commonService;
+
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
         if(Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -112,6 +128,7 @@ public class NbfcUtils {
         }
         if (LenderAssociationStages.BRE.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getStage())) {
             existingLendingApplicationLenderDetails.setBreStatus(lenderAssociationStatus.name());
+            existingLendingApplicationLenderDetails.setBreRejectionReason(existingLendingApplicationLenderDetails.getBreRejectionReason());
         } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getStage())) {
             existingLendingApplicationLenderDetails.setKycStatus(lenderAssociationStatus.name());
         } else if (LenderAssociationStages.SANCTION_WRAPPER.name().equalsIgnoreCase(existingLendingApplicationLenderDetails.getStage())) {
@@ -137,7 +154,13 @@ public class NbfcUtils {
                 modifiedLender = lenderAssignService.modifyLender(lendingApplication.getId());
                 if(ObjectUtils.isEmpty(modifiedLender)) {
                     log.info("Rejecting application for the applicationId: {}",lendingApplication.getId());
-                    lendingApplication.setManualKyc("rejected");
+                    if (!ObjectUtils.isEmpty(existingLendingApplicationLenderDetails.getBreRejectionReason())) {
+                        log.info("Rejecting application for the applicationId: {} due to : {}", lendingApplication.getId(), existingLendingApplicationLenderDetails.getBreRejectionReason());
+                        lendingApplication.setRejectionStage(RejectionStage.BRE);
+                        lendingApplication.setRejectionReason(existingLendingApplicationLenderDetails.getBreRejectionReason());
+                    } else {
+                        lendingApplication.setManualKyc("rejected");
+                    }
                     lendingApplication.setStatus("rejected");
                     lendingApplicationDao.save(lendingApplication);
                     commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected",
@@ -217,6 +240,7 @@ public class NbfcUtils {
             case CREDITSAISON:
             case SMFG:
             case UGRO:
+            case OXYZO:
                 return LenderAssociationStageFactoryV2.getNextStage(lender, stage);
             case ABFL :
             case PIRAMAL:
@@ -294,4 +318,64 @@ public class NbfcUtils {
                 return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
         }
     }
+
+    public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        RiskVariablesDTO riskVariables = new RiskVariablesDTO();
+        LendingLenderPricing lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                lendingRiskVariablesSnapshot.getRiskGroup(),
+                lendingApplication.getTenureInMonths(),
+                lendingApplication.getLender(),
+                lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                lendingApplication.getCreatedAt()
+        );
+
+        riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricingList));
+
+        // Check APR and IRR conditions
+        boolean aprCheckResult = lenderAssignService.maxAprCheckFailedV2(lendingApplication, LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), lendingApplication.getLender(), riskVariables);
+        boolean irrCheckResult = lenderAssignService.maxIrrCheckFailedV2(lendingApplication, LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), lendingApplication.getLender(), riskVariables);
+
+        boolean result = aprCheckResult || irrCheckResult;
+
+        log.info("Additional lender downgrade checks failed for LendingApplication [{}] with lender [{}] -> {}",
+                lendingApplication.getId(), lendingApplication.getLender(), result);
+
+        return result;
+    }
+
+    public boolean offerDowngradeThresholdChecksFailed(double offerDowngradeThreshold, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        double requestedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount();
+        double approvedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt();
+        // Convert to BigDecimal
+        BigDecimal requestedAmount = BigDecimal.valueOf(requestedLoanAmount);
+        BigDecimal approvedAmount = BigDecimal.valueOf(approvedLoanAmount);
+        BigDecimal downgradeThreshold = BigDecimal.valueOf(offerDowngradeThreshold);
+
+        // Perform downgrade calculation without rounding up
+        BigDecimal one = BigDecimal.valueOf(1);
+        BigDecimal downgradePercentage = one.subtract(approvedAmount.divide(requestedAmount, 10, RoundingMode.DOWN)) // Trim in division
+                .multiply(BigDecimal.valueOf(100)) // Convert to percentage
+                .setScale(2, RoundingMode.DOWN); // Trim final result to 2 decimal places
+
+        LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+
+        // If downgrade percentage exceeds the threshold, modify the lender
+        if (downgradePercentage.compareTo(downgradeThreshold) > 0 && !ObjectUtils.isEmpty(fallbackLender.getLender())) {
+            log.info("downgrade percentage {} exceeds the threshold {} for lender {}, modifying lender",
+                    downgradePercentage, downgradeThreshold, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            lenderAssociationDetailsRequestDto.setModifyLender(true);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.OFFER_DOWNGRADE_THRESHOLD_BREACHED.name());
+            Map<String, Object> metaData = new HashMap<>();
+            metaData.put(OFFER_DOWNGRADE_PERCENTAGE, downgradePercentage);
+            metaData.put(OFFER_DOWNGRADE_THRESHOLD, downgradeThreshold);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setMetaData(metaData);
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+            return true ;
+        }
+
+        return false;
+    }
+
 }

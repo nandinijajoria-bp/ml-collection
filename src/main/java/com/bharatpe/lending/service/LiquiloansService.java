@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.enums.Loan;
 import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -27,12 +28,10 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.constant.AutoPayStatusEnum;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.dto.ResponseDTO;
-import com.bharatpe.lending.entity.AutoPayUPI;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.LoanAgreement;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -49,6 +48,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
 import com.bharatpe.lending.util.DisbursalStageMapping;
@@ -291,8 +291,15 @@ public class LiquiloansService {
     @Value("${sameDayEdiAdjusment.eligible.lenders:}")
     String sameDayEdiAdjustmentEligibleLenders;
 
+    @Value("${enable.autopayupi.registration:false}")
+    private Boolean enableAutopayUPIRegistration;
+
     @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
     String pdpPartialRollout;
+
+    @Value("${llBT.to.TlTop.Amount.Mismatch.RollOut.Percentage:1}")
+    Integer llBTtoTlTopAmountMismatchRollOutPercentage;
+
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -403,7 +410,7 @@ public class LiquiloansService {
                 logger.error("Loan payment schedule already exist for loanId {} and merchantId {}.", postPayoutRequestDto.getApplicationId(), basicDetailsDto);
                 return new ResponseEntity<>("Duplicate Request", HttpStatus.BAD_REQUEST);
             }
-
+            updateAutoPayUpiApplicationIdForTopUp(lendingApplication);
             lendingPaymentSchedule = new LendingPaymentSchedule();
 
             logger.info("Popualting data into lending_payment_schedule table for applicationId: {}", lendingApplication.getId());
@@ -516,6 +523,27 @@ public class LiquiloansService {
         }
         loanUtil.publishApplicationEvent(lendingApplication);
         return new ResponseEntity<>("Ok", HttpStatus.OK);
+    }
+
+    private void updateAutoPayUpiApplicationIdForTopUp(LendingApplication lendingApplication) {
+        try {
+            List<String> loanTypes = Arrays.asList("TOPUP", "HALF_TOPUP", "IO_TOPUP");
+            logger.info("inside update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
+
+            if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(),
+                    lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication) && loanTypes.contains(lendingApplication.getLoanType())) {
+                logger.info("checking update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
+                    AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(), "ACTIVE");
+                    if (autoPayUPI != null && autoPayUPI.getLender().equalsIgnoreCase(lendingApplication.getLender())) {
+                        logger.info("going update applicatiuonId for topuup loans with applicationId {}",lendingApplication);
+                        autoPayUPI.setApplicationId(lendingApplication.getId());
+                        autoPayUPIDao.save(autoPayUPI);
+                    }
+                }
+
+        }catch (Exception e){
+            logger.error("Error occured while updating the applicationId on top up loan for applicationId {}", lendingApplication.getId());
+        }
     }
 
     public LendingPaymentSchedule updatePreviousLoan(LendingApplication lendingApplication) {
@@ -654,10 +682,9 @@ public class LiquiloansService {
                     pushKafkaAudit(kafkaAudit);
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
-
                 // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
                 if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
-                        && !(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()))) {
+                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule,postPayoutRequestDto)) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
                     lendingApplicationDao.save(lendingApplication);
                     logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
@@ -717,7 +744,10 @@ public class LiquiloansService {
                 lendingPaymentSchedule.setOffDay(lendingApplication.getPayableDays() % 30 == 0 ?
                         LenderOffDays.valueOf(lendingApplication.getLender()).getOffDay() : LendingConstants.SIX_DAY_MODEL_OFF_DAY);
 
-                if (Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name()).contains(lendingPaymentSchedule.getNbfc())) {
+
+
+                updateAutoPayUpiApplicationIdForTopUp(lendingApplication);
+                if (Arrays.asList(Lender.ABFL.name(),Lender.PIRAMAL.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.PAYU.name(), Lender.CREDITSAISON.name(), Lender.SMFG.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingPaymentSchedule.getNbfc())) {
                     lendingPaymentSchedule.setSettlementMechanism(LoanSettlementMechanism.EDI_BY_EDI.name());
                 }
 
@@ -728,7 +758,7 @@ public class LiquiloansService {
                 Date tomorrow = new Date(lendingApplication.getDisburseTimestamp().getTime() + (1000 * 60 * 60 * 24));
 //                Date tomorrow = new Date();
                 //checking if next day is Sunday or not because we don't cut edi on Sunday
-                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON", "SMFG", Lender.UGRO.name()).contains(lendingApplication.getLender())) {
+                if (tomorrow.getDay() == 0 && !Arrays.asList("ABFL", "PIRAMAL", "TRILLIONLOANS", "MUTHOOT", "CAPRI", "PAYU", "CREDITSAISON", "SMFG", Lender.UGRO.name(), Lender.OXYZO.name()).contains(lendingApplication.getLender())) {
                     tomorrow = new Date(tomorrow.getTime() + (1000 * 60 * 60 * 24));
                 }
                 tomorrow = format.parse(format.format(tomorrow));
@@ -851,7 +881,7 @@ public class LiquiloansService {
         if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) ||
                 (pdpPartialRollout.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent))) {
             lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if (lendingPaymentScheduleLendingCommon.isPresent() && !isAutoPayUpiEnabled(lendingApplication.getId())) {
+            if (lendingPaymentScheduleLendingCommon.isPresent()) {
                 logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
                 perpetualDpdLoan = true;
                 lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
@@ -1041,8 +1071,7 @@ public class LiquiloansService {
         List<LendingLedger> lendingLedgerList = new ArrayList<>();
         Date nextEdiDate = null;
         for (LendingEDISchedule lendingEDISchedule : lendingEDISchedules) {
-//            logger.info("{} {}", lendingEDISchedule.getDate(), lendingEDISchedule.getInstallmentNumber());
-            if (lendingEDISchedule.getDate().after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
+            if (DateTimeUtil.getStartTimeFromDateTime(lendingEDISchedule.getDate()).after(DateTimeUtil.addDays(new Date(), perpetualDpdLoan ? 1 : 0))) {
                 logger.info("created due before : {} for lps id {}", lendingEDISchedule.getDate(), lendingPaymentSchedule.getId());
                 break;
             }
@@ -1058,15 +1087,15 @@ public class LiquiloansService {
                     0D, null);
             lendingLedgerList.add(lendingLedger);
             nextEdiDate = lendingEDISchedule.getDate();
+            nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
+            nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
+            lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         }
         lendingPaymentSchedule.setDueAmount(dueAmount);
         lendingPaymentSchedule.setDueInterest(dueInterest);
         lendingPaymentSchedule.setDuePrinciple(duePrinciple);
         lendingPaymentSchedule.setEdiRemainingCount(lendingPaymentSchedule.getEdiRemainingCount() -  lendingLedgerList.size());
 
-        nextEdiDate = DateTimeUtil.getStartTimeFromDateTime(nextEdiDate);
-        nextEdiDate = DateTimeUtil.addDays(nextEdiDate, 1);
-        lendingPaymentSchedule.setNextEdiDate(nextEdiDate);
         lendingLedgerDao.saveAll(lendingLedgerList);
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
@@ -2272,4 +2301,21 @@ public class LiquiloansService {
         }
         return false;
     }
+
+    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule,PostPayoutRequestDto postPayoutRequestDto) {
+        if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+            return true;
+        }
+        if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())
+                && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())
+                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage)){
+            logger.info("In amount mismatch check for llbt to Trillion topup, Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getDisbursalAmount(), lendingPaymentSchedule.getEdiAmount(), lendingApplication.getId());
+            return (postPayoutRequestDto.getDisbursedAmount() > lendingApplication.getDisbursalAmount()
+                    && ((postPayoutRequestDto.getDisbursedAmount() - lendingApplication.getDisbursalAmount()) > (lendingPaymentSchedule.getEdiAmount()*5)))
+                    || (postPayoutRequestDto.getDisbursedAmount() < lendingApplication.getDisbursalAmount());
+        }
+        return (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
+                        (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
+    }
+
 }

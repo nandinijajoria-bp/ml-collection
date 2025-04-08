@@ -220,10 +220,6 @@ public class KycRequestKafka {
             existingLendingApplicationLenderDetails.setCkycType(data.getKycType());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
 
-            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())){
-                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
-            }
-
             boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.get().getLoanType()) ?
                     lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.get().getLender());
             if (generateLenderDoc) {
@@ -342,7 +338,6 @@ public class KycRequestKafka {
                         lendingApplicationLenderDetails.setStage(nextStage.name());
                         lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                        loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.get().getId(), LendingViewStates.ENACH_PAGE);
                         if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender())) {
                             final LendingApplication finalLendingApplication = lendingApplication.get();
                             new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();

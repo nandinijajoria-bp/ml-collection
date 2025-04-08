@@ -31,6 +31,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -258,6 +260,10 @@ public class MileStoneHelperServicev3 {
                 log.info("bureauResponse {} for merchantId {}", bureauResponseDTO, merchant.getId());
                 bureauResponsechecks(merchant, bureauResponseDTO, responseDto, experian, pinCodeColor, kycPancard);
                 if(!ObjectUtils.isEmpty(responseDto.getMilStoneEligibility()) && !responseDto.getMilStoneEligibility()) {
+                    log.info("Invalid bureau response for {}", merchant.getId());
+                    executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_INELIGIBLE.name(), null, merchant.getMid()));
+                    funnelService.submitEvent(merchant.getId(), null, null,
+                            FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.INELIGIBLE, "Invalid Bureau response");
                     return responseDto;
                 }
             }
@@ -471,8 +477,7 @@ public class MileStoneHelperServicev3 {
 
             boolean isMileStoneExpiry = false;
             if (!ObjectUtils.isEmpty(entity)) {
-                Date date = new Date();
-                isMileStoneExpiry = entity.getExpiryDate().getTime() < date.getTime();
+                isMileStoneExpiry = entity.getExpiryDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().isBefore(LocalDate.now());
                 if (isMileStoneExpiry == Boolean.TRUE) {
                     if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
                         lendingCache.delete(mileStoneCacheKey);

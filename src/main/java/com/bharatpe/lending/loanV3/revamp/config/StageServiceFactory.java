@@ -4,6 +4,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,6 +18,10 @@ public class StageServiceFactory {
 
     @Autowired
     PANPINStageService panpinStageService;
+
+    @Lazy
+    @Autowired
+    private PlanSelectionStageService planSelectionStageService;
 
     @Autowired
     KYCStageDataService kycStageDataService;
@@ -62,10 +67,15 @@ public class StageServiceFactory {
     @Autowired
     MaskedMobileStageService maskedMobileStageService;
 
+    @Autowired
+    UdyamRegistrationStageDataService udyamRegistrationStageDataService;
+
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
                 return panpinStageService;
+            case PLAN_SELECTION_PAGE:
+                return planSelectionStageService;
             case KYC_PAGE:
                 return kycStageDataService;
             case AGREEMENT_PAGE:
@@ -100,6 +110,8 @@ public class StageServiceFactory {
                 return blDocUploadStageDataService;
             case MASKED_MOBILE:
                 return maskedMobileStageService;
+            case UDYAM_REGISTRATION_PAGE:
+                return udyamRegistrationStageDataService;
             default:
                 return null;
         }

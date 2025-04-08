@@ -24,9 +24,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.handlers.*;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
-import com.bharatpe.lending.loanV3.config.SmfgConfig;
-import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
-import com.bharatpe.lending.loanV3.config.UgroConfig;
+import com.bharatpe.lending.loanV3.config.*;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
@@ -44,6 +42,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -227,6 +226,10 @@ public class LenderAssignService implements ILenderAssignService {
     @Autowired
     UgroConfig ugroConfig;
 
+    @Lazy
+    @Autowired
+    OxyzoConfig oxyzoConfig;
+
     @Value("${lender.apr.enable_new_logic:true}")
     private boolean enableNewLenderAprLogic;
 
@@ -381,6 +384,34 @@ public class LenderAssignService implements ILenderAssignService {
                                 iterator.remove();
                                 continue;
                             }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && application.getEdi() > 0.7 * (riskVariables.getMonthlyTpv()/30)){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + " due to edi amount: " + application.getEdi() + " is greater than 0.7 *  (monthly_tpv/30) " + 0.7 * (riskVariables.getMonthlyTpv()/30);
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && application.getLoanAmount() > Math.ceil(tpvOffer)){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + "due to merchant loan amount: " + application.getLoanAmount() + " is greater than tpvOffer: " + Math.ceil(tpvOffer);
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && "R1".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((application.getLoanAmount() + riskVariables.getUnsecuredPos()) > (6 * riskVariables.getMonthlyTpv()))){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + "due to merchant loan amount: " + application.getLoanAmount() + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + "is greater than 6 * Monthly Adj TPV: " + 6 * riskVariables.getMonthlyTpv();
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
+                            if (OXYZO.name().equalsIgnoreCase(lender) && "R2".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((application.getLoanAmount() + riskVariables.getUnsecuredPos()) > (4.5 * riskVariables.getMonthlyTpv()))){
+                                String remarks = " OXYZO: skipping oxyzo for application id : " + application.getId() + "due to merchant loan amount: " + application.getLoanAmount() + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + "is greater than 4.5 * Monthly Adj TPV: " + 4.5 * riskVariables.getMonthlyTpv();
+                                log.info(remarks);
+                                createAndSaveLendingAuditTrial(application.getId(), application.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+                                iterator.remove();
+                                continue;
+                            }
                             if (additionalChecksFailed(application, Lender.valueOf(lender), merchantDetails)) {
                                 log.info("skipping {} due to additional checks failing for {}", lender, application.getId());
                                 iterator.remove();
@@ -435,7 +466,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    private boolean isPanAndAadhaarLinked(Long merchantId) {
+    public boolean isPanAndAadhaarLinked(Long merchantId) {
         LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if (!ObjectUtils.isEmpty(lendingPancardDetails) && !ObjectUtils.isEmpty(lendingPancardDetails.getName()) && !ObjectUtils.isEmpty(lendingPancardDetails.getPancardNumber()) && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())) {
 
@@ -965,6 +996,9 @@ public class LenderAssignService implements ILenderAssignService {
             case "UGRO":
                 rolloutPercent = ugroConfig.getRolloutPercentage();
                 break;
+            case "OXYZO":
+                rolloutPercent = oxyzoConfig.getRolloutPercentage();
+                break;
             default:
                 rolloutPercent = 0;
         }
@@ -1214,7 +1248,7 @@ public class LenderAssignService implements ILenderAssignService {
         return null;
     }
 
-    private boolean maxIrrCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+    public boolean maxIrrCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
         Double irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender);
         log.info("IRR generated for application_id:{} IRR:{} and lender:{}", lendingApplication.getId(), irr, lender);
         Double maxIrr = 0.0D;
@@ -1234,6 +1268,9 @@ public class LenderAssignService implements ILenderAssignService {
             case "UGRO":
                 maxIrr = ugroConfig.getMaxIrr();
                 break;
+            case "OXYZO":
+                maxIrr = oxyzoConfig.getMaxIrr();
+                break;
             default:
                 maxIrr = 0D;
         }
@@ -1241,7 +1278,7 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
 
-    private boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
+    public boolean maxAprCheckFailed(LendingApplication lendingApplication, EdiModel ediModel, String lender) {
         Double apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), ediModel.getNoOfEdiDaysInAWeek(), lender);
         log.info("APR generated for application_id:{} APR:{} and lender:{}", lendingApplication.getId(), apr, lender);
         Double maxApr = 0D;
@@ -1274,7 +1311,7 @@ public class LenderAssignService implements ILenderAssignService {
         return pfPercentage > maxPf;
     }
 
-    private boolean maxAprCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+    public boolean maxAprCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
         BigDecimal maxApr = BigDecimal.ZERO;
         double processingFee = lendingApplication.getProcessingFee();
         LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
@@ -1285,13 +1322,14 @@ public class LenderAssignService implements ILenderAssignService {
             processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
         }
 
+        log.info("Approved loan amount - TBD : {}", lendingApplication.getLoanAmount());
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
         log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, lendingApplication.getId());
 
-        return BigDecimal.valueOf(apr).compareTo(maxApr) > 0;
+        return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxApr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
-    private boolean maxIrrCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+    public boolean maxIrrCheckFailedV2(LendingApplication lendingApplication, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
         BigDecimal maxIrr = BigDecimal.ZERO;
         LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
         log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
@@ -1302,7 +1340,7 @@ public class LenderAssignService implements ILenderAssignService {
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
 
         log.info("Calculated IRR : {}, IRR in DB : {}, application id : {}", apr, maxIrr, lendingApplication.getId());
-        return BigDecimal.valueOf(apr).compareTo(maxIrr) > 0;
+        return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxIrr.setScale(2, RoundingMode.DOWN)) > 0;
     }
 
     private boolean maxPfCheckFailedV2(LendingApplication lendingApplication, String lender, RiskVariablesDTO riskVariables) {
@@ -1355,7 +1393,7 @@ public class LenderAssignService implements ILenderAssignService {
                 LendingLenderPricing lendingLenderPricing = null;
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
-                            lendingRiskVariables.getPincodeColor().name());
+                            lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
                 }
                 if (Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender)) {
                     continue;
@@ -1570,7 +1608,7 @@ public class LenderAssignService implements ILenderAssignService {
         if(!loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) return;
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
         LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name());
+                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
         if(!ObjectUtils.isEmpty(lendingLenderPricing)){
             Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
             Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
@@ -1597,12 +1635,18 @@ public class LenderAssignService implements ILenderAssignService {
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
         RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
 
+        log.info("riskVariables in lender assignment v2 {}", riskVariables);
+
         //Change 1 : Fetched lender pricing list
         List<LendingLenderPricing> lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndPincodeColor(
                 lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                application.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name());
+                application.getTenureInMonths(), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
         if (!CollectionUtils.isEmpty(lenderPricingList)) {
-            riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(LendingLenderPricing::getLender, java.util.function.Function.identity())));
+            riskVariables.setLenderPricingMap(lenderPricingList.stream().collect(Collectors.toMap(
+                    LendingLenderPricing::getLender,
+                    java.util.function.Function.identity(),
+                    (existing, duplicate) -> existing  // Keep the first occurrence (latest due to id DESC)
+            )));
         }
         try {
             double bureauScore = riskVariables.getBureauScore();
@@ -1817,6 +1861,33 @@ public class LenderAssignService implements ILenderAssignService {
                 if (edi > 0.7 * summaryTpv) {
                     response = "skipping smfg for application id : " + applicationId + " due to edi amount: " + edi + " is greater than 0.7 * summary_tpv " + 0.7 * summaryTpv;
                     success = false;
+                    break;
+                }
+                break;
+            case OXYZO:
+
+                log.info("runLenderChecksForApplication for Oxyzo {} {} {}", riskVariables.getUnsecuredPos(), riskVariables.getMonthlyTpv(), loanAmount);
+
+                if(edi > 0.7 * (riskVariables.getMonthlyTpv()/30)){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to edi amount: " + edi + " is greater than 0.7 * monthly_tpv " + 0.7 * (riskVariables.getMonthlyTpv()/30);
+                    success = false;
+                    break;
+                }
+                if(loanAmount > Math.ceil(tpvOffer)){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to merchant loan amount: " + loanAmount + " is greater than tpvOffer: " + (Math.ceil(tpvOffer));
+                    success = false;
+                    break;
+                }
+                if("R1".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((loanAmount + riskVariables.getUnsecuredPos()) > (6 * riskVariables.getMonthlyTpv()))){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to merchant loan amount: " + loanAmount + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + " is greater than 6 * Monthly Adj TPV: " + 6 * riskVariables.getMonthlyTpv();
+                    success = false;
+                    log.info("inside unsecuredPOs check for R1");
+                    break;
+                }
+                if("R2".equalsIgnoreCase(riskVariables.getRiskGroup()) && ((loanAmount + riskVariables.getUnsecuredPos()) > (4.5 * riskVariables.getMonthlyTpv()))){
+                    response = "skipping oxyzo for application id : " + applicationId + " due to merchant loan amount: " + loanAmount + "+ unsecuredPos : " + riskVariables.getUnsecuredPos() + " is greater than 4.5 * Monthly Adj TPV: " + 4.5 * riskVariables.getMonthlyTpv();
+                    success = false;
+                    log.info("inside unsecuredPOs check for R2");
                     break;
                 }
                 break;

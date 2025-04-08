@@ -57,11 +57,11 @@ import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
 import org.json.XML;
@@ -97,8 +97,12 @@ import java.time.Period;
 import java.time.ZoneId;
 import java.util.*;
 
+import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.REVOKED;
+import static com.bharatpe.lending.constant.LendingConstants.MANDATE_REVOKE;
+
 @Service
 @Primary
+@Slf4j
 public class APIGatewayService {
 
     private static final Logger logger = LoggerFactory.getLogger(APIGatewayService.class);
@@ -291,11 +295,16 @@ public class APIGatewayService {
     @Value("${x.api.key.underwriting.service}")
     public String xApiKeyUnderwritingService;
 
+
+    @Value("${auto.pay.upi.mandate.plugin.failure:3}")
+    public int autoPayUpiMandatePluginFailure;
+
     @Value("${shortner.api.url}")
     private String shortnerApiUrl;
 
     @Value("${shortner.api.signature}")
     private String shortnerApiSignature;
+
 
     @PostConstruct
     public void init() {
@@ -374,6 +383,8 @@ public class APIGatewayService {
             }
 
 
+
+
             String hash = lendingHmacCalculator.calculateHmac
                     (lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(),
                             pgMidConfig, merchantId));
@@ -386,9 +397,74 @@ public class APIGatewayService {
 
             logger.info("Create pg mandate internal request: {}", mapper.writeValueAsString(request));
             int retryCount = 0;
-            while (retryCount < 3) {
+            while (retryCount < autoPayUpiMandatePluginFailure) {
                 try {
                     String pgCreateTxnURL = LendingConstants.CREATE_PG_TXN_V2;
+                    logger.info("pg create url: {}", pgCreateTxnURL);
+                    AutoPayRegisterPgResponseDto response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, AutoPayRegisterPgResponseDto.class);
+                    logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
+                    return response;
+                } catch (Exception e) {
+                    logger.error("Exception in creation of mandate for the merchantId {} and exception e{} is ", merchantId, e);
+                }
+                retryCount++;
+            }
+        } catch (HttpClientErrorException ex) {
+            logger.info("Response from API Gateway : {}", ex.getResponseBodyAsString());
+            logger.error("Error in api call to create pg transaction for merchant:{}", merchantId, ex);
+        } catch (Exception ex) {
+            logger.error("error processing txn for dynamic vpa for merchant id:{}", merchantId, ex);
+        }
+        return null;
+    }
+
+    public AutoPayRegisterPgResponseDto createPgTransaction(Long merchantId, AutoPayUPIRegisterPgRequestDtoNew pgCreateTransactionRequestDTO) {
+        logger.info("UPI AutoPay registration merchant id {}", merchantId);
+        LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(pgCreateTransactionRequestDTO.getLender().name(), "ACTIVE");
+        logger.info("pg config related to mid for AutoPayUPI: {}", pgMidConfig);
+        try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("orderId", pgCreateTransactionRequestDTO.getOrderId());
+            requestParams.put("orderAmount", pgCreateTransactionRequestDTO.getOrderAmount());
+            requestParams.put("paymentPageHeaderText", pgCreateTransactionRequestDTO.getPaymentPageHeaderText());
+            requestParams.put("redirectURIDeeplink", pgCreateTransactionRequestDTO.getRedirectURIDeeplink());
+            requestParams.put("narration", pgCreateTransactionRequestDTO.getNarration());
+            requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
+            requestParams.put("isPgWebMode",pgCreateTransactionRequestDTO.getIsPgWebMode());
+
+            logger.info("pgCreateTransactionRequestDTO.getBankDetail() {}",pgCreateTransactionRequestDTO.getBankDetail());
+            if (Objects.nonNull(pgCreateTransactionRequestDTO.getBankDetail()) && Objects.nonNull(pgCreateTransactionRequestDTO.getBankDetail().getBankCode()) && Objects.nonNull(pgCreateTransactionRequestDTO.getBankDetail().getAccountNumber()) && Objects.nonNull(pgCreateTransactionRequestDTO.getBankDetail().getIfscCode())) {
+                Map<String, String> bankDetail = new HashMap<>();
+                bankDetail.put("accountNumber", pgCreateTransactionRequestDTO.getBankDetail().getAccountNumber());
+                bankDetail.put("ifscCode", pgCreateTransactionRequestDTO.getBankDetail().getIfscCode());
+                bankDetail.put("bankCode", pgCreateTransactionRequestDTO.getBankDetail().getBankCode());
+                requestParams.put("bankDetail", bankDetail);
+            }
+
+            requestParams.put("orderType", pgCreateTransactionRequestDTO.getOrderType());
+            requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
+            requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
+            requestParams.put("mandateEndDate",pgCreateTransactionRequestDTO.getMandateEndDate());
+            requestParams.put("maxMandateAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
+
+
+
+
+            String hash = lendingHmacCalculator.calculateHmac
+                    (lendingHmacCalculator.getPayload(requestParams), getPgSecret(pgCreateTransactionRequestDTO.getLender(),
+                            pgMidConfig, merchantId));
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getPgMid(pgCreateTransactionRequestDTO.getLender(), pgMidConfig, merchantId));
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+
+            logger.info("Create pg mandate internal request: {}", mapper.writeValueAsString(request));
+            int retryCount = 0;
+            while (retryCount < autoPayUpiMandatePluginFailure) {
+                try {
+                    String pgCreateTxnURL = LendingConstants.CREATE_PG_TXN_MANDATE_PLUGIN;
                     logger.info("pg create url: {}", pgCreateTxnURL);
                     AutoPayRegisterPgResponseDto response = restTemplate.postForObject(PG_URL + pgCreateTxnURL, request, AutoPayRegisterPgResponseDto.class);
                     logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
@@ -1353,6 +1429,7 @@ public class APIGatewayService {
             put("enach_provider", requestDTO.getEnachProvider());
             put("lender", finalLender);
             put("mode", requestDTO.getNachMode());
+            put("tenure_in_months", requestDTO.getTenureInMonths());
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
@@ -2655,9 +2732,30 @@ public class APIGatewayService {
                     return response.getBody();
                 }
             } catch (HttpClientErrorException ex) {
-                logger.info("Response from API GAteway : {}", ex.getResponseBodyAsString());
+                logger.info("Response {} from API GAteway : {}",response, ex.getResponseBodyAsString());
+                if (ex.getStatusCode() == HttpStatus.NOT_FOUND) {
+                    // Handle 400 Bad Request error
+                    logger.info("exception occured 404 {}",Arrays.asList(ex.getStackTrace()));
+                    PgStatusResponse pgStatusResponse = new PgStatusResponse();
+                    PgPaymentCallbackDTO pgPaymentCallbackDTO = new PgPaymentCallbackDTO();
+                    pgPaymentCallbackDTO.setPaymentStatus("FAILURE");
+                    pgPaymentCallbackDTO.setErrorCode("404");
+                    pgPaymentCallbackDTO.setErrorDescription("Transaction not found");
+                    pgStatusResponse.setData(pgPaymentCallbackDTO);
+                    pgStatusResponse.setMessage(ex.getResponseBodyAsString());
+                    PgPaymentCallbackDTO.Mandate mandate = new PgPaymentCallbackDTO.Mandate();
+                    mandate.setStatus("FAILED");
+                    pgPaymentCallbackDTO.setMandate(mandate);
+                    logger.info("returing response {} on 404 exception",pgStatusResponse);
+                      return pgStatusResponse;
+                    // You can return a custom response or throw a custom exception
+                }
                 logger.error("Error in api call to Pg status Check for order id:{}, error {}:", orderId, ex);
             }
+        } catch (HttpServerErrorException ex) {
+            logger.error("HttpServerErrorException in Pg status Check for Mandate order id: {}, error {}", orderId, ex.getMessage());
+        } catch (ResourceAccessException ex) {
+            logger.error("ResourceAccessException in Pg status Check for Mandate order id: {}, error {}", orderId, ex.getMessage());
         } catch (Exception ex) {
             logger.error("error in Pg status Check for Mandate order id:{}, error {}", orderId, ex);
         }
@@ -3140,6 +3238,53 @@ public class APIGatewayService {
         return null;
     }
 
+
+    public String executeAutoPayUPIMandateRevokeWithPg(Long merchantId, AutoPayUPIMandatePgRequestDto executeUPIPgDto, AutoPayUPI autoPayUpi) {
+        log.info("AUTOPAY : executing auto pay UPI for merchantId {}", merchantId);
+        LendingPgMidConfigSlave pgMidConfig = lendingPgMidConfigSlaveDao.findByNameAndStatus(executeUPIPgDto.getLender().name(), "ACTIVE");
+        log.info("AUTOPAY : pg config related to mid for merchantId: {}", pgMidConfig);
+        ResponseEntity<MandateRevokeStatusResponse> responseEntity = null;
+        try {
+            Map requestParams = new HashMap<>();
+            requestParams.put("mandateId", executeUPIPgDto.getMandateId());
+
+            String hash = lendingHmacCalculator.calculateHmac
+                    (lendingHmacCalculator.getPayload(requestParams),getPgSecret(executeUPIPgDto.getLender(),
+                            pgMidConfig, merchantId));
+
+            log.info("Calculated hash {} for merchant id is {}",hash,merchantId);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setCacheControl(CacheControl.noCache());
+            headers.set("hash", hash);
+            headers.set("mid", getPgMid(executeUPIPgDto.getLender(), pgMidConfig, merchantId));
+            HttpEntity<Map> request = new HttpEntity<>(requestParams, headers);
+            log.info("AUTOPAY : For Merchant Id {} Create pg transaction internal request: {}", merchantId,objectMapper.writeValueAsString(request));
+            try {
+                String pgCreateTxnURL = PG_URL + MANDATE_REVOKE;
+                log.info("AUTOPAY : pg mandate presentment create url: {}", pgCreateTxnURL);
+                responseEntity = restTemplate.exchange(pgCreateTxnURL, HttpMethod.POST, request, MandateRevokeStatusResponse.class);
+                log.info("AUTOPAY : response entity is {}",responseEntity);
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody().getData() != null &&
+                        "REVOKED".equalsIgnoreCase(responseEntity.getBody().getData().getStatus())) {
+                    autoPayUpi.setStatus(REVOKED);
+                    log.info("AUTOPAY : Response for revoke  mandate  is Success");
+                    return REVOKED.name();
+                } else {
+                    log.info("AUTOPAY : Response for revoke mandate  is failure");
+                }
+            }
+            catch (HttpClientErrorException e) {
+                log.error("AUTOPAY : mandate revoke exception in client is {} ", e.getResponseBodyAsString());
+            }
+        } catch (Exception ex) {
+            log.error("AUTOPAY : error processing in api call to create pg mandate transaction for merchant id:{} ex{}", merchantId, ex.getMessage());
+        }
+        return null;
+    }
+
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     public ExternalPaymentLinkResponse savePaymentLink(ExternalPaymentLinkRequest externalPaymentLinkRequest) {
         try {
@@ -3167,3 +3312,4 @@ public class APIGatewayService {
         return null;
     }
 }
+

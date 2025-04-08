@@ -11,6 +11,7 @@ import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDt
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.oxyzo.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
@@ -259,6 +260,24 @@ public class AssociationServiceUtil {
     @Autowired
     UgroRepaymentScheduleService ugroRepaymentScheduleService;
 
+    @Autowired
+    OxyzoLeadService oxyzoLeadService;
+
+    @Autowired
+    OxyzoBreService oxyzoBreService;
+
+    @Autowired
+    OxyzoDisbursalCallbackService oxyzoDisbursalCallbackService;
+
+    @Autowired
+    OxyzoDocUploadService oxyzoDocUploadService;
+
+    @Autowired
+    OxyzoKycService oxyzoKycService;
+
+    @Autowired
+    OxyzoForeclosureService oxyzoForeclosureService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -273,6 +292,8 @@ public class AssociationServiceUtil {
                 return payULeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             case "UGRO":
                 return ugroLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
+            case "OXYZO":
+                return oxyzoLeadService.invokeCreateLead(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -286,6 +307,8 @@ public class AssociationServiceUtil {
                 return payUKycService.invokeKyc(lenderAssociationDetailsRequest);
             case "CREDITSAISON":
                 return creditSaisonKYCService.invokeKyc(lenderAssociationDetailsRequest);
+            case "OXYZO":
+                return oxyzoKycService.invokeKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -345,6 +368,8 @@ public class AssociationServiceUtil {
                 return smfgBreService.invokeBre(lenderAssociationDetailsRequest);
             case "UGRO":
                 return ugroBreService.invokeBre(lenderAssociationDetailsRequest);
+            case "OXYZO":
+                return oxyzoBreService.invokeBre(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -368,6 +393,8 @@ public class AssociationServiceUtil {
                 return smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "UGRO":
                 return ugroDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+            case "OXYZO":
+                return oxyzoDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(),docType);
             default:
                 return false;
         }
@@ -412,6 +439,8 @@ public class AssociationServiceUtil {
                 return smfgDisbursalCallbackService.handleCallbackResponse(nbfcResponseDTO);
             case "UGRO":
                 return ugroDisbursalService.parseCallbackResponse(nbfcResponseDTO);
+            case "OXYZO":
+                return oxyzoDisbursalCallbackService.handleDisbursalCallbackResponse(nbfcResponseDTO);
             default:
                 return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();
         }
@@ -433,12 +462,14 @@ public class AssociationServiceUtil {
                 return creditSasionBREService.processCreditSasionBreCallback(nbfcResponseDTO);
             case "SMFG":
                 return smfgBreService.processBreCallback(nbfcResponseDTO);
+            case "OXYZO":
+                return oxyzoBreService.processBreCallback(nbfcResponseDTO);
             default:
                 return false;
         }
     }
 
-    public NBFCRequestDTO foreclosureReceiptRequest(String lender, Long applicationId, LendingLedger lendingLedger) {
+    public NBFCRequestDTO foreclosureReceiptRequest(String lender, Long applicationId, LendingLedger lendingLedger, Long orderId) {
         switch (lender) {
             case "USFB":
                 return repaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
@@ -456,6 +487,8 @@ public class AssociationServiceUtil {
                 return smfgForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger);
             case "UGRO":
                 return ugroForeclosureService.getForeclosureReceiptRequest(applicationId, lendingLedger);
+            case "OXYZO":
+                return oxyzoForeclosureService.getForeclosureReceiptRequest(applicationId,lendingLedger, orderId);
             default:
                 return null;
         }

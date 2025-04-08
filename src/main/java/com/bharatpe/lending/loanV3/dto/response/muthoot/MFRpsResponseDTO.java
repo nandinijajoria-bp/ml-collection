@@ -21,7 +21,7 @@ public class MFRpsResponseDTO {
     @NoArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class ResponseData {
-        private LoanDetail loanDetail;
+        private LoanDetails loanDetails;
         private String customerID;
         private List<RepaymentSchedule> repaymentSchedule;
     }
@@ -30,14 +30,23 @@ public class MFRpsResponseDTO {
     @AllArgsConstructor
     @NoArgsConstructor
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class LoanDetail {
-        private String loanID;
-        private String status;
-        private Date closureDate;
-        private String applicationId;
+    public static class LoanDetails {
+        private Double annualPercentageRate;
+        private String applicationID;
+        private Double disbursedAmount;
+        private Double ediAmount;
+        private Double interestAmount;
         private Double interestRate;
         private String interestRateType;
-        private Date startDate;
+        private Double loanAmount;
+        private String loanID;
+        private Double monthlyInterestRate;
+        private Integer processingFeeAmount;
+        private Double processingFeeRate;
+        private Integer status;
+        private Integer tenureInDays;
+        private Integer tenureInMonths;
+        private Double totalPayableAmount;
     }
 
     @Data

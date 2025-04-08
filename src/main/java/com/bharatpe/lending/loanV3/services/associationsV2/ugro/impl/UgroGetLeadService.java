@@ -20,6 +20,7 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.Arrays;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -66,22 +67,30 @@ public class UgroGetLeadService {
                     return false;
                 }
 
+                //TODO: Need to change the conditions only for penny drop now as udyam is moved to early stage (This will be done after 15 days)
+                // But for old application we need the check of udyam also
                 if (!ObjectUtils.isEmpty(getLeadResponse)
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBankAccountVerification())
                         && (ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBusinessProofVerification())
                         || (!ObjectUtils.isEmpty(getLeadResponse.getKybRemarks())
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getKybRemarks().getUdyamFormFilled())))) {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.GET_LEAD_SUCCESS.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
                     return true;
                 } else if (!ObjectUtils.isEmpty(getLeadResponse)
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBankAccountVerification())) {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_PENDING.name());
+                    // This block of code is only for old applications because new applications will only be able to reach here after completing udyam
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.GET_LEAD_SUCCESS.name());
                     commonService.manageApplicationState(lenderAssociationDetailsDto);
                     return false;
                 }
+
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsDto);
             }
         } catch (Exception e) {
             log.info("UGRO: exception occurred while processing get lead for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -91,6 +100,8 @@ public class UgroGetLeadService {
         return false;
     }
 
+    // This method will return true only if udyam registration is marked success in lead status API
+    @Transactional
     public boolean invokeUdyamStatusCheck(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         try {
             if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getApplicationId()) || ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplication())) {
@@ -103,29 +114,53 @@ public class UgroGetLeadService {
                 log.error("UGRO: error in getLead: udyam statusCheck payload for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
                 return false;
             }
+
             NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(getLeadRequest, LenderAssociationStages.GET_LEAD);
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 UgroGetLeadResponse getLeadResponse = objectMapper.convertValue(nbfcResponseDto.getData(), UgroGetLeadResponse.class);
                 if (!ObjectUtils.isEmpty(getLeadResponse) && Arrays.asList(ugroConfig.getClosedResponse(), ugroConfig.getRejectedResponse()).contains(getLeadResponse.getStatus())) {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.GET_LEAD_FAILED.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("UDYAM_" + LenderAssociationStatus.GET_LEAD_FAILED.name());
                     commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsDto);
                     return false;
                 }
 
-                if (!ObjectUtils.isEmpty(getLeadResponse)
+
+                if (!lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getStage().equalsIgnoreCase(LenderAssociationStages.ASSC_COMPLETED.name())
+                        && !ObjectUtils.isEmpty(getLeadResponse)
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBankAccountVerification())
                         && (ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBusinessProofVerification())
                         || (!ObjectUtils.isEmpty(getLeadResponse.getKybRemarks())
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getKybRemarks().getUdyamFormFilled())))) {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_SUCCESS.name());
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("UDYAM_" + LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+
+                    // Here for old applications it was required to push to next stage but in new flow it's not required
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
                     return true;
                 }
+
+                // This condition will only be executed for new cases as penny drop will be PENDING for new cases
+                if (!ObjectUtils.isEmpty(getLeadResponse)
+                        && (ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBusinessProofVerification())
+                        || (!ObjectUtils.isEmpty(getLeadResponse.getKybRemarks())
+                        && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getKybRemarks().getUdyamFormFilled())))) {
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("UDYAM_" + LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+                    log.info("UGRO: udyam data upload status success {}", lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getDataUploadStatus());
+                    commonService.manageApplicationState(lenderAssociationDetailsDto);
+                    return true;
+                }
+
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("UDYAM_" + LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsDto);
+                return false;
             }
         } catch (Exception e) {
             log.error("UGRO: exception occurred while processing udyam status check for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("UDYAM_" +LenderAssociationStatus.GET_LEAD_FAILED.name());
+        commonService.manageApplicationState(lenderAssociationDetailsDto);
         return false;
     }
 
@@ -147,6 +182,35 @@ public class UgroGetLeadService {
                     .build();
         } catch (Exception e) {
             log.info("UGRO: Exception in creating payload of create lead for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+    @Transactional
+    public NBFCResponseDTO<?>  getDedupeGetLeadResponse(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto){
+        try {
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadStatus("DEDUPE_" + LenderAssociationStages.GET_LEAD.name());
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_PENDING.name());
+            commonService.manageApplicationState(lenderAssociationDetailsDto);
+
+            NBFCRequestDTO<?> getLeadRequest = getPayload(lenderAssociationDetailsDto);
+            if (ObjectUtils.isEmpty(getLeadRequest)) {
+                log.info("UGRO: error in get lead status payload for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.GET_LEAD_FAILED);
+                return null;
+            }
+
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(getLeadRequest, LenderAssociationStages.GET_LEAD);
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_SUCCESS.name());
+                commonService.manageApplicationState(lenderAssociationDetailsDto);
+                return nbfcResponseDto;
+            }
+            lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus("DEDUPE_" + LenderAssociationStatus.GET_LEAD_FAILED.name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.GET_LEAD_FAILED);
+        } catch (Exception e) {
+            log.info("UGRO: exception occurred while processing get lead for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

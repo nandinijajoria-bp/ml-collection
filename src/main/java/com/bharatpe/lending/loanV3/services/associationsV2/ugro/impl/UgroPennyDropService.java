@@ -186,14 +186,14 @@ public class UgroPennyDropService {
                         && (ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBusinessProofVerification())
                         || (!ObjectUtils.isEmpty(getLeadResponse.getKybRemarks())
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getKybRemarks().getUdyamFormFilled())))) {
-                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_SUCCESS.name());
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                     return true;
                 } else if (!ObjectUtils.isEmpty(getLeadResponse)
                         && ugroConfig.getSuccessResponse().equalsIgnoreCase(getLeadResponse.getBankAccountVerification())) {
-                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_PENDING.name());
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.PENNY_DROP_SUCCESS.name());
                     commonService.manageApplicationState(lenderAssociationDetailsRequest);

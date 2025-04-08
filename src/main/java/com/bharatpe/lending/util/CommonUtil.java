@@ -9,7 +9,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.collections.MapUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -17,6 +19,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
 
@@ -134,4 +137,29 @@ public class CommonUtil {
         ObjectMapper objectMap = new ObjectMapper();
         return objectMap.writeValueAsString(object);
     }
+
+    public String getParamterString(Map<String, String> params){
+        StringBuilder stringBuilder = new StringBuilder();
+        if(params!=null){
+            for(Map.Entry<String, String> entry: params.entrySet()){
+                stringBuilder.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
+            }
+        }
+        return stringBuilder.toString();
+    }
+
+    public Double convertToDouble(Object obj) {
+        if (obj instanceof Number) {
+            return ((Number) obj).doubleValue();
+        } else if (obj instanceof String) {
+            try {
+                return Double.parseDouble((String) obj);
+            } catch (NumberFormatException e) {
+                return  0D;
+            }
+        }
+        return  0D;
+    }
+
+
 }

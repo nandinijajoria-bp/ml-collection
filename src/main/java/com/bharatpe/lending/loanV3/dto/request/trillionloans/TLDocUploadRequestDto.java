@@ -24,5 +24,7 @@ public class TLDocUploadRequestDto {
         private String data;
         private String fileName;
         private String url;
+        private String score;
+        private String ip;
     }
 }

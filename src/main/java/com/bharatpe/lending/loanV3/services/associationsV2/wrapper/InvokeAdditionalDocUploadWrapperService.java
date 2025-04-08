@@ -8,11 +8,14 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +44,10 @@ public class InvokeAdditionalDocUploadWrapperService {
     @Autowired
     NbfcUtils nbfcUtils;
 
+    @Lazy
+    @Autowired
+    LoanUtil loanUtil;
+
     @Async("lenderPoolTaskExecutor")
     public void invokeAdditionalDocUpload(Long applicationId, String reqId) {
         try {
@@ -62,16 +69,18 @@ public class InvokeAdditionalDocUploadWrapperService {
                 }
                 lendingApplicationLenderDetails.setStage(LenderAssociationStages.DOC_UPLOAD.name());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+                LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
+                        .applicationId(applicationId)
+                        .lendingApplication(lendingApplication)
+                        .merchantId(lendingApplication.getMerchantId())
+                        .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
+                        .build();
+                if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                   checkAndPostConsent(lenderAssociationDetailsRequest);
+                }
                 boolean isRetry = (!ObjectUtils.isEmpty(lendingApplicationLenderDetails.getFailedUpload())) && LenderAssociationStatus.DOC_UPLOAD_FAILED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDocUploadStatus());
                 log.info("doc upload status {}, isRetry: {}", lendingApplicationLenderDetails.getDocUploadStatus(), isRetry);
                 if (Objects.isNull(lendingApplicationLenderDetails.getDocUploadStatus()) || isRetry) {
-                    LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
-                            .applicationId(applicationId)
-                            .lendingApplication(lendingApplication)
-                            .merchantId(lendingApplication.getMerchantId())
-                            .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
-                            .build();
-
                     List<DocType> docs = isRetry ? getFailedDocList(lendingApplicationLenderDetails) : getDocList(lendingApplication.getLender());
                     lendingApplicationLenderDetails.setFailedUpload(null);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
@@ -123,6 +132,7 @@ public class InvokeAdditionalDocUploadWrapperService {
             case "TRILLIONLOANS":
                 return Collections.singletonList(DocType.LOAN_AGREEMENT);
             case "MUTHOOT":
+            case "OXYZO":
                 return Collections.singletonList(DocType.KEY_FACT_STATEMENT_LOAN_AGREEMENT_MERGED);
             case "CAPRI":
             case "CREDITSAISON":
@@ -140,5 +150,14 @@ public class InvokeAdditionalDocUploadWrapperService {
 
     private List<DocType> getFailedDocList(LendingApplicationLenderDetails lendingApplicationLenderDetails) {
         return Arrays.stream(lendingApplicationLenderDetails.getFailedUpload().split(";")).map(DocType :: valueOf).collect(Collectors.toList());
+    }
+
+    private void checkAndPostConsent(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        if(LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
+            LendingApplication parentApplication = loanUtil.fetchParentApplication(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
+            if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(parentApplication.getLender())) {
+                associationServiceUtil.invokeConsentPostingService(lenderAssociationDetailsRequestDto.getLendingApplication().getLender(), lenderAssociationDetailsRequestDto);
+            }
+        }
     }
 }
