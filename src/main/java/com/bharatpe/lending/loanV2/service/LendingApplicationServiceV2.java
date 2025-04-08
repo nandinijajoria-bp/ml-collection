@@ -1550,7 +1550,7 @@ public class LendingApplicationServiceV2 {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getRejectionReason(), RejectionStage.PNC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply";
                 String rejectionReason = Objects.nonNull(lendingApplication.getRejectionReason()) ? lendingApplication.getRejectionReason() : null;
-                headerDTO.setTitle("Document Verification Failed");
+                headerDTO.setTitle("Application Rejected");
                 headerDTO.setComment(rejectionMessage);
                 applicationStatusResponseDTO.setRejectionReason(rejectionReason);
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
