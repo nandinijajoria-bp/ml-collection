@@ -6,8 +6,6 @@ public interface LendingConstants {
 	Integer MAX_LOAN_AMOUNT_INTEGER = 1000000;
 	Double MAX_LOAN_AMOUNT_DOUBLE = 1000000d;
 	String GUPSHUP_OTP_API_USERID = "2000182191";
-	//TODO : infosec issue, need to remove hardcoded value
-	String GUPSHUP_OTP_API_PASSWORD = "";
 	String GUPSHUP_SMS_SERVICE_URL = "https://enterprise.smsgupshup.com/GatewayAPI/rest";
 	
 	String GUPSHUP_SEND_OTP_METHOD= "TWO_FACTOR_AUTH";

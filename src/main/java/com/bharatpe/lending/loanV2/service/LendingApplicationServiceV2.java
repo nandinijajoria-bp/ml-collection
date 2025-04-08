@@ -2671,6 +2671,12 @@ public class LendingApplicationServiceV2 {
 
             }
 
+            Date lendingApplicationCreatedAt = lendingApplication.getCreatedAt();
+
+            if(Lender.ABFL.name().equals(lendingApplication.getLender())){
+                lendingApplicationCreatedAt = lendingApplication.getAgreementAt();
+            }
+
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2714,7 +2720,7 @@ public class LendingApplicationServiceV2 {
                     .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(monthlyIncome)
                     .annualRoi(annualRoi)
-                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplicationCreatedAt , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .insurancePremium(insurancePremium)
                     .lenderKfsUrl(lenderKfsUrl)

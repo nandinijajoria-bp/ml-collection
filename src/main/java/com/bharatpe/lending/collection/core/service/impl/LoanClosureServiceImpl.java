@@ -85,7 +85,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         notificationExecutor.execute(() -> loanPaymentUtil.sendSMS(activeLoan, finalAmount, isLoanClosed));
 
         if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
-            loanClosurePostingService.sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+            loanClosurePostingService.sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger, orderId);
         } else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
             loanClosurePostingService.postForeclosureReceiptPiramal(activeLoan, lendingLedger);
         } else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", "SMFG", Lender.UGRO.name()).contains(activeLoan.getNbfc())) {

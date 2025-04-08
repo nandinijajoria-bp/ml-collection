@@ -563,7 +563,7 @@ public class KycHandler {
 
     public PanVerifyKYCResponseDto verifyPanDetails(String token, String panNumber, String name, String dob, Long merchantId) throws Exception {
         if (ObjectUtils.isEmpty(panNumber) || ObjectUtils.isEmpty(name) || ObjectUtils.isEmpty(dob)) {
-            log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
+//            log.info("PanNumber: {}, name: {} & dob: {} of merchantId : {}",panNumber, name, dob, merchantId);
             return null;
         }
         try {
