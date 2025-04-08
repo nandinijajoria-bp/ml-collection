@@ -1411,7 +1411,12 @@ public class LendingApplicationServiceV2 {
 
             boolean cpvRequired = loanUtil.cpvRequired(lendingApplication);
             LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
-            String cpvStatus = lendingApplication.getPhysicalVerificationStatus() != null && (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ? lendingApplication.getPhysicalVerificationStatus() : "PENDING";
+            String cpvStatus = lendingApplication.getPhysicalVerificationStatus() != null && 
+                    (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || 
+                            lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ?
+                    lendingApplication.getPhysicalVerificationStatus() : "PENDING";
+            String pncRejectionReason = lendingApplication.getRejectionStage() != null
+                    && "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name()) &&  lendingApplication.getRejectionReason()!=null ? lendingApplication.getRejectionReason() : null;
             if (!isSmallTicketLoan && (cpvRequired && !"REJECTED".equalsIgnoreCase(kycStatus)) || "REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 String cpvComment;
                 if (lendingApplication.getPhysicalVerificationStatus() == null || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null") || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("ASSIGNED")) {
@@ -1541,6 +1546,13 @@ public class LendingApplicationServiceV2 {
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Failed");
                 headerDTO.setComment("You were unreachable on " + merchantBasicDetailsDto.getMobile());
+            } else if ("Rejected_At_PNC_Hard_Failure".equalsIgnoreCase(pncRejectionReason) || "Rejected_At_PNC_Pending_Verification".equalsIgnoreCase(pncRejectionReason)) {
+                String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getRejectionReason(), RejectionStage.PNC);
+                rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply";
+                String rejectionReason = Objects.nonNull(lendingApplication.getRejectionReason()) ? lendingApplication.getRejectionReason() : null;
+                headerDTO.setTitle("Application Rejected");
+                headerDTO.setComment(rejectionMessage);
+                applicationStatusResponseDTO.setRejectionReason(rejectionReason);
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
@@ -2250,10 +2262,15 @@ public class LendingApplicationServiceV2 {
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() > maxCount)maxCount = lendingResubmitReasonCount.getResubmitCount();
             }
+            boolean syncedShopPhoto = false;
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
                 for(String resubmitReason : updatedResubmitReasonsList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
+                        if(!syncedShopPhoto && "SHOP_PHOTO".equalsIgnoreCase(resubmitReason)){
+                            kycHandler.syncShopPhoto(merchantId, applicationId);
+                            syncedShopPhoto=true;
+                        }
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
                         lendingResubmitReasonCount.setResubmittedAt(new Date());
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
@@ -2659,6 +2676,12 @@ public class LendingApplicationServiceV2 {
 
             }
 
+            Date lendingApplicationCreatedAt = lendingApplication.getCreatedAt();
+
+            if(Lender.ABFL.name().equals(lendingApplication.getLender())){
+                lendingApplicationCreatedAt = lendingApplication.getAgreementAt();
+            }
+
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2702,7 +2725,7 @@ public class LendingApplicationServiceV2 {
                     .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(monthlyIncome)
                     .annualRoi(annualRoi)
-                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplicationCreatedAt , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .insurancePremium(insurancePremium)
                     .lenderKfsUrl(lenderKfsUrl)

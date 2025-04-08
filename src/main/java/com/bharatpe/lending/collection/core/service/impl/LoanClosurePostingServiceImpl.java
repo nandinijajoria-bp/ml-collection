@@ -19,10 +19,7 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.config.OxyzoConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
-import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
-import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
-import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
-import com.bharatpe.lending.loanV3.dto.TrilionLoansForeclosureChargesRequestDto;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
@@ -119,7 +116,15 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
     OxyzoConfig oxyzoConfig;
 
     @Override
-    public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
+    public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId) {
+        logger.info("Send Foreclosure Event: applicationId: {}, mobile: {}, lendingLedger: {}, orderId: {}", applicationId, mobile, lendingLedger, orderId);
+        String status = "SUCCESS";
+        Double charge = 0.0;
+        Double chargeTax = 0.0;
+        String postingStatus = "FAILURE";
+        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        logger.info("LoanForeclosureCharges Record: {}", loanForeClosureCharges);
+
         try{
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -133,6 +138,44 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
             Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
+
+            if(loanForeClosureCharges != null) {
+                logger.info("Creating ABFL Foreclosure Charges post charge request");
+                ForeclosureChargesRequestDto foreclosureChargesRequestDto = ForeclosureChargesRequestDto.builder()
+                        .applicationId(applicationId)
+                        .productName("LENDING")
+                        .lender(Lender.ABFL.name())
+                        .payload(ForeclosureChargesRequestDto.Payload.builder()
+                                         .accountId(lendingApplicationLenderDetails.getAccountId())
+                                         .uniqueId("ABFL_FC_" + txnId)
+                                         .dealNo(lendingApplicationLenderDetails.getDealNo())
+                                         .loanNo(lendingApplicationLenderDetails.getLan())
+                                         .transactionId(String.valueOf(lendingLedger.getId()))
+                                         .chargeType("R")
+                                         .businessPartnerType("CS")
+                                         .chargeAmount(String.valueOf(loanForeClosureCharges.getAmount() + loanForeClosureCharges.getTax()))
+                                         .taxInclusive("N")
+                                         .finalAmount(String.valueOf(loanForeClosureCharges.getAmount() + loanForeClosureCharges.getTax()))
+                                         .chargeCode("112")
+                                         .build())
+                        .build();
+                logger.info("ABFL: posting foreclosure charges to lender {}", foreclosureChargesRequestDto);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                log.info("ABFL: response foreclosure charges posting request :{} and response : {}", objectMapper.writeValueAsString(foreclosureChargesRequestDto), nbfcResponseDto);
+
+                if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                    log.info("ABFL: foreclosure charges posted to lender{}",nbfcResponseDto);
+                    charge = loanForeClosureCharges.getAmount();
+                    chargeTax = loanForeClosureCharges.getTax();
+                    postingStatus = "POSTED";
+                } else {
+                    // Bhuvnesh :- if charge posting is failed then cancel foreclosure posting
+                    // and make lendingCollectionAudit entry as failed
+                    log.info("ABFL: foreclosure charges posting failed to request {} response {}", foreclosureChargesRequestDto, nbfcResponseDto);
+                    throw new Exception("Foreclosure failed");
+                }
+            }
+
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
@@ -142,7 +185,7 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
                             .accountId(lendingApplicationLenderDetails.getAccountId())
                             .dealNo(lendingApplicationLenderDetails.getDealNo())
                             .loanNo(lendingApplicationLenderDetails.getLan())
-                            .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType()) + "_" + txnId)
+                             .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + getTransferTypeAbbr(lendingLedger.getTransferType()) + "_" + txnId)
                             .loanReceiptDetails(ForeclosureRequestDto.LoanReceiptDetails.builder()
                                     .receiptAmount(lendingLedger.getAmount())
                                     .paidByContactNo(mobile.substring(2))
@@ -154,9 +197,29 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             logger.info("foreclosure event sent {}", foreclosureRequestDto);
             confluentKafkaTemplate.send("foreclose-loan", objectMapper.readValue(objectMapper.writeValueAsString(foreclosureRequestDto), new TypeReference<Map<String, Object>>() {
             }));
+            logger.info("ABFL: updating LCA for foreclosed event for application id : {} ", lendingApplicationLenderDetails.getApplicationId());
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
+            status = "FAILED";
         }
+
+        logger.info("ABFL: updating LCA for foreclosed event for application id : {}  and status is {}", applicationId, status);
+        LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+        if (lendingCollectionAudit != null) {
+            lendingCollectionAudit.setStatus(status);
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            logger.info("ABFL: updated LCA for foreclosed event for application id : {} and status :{} ", applicationId, status);
+        }
+        if (loanForeClosureCharges != null) {
+            loanForeClosureCharges.setChargePostingStatus(postingStatus);
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
+        }
+    }
+
+    private String getTransferTypeAbbr(String transferType) {
+        if("DIRECT_TRANSFER_LENDER".equalsIgnoreCase(transferType)) return "DTTL";
+        if("TRANSFER_BY_BP".equalsIgnoreCase(transferType)) return "TBBP";
+        return transferType;
     }
 
     @Override
