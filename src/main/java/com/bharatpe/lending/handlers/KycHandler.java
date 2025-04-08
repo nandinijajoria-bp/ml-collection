@@ -1,5 +1,7 @@
 package com.bharatpe.lending.handlers;
 
+import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
+import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
@@ -11,11 +13,10 @@ import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.ShopPhotoProofType;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycDocResponse;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
-import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
-import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -25,11 +26,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import java.io.FileNotFoundException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -60,9 +65,22 @@ public class KycHandler {
 
     @Autowired
     RestUtils restUtils;
+    @Autowired
+    private LendingShopDocumentsDao lendingShopDocumentsDao;
+    @Autowired
+    private S3BucketHandler s3BucketHandler;
+
+    @Value("${kyc.service.base.url}")
+    private String kycServiceHost;
+
+    @Value("${aws.s3.bucket}")
+    private String bucket;
 
     @Value("${enable.p2pm.flag:false}")
     boolean p2pmEnabled;
+
+    @Value("${skip.screen.rollout:0}")
+    private Integer skipScreenRolloutForMerchants;
 
     private static final String CLIENT = "LENDING";
 
@@ -143,6 +161,74 @@ public class KycHandler {
         return null;
     }
 
+    @Async("commonAsyncTaskExecutor")
+    public void syncShopPhoto(Long merchantId, Long applicationId){
+        List<LendingShopDocuments> lendingShopDocumentList = lendingShopDocumentsDao.findByMerchantIdAndApplicationIdOrderByUpdatedAtDesc(merchantId, applicationId);
+        for(LendingShopDocuments lendingShopDocument: lendingShopDocumentList){
+            try {
+                String imageUrl = s3BucketHandler.getTemporaryPublicURL(lendingShopDocument.getProofFrontSide(), bucket);
+                String imageDocType = getPhotoDocType(lendingShopDocument.getProofType());
+                if(imageDocType!=null){
+                    syncImage(lendingShopDocument, imageUrl, imageDocType);
+                }else {
+                    log.warn("skipping image sync because of wrong proof type, proof type is: {}", lendingShopDocument.getProofType());
+                }
+            }catch (FileNotFoundException exception){
+                log.error("File not found exception while generating s3 link for merchant: {} and application: {} of image_id: {} ",
+                        lendingShopDocument.getMerchantId(), lendingShopDocument.getApplicationId(), lendingShopDocument.getId());
+            }
+        }
+    }
+
+    private void syncImage(LendingShopDocuments lendingShopDocument, String imageUrl, String imageDocType) {
+        Map<String, Object> requestData = new HashMap<>();
+        requestData.put("merchantId", lendingShopDocument.getMerchantId());
+        requestData.put("docType", imageDocType);
+        requestData.put("status", "PENDING");
+        requestData.put("source", "LOAN");
+        requestData.put("latitude", lendingShopDocument.getLatitude());
+        requestData.put("longitude", lendingShopDocument.getLongitude());
+        requestData.put("docUrl", imageUrl);
+
+        Map<String, Object> requestParams = new HashMap<>();
+        requestParams.put("type", "add");
+        requestParams.put("data", requestData);
+
+        String url = kycServiceHost + LendingConstants.UPLOAD_SHOP_IMAGE;
+        HttpHeaders headers = getApiHeaders(requestParams);
+        HttpEntity<Map<String, Object>> request  = new HttpEntity<>(requestParams, headers);
+        int retry = 2;
+        while (retry>0){
+            try {
+                log.info("Request for image sync to central service for merchant: {}, and application: {} is {}",
+                        lendingShopDocument.getMerchantId(), lendingShopDocument.getApplicationId(), request);
+                ResponseEntity<UploadShopImageResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, UploadShopImageResponse.class);
+                log.info("Response received from central service for image sync for merchant: {}, and application: {} is {}",
+                        lendingShopDocument.getMerchantId(), lendingShopDocument.getApplicationId(), responseEntity);
+                UploadShopImageResponse response = responseEntity.getBody();
+                if(response!=null && response.getData() !=null && response.getData().isSuccess()){
+                    break;
+                }
+            }catch (RestClientException exception){
+                log.error("Rest client exception while syncing image to central services for merchant: {} and application: {}. shop document id is: {}. exception is:{}",
+                        lendingShopDocument.getMerchantId(), lendingShopDocument.getApplicationId(), lendingShopDocument.getId(), exception.getMessage());
+            } catch (Exception exception){
+                log.error("Exception while syncing image to central services for merchant: {} and application: {}. shop document id is: {}. exception is:{}",
+                        lendingShopDocument.getMerchantId(), lendingShopDocument.getApplicationId(), lendingShopDocument.getId(), exception.getStackTrace());
+            }
+            retry--;
+        }
+    }
+
+    private String getPhotoDocType(String proofType) {
+        if(ShopPhotoProofType.FRONT.getValue().equalsIgnoreCase(proofType)){
+            return "SHOP_PICTURE_1";
+        }
+        if(ShopPhotoProofType.STOCK.getValue().equalsIgnoreCase(proofType)){
+            return "SHOP_PICTURE_2";
+        }
+        return null;
+    }
 
     public List<KycDoc> getKycDoc(Long merchantId, Date validAfterDate, String provider) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
@@ -440,6 +526,18 @@ public class KycHandler {
             requestParams.put("documents", documents);
             requestParams.put("validAfter", finaValidAfter);
             requestParams.put("onlySelfieLivelinessRequired", onlySelfieLivelinessRequired);
+
+            if(easyLoanUtil.percentScaleUp(merchantId, skipScreenRolloutForMerchants)) {
+                log.info("convertedkycRanking for merchant_id : {} is : {}", merchantId, convertedkycRanking);
+                if(convertedkycRanking == null ||
+                        (convertedkycRanking.equalsIgnoreCase("P2MM") ||
+                                convertedkycRanking.equalsIgnoreCase("P2PM") ||
+                                convertedkycRanking.equalsIgnoreCase("P2MS")))
+                {
+                    List<String> skipScreens = Collections.singletonList("aadhaar");
+                    requestParams.put("skipScreens", skipScreens);
+                }
+            }
 
             // Conditionally add "kycRankingRequired"
             if (p2pmEnabled && !ObjectUtils.isEmpty(convertedkycRanking)) {

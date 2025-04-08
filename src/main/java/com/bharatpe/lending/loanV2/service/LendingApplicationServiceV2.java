@@ -2262,10 +2262,15 @@ public class LendingApplicationServiceV2 {
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() > maxCount)maxCount = lendingResubmitReasonCount.getResubmitCount();
             }
+            boolean syncedShopPhoto = false;
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
                 for(String resubmitReason : updatedResubmitReasonsList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
+                        if(!syncedShopPhoto && "SHOP_PHOTO".equalsIgnoreCase(resubmitReason)){
+                            kycHandler.syncShopPhoto(merchantId, applicationId);
+                            syncedShopPhoto=true;
+                        }
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
                         lendingResubmitReasonCount.setResubmittedAt(new Date());
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);

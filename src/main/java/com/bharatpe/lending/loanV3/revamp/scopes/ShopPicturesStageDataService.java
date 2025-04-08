@@ -6,10 +6,10 @@ import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -26,7 +26,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -54,6 +53,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
     KycUtils kycUtils;
 
     @Autowired
+    private KycHandler kycHandler;
+
+    @Autowired
     LoanUtil loanUtil;
 
     @Value("${enable.bl.tagging:true}")
@@ -61,6 +63,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
 
     @Value("${bl.eligible.lenders:IIFL}")
     String blEligibleLendersList;
+
+    @Value("${shop.photo.sync.rollout:0}")
+    private Integer shopPhotoSyncRollout;
 
     @Autowired
     LendingShopDocumentsDao lendingShopDocumentsDao;
@@ -80,7 +85,13 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
         }else if (!hasShopPictureAndShopStockImageByMerchantIdAndApplicationId(lendingStateDTO.getData().getMerchantId(),lendingStateDTO.getData().getApplicationId())) {
             log.info("one picture is missing of shop for merchantId : {} and applicationId : {}",lendingStateDTO.getData().getMerchantId(),lendingStateDTO.getData().getMerchantId());
         }
-        else lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+        else{
+            lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+            if(easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), shopPhotoSyncRollout)){
+                kycHandler.syncShopPhoto(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
+            }
+
+        }
         if(!lendingStateDTO.getData().getResubmitState()){
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.SHOP_PICTURES_PAGE);
         }
@@ -118,6 +129,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                     }
                 }
             }
+
             shopPicturesStateDTO.setLenderKycPipe(kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())));
 
             if(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()))shopPicturesStateDTO.setDummyMerchant(true);
