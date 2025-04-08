@@ -1546,7 +1546,7 @@ public class LendingApplicationServiceV2 {
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Failed");
                 headerDTO.setComment("You were unreachable on " + merchantBasicDetailsDto.getMobile());
-            } else if (KycStatus.REJECTED.name().equalsIgnoreCase(pncRejectionReason)) {
+            } else if ("Rejected_At_PNC_Hard_Failure".equalsIgnoreCase(pncRejectionReason) || "Rejected_At_PNC_Pending_Verification".equalsIgnoreCase(pncRejectionReason)) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getRejectionReason(), RejectionStage.PNC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply";
                 String rejectionReason = Objects.nonNull(lendingApplication.getRejectionReason()) ? lendingApplication.getRejectionReason() : null;
