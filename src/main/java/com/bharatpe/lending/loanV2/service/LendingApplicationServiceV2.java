@@ -296,6 +296,9 @@ public class LendingApplicationServiceV2 {
     @Value("${penalty.rollout.date.trillionloans:}")
     String penalDateTrillionloans;
 
+    @Value("${shop.photo.sync.rollout:0}")
+    private Integer shopPhotoSyncRollout;
+
     @Lazy
     @Autowired
     InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
@@ -2267,10 +2270,11 @@ public class LendingApplicationServiceV2 {
                 if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
                 for(String resubmitReason : updatedResubmitReasonsList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
-                        if(!syncedShopPhoto && "SHOP_PHOTO".equalsIgnoreCase(resubmitReason)){
-                            kycHandler.syncShopPhoto(merchantId, applicationId);
-                            syncedShopPhoto=true;
-                        }
+                        if(easyLoanUtil.percentScaleUp(merchantId, shopPhotoSyncRollout))
+                            if(!syncedShopPhoto && "SHOP_PHOTO".equalsIgnoreCase(resubmitReason)){
+                                kycHandler.syncShopPhoto(merchantId, applicationId);
+                                syncedShopPhoto=true;
+                            }
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
                         lendingResubmitReasonCount.setResubmittedAt(new Date());
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
