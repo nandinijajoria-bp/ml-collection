@@ -1062,7 +1062,7 @@ public class LoanUtil {
 	}
 
 	public boolean hasActiveLoan(BasicDetailsDto merchant) {
-		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList("ACTIVE"));
 		return activeLoan != null;
 	}
 

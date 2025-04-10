@@ -1111,7 +1111,7 @@ public class LenderAssignService implements ILenderAssignService {
             String[] lenders = topupLenders.split(",");
             List<String> topupLenders = Arrays.asList(lenders);
             log.info("topup lenders:{}", topupLenders);
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE"));
             if(topupLenders.contains(activeLoan.getNbfc())){
                 lender = topupLenderMapper(activeLoan.getNbfc());
                 lendingApplication.setLender(lender);

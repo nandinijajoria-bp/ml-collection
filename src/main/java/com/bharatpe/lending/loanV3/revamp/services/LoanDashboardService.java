@@ -333,7 +333,7 @@ public class LoanDashboardService {
         //set dummy merchant
         loanDashboardResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchantDetails.getId()));
         //if user has inactive loan, return
-        LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), "INACTIVE");
+        LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), Collections.singletonList("INACTIVE"));
         if (!ObjectUtils.isEmpty(lendingPaymentSchedule1) && "INACTIVE".equalsIgnoreCase(lendingPaymentSchedule1.getStatus()) &&
             !lendingPaymentSchedule1.getCreditLoan()
         ) {
@@ -408,7 +408,7 @@ public class LoanDashboardService {
     }
 
     public boolean hasActiveLoan(Long merchantId) {
-        LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+        LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
         return activeLoan != null;
     }
 

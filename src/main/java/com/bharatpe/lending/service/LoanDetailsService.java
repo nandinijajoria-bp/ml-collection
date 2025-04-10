@@ -1581,7 +1581,7 @@ public class LoanDetailsService {
 	}
 
 	public ForeClosureTncDTO getForeClosureTnc(long merchantId) {
-		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
 		if (activeLoan == null) {
 			logger.info("No active loan found for merchant id {}", merchantId);
 			return ForeClosureTncDTO.builder()

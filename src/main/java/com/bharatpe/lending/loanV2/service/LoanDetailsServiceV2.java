@@ -454,7 +454,7 @@ public class LoanDetailsServiceV2 {
             }
          // Deprecated due to ML-745
          //   loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
-            LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Arrays.asList("INACTIVE"));
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
                 loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
@@ -3234,7 +3234,7 @@ public class LoanDetailsServiceV2 {
             }
 
             //case:16
-            LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
             if(!ObjectUtils.isEmpty(lendingPaymentSchedule1)){
                 List<LoanEligibilityDTO> topUpcheck = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
                 if(!ObjectUtils.isEmpty(topUpcheck)){

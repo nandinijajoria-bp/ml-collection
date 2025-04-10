@@ -198,7 +198,7 @@ public class FosService {
             }
             LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
             logger.info("Payment Schedule:{}", lendingPaymentSchedule);
             if (lendingPaymentSchedule != null) {
                 data.put("message", "Merchant Has a Active Loan.");

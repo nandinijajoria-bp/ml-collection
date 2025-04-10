@@ -1017,7 +1017,7 @@ public class SupportService {
         List<LendingApplicationSlave> applicationList = lendingApplicationDaoSlave.fetchApplicationHistory(merchantId);
         logger.info("fetching application List for merchant:{} of size:{}", merchantId, applicationList.size());
         if(!ObjectUtils.isEmpty(applicationList)){
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule)) {
                 logger.info("Active Loan found for merchantId: {}, and applicationId: {}", merchantId, applicationList.get(0).getId());
                 supportLoanResponseDTO.setApplicationStatus(SupportConstants.ACTIVE_LOAN);
@@ -1486,7 +1486,7 @@ public class SupportService {
 //                    continue;
 //                }
 
-                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,"ACTIVE");
+                LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
                 if(lendingPaymentSchedule != null){
                     logger.info("Merchant Have a Active Loan For merchantId:{}",merchantId);
                     errorData.add(new String[]{lendingApplication.getMerchantId().toString(),lendingApplication.getId().toString(),lendingApplication.getExternalLoanId(),"FAILED","Merchant Has Active Loan"});

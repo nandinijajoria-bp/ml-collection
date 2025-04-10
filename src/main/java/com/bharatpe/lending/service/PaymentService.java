@@ -328,7 +328,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(),  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchant.getId());
                 return new PaymentDetailsResponseDTO("No active loan found.");
@@ -343,7 +343,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchantId);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantId);
                 return new PaymentDetailsResponseDTO("No active loan found.");
@@ -464,7 +464,7 @@ public class PaymentService {
     public InitiatePaymentResponseDTO initiatePaymentV2(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request) {
         logger.info("Received initiate payment request  for merchant {} : {}", merchantBasicDetails.getId(), request);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(),  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No active loan found.");
@@ -666,7 +666,7 @@ public class PaymentService {
     public InitiatePaymentResponseDTO initiatePayment(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
         logger.info("Received initiate payment request  for merchant {} : {}", merchantBasicDetails.getId(), request);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(),  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No active loan found.");
@@ -2578,7 +2578,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId,String externalLoanId) {
         logger.info("Received payment details request for merchant id:{} and externalLoanId:{}", merchantId,externalLoanId);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId, Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
                 return new PaymentDetailsResponseDTO("NO ACTIVE LOAN");
@@ -2615,7 +2615,7 @@ public class PaymentService {
     public InitiatePaymentResponseDTO initiatePaymentThroughLink(Long merchantId,String externalLoanId, RequestDTO<InitiatePaymentRequestDTO> request) {
         logger.info("Received initiate payment request  for merchantId {} : {}", merchantId, request);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId, Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantId);
                 return new InitiatePaymentResponseDTO("NO ACTIVE LOAN");
