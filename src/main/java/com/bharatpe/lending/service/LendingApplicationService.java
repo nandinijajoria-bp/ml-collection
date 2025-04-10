@@ -1692,7 +1692,7 @@ public class LendingApplicationService {
             }
             LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
             logger.info("Payment Schedule:{}", lendingPaymentSchedule);
             if (lendingPaymentSchedule != null) {
                 data.put("message", "Merchant Has a Active Loan.");
@@ -1779,7 +1779,7 @@ public class LendingApplicationService {
             }
             BasicDetailsDto basicDetailsDto = merchantDetailsDto.getMerchantDetail();
             LendingPaymentScheduleSlave lendingPaymentScheduleSlave =
-                    lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+                    lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 
             if (lendingPaymentScheduleSlave != null) {
                 loanData.put("activeLoan", Boolean.TRUE);
@@ -2247,7 +2247,7 @@ public class LendingApplicationService {
                 return responseDTO;
             }
 
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
             if (lendingPaymentSchedule != null) {
                 data.put("bankAccountChange", Boolean.FALSE);
                 data.put("message", "Already Loan Active");
@@ -2317,7 +2317,7 @@ public class LendingApplicationService {
                 return responseDTO;
             }
 
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,  Collections.singletonList("ACTIVE"));
             if (lendingPaymentSchedule != null) {
                 data.setDeleteEligible(false);
                 data.setPendingItems(Collections.singletonList("active_loan"));

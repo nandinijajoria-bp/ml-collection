@@ -1031,7 +1031,7 @@ public class LoanEligibleService {
             return null;
         }
 
-        LendingPaymentSchedule previousLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "CLOSED");
+        LendingPaymentSchedule previousLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Arrays.asList("CLOSED"));
         Experian experian = experianDao.getByMerchantId(merchantId);
         boolean cpvCity = false;
         if (experian != null && experian.getPincode() != null) {

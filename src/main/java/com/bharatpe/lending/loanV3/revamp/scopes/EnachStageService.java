@@ -124,7 +124,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         EnachStateDTO enachStateDTO=new EnachStateDTO();
         enachStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
         if (loanUtil.reNachEnabledMerchants().contains(scopeDataArgs.getMerchant().getId()) ) {
-            LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), "ACTIVE");
+            LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(scopeDataArgs.getMerchant().getId(), Collections.singletonList("ACTIVE"));
 
             if (!ObjectUtils.isEmpty(activeLoan)) {
                 if (merchantLoansService.showRenachBanner(scopeDataArgs.getMerchant().getId(), activeLoan.getNbfc(), false)) {

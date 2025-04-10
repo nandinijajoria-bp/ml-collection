@@ -27,6 +27,7 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -231,7 +232,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             // LC-565
             // note - terminal payment also in that loan will be there in active state as loan is closed marked by the
             // edi scheduler (in non foreclosure cases) and there is separate job to create refund entry from active excess balance of closed loans
-            if ("ACTIVE".equalsIgnoreCase(loan.getStatus())) refund = false;
+            if ("ACTIVE".equalsIgnoreCase(loan.getStatus()) || LoanStatus.DECEASED.name().equalsIgnoreCase(loan.getStatus())) refund = false;
 
             if (refund) {
                 createLoanRefund(loan, balance, payment);
