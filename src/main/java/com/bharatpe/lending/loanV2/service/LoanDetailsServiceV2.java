@@ -3125,7 +3125,7 @@ public class LoanDetailsServiceV2 {
                 MileStoneEligibilityResponseDto rteEligibilityResponse = mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId)));
                 if(Boolean.TRUE.equals(rteEligibilityResponse.getMilStoneEligibility())) {
                     responseDTO.setState(HomePageCardsState.CARD_RTE_ELIGIBLE);
-                    String targetDurationDays = RTEProgramType.SLIDER.name().equals(rteEligibilityResponse.getProgramType()) ? "30" : "60";
+                    String targetDurationDays = !ObjectUtils.isEmpty(rteEligibilityResponse.getTargetDurationDays()) ? String.valueOf(rteEligibilityResponse.getTargetDurationDays()) : "30";
                     populateHomePageIframeResponseData(responseDTO, null, targetDurationDays, null);
                 } else if (ObjectUtils.isEmpty(eligibleLoanDao.findTopByMerchantId(merchantId,Sort.by(Sort.Order.desc("id"))))) {
                     //case:3

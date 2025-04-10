@@ -419,7 +419,7 @@ public class MileStoneHelperServicev3 {
         try {
             if ((ObjectUtils.isEmpty(bureauResponseDTO)
                     || ObjectUtils.isEmpty(bureauResponseDTO.getVariables()))
-                    && bureauResponseDTO.getIsNTC() != Boolean.TRUE) {
+                    || (bureauResponseDTO.getIsNTC() != null && bureauResponseDTO.getIsNTC() != Boolean.TRUE)) {
                 log.info("bureau response {} for merchantId {}", bureauResponseDTO, merchant.getId());
                 inEligibleForRTEResponse(responseDto);
             }
