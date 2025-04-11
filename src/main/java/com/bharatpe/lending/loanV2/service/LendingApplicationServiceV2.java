@@ -3707,7 +3707,7 @@ public class LendingApplicationServiceV2 {
         data.put("conatct_no_lsp", kfsDto.getLspContactNumber());
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
-        data.put("monthly_income", kfsDto.getMonthlyIncome());
+        data.put("monthlyIncome", kfsDto.getMonthlyIncome());
         data.put("apr_without_gst", aprWithoutGst);
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
