@@ -454,7 +454,7 @@ public class LoanDetailsServiceV2 {
             }
          // Deprecated due to ML-745
          //   loanDetailsResponse.setEligibleForCallback(checkEligibilityForCallback(merchant.getId()));
-            LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "INACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule1 = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Arrays.asList("INACTIVE"));
             if (!ObjectUtils.isEmpty(lendingPaymentSchedule1)) {
                 loanDetailsResponse.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
                 loanDetailsResponse.setKycStatus(KycStatus.APPROVED);
@@ -3125,7 +3125,7 @@ public class LoanDetailsServiceV2 {
                 MileStoneEligibilityResponseDto rteEligibilityResponse = mileStoneHelperServicev3.calculateEligibility(merchant, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId)));
                 if(Boolean.TRUE.equals(rteEligibilityResponse.getMilStoneEligibility())) {
                     responseDTO.setState(HomePageCardsState.CARD_RTE_ELIGIBLE);
-                    String targetDurationDays = RTEProgramType.SLIDER.name().equals(rteEligibilityResponse.getProgramType()) ? "30" : "60";
+                    String targetDurationDays = !ObjectUtils.isEmpty(rteEligibilityResponse.getTargetDurationDays()) ? String.valueOf(rteEligibilityResponse.getTargetDurationDays()) : "30";
                     populateHomePageIframeResponseData(responseDTO, null, targetDurationDays, null);
                 } else if (ObjectUtils.isEmpty(eligibleLoanDao.findTopByMerchantId(merchantId,Sort.by(Sort.Order.desc("id"))))) {
                     //case:3
@@ -3234,7 +3234,7 @@ public class LoanDetailsServiceV2 {
             }
 
             //case:16
-            LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
             if(!ObjectUtils.isEmpty(lendingPaymentSchedule1)){
                 List<LoanEligibilityDTO> topUpcheck = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
                 if(!ObjectUtils.isEmpty(topUpcheck)){

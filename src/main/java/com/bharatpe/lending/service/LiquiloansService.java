@@ -329,7 +329,7 @@ public class LiquiloansService {
                 logger.info("Approve loan not found for loanId:{}", callbackRequestDto.getApplicationId());
                 return new ResponseDTO(false, "loan application not found", null, null);
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE", "DECEASED"));
             if (lendingPaymentSchedule != null) {
                 logger.info("Merchant Has Already Active Loan for merchant:{}", lendingApplication.getMerchantId());
                 return new ResponseDTO(false, "Merchant Has Already Active Loan", null, null);

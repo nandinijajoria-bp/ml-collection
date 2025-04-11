@@ -46,6 +46,8 @@ public class LoanAndRTEEligibilityComputeService {
             experian = new Experian();
             experian.setMerchantId(kycDocApprovedTopicDto.getMerchantId());
             experian.setPancardNumber(kycDocApprovedTopicDto.getDocIdentifier());
+            experian.setRequestedLoanAmount(0);
+            experian.setRetryCount(0);
             experianDao.save(experian);
             log.info("Pan card saved in experian for merchantId {}", kycDocApprovedTopicDto.getMerchantId());
         } else if (ObjectUtils.isEmpty(experian.getPancardNumber())) {

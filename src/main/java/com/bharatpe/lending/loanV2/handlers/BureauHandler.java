@@ -72,46 +72,37 @@ public class BureauHandler {
     }
 
     public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days, String source) {
-        int maxRetries = 3;
-        int attempt = 0;
-        while (attempt < maxRetries) {
-            try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_JSON);
-                Map<String, Object> requestBody = new HashMap<>();
-                requestBody.put("mobile", mobile);
-                Map<String, String> merchantName = apiGatewayService.getFirstLastName(merchantId, pancard);
-                requestBody.put("first_name", merchantName.get("firstName"));
-                requestBody.put("last_name", merchantName.get("lastName"));
-                log.info("name fetched for merchantId:{} {} {}", merchantId, merchantName.get("firstName"), merchantName.get("lastName"));
-                if (!StringUtils.isEmpty(pancard)) {
-                    requestBody.put("pancard", pancard);
-                }
-                requestBody.put("source", source);
-                HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
-                log.info("request for bureau data {} for merchant id {}", request, merchantId);
-                final String url = BUREAU_BASE_URL + "/bureau/fetchBureau?days=" + days;
-                log.info("BureauHandler call for phone: {} and url is {}", mobile, url);
-
-                ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
-                if (Objects.isNull(responseEntity.getBody())) {
-                    return null;
-                }
-                BureauResponseDTO bureauResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(responseEntity.getBody().getData()), BureauResponseDTO.class);
-                log.info("bureauResponse:{}", bureauResponseDTO);
-                return bureauResponseDTO;
-            } catch (HttpServerErrorException | HttpClientErrorException | ResourceAccessException exception) {
-                log.info("exception while fetch bureau :{} {}", exception.getMessage(), exception);
-                attempt++;
-                if (attempt >= maxRetries) {
-                    log.error("Max retries reached. Unable to fetch bureau data for merchantId: {}", merchantId);
-                    break;
-                }
-                log.info("Retrying... attempt {}/{}", attempt, maxRetries);
-            } catch (IOException exception) {
-                log.error("Error occurred while parsing json: {} {}", exception.getMessage(), exception);
-                break;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("mobile",mobile);
+            Map<String, String> merchantName = apiGatewayService.getFirstLastName(merchantId, pancard);
+            requestBody.put("first_name",merchantName.get("firstName"));
+            requestBody.put("last_name",merchantName.get("lastName"));
+            log.info("name fetched for merchantId:{} {} {}",merchantId, merchantName.get("firstName"), merchantName.get("lastName"));
+            if (!StringUtils.isEmpty(pancard)) {
+                requestBody.put("pancard", pancard);
             }
+            requestBody.put("source", source);
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            log.info("request for bureau data {} for merchant id {}", request, merchantId);
+            final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days" + "=" + days;
+            log.info("BureauHandler call for phone: {} and url is {}",mobile,url);
+
+            ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
+            if(Objects.isNull(responseEntity.getBody())){
+                return null;
+            }
+            BureauResponseDTO bureauResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(responseEntity.getBody().getData()), BureauResponseDTO.class);
+            log.info("bureauResponse:{}",bureauResponseDTO);
+            return bureauResponseDTO;
+        }  catch (HttpServerErrorException
+                  | HttpClientErrorException
+                  | ResourceAccessException exception) {
+            log.info("exception while fetch bureau: {}", exception.getMessage(), exception);
+        }catch (IOException exception) {
+            log.error("Error occurred while parsing json: {}", exception.getMessage(), exception);
         }
         return null;
     }

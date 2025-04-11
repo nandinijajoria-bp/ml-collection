@@ -30,6 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Optional;
 
 @Service
@@ -105,7 +107,7 @@ public class BPEnachService {
         if(clientName.equalsIgnoreCase("LENDING")) {
 
             if (loanUtil.reNachEnabledMerchants().contains(merchant.getId())) {
-                LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+                LendingPaymentScheduleSlave activeLoan =  lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList("ACTIVE"));
                 if (!ObjectUtils.isEmpty(activeLoan)) {
                     if (merchantLoansService.showRenachBanner(merchant.getId(), activeLoan.getNbfc(), false)) {
                         return eNachInitiateForRenachMerchants(merchant, token, nachMode, activeLoan);
