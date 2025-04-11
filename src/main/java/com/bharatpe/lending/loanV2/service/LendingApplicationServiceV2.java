@@ -2776,7 +2776,7 @@ public class LendingApplicationServiceV2 {
         Double processingFee = lendingApplication.getProcessingFee();
         Double amountToCalculateAprOn;
 
-        amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium
+        amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium;
         Double apr = getApr(merchantId, lendingApplication.getId(), amountToCalculateAprOn, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
