@@ -121,6 +121,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.bharatpe.lending.common.enums.EdiModel.SEVEN_DAY_MODEL;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
@@ -872,7 +873,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
         lendingApplicationDetails.setEdiModelModified(false);
         lendingApplicationDetails.setLenderAssc(false);
-        lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
+        lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             lendingApplicationDetails.setOfferId(eligibleLoan.getId());
@@ -886,7 +887,7 @@ public class LendingApplicationServiceV2 {
             lendingApplication = lendingApplicationDao.save(lendingApplication);
         } else {
             lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
-                    EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
+                    SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
         }
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
@@ -2775,15 +2776,7 @@ public class LendingApplicationServiceV2 {
         Double processingFee = lendingApplication.getProcessingFee();
         Double amountToCalculateAprOn;
 
-        if (Lender.SMFG.name().equalsIgnoreCase(lendingApplication.getLender())) {
-            // Extract GST from processing fee for SMFG
-            double gstRate = 18.0;
-            double gstOnPf = processingFee * gstRate / (100 + gstRate);
-            double processingFeeExclGst = processingFee - gstOnPf;
-            amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFeeExclGst - insurancePremium;
-        } else {
-            amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium;
-        }
+        amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium
         Double apr = getApr(merchantId, lendingApplication.getId(), amountToCalculateAprOn, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
@@ -3658,6 +3651,13 @@ public class LendingApplicationServiceV2 {
         if(Lender.TRILLIONLOANS.toString().equals(kfsDto.getLender())){
             version = 1;
         }
+        Double aprWithoutGst = null;
+        if (kfsDto.getLoanAmount() != null && kfsDto.getProcessingFee() != null && kfsDto.getLoanAmount() != 0) {
+            Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (kfsDto.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (kfsDto.getLoanAmount()) * 100));
+            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (kfsDto.getLoanAmount() * processingFeePercentageWithoutGst) / 100D));
+            Double amountToCalculateAprOn = kfsDto.getLoanAmount() - processingFeeWithoutGst; // currently, this doesn't include insurance premium
+            aprWithoutGst = getApr(kfsDto.getMerchantId(), applicationId, amountToCalculateAprOn, SEVEN_DAY_MODEL.getNoOfEdiDaysInAWeek(), kfsDto.getLender());
+        }
 
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
@@ -3708,6 +3708,7 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         data.put("monthly_income", kfsDto.getMonthlyIncome());
+        data.put("apr_without_gst", aprWithoutGst);
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = "";
