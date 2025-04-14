@@ -3653,10 +3653,18 @@ public class LendingApplicationServiceV2 {
         }
         Double aprWithoutGst = null;
         if (kfsDto.getLoanAmount() != null && kfsDto.getProcessingFee() != null && kfsDto.getLoanAmount() != 0) {
-            Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f", (kfsDto.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (kfsDto.getLoanAmount()) * 100));
-            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f", (kfsDto.getLoanAmount() * processingFeePercentageWithoutGst) / 100D));
-            Double amountToCalculateAprOn = kfsDto.getLoanAmount() - processingFeeWithoutGst; // currently, this doesn't include insurance premium
-            aprWithoutGst = getApr(kfsDto.getMerchantId(), applicationId, amountToCalculateAprOn, SEVEN_DAY_MODEL.getNoOfEdiDaysInAWeek(), kfsDto.getLender());
+            Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f",
+                    (kfsDto.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (kfsDto.getLoanAmount()) * 100));
+
+            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f",
+                    (kfsDto.getLoanAmount() * processingFeePercentageWithoutGst) / 100D));
+
+            Double amountToCalculateAprOn = kfsDto.getLoanAmount() - processingFeeWithoutGst;
+
+            Double rawApr = getApr(kfsDto.getMerchantId(), applicationId, amountToCalculateAprOn,
+                    SEVEN_DAY_MODEL.getNoOfEdiDaysInAWeek(), kfsDto.getLender());
+
+            aprWithoutGst = Double.valueOf(String.format("%.2f", rawApr));
         }
 
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
