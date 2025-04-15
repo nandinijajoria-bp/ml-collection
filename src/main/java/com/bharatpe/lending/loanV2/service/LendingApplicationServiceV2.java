@@ -129,6 +129,7 @@ import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F
 @Slf4j
 public class LendingApplicationServiceV2 {
 
+    public static final String LOAN_FORECLOSURE_CACHE_PREFIX = "loan_foreclosure_";
     @Autowired
     private LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
@@ -295,6 +296,9 @@ public class LendingApplicationServiceV2 {
     @Value("${penalty.rollout.date.trillionloans:}")
     String penalDateTrillionloans;
 
+    @Value("${shop.photo.sync.rollout:0}")
+    private Integer shopPhotoSyncRollout;
+
     @Lazy
     @Autowired
     InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
@@ -378,6 +382,13 @@ public class LendingApplicationServiceV2 {
     private EmiUtils emiUtils;
     @Autowired
     private EmiDashboardService emiDashboardService;
+
+    @Value("${lender.enable.foreclosure.amount.cache:PIRAMAL}")
+    private String lenderEnableForeclosureAmountCache;
+
+    @Value("${piramal.foreclosure.cache.minutes:2}")
+    int piramalForeclosureCacheMinutes;
+
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -1403,7 +1414,12 @@ public class LendingApplicationServiceV2 {
 
             boolean cpvRequired = loanUtil.cpvRequired(lendingApplication);
             LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
-            String cpvStatus = lendingApplication.getPhysicalVerificationStatus() != null && (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ? lendingApplication.getPhysicalVerificationStatus() : "PENDING";
+            String cpvStatus = lendingApplication.getPhysicalVerificationStatus() != null && 
+                    (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || 
+                            lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ?
+                    lendingApplication.getPhysicalVerificationStatus() : "PENDING";
+            String pncRejectionReason = lendingApplication.getRejectionStage() != null
+                    && "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name()) &&  lendingApplication.getRejectionReason()!=null ? lendingApplication.getRejectionReason() : null;
             if (!isSmallTicketLoan && (cpvRequired && !"REJECTED".equalsIgnoreCase(kycStatus)) || "REJECTED".equalsIgnoreCase(lendingApplication.getPhysicalVerificationStatus())) {
                 String cpvComment;
                 if (lendingApplication.getPhysicalVerificationStatus() == null || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("null") || lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("ASSIGNED")) {
@@ -1533,6 +1549,13 @@ public class LendingApplicationServiceV2 {
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(callingStatus)) {
                 headerDTO.setTitle("Verification Call Failed");
                 headerDTO.setComment("You were unreachable on " + merchantBasicDetailsDto.getMobile());
+            } else if ("Rejected_At_PNC_Hard_Failure".equalsIgnoreCase(pncRejectionReason) || "Rejected_At_PNC_Pending_Verification".equalsIgnoreCase(pncRejectionReason)) {
+                String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getRejectionReason(), RejectionStage.PNC);
+                rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply";
+                String rejectionReason = Objects.nonNull(lendingApplication.getRejectionReason()) ? lendingApplication.getRejectionReason() : null;
+                headerDTO.setTitle("Application Rejected");
+                headerDTO.setComment(rejectionMessage);
+                applicationStatusResponseDTO.setRejectionReason(rejectionReason);
             } else if (KycStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 String rejectionMessage = easyLoanUtil.getRejectionMessage(lendingApplication.getPhysicalReason(), RejectionStage.QC);
                 rejectionMessage = Objects.nonNull(rejectionMessage) ? rejectionMessage : "Please re-apply with correct shop details";
@@ -2242,10 +2265,16 @@ public class LendingApplicationServiceV2 {
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() > maxCount)maxCount = lendingResubmitReasonCount.getResubmitCount();
             }
+            boolean syncedShopPhoto = false;
             for(LendingResubmitReasonCount lendingResubmitReasonCount : lendingResubmitReasonCountList){
                 if(lendingResubmitReasonCount.getResubmitCount() != maxCount)continue;
                 for(String resubmitReason : updatedResubmitReasonsList){
                     if(resubmitReason.equalsIgnoreCase(lendingResubmitReasonCount.getResubmitReason())){
+                        if(easyLoanUtil.percentScaleUp(merchantId, shopPhotoSyncRollout))
+                            if(!syncedShopPhoto && "SHOP_PHOTO".equalsIgnoreCase(resubmitReason)){
+                                kycHandler.syncShopPhoto(merchantId, applicationId);
+                                syncedShopPhoto=true;
+                            }
                         lendingResubmitReasonCount.setResubmitDone(Boolean.TRUE);
                         lendingResubmitReasonCount.setResubmittedAt(new Date());
                         lendingResubmitReasonCountDao.save(lendingResubmitReasonCount);
@@ -2651,6 +2680,12 @@ public class LendingApplicationServiceV2 {
 
             }
 
+            Date lendingApplicationCreatedAt = lendingApplication.getCreatedAt();
+
+            if(Lender.ABFL.name().equals(lendingApplication.getLender())){
+                lendingApplicationCreatedAt = lendingApplication.getAgreementAt();
+            }
+
             KfsDto kfsDto = KfsDto.builder()
                     .merchantId(lendingKfs.getMerchantId())
                     .applicationId(lendingKfs.getApplicationId())
@@ -2694,7 +2729,7 @@ public class LendingApplicationServiceV2 {
                     .annualTurnover(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> tpv * 360).orElse(null))
                     .monthlyIncome(monthlyIncome)
                     .annualRoi(annualRoi)
-                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplication.getCreatedAt() , lendingApplication.getLender()))
+                    .foreclosureChargesRequired(loanUtil.checkIfForeClosureChargesApplicableKfs(lendingApplicationCreatedAt , lendingApplication.getLender()))
                     .loanPurpose(commonUtil.fetchLoanPurposeByApplicatioId(applicationId))
                     .insurancePremium(insurancePremium)
                     .lenderKfsUrl(lenderKfsUrl)
@@ -3967,7 +4002,7 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-footer-bp-compressed-1729234893465.png";
         }
         else if(lender.equalsIgnoreCase(Lender.PAYU.name())){
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/payu-header-bp-compressed-1729581605675.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Payu-1743068063665.png";
         }
         else if(lender.equalsIgnoreCase(Lender.LDC.toString()) && applicationDocType.equals(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC)){
             logoUrl = "https://bharatpe-cdn.s3.ap-south-1.amazonaws.com/LendenAddress.png";
@@ -4502,17 +4537,62 @@ public class LendingApplicationServiceV2 {
         return new ApiResponse<>(false, "Something Went Wrong!");
     }
 
-    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) throws Exception {
-        Double foreClosureAmount = 0D;
-        foreClosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
-        if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
-            foreClosureAmount = (double) loanUtil.getForeclosureAmount(lendingPaymentSchedule);
+    private Double fetchLenderForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+        if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+            return validateForeclosureAmount(Double.valueOf(loanUtil.getForeclosureAmount(lendingPaymentSchedule)).doubleValue(), lendingPaymentSchedule);
         }
-        if(foreClosureAmount <= 0){
-            log.error("previousAmount <= 0 for merchantId {}, loan : {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-            throw new Exception("Unable to fetch foreclosure amount for parent loan");
+
+        if (lenderEnableForeclosureAmountCache.contains(lendingPaymentSchedule.getNbfc())) {
+            return validateForeclosureAmount(getForeclosureAmountFromCacheOrFetch(lendingPaymentSchedule), lendingPaymentSchedule);
         }
-        return foreClosureAmount;
+
+        return validateForeclosureAmount(fetchForeclosureAmountWithFallback(lendingPaymentSchedule), lendingPaymentSchedule);
+    }
+
+    private Double getForeclosureAmountFromCacheOrFetch(LendingPaymentSchedule lendingPaymentSchedule) {
+        String cacheKey = LOAN_FORECLOSURE_CACHE_PREFIX + lendingPaymentSchedule.getId();
+        log.info("Searching foreclosure amount in cache with key: {} applicationId: {}", cacheKey, lendingPaymentSchedule.getApplicationId());
+
+        try {
+            Object cachedValue = lendingCache.get(cacheKey);
+            if (cachedValue != null) {
+                Double cachedAmount = commonUtil.convertToDouble(cachedValue);
+                log.info("Cache hit: foreclosure amount for key {} is {}", cacheKey, cachedAmount);
+                return cachedAmount;
+            }
+
+            log.info("Cache miss: fetching foreclosure amount for key: {}", cacheKey);
+            Double foreclosureAmount = loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+            storeForeclosureAmountInCache(cacheKey, foreclosureAmount, lendingPaymentSchedule.getNbfc());
+            return foreclosureAmount;
+        } catch (Exception e) {
+            log.error("Error fetching foreclosure amount from cache for merchantId: {}, loanId: {}, error: {}",
+                    lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId(), e.getMessage(), e);
+            return fetchForeclosureAmountWithFallback(lendingPaymentSchedule);
+        }
+    }
+
+    private void storeForeclosureAmountInCache(String cacheKey, Double foreclosureAmount, String nbfc) {
+        log.info("Storing foreclosure amount {} in cache with key {}", foreclosureAmount, cacheKey);
+        AddCacheDto addCacheDto = new AddCacheDto();
+        addCacheDto.setKey(cacheKey);
+        addCacheDto.setTtl(getLenderTTL(nbfc.toUpperCase()));
+        addCacheDto.setValue(foreclosureAmount);
+
+        lendingCache.add(addCacheDto, TimeUnit.MINUTES);
+        log.info("Cache updated for key: {} with value {}", cacheKey, foreclosureAmount);
+    }
+
+    private Double fetchForeclosureAmountWithFallback(LendingPaymentSchedule lendingPaymentSchedule) {
+        return loanUtil.getForeClosureAmountForLender(lendingPaymentSchedule);
+    }
+
+    private Double validateForeclosureAmount(Double foreclosureAmount, LendingPaymentSchedule lendingPaymentSchedule) {
+        if (foreclosureAmount == null || foreclosureAmount <= 0) {
+            log.error("Foreclosure amount <= 0 for merchantId {}, loanId {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+            throw new RuntimeException("Unable to fetch foreclosure amount for parent loan");
+        }
+        return foreclosureAmount;
     }
 
     public ApiResponse<?> generateLenderKfs(LendingApplication lendingApplication, Boolean preSigned) {
@@ -5073,6 +5153,16 @@ public class LendingApplicationServiceV2 {
             lendingKfs.setKfsDocUrl(kfsShortUrl);
         } catch (Exception e) {
             log.error("Exception while generating and appending details in agreementDocs for applicationId : {}, {}, {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    Integer getLenderTTL(String lender) {
+        switch (lender) {
+            case "PIRAMAL": {
+                return piramalForeclosureCacheMinutes;
+            }
+            default:
+                return 2;
         }
     }
 }

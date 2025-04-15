@@ -64,4 +64,37 @@ public class AbflForeclosureFetchService implements ILenderAssociationService<Do
         Double amt = foreClosureAmountResponse.getData().getData().getNetReceivablePayable();
         return ObjectUtils.isEmpty(amt) ? 0d : amt;
     }
+
+    public Double fetchPrincipleOutstanding(Long applicationId, Map<String, Object> args) {
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
+        if (!lendingApplication.isPresent()) {
+            log.info("no lending application record found for {}", applicationId);
+            return 0d;
+        }
+        LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, Status.ACTIVE.name());
+        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
+            log.info("no lender assc record found for {}", applicationId);
+            return 0d;
+        }
+        ForeclosureAmountRequest foreclosureAmountRequest = ForeclosureAmountRequest.builder()
+                .applicationId(applicationId)
+                .lender(lendingApplicationLenderDetails.getLender())
+                .productName("LENDING")
+                .payload(ForeclosureAmountRequest.Payload.builder()
+                                 .accountId(lendingApplication.get().getExternalLoanId())
+                                 .loanNo(lendingApplicationLenderDetails.getLan())
+                                 .dealNo(lendingApplicationLenderDetails.getDealNo())
+                                 .build())
+                .build();
+        INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(lendingApplicationLenderDetails.getLender());
+        ForeClosureAmountResponse foreClosureAmountResponse = apiGatewayV3.fetchDueForeclosureAmount(foreclosureAmountRequest);
+        if (ObjectUtils.isEmpty(foreClosureAmountResponse) || !foreClosureAmountResponse.getSuccess() ||
+                ObjectUtils.isEmpty(foreClosureAmountResponse.getData()) || ObjectUtils.isEmpty(foreClosureAmountResponse.getData().getData())) {
+            log.info("error while fetching Principle Outstanding amount for {}", applicationId);
+            return null;
+        }
+        Double amt = foreClosureAmountResponse.getData().getData().getBalancePrincipal();
+        return amt;
+    }
 }

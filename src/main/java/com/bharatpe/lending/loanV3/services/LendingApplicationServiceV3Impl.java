@@ -212,7 +212,7 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
                 Optional<LendingLedger> lendingLedger = lendingLedgerDao.findById(invokeLenderAssociationRequest.getLedgerId());
                 Optional<LendingPaymentSchedule> loan = lendingPaymentScheduleDao.findById(invokeLenderAssociationRequest.getLpsId());
                 if (lendingLedger.isPresent() && loan.isPresent()) {
-                    paymentService.sendForeclosureEvent(loan.get().getApplicationId(), loan.get().getMobile(),lendingLedger.get());
+                    paymentService.sendForeclosureEvent(loan.get().getApplicationId(), loan.get().getMobile(), lendingLedger.get(), null);
                     return;
                 }
             }

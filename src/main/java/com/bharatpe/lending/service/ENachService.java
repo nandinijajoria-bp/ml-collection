@@ -572,7 +572,7 @@ public class ENachService {
                 logger.info("Request already exists in pending state for merchant:{}", merchantDetails.getId());
                 return new CommonResponse(false, "Request already exists in pending state");
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantDetails.getId(), "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantDetails.getId(),  Collections.singletonList("ACTIVE"));
             if (Objects.nonNull(lendingPaymentSchedule)){
                 logger.info("Active loan exists for merchant {} for application {}", merchantDetails.getId(), lendingPaymentSchedule.getApplicationId());
                 return new CommonResponse(false, "active loan exists for merchant");

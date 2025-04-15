@@ -756,7 +756,7 @@ public class VerifyOTPService {
 
     private Boolean topUpLoans(LendingApplication lendingApplication) {
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Collections.singletonList("ACTIVE"));
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
@@ -1192,7 +1192,7 @@ public class VerifyOTPService {
     }
 
     public void markParentLoanInActiveTopup(LendingApplication lendingApplication) {
-        LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+        LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE"));
         if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) {
              logger.info("marking parent loan {} with lender {} status INACTIVE_TOPUP for applicationId {} ", activeLoan.getId(), activeLoan.getNbfc(), lendingApplication.getId());
              activeLoan.setStatus("INACTIVE_TOPUP");

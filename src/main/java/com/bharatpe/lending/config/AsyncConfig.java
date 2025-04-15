@@ -58,4 +58,13 @@ public class AsyncConfig implements AsyncConfigurer {
                 .queueCapacity(10)
                 .build();
     }
+
+    @Bean(name = "commonAsyncTaskExecutor")
+    public Executor getCommonAsyncTaskExecutor(){
+        return new TaskExecutorBuilder()
+                .threadNamePrefix("common-async-task-executor-")
+                .corePoolSize(2)
+                .maxPoolSize(10)
+                .build();
+    }
 }

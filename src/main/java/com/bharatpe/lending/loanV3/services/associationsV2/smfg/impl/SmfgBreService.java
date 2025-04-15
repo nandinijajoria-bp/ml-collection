@@ -32,6 +32,7 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.UploadDocumentService;
+import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -92,6 +93,9 @@ public class SmfgBreService {
 
     @Autowired
     UploadDocumentService uploadDocumentService;
+
+    @Autowired
+    LenderAssignService lenderAssignService;
 
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -280,6 +284,8 @@ public class SmfgBreService {
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
         PanFetchKYCResponseDto panFetchKYCResponse = kycHandler.panFetch(cKycResponseDto.getPanNumber(), lenderAssociationDetailsRequest.getMerchantId());
         LendingShopDocuments lendingShopDocuments = lendingShopDocumentsDao.findTop1ByMerchantIdAndApplicationIdAndProofTypeOrderByIdDesc(lenderAssociationDetailsRequest.getMerchantId(), lenderAssociationDetailsRequest.getApplicationId(), "SHOP-FRONT");
+        boolean panAndAadhaarLinked = lenderAssignService.isPanAndAadhaarLinked(lenderAssociationDetailsRequest.getMerchantId());
+        log.info("panAndAadhaarLinked status for applicationId {} and merchantId {}  : {}", lenderAssociationDetailsRequest.getApplicationId(), lenderAssociationDetailsRequest.getMerchantId(), panAndAadhaarLinked);
         if (ObjectUtils.isEmpty(cKycResponseDto) || ObjectUtils.isEmpty(panFetchKYCResponse) || ObjectUtils.isEmpty(panFetchKYCResponse.getData())) {
             log.info("bre check failed application id {}, pan or kyc data missing for merchant id {}, {}, {}", lenderAssociationDetailsRequest.getApplicationId(), lenderAssociationDetailsRequest.getMerchantId(), cKycResponseDto, panFetchKYCResponse);
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_OR_KYC_DATA_MISSING.name());
@@ -290,14 +296,14 @@ public class SmfgBreService {
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_NSDL_NOT_VERIFIED.name());
             return true;
         }
-        if (!cKycResponseDto.getAadharNumber().equalsIgnoreCase(panFetchKYCResponse.getData().getMaskedAadhaar())) {
+        if (panAndAadhaarLinked && !cKycResponseDto.getAadharNumber().equalsIgnoreCase(panFetchKYCResponse.getData().getMaskedAadhaar())) {
             log.info("bre check failed application id {}, pan aadhaar {} not equal kyc aadhaar {}", lenderAssociationDetailsRequest.getApplicationId(), panFetchKYCResponse.getData().getMaskedAadhaar(), cKycResponseDto.getAadharNumber());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_AADHAAR_MISMATCH.name());
             return true;
         }
         Date cKycDob = KycUtils.getFormattedDate(cKycResponseDto.getDob());
         Date panDob = KycUtils.getFormattedDate(panFetchKYCResponse.getData().getVerifiedDob());
-        if (!DateUtils.isSameYear(cKycDob, panDob)) {
+        if (isDobMismatch(cKycDob, panDob, panAndAadhaarLinked)) {
             log.info("bre check failed application id {}, pan dob {} not equal kyc dob {}", lenderAssociationDetailsRequest.getApplicationId(), panDob, cKycDob);
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_DOB_MISMATCH.name());
             return true;
@@ -313,7 +319,7 @@ public class SmfgBreService {
             return true;
         }
         if (ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer()) || cKycResponseDto.getBankBenePanNameMatchPer() < smfgConfig.getBenePanNameMatchPerThreshold()) {
-            log.info("bre check failed application id {}, bank and pan name match {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(),  cKycResponseDto.getBankBenePanNameMatchPer(), smfgConfig.getBenePanNameMatchPerThreshold());
+            log.info("bre check failed application id {}, bank and pan name match {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(), cKycResponseDto.getBankBenePanNameMatchPer(), smfgConfig.getBenePanNameMatchPerThreshold());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_BANK_NAME_MISMATCH.name());
             return true;
         }
@@ -326,6 +332,13 @@ public class SmfgBreService {
             }
         }
         return false;
+    }
+
+    private boolean isDobMismatch(Date cKycDob, Date panDob, boolean panAndAadhaarLinked) {
+        if (panAndAadhaarLinked) {
+            return !DateUtils.isSameYear(cKycDob, panDob);
+        }
+        return ObjectUtils.isEmpty(cKycDob) || ObjectUtils.isEmpty(panDob) || !cKycDob.equals(panDob);
     }
 
     private String getLoanTypeMapping(RiskSegment riskSegment) {

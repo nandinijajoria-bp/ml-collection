@@ -374,6 +374,7 @@ public class APIGatewayService {
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
+            requestParams.put("mandateMaxAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
 
             if (Objects.nonNull(pgCreateTransactionRequestDTO.getAccountNumber()) && Objects.nonNull(pgCreateTransactionRequestDTO.getIfscCode())) {
                 Map<String, String> bankDetail = new HashMap<>();
@@ -445,7 +446,7 @@ public class APIGatewayService {
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("mandateEndDate",pgCreateTransactionRequestDTO.getMandateEndDate());
-            requestParams.put("maxMandateAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
+            requestParams.put("mandateMaxAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
 
 
 
