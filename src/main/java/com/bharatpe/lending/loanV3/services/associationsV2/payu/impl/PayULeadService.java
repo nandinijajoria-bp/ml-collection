@@ -243,6 +243,7 @@ public class PayULeadService {
         applicantDetails = PayUUpdateLeadRequestDTO.ApplicantDetailsDTO.builder()
                 .applicantId(null)
                 .firstName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getFirstName())
+                .middleName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getMiddleName())
                 .lastName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getLastName())
                 .mobileNumber(kycUtils.getMobileFromKycData(cKycResponseDto))
                 .pan(cKycResponseDto.getPanNumber())
