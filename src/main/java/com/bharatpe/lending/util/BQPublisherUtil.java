@@ -9,6 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @Service
 public class BQPublisherUtil {
@@ -27,6 +31,27 @@ public class BQPublisherUtil {
         log.info("Published data in topic:{} for entity:{}", TOPIC, entityName);
     }
 
+    public void sendBqAudit(String service, String entityName, String responseBody, String requestBody, Long merchantId) {
+        try {
+            Map<String, Object> bqMap = new HashMap<>();
+            Map<String, Object> dataMap = new HashMap<>();
+            dataMap.put("response_body", responseBody);
+            dataMap.put("request_body", requestBody);
+            dataMap.put("merchant_id", String.valueOf(merchantId));
+            dataMap.put("created_at", new Date());
+            dataMap.put("updated_at", new Date());
+            bqMap.put("entityName", entityName);
+            bqMap.put("response", dataMap);
+            sanityCheck(entityName, bqMap);
+            KafkaAudit<Map<String, Object>> kafkaAudit = new KafkaAudit<>("easy_loan", service, entityName, dataMap);
+            confluentKafkaTemplate.send(TOPIC, kafkaAudit);
+            log.info("Published data in topic:{} for entity:{}", TOPIC, entityName);
+        } catch (Exception ex) {
+            log.error("Exception while sending req, res to bigquery for requestType : {} and merchantId : {}, exception : {}", requestBody, merchantId,
+                    ex.getMessage());
+        }
+    }
+
     private <T> void sanityCheck(String entityName, T data) {
         if (!StringUtils.hasText(entityName)) {
             throw new IllegalArgumentException("Invalid entityName!");
@@ -35,6 +60,5 @@ public class BQPublisherUtil {
             throw new IllegalArgumentException("Invalid data!");
         }
     }
-
 
 }
