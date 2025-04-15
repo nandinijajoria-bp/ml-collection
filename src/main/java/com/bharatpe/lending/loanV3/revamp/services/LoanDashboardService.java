@@ -374,8 +374,10 @@ public class LoanDashboardService {
         if (!ObjectUtils.isEmpty(openApplication)) {
             //kyc checks can be removed from here...
             LoanApplicationDetailsV3 loanApplicationDetailsV3 = setApplicationDetails(openApplication, merchantDetails);
-            loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
-            loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(openApplication));
+            if (!ObjectUtils.isEmpty(loanApplicationDetailsV3)){
+                loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
+                loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(openApplication));
+            }
             if (loanDashboardResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDashboardResponse.getLoanApplication().getReapply())) {
                 //if no reapply then dont check eligibility
                 cacheLoanDetailsData(loanDashboardResponse);
@@ -598,7 +600,7 @@ public class LoanDashboardService {
             }
             return applicationDetails;
         } catch (Exception e) {
-            log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchantId(), e);
+            log.error("Exception in setApplicationDetails for merchant:{}, {}", openApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
@@ -711,7 +713,7 @@ public class LoanDashboardService {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
             } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && RejectionStage.BRE.name().equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
-            } else if ("PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.PNC, lendingApplication.getMerchantId());
             } else {
                 reapplyDayDiff = 0;
