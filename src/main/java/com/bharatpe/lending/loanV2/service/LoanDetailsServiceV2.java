@@ -1141,7 +1141,7 @@ public class LoanDetailsServiceV2 {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
             } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "BRE".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
-            } else if ("PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.PNC, lendingApplication.getMerchantId());
             } else {
                 reapplyDayDiff = 0;
