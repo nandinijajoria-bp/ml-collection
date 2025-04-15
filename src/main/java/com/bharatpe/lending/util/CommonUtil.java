@@ -162,7 +162,4 @@ public class CommonUtil {
     }
 
 
-    public String removeSpecialCharsAndNumbers(String inputString){
-        return inputString.replaceAll("[^a-zA-Z]", "");
-    }
 }

@@ -33,7 +33,6 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.bharatpe.lending.util.CommonUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -83,9 +82,6 @@ public class PayULeadService {
 
     @Value("${payu.channel.code:edi_bhp_01}")
     String payuChannelCode;
-
-    @Autowired
-    CommonUtil commonUtil;
 
     @Transactional
     public boolean invokeCreateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -247,7 +243,7 @@ public class PayULeadService {
         applicantDetails = PayUUpdateLeadRequestDTO.ApplicantDetailsDTO.builder()
                 .applicantId(null)
                 .firstName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getFirstName())
-                .middleName(commonUtil.removeSpecialCharsAndNumbers(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getMiddleName()))
+                .middleName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getMiddleName())
                 .lastName(kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId()).getLastName())
                 .mobileNumber(kycUtils.getMobileFromKycData(cKycResponseDto))
                 .pan(cKycResponseDto.getPanNumber())
