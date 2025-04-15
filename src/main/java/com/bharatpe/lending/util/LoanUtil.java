@@ -2745,8 +2745,12 @@ public class LoanUtil {
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
 
 		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
-		PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
-		if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+		PricingExperiment pricingExperiment = null;
+		if(pricingExpEnabled) {
+			 pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
+		}
+
+		if(!ObjectUtils.isEmpty(pricingExperiment)) {
 			logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
 			maxPricingValuesDTO.setMaxProcessingFeeRate(pricingExperiment.getProcessingFeeRate());
 			maxPricingValuesDTO.setMaxApr(pricingExperiment.getApr());

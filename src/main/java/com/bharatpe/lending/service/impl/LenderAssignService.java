@@ -1651,25 +1651,27 @@ public class LenderAssignService implements ILenderAssignService {
     public void updateOfferDetails(LendingApplication lendingApplication, String newLender){
         if(!loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) return;
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
+        PricingExperiment pricingExperiment = null;
         if(pricingExpEnabled) {
-            PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(
+            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(
                     lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
-            if(!ObjectUtils.isEmpty(pricingExperiment)) {
-                log.info("experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
-                Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
-                Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                Double repayment = ediAmount * payableDays;
-                Double processingFee = Math.ceil((pricingExperiment.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
+        }
 
-                log.info("Values to set for lender {} : payableDays : {} , interestAmt : {} , ediAmount : {} , repayment : {} , processingFee : {}", newLender, payableDays, interestAmt, ediAmount, repayment, processingFee);
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
+            Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
+            Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+            Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+            Double repayment = ediAmount * payableDays;
+            Double processingFee = Math.ceil((pricingExperiment.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
 
-                lendingApplication.setProcessingFee(processingFee);
-                lendingApplication.setInterestRate(pricingExperiment.getInterestRate());
-                lendingApplication.setEdi(ediAmount);
-                lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-lendingApplication.getProcessingFee());
-                lendingApplication.setRepayment(repayment);
-            }
+            log.info("Values to set for lender {} : payableDays : {} , interestAmt : {} , ediAmount : {} , repayment : {} , processingFee : {}", newLender, payableDays, interestAmt, ediAmount, repayment, processingFee);
+
+            lendingApplication.setProcessingFee(processingFee);
+            lendingApplication.setInterestRate(pricingExperiment.getInterestRate());
+            lendingApplication.setEdi(ediAmount);
+            lendingApplication.setDisbursalAmount(lendingApplication.getLoanAmount()-lendingApplication.getProcessingFee());
+            lendingApplication.setRepayment(repayment);
         }else {
             LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
                     lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
