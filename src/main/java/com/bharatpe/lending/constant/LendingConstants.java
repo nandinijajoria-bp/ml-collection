@@ -145,6 +145,7 @@ public interface LendingConstants {
 	String OFFER_DOWNGRADE_THRESHOLD = "offer_downgrade_threshold";
 
 	String HEADER_X_API_KEY = "X-API-KEY";
+	String INSURANCE_ELIGIBILITY_API =  "/api/eligibility";
 }
 
 

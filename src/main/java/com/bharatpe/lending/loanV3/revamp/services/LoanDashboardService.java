@@ -31,6 +31,8 @@ import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.dto.InsuranceEligibilityRequestDTO;
+import com.bharatpe.lending.dto.InsuranceEligibilityResponseDTO;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -38,6 +40,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
@@ -248,6 +251,9 @@ public class LoanDashboardService {
     @Autowired
     private EmiDashboardService emiDashboardService;
 
+    @Autowired
+    InsuranceService insuranceService;
+
     private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
     /*
@@ -347,7 +353,7 @@ public class LoanDashboardService {
         // to check if user have repeat loan
         loanDashboardResponse.setRepeatLoan(lendingPaymentSchedule.isPresent());
 
-        if (hasActiveLoan(merchantDetails.getId())) {
+        if (hasActiveLoan(merchantDetails.getId(), loanDashboardResponse)) {
             log.info("active loan merchant:{}", merchantDetails.getId());
             funnelService.submitEvent(merchantDetails.getId(), null, null,
                     FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.ACTIVE_LOAN, LocalDateTime.now().toString());
@@ -409,8 +415,11 @@ public class LoanDashboardService {
         return getLoanDashboardResponse(emiDashboardDate, merchantDetails);
     }
 
-    public boolean hasActiveLoan(Long merchantId) {
+    public boolean hasActiveLoan(Long merchantId, LoanDashboardResponse loanDashboardResponse) {
         LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
+        if(!ObjectUtils.isEmpty(activeLoan)) {
+            loanDashboardResponse.setInsuranceEligibility(insuranceService.checkInsuranceEligibility(activeLoan));
+        }
         return activeLoan != null;
     }
 
