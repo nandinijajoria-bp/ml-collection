@@ -406,7 +406,7 @@ public class APIGatewayService {
                     logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
-                    logger.error("Exception in creation of mandate for the merchantId {} and exception e{} is ", merchantId, e);
+                    logger.error("Exception in creation of mandate for the merchantId {} and exception e {} is {}", merchantId, Arrays.asList(e.getStackTrace()),e.getMessage());
                 }
                 retryCount++;
             }
@@ -471,7 +471,7 @@ public class APIGatewayService {
                     logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
-                    logger.error("Exception in creation of mandate for the merchantId {} and exception e{} is ", merchantId, e);
+                    logger.error("Exception in creation of mandate for the merchantId {} and exception e {} is {}", merchantId, Arrays.asList(e.getStackTrace()),e.getMessage());
                 }
                 retryCount++;
             }
