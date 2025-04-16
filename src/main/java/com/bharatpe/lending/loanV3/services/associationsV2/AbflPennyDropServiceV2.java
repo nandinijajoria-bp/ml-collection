@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.services.associationsV2;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingNbfcApiErrorRetryDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingNbfcApiErrorRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
@@ -49,12 +51,17 @@ public class AbflPennyDropServiceV2 {
     @Autowired
     NbfcUtils nbfcUtils;
 
+    @Autowired
+    LendingNbfcApiErrorRetryDao lendingNbfcApiErrorRetryDao;
+
     @Async
     @Transactional
     public void invokePennyDrop(Map<String,String> request) {
 
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
+        LendingNbfcApiErrorRetry lendingNbfcApiErrorRetry = null;
+
 
         try {
             MDC.put("requestId", UUID.randomUUID().toString());
@@ -86,6 +93,8 @@ public class AbflPennyDropServiceV2 {
 
             log.info("pennydrop api response {}", abflPennyDropResponseDTO);
 
+            lendingNbfcApiErrorRetry = lendingNbfcApiErrorRetryDao.findTopByApplicationIdAndLenderAndApiName(lendingApplication.get().getId().toString(), lendingApplication.get().getLender(), "PENNY_DROP");
+
             if (!ObjectUtils.isEmpty(abflPennyDropResponseDTO)
                     && !(ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData()))
                     && !(ObjectUtils.isEmpty(abflPennyDropResponseDTO.getData().getData()))
@@ -100,6 +109,13 @@ public class AbflPennyDropServiceV2 {
                 lendingApplicationDao.save(lendingApplication.get());
                 lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
 
+
+                if(!ObjectUtils.isEmpty(lendingNbfcApiErrorRetry)){
+                    log.info("Marking penny drop api retry entry as success for application id: {}", lendingApplication.get().getId());
+                    lendingNbfcApiErrorRetry.setStatus("SUCCESS");
+                    lendingNbfcApiErrorRetryDao.save(lendingNbfcApiErrorRetry);
+                }
+
                 nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(),
                         lendingApplication.get().getLender(), LenderAssociationStages.PENNY_DROP.name(),
                         LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.PENNY_DROP));
@@ -107,14 +123,17 @@ public class AbflPennyDropServiceV2 {
             }
             log.info("lending_application db {}", lendingApplication.get());
             log.info("lending_application_lender_details db {}", lendingApplicationLenderDetails);
-            log.info("rejecting application as pennydrop is failed {}", abflPennyDropResponseDTO);
 
-            rejectApplication(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
+            rejectApplicationIfApplicable(lendingApplication.get(), lendingApplicationLenderDetails);
+
+
         } catch (Exception ex) {
             log.info("exception lending_application db {}", lendingApplication.get());
             log.info("exception lending_application_lender_details db {}", lendingApplicationLenderDetails);
             log.error("exception occurred while processing pennydrop request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-            rejectApplication(lendingApplication.get(), lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
+
+            rejectApplicationIfApplicable(lendingApplication.get(), lendingApplicationLenderDetails);
+
         }
 
     }
@@ -170,6 +189,26 @@ public class AbflPennyDropServiceV2 {
             log.info("lending_application_lender_details is empty");
         }
     }
+
+    private void rejectApplicationIfApplicable(LendingApplication lendingApplication,LendingApplicationLenderDetails lendingApplicationLenderDetails ){
+
+        log.info("Checking if application is applicable for rejection for penny drop API for id: {}", lendingApplication.getId());
+
+        new Thread(() -> {
+
+            LendingNbfcApiErrorRetry lendingNbfcApiErrorRetry;
+            lendingNbfcApiErrorRetry = lendingNbfcApiErrorRetryDao.findTopByApplicationIdAndLenderAndApiName(lendingApplication.getId().toString(), lendingApplication.getLender(), "PENNY_DROP");
+
+            if(ObjectUtils.isEmpty(lendingNbfcApiErrorRetry) || ( !ObjectUtils.isEmpty(lendingNbfcApiErrorRetry.getStatus()) && lendingNbfcApiErrorRetry.getRetryCount() == 0)) {
+                log.info("rejecting application as penny drop api resulted in failure for  {}", lendingApplication.getId());
+                rejectApplication(lendingApplication, lendingApplicationLenderDetails, LenderAssociationStatus.PENNY_DROP_FAILED.name());
+            }
+
+        }).start();
+
+    }
+
+
 
 
 }
