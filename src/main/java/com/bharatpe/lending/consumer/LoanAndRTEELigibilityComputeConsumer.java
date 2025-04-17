@@ -34,7 +34,7 @@ public class LoanAndRTEELigibilityComputeConsumer {
             KycDocApprovedTopicDto kycDocApprovedTopicDto = new ObjectMapper().readValue(rawData, KycDocApprovedTopicDto.class);
             loanAndRTEEligibilityComputeService.computeLoanAndRTEEligibility(kycDocApprovedTopicDto);
         }catch (Exception ex){
-            log.info("Exception in computing rte & loan eligibility {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+            log.error("Exception in computing rte & loan eligibility {}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
     }
 }
