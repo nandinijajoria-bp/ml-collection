@@ -208,13 +208,13 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case OXYZO:
+                    case SMFG:
                         return Boolean.FALSE;
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
-                    case SMFG:
                     case UGRO:
                         return Boolean.TRUE;
                     default:
