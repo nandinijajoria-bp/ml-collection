@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.lending.dto.InsuranceEligibilityResponseDTO;
 import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
@@ -53,7 +54,7 @@ public class LoanDashboardResponse {
 
     //only if the merchant is in masked mobile flow
     private Boolean isMaskedMobileCase;
-
+    private InsuranceEligibilityResponseDTO.InsuranceEligibilityData insuranceEligibility;
 
 }
 

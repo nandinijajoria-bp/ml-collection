@@ -540,4 +540,23 @@ public class KycUtils {
         log.info("gst no ckyc response {} for merchant id {}", cKycResponseDto, merchantId);
         return cKycResponseDto;
     }
+
+    public Map<String, String> getBusinessCategoryAndSubCategoryByApplicationId(Long applicationId) {
+        Map<String, String> categories = new HashMap<>();
+        categories.put("businessCategory", null);
+        categories.put("businessSubcategory", null);
+        try {
+            LmsFieldValues businessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_CATEGORY_LMS_FIELD_ID, applicationId);
+            if (!ObjectUtils.isEmpty(businessCategoryField)) {
+                categories.put("businessCategory", businessCategoryField.getFieldDropdownValue());
+                LmsFieldValues subBusinessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_SUBCATEGORY_LMS_FIELD_ID, applicationId);
+                categories.put("businessSubcategory", ObjectUtils.isEmpty(subBusinessCategoryField) ? "OTHERS" : subBusinessCategoryField.getFieldDropdownValue());
+            }
+        } catch (Exception e) {
+            log.info("Exception in fetching business category for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+        return categories;
+    }
+
+
 }
