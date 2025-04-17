@@ -29,10 +29,7 @@ import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.AesEncryptionUtil;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.common.util.MapperUtil;
+import com.bharatpe.lending.common.util.*;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -286,6 +283,9 @@ public class APIGatewayService {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
+    @Autowired
+    ConfigResolver configResolver;
+
     @Value("${global.api.cache.ttl:48}")
     Long globalApiCacheTtl;
 
@@ -304,6 +304,9 @@ public class APIGatewayService {
 
     @Value("${shortner.api.signature}")
     private String shortnerApiSignature;
+
+    @Value("${insurance.service.base.url:}")
+    private String insuranceServiceBaseurl;
 
 
     @PostConstruct
@@ -3309,6 +3312,43 @@ public class APIGatewayService {
             return responseEntity.getBody();
         } catch (Exception ex) {
             logger.info("Exception while getting payment link: {}, {}", externalPaymentLinkRequest.getAccountId(), externalPaymentLinkRequest.getCustomerId(), ex);
+        }
+        return null;
+    }
+
+    public InsuranceEligibilityResponseDTO.InsuranceEligibilityData fetchInsuranceEligibility(InsuranceEligibilityRequestDTO insuranceEligibilityRequest) {
+        try {
+            logger.info("get insurance eligibility for loan with amount {} and tenure {} for merchantId :{}", insuranceEligibilityRequest.getAmount(), insuranceEligibilityRequest.getTenure(), insuranceEligibilityRequest.getCustomerId());
+            Map<String, Object> request = configResolver.getConfig(objectMapper.writeValueAsString(insuranceEligibilityRequest), new TypeReference<Map<String, Object>>() {});
+
+            MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
+            request.forEach((key, value) -> queryParams.add(key, String.valueOf(value)));
+
+            String url = UriComponentsBuilder
+                    .fromHttpUrl(insuranceServiceBaseurl + LendingConstants.INSURANCE_ELIGIBILITY_API)
+                    .queryParams(queryParams)
+                    .build()
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Client-Name", CLIENT);
+            headers.set("hash", getHmacBase64(request));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
+
+            logger.info("request entity for insurance eligibility API:{} and url:{}", requestEntity, url);
+            ResponseEntity<InsuranceEligibilityResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, InsuranceEligibilityResponseDTO.class);
+            logger.info("response entity for insurance eligibility API:{} and url:{}", responseEntity, url);
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
+                InsuranceEligibilityResponseDTO insuranceEligibilityResponse = responseEntity.getBody();
+                if(!ObjectUtils.isEmpty(insuranceEligibilityResponse) && insuranceEligibilityResponse.getSuccess() && !ObjectUtils.isEmpty(insuranceEligibilityResponse.getData())) {
+                    log.info("insurance eligibility response for merchantId {} {}", merchantId, insuranceEligibilityResponse.getData());
+                    return insuranceEligibilityResponse.getData();
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("Exception occurred while calling insurance eligibility API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }
