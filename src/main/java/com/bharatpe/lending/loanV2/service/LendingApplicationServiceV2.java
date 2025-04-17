@@ -121,6 +121,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
@@ -3949,9 +3950,16 @@ public class LendingApplicationServiceV2 {
         CKycResponseDto cKycResponseDto = kycUtils.getKycData(kfsDto.getMerchantId());
         data.put("borrower_selfie", cKycResponseDto.getSelfieString());
         if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender())) {
-            Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
-            data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
-            data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+            String businessCategory = "Others";
+            String businessSubCategory = "Others";
+            if (REPEAT.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
+                Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
+                businessCategory = (businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", "null"));
+                businessSubCategory = (businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", "null"));
+            }
+            data.put("business_category", businessCategory);
+            data.put("business_sub_category", businessSubCategory);
             data.put("udyam_number", null);
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
