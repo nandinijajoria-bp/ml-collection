@@ -945,12 +945,15 @@ public class SignAgreementService {
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
-		logger.info("latest eligibility for {} : {}", merchantId, loans);
-		if(loans.isEmpty()){
+		List<LoanEligibilityDTO> loans1 = loans.stream()
+				.filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+				.collect(Collectors.toList());
+		logger.info("latest eligibility for {} : {}", merchantId, loans1);
+		if(loans1.isEmpty()){
 			logger.info("no eligible loan offer available at topup application creation for {}", merchantId);
 			return false;
 		}
-		LoanEligibilityDTO loanEligibilityDTO = loans.get(0);
+		LoanEligibilityDTO loanEligibilityDTO = loans1.get(0);
 		if(ObjectUtils.isEmpty(loanEligibilityDTO) || ObjectUtils.isEmpty(loanEligibilityDTO.getId())){
 			logger.info("no eligible loan entry found at topup application creation for {}", merchantId);
 			return false;

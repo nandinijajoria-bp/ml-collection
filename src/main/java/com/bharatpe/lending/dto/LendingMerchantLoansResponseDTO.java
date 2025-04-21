@@ -52,6 +52,8 @@ public class LendingMerchantLoansResponseDTO {
     private Boolean contactSync = false;
     private List<PenaltyConfig> penaltyConfig;
     private Boolean topupRejected;
+    private String rejectionReason;
+    private Boolean isRejected;
     private Boolean timeBasedTopupDisabled;
     private double configNachBounceAmount;
 
