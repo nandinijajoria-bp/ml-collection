@@ -109,7 +109,9 @@ public class InvokeAdditionalDocUploadWrapperService {
                     }
                     if (LenderAssociationStatus.DOC_UPLOAD_COMPLETE.name().equals(lendingApplicationLenderDetails.getDocUploadStatus())) {
                         lendingApplicationLenderDetails.setStage(LenderAssociationStageFactoryV2.getNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.DOC_UPLOAD).name());
+                        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                         nbfcUtils.pushApplicationToNextStage(lendingApplication.getId(), lendingApplication.getLender(), LenderAssociationStages.DOC_UPLOAD.name(), LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lendingApplication.getLender()), LenderAssociationStages.DOC_UPLOAD));
+                        return;
                     }
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 }
