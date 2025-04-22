@@ -115,9 +115,6 @@ public class MileStoneProgramService {
     LoanDashboardService loanDashboardService;
 
     @Autowired
-    MerchantService merchantService;
-
-    @Autowired
     LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
