@@ -9,6 +9,7 @@ public class ModifiedOfferResponseDto {
 
     private OfferDetails oldOffer;
     private OfferDetails newOffer;
+    private Boolean isOfferModified;
 
     @Data
     @AllArgsConstructor

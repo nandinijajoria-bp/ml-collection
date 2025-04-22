@@ -71,7 +71,6 @@ public class BureauHandler {
         return null;
     }
 
-
     public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days, String source) {
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -101,9 +100,9 @@ public class BureauHandler {
         }  catch (HttpServerErrorException
                   | HttpClientErrorException
                   | ResourceAccessException exception) {
-            log.info("exception while fetch bureau :{} {}", exception.getMessage(), exception);
+            log.info("exception while fetch bureau: {}", exception.getMessage(), exception);
         }catch (IOException exception) {
-            log.error("Error occurred while parsing json: {} {}", exception.getMessage(), exception);
+            log.error("Error occurred while parsing json: {}", exception.getMessage(), exception);
         }
         return null;
     }

@@ -696,7 +696,7 @@ public class SignAgreementService {
 		}
 
 		LendingPaymentSchedule prevLendingSchedule =
-				lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+				lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Arrays.asList("ACTIVE"));
 		LendingApplication prevApplication =
 				lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
 						, "APPROVED");
@@ -943,7 +943,7 @@ public class SignAgreementService {
 //	}
 
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
-		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
 		logger.info("latest eligibility for {} : {}", merchantId, loans);
 		if(loans.isEmpty()){

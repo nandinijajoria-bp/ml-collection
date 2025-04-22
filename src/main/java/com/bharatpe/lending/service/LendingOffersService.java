@@ -27,6 +27,8 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.LendingOffersResponseDTO;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.UUID;
 
@@ -87,7 +89,7 @@ public class LendingOffersService {
 	public LendingOffersResponseDTO getOffers(Long merchantId) {
 		LendingOffersResponseDTO responseDTO = new LendingOffersResponseDTO();
 		LendingBharatswipeOffers lendingOffer = lendingBharatswipeOffersDao.findByMerchantId(merchantId);
-		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,  Collections.singletonList("ACTIVE"));
 //		CreditLineMerchant creditLineMerchant = creditLineMerchantDao.findByMerchantId(merchantId);
 		if (lendingOffer == null || lendingOffer.getTpv() == null || lendingOffer.getTpv() <= 0D || isOfferExpired(lendingOffer)) {
 			responseDTO.setSuccess(false);

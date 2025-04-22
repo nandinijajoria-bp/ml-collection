@@ -4,6 +4,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.AdjustLoanBalanceService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
+import com.bharatpe.lending.common.dao.LendingAdjustedEDIScheduleDao;
 import com.bharatpe.lending.common.dao.LendingEDIScheduleLendingCommonDao;
 import com.bharatpe.lending.common.entity.LendingEDIScheduleLendingCommon;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
     @Autowired
     AdjustLoanBalanceByIPCServiceImpl adjustLoanBalanceByIPCService;
+
+    @Autowired
+    LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
 
     @Override
     public PaymentCalculation adjustLoanBalance(LendingPaymentSchedule loan, double amount) {
@@ -194,6 +198,16 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     public PaymentCalculation settleLoanDuePayment(Long loanId, Integer ediCount, Integer ediRemainingCount, Boolean settleAllPrinciple, Double amountBeingPaid, boolean settlementInitiated) {
         Integer ediCreatedTillDate = ediCount - ediRemainingCount;
         log.info("ediCreatedTillDate : {} for loanId : {}", ediCreatedTillDate, loanId);
+
+        // Note - On creation of adjusted edi schedule and the ediRemainingCount was updated
+        // due to ediRemainingCount adjustment the deserving edi schedule was not picked due to less ediCreatedTillDate
+        // hence manually reversing the lending edi schedule adjustEdiScheduleCount
+        if (ediRemainingCount < 2) { // 1 and 0
+            int adjustEdiScheduleCount =  lendingAdjustedEDIScheduleDao.scheduleCount(loanId);
+            ediCreatedTillDate += adjustEdiScheduleCount;
+            log.info("updated ediCreatedTillDate : {} for loanId : {} and adjustEdiScheduleCount:{}", ediCreatedTillDate, loanId, adjustEdiScheduleCount);
+        }
+
 //        For settlement initiated cases the received amount needs to be adjusted for future schedules also, if possible
 //        (in case if enough amount received).
         if(settlementInitiated) {

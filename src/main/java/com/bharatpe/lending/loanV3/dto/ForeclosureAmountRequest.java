@@ -13,6 +13,7 @@ public class ForeclosureAmountRequest {
     String productName;
     Long applicationId;
     Payload payload;
+    boolean topup;
 
 
     @Data

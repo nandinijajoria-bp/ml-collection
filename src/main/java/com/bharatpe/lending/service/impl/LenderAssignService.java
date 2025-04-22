@@ -46,6 +46,7 @@ import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
 import static com.bharatpe.lending.constant.LendingConstants.*;
 import static com.bharatpe.lending.enums.Lender.*;
 
@@ -466,7 +467,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    private boolean isPanAndAadhaarLinked(Long merchantId) {
+    public boolean isPanAndAadhaarLinked(Long merchantId) {
         LendingPancardDetails lendingPancardDetails = lendingPancardDetailsDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if (!ObjectUtils.isEmpty(lendingPancardDetails) && !ObjectUtils.isEmpty(lendingPancardDetails.getName()) && !ObjectUtils.isEmpty(lendingPancardDetails.getPancardNumber()) && !ObjectUtils.isEmpty(lendingPancardDetails.getDob())) {
 
@@ -1111,7 +1112,7 @@ public class LenderAssignService implements ILenderAssignService {
             String[] lenders = topupLenders.split(",");
             List<String> topupLenders = Arrays.asList(lenders);
             log.info("topup lenders:{}", topupLenders);
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE"));
             if(topupLenders.contains(activeLoan.getNbfc())){
                 lender = topupLenderMapper(activeLoan.getNbfc());
                 lendingApplication.setLender(lender);
@@ -1811,6 +1812,10 @@ public class LenderAssignService implements ILenderAssignService {
         long applicationId = application.getId();
         double loanAmount = application.getLoanAmount();
         Double summaryTpv = riskVariables.getSummaryTpv();
+        String riskSegment = riskVariables.getRiskSegment();
+        if(!ObjectUtils.isEmpty(riskSegment)) {
+            riskSegment = riskSegment.replace("%", "");
+        }
         int maxTenure = riskVariables.getMaxTenure();
         double tpvOffer = riskVariables.getTpvOffer();
         if(maxTenure != 0 && tpvOffer != 0D && !ObjectUtils.isEmpty(application.getTenureInMonths()) && application.getTenureInMonths() != 0) {
@@ -1860,6 +1865,11 @@ public class LenderAssignService implements ILenderAssignService {
             case SMFG:
                 if (edi > 0.7 * summaryTpv) {
                     response = "skipping smfg for application id : " + applicationId + " due to edi amount: " + edi + " is greater than 0.7 * summary_tpv " + 0.7 * summaryTpv;
+                    success = false;
+                    break;
+                }
+                if (REGULAR_ETC.name().equalsIgnoreCase(riskSegment) && riskVariables.isSTPFlag() && application.getLoanAmount() <= 200000) {
+                    response = "skipping smfg for application id : " + applicationId + " due to risk segment: " + riskVariables.getRiskSegment() + ", loan amount: " + application.getLoanAmount() + " is smaller than 2,00,000";
                     success = false;
                     break;
                 }
