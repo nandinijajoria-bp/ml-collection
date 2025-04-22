@@ -8,8 +8,8 @@ import com.bharatpe.lending.lendingplatform.underwriting.dto.reresponse.Underwri
 import com.bharatpe.lending.lendingplatform.underwriting.dto.reresponse.UpdateBureauConsentResponse;
 import com.bharatpe.lending.lendingplatform.underwriting.util.ClientUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -27,12 +27,18 @@ import static com.bharatpe.lending.lendingplatform.underwriting.constants.Bureau
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class BureauClient {
     private final ClientUtil clientUtil;
     private final LendingPlatformConfiguration lendingPlatformConfiguration;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    public BureauClient(ClientUtil clientUtil, LendingPlatformConfiguration lendingPlatformConfiguration,
+                        @Qualifier("underwritingRestTemplate") RestTemplate restTemplate, ObjectMapper objectMapper) {
+        this.clientUtil = clientUtil;
+        this.lendingPlatformConfiguration = lendingPlatformConfiguration;
+        this.restTemplate = restTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     public UnderwritingApiResponse<FetchBureauConsentResponse> getBureauConsent(String source, String mobile) {
         try {
