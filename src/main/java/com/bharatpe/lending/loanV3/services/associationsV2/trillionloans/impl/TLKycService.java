@@ -3,21 +3,13 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
-import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLKycRequestDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.TLKycCallbackResponseDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
-import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
-import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.Objects;
 
 @Slf4j
@@ -45,14 +36,9 @@ public class TLKycService {
     @Autowired
     CommonService commonService;
 
+
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
-
-    @Autowired
-    private ILenderAPIGateway lenderAPIGateway;
-
-    @Autowired
-    private KycUtils kycUtils;
 
     public Boolean processKycCallback(NBFCResponseDTO nbfcResponseDTO) {
         try {
@@ -78,55 +64,31 @@ public class TLKycService {
                 log.info("KYC callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), kycCallbackResponseDto);
                 if (!ObjectUtils.isEmpty(kycCallbackResponseDto)) {
                     if (kycCallbackResponseDto.getKycStatus().equalsIgnoreCase("VERIFIED")) {
-                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getKYCStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode(), true).name());
                         commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                         return true;
                     }
                 }
             }
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
-            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getKYCStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode(), false).name());
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, getKYCStatus(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getKycMode(), false));
         } catch (Exception e) {
-            log.error("exception while processing KYC callback of Trillionloans for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("exception while processing KYC callback of Muthoot for  {} {} {}", nbfcResponseDTO.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return false;
     }
 
-    public Boolean invokeKyc(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
-        try {
-            boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsRequest.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequest.getLendingApplication().getLoanType()));
-            LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
-            if (ObjectUtils.isEmpty(lenderAssociationDetailsRequest.getApplicationId()) || ObjectUtils.isEmpty(lendingApplication)) {
-                log.info("Application Id not found for merchant: {}", lenderAssociationDetailsRequest.getMerchantId());
-                return false;
-            }
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStages.KYC.name());
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_PENDING.name());
-            commonService.manageApplicationState(lenderAssociationDetailsRequest);
+    private LenderAssociationStatus getKYCStatus(String kycMode, boolean isSuccess){
 
-            NBFCRequestDTO<?> kycRequestPayload = NBFCRequestDTO.builder()
-                    .applicationId(lendingApplication.getId())
-                    .productName("LENDING")
-                    .lender(LendingEnum.LENDER.TRILLIONLOANS.name())
-                    .payload(TLKycRequestDto.builder()
-                            .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
-                            .build())
-                    .identifier(new LinkedHashMap<String, Object>(){{ put("isEligibleForLenderKyc", isEligibleForLenderKyc); }})
-                    .build();
-
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(kycRequestPayload, LenderAssociationStages.KYC);
-            log.info("KYC response of Trillionloans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequest.getApplicationId());
-            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
-                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.EKYC_PENDING.name() : LenderAssociationStatus.KYC_IN_PROGRESS.name());
-                commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                return true;
+        if(ObjectUtils.isEmpty(kycMode)){
+            if(isSuccess){
+                return LenderAssociationStatus.AADHAR_UPLOAD_SUCCESS;
             }
-        } catch (Exception e) {
-            log.error("exception occurred while KYC of Trillionloans for {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            return LenderAssociationStatus.AADHAR_UPLOAD_FAILED;
         }
-        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
-        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
-        return false;
-
+        if(isSuccess){
+            return LenderAssociationStatus.KYC_COMPLETED;
+        }
+        return LenderAssociationStatus.KYC_FAILED;
     }
 }
