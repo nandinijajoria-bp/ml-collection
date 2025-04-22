@@ -115,6 +115,9 @@ public class MileStoneProgramService {
     LoanDashboardService loanDashboardService;
 
     @Autowired
+    MerchantService merchantService;
+
+    @Autowired
     LendingEligibleLoanDao eligibleLoanDao;
 
     @Autowired
@@ -232,6 +235,23 @@ public class MileStoneProgramService {
         if (ObjectUtils.isEmpty(kycPancard)) {
             return new ApiResponse<>(false, "400", "PANCARD_NOT_FOUND");
         }
+
+        if (merchant.getMobile() != null && !merchant.getMobile().isEmpty()) {
+            log.info("Mobile number already set for merchantId: {}", merchant.getId());
+        } else {
+            Optional<BasicDetailsDto> basicDetailsDto = merchantService.fetchMerchantBasicDetails(merchant.getId());
+            if (basicDetailsDto.isPresent()) {
+                BasicDetailsDto details = basicDetailsDto.get();
+                String mobile = details.getMobile();
+                if (mobile != null && !mobile.isEmpty()) {
+                    log.info("mobile_no {} for merchantId: {}", mobile, merchant.getId());
+                    merchant.setMobile(mobile);
+                } else {
+                    log.warn("Mobile number is null or empty for merchantId: {} and details: {}", merchant.getId(),details);
+                }
+            }
+        }
+
         BureauResponseDTO responseDTO = mileStoneHelperService.calculateBureauScore(kycPancard, merchant);
 
         log.info("bureau data {} for merchant id {} is :", responseDTO, merchant.getId());
