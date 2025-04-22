@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -15,12 +16,14 @@ import com.bharatpe.lending.enums.EligibilityRequestSource;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EligibilityStateDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import com.bharatpe.lending.util.LoanUtil;
@@ -66,6 +69,9 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
 
     @Autowired
     private EmiUtils emiUtils;
+
+    @Autowired
+    private EmiDashboardService emiDashboardService;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -174,8 +180,20 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                     LendingViewStates.MASKED_MOBILE, LendingViewStates.PAN_PIN_PAGE);
 
         }
-        LendingViewStates lendingViewStates = emiUtils.isEmiFlowEnabled() && emiUtils.isEligible(scopeDataArgs.getMerchant().getId())
-                ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
+        boolean isPlanSelectionFlow = false;
+        if(emiUtils.isEmiFlowEnabled()){
+            EmiDashboardResponse emiDashboardResponse = emiDashboardService.getDashboardResponse(
+                    eligibilityStateDTO.getMerchantId(), scopeDataArgs.getToken());
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(
+                    eligibilityStateDTO.getMerchantId());
+            if(emiUtils.isActive(emiDashboardResponse)){
+                log.warn("merchant is in wrong flow, emi loan is active for the merchant: {}", scopeDataArgs.getMerchant().getId());
+                loanDashboardService.deleteLoanDashboardCache(scopeDataArgs.getMerchant().getId());
+                return new LendingStateDTO<>(null, null, LendingViewStates.PAN_PIN_PAGE);
+            }
+            isPlanSelectionFlow = emiUtils.isEligible(emiDashboardResponse, lendingRiskVariables);
+        }
+        LendingViewStates lendingViewStates = isPlanSelectionFlow ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
 
         LendingStateDTO<EligibilityStateDTO> lendingStateDTO = new LendingStateDTO<>(eligibilityStateDTO, lendingViewStates, LendingViewStates.PAN_PIN_PAGE);
         LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(scopeDataArgs.getMerchant().getId());
