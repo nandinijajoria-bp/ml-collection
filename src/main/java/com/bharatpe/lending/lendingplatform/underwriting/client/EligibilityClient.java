@@ -14,11 +14,11 @@ import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.json.XML;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -30,19 +30,25 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import java.io.IOException;
 
 import static com.bharatpe.lending.lendingplatform.underwriting.constants.EligibilityConstants.DATA;
 import static com.bharatpe.lending.lendingplatform.underwriting.constants.EligibilityConstants.UNDERWRITING_API_RESPONSE;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class EligibilityClient {
     private final RestTemplate restTemplate;
     private final ClientUtil clientUtil;
     private final LendingPlatformConfiguration lendingPlatformConfiguration;
     private final ObjectMapper objectMapper;
+
+    public EligibilityClient(@Qualifier("underwritingRestTemplate") RestTemplate restTemplate, ClientUtil clientUtil,
+                             LendingPlatformConfiguration lendingPlatformConfiguration, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplate;
+        this.clientUtil = clientUtil;
+        this.lendingPlatformConfiguration = lendingPlatformConfiguration;
+        this.objectMapper = objectMapper;
+    }
 
     public GlobalLimitResponse getEligibility(UnderwritingBaseRequest<EligibilityRequest> eligibilityRequest) {
         try {
