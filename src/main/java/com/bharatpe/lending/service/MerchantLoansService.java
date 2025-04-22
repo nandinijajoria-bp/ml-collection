@@ -1384,6 +1384,7 @@ public class MerchantLoansService {
 
 
                 if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
+                    addRejectionReason(eligiblity, "Additional topup checks failed");
                     log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1944,6 +1945,7 @@ public class MerchantLoansService {
     }
 
     private void addRejectionReason(List<LoanEligibilityDTO> eligibility, String reason) {
+        log.info("TopUp rejected:{}", reason);
         LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
         loanEligibilityDTO.setRejectionReason(reason);
         loanEligibilityDTO.setIsRejected(true);
