@@ -203,15 +203,10 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     }
 
     private List<String> getStagesForIneligibleKYCLenderPipe(String lender, Long merchantId, boolean isTopup) {
-        if (!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
+        if(!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
             switch (Lender.valueOf(lender)) {
-                case TRILLIONLOANS: {
-                    List<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name()));
-                    if (!isTopup) {
-                        stages.add(LenderAssociationStages.KYC.name());
-                    }
-                    return stages;
-                }
+                case TRILLIONLOANS:
+                    return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name());
             }
         }
         return Collections.emptyList();
