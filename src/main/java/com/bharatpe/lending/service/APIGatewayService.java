@@ -45,6 +45,8 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
+import com.bharatpe.lending.lendingplatform.underwriting.service.UnderwritingService;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.BureauConsentDTO;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsResponse;
@@ -304,6 +306,10 @@ public class APIGatewayService {
 
     @Value("${shortner.api.signature}")
     private String shortnerApiSignature;
+    @Autowired
+    private UnderwritingService underwritingService;
+    @Autowired
+    private RolloutUtil rolloutUtil;
 
     @Value("${insurance.service.base.url:}")
     private String insuranceServiceBaseurl;
@@ -1787,6 +1793,13 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
         logger.info("Get scenaptic limit for merchant:{}", merchantId);
+        if(rolloutUtil.underwritingNewFLowApplicable(merchantId)){
+            log.info("Merchant {} has been rolled out to the platform v1 flow for Global Limit Response.", merchantId);
+            GlobalLimitResponse globalLimitResponse =  underwritingService.getEligibility(String.valueOf(merchantId),
+                    LendingConstants.LENDING_SOURCE, isPincodeChanged, flagForUwToSkipCache);
+            log.info("Global Limit response from platform v1 flow for merchantId : {} {}", merchantId, globalLimitResponse);
+            return globalLimitResponse;
+        }
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1850,6 +1863,7 @@ public class APIGatewayService {
                 if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingScenapticCachingPercent)) {
                     globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
                 }
+                logger.info("Global limit response for merchantId: {} {}", merchantId, globalLimitResponse);
                 return globalLimitResponse;
             }
             logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
@@ -3175,6 +3189,12 @@ public class APIGatewayService {
 
     public BureauConsentDTO.Data getBureauConsent(BureauConsentDTO.Data bureauConsentDTO) {
         logger.info("Get scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
+        if(rolloutUtil.underwritingNewFLowApplicable(bureauConsentDTO.getMerchantId())){
+            log.info("Merchant {} is rolled out to platform v1 flow to retrieve bureau consent.", bureauConsentDTO.getMerchantId());
+            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.getBureauConsentData(LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile());
+            log.info("Bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
+            return bureauConsentDtoData;
+        }
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("mobile", bureauConsentDTO.getMobile());
@@ -3210,6 +3230,14 @@ public class APIGatewayService {
 
     public BureauConsentDTO.Data updateConsent(BureauConsentDTO.Data bureauConsentDTO) {
         logger.info("update scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
+        if(rolloutUtil.underwritingNewFLowApplicable(bureauConsentDTO.getMerchantId())){
+            log.info("Merchant {} is rolled out to platform v1 flow for bureau consent update.", bureauConsentDTO.getMerchantId());
+            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.updateBureauConsent(bureauConsentDTO.getMerchantId(),
+                    LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile(), bureauConsentDTO.isConsent_expired(),
+                    bureauConsentDTO.getBureau_mobile());
+            log.info("Update bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
+            return bureauConsentDtoData;
+        }
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("mobile", bureauConsentDTO.getMobile());
