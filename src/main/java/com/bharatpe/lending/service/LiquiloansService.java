@@ -300,6 +300,9 @@ public class LiquiloansService {
     @Value("${kfs.template.notification.privacy.policy.link:-}")
     private String privacyPolicyLink;
 
+    @Value("${llBT.to.TlTop.Amount.Mismatch.RollOut.Percentage:1}")
+    Integer llBTtoTlTopAmountMismatchRollOutPercentage;
+
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -329,7 +332,7 @@ public class LiquiloansService {
                 logger.info("Approve loan not found for loanId:{}", callbackRequestDto.getApplicationId());
                 return new ResponseDTO(false, "loan application not found", null, null);
             }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE", "DECEASED"));
             if (lendingPaymentSchedule != null) {
                 logger.info("Merchant Has Already Active Loan for merchant:{}", lendingApplication.getMerchantId());
                 return new ResponseDTO(false, "Merchant Has Already Active Loan", null, null);
@@ -682,10 +685,9 @@ public class LiquiloansService {
                     pushKafkaAudit(kafkaAudit);
                     return new ResponseEntity<>(postPayoutResponseDto, HttpStatus.OK);
                 }
-
                 // if difference in disbursal amount in request and disbursal amount in application > 10 then fail the request
                 if (Math.abs(lendingApplication.getDisbursalAmount() - Math.ceil(postPayoutRequestDto.getDisbursedAmount())) > 10
-                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule)) {
+                        && amountMismatchCheckApplicableForTopup(lendingApplication, prevLendingPaymentSchedule,postPayoutRequestDto)) {
                     lendingApplication.setLoanDisbursalStatus("AMOUNT_MISMATCH");
                     lendingApplicationDao.save(lendingApplication);
                     logger.error("disbursal amt mismtach for {}", postPayoutRequestDto.getApplicationId());
@@ -2305,9 +2307,20 @@ public class LiquiloansService {
         return false;
     }
 
-    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule) {
-        return LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) &&
-                (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
+    private boolean amountMismatchCheckApplicableForTopup(LendingApplication lendingApplication, LendingPaymentSchedule lendingPaymentSchedule,PostPayoutRequestDto postPayoutRequestDto) {
+        if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+            return true;
+        }
+        if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())
+                && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())
+                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(),llBTtoTlTopAmountMismatchRollOutPercentage)){
+            logger.info("In amount mismatch check for llbt to Trillion topup, Payout Details - Disbursed Amount: {}, la Disbursal Amount: {}, EDI Amount: {}, Application ID: {}", postPayoutRequestDto.getDisbursedAmount(), lendingApplication.getDisbursalAmount(), lendingPaymentSchedule.getEdiAmount(), lendingApplication.getId());
+            return (postPayoutRequestDto.getDisbursedAmount() > lendingApplication.getDisbursalAmount()
+                    && ((postPayoutRequestDto.getDisbursedAmount() - lendingApplication.getDisbursalAmount()) > (lendingPaymentSchedule.getEdiAmount()*5)))
+                    || (postPayoutRequestDto.getDisbursedAmount() < lendingApplication.getDisbursalAmount());
+        }
+        return (!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) ||
                         (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
     }
+
 }

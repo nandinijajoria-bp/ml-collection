@@ -47,10 +47,7 @@ import com.bharatpe.lending.handlers.EmiHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.config.CreditSaisonConfig;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
-import com.bharatpe.lending.loanV3.dto.ForeclosureRequestDto;
-import com.bharatpe.lending.loanV3.dto.LiquiLoansForeclosureChargesRequestDto;
-import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
-import com.bharatpe.lending.loanV3.dto.TrilionLoansForeclosureChargesRequestDto;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
@@ -331,7 +328,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(),  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchant.getId());
                 return new PaymentDetailsResponseDTO("No active loan found.");
@@ -346,7 +343,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchantId);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId,  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantId);
                 return new PaymentDetailsResponseDTO("No active loan found.");
@@ -427,7 +424,12 @@ public class PaymentService {
             data.setForeClosureAmount(Double.valueOf(principalDueAmount));
             logger.info("netForeclosureAtLender {} and principalDue {} at nbfc for loan {}", netForeclosureAtLender, principalDueAmount, activeLoan.getId());
 
-            if(loanUtil.checkIfForeClosureChargesApplicable(activeLoan.getLoanApplication().getCreatedAt() , activeLoan.getNbfc())){
+            Date lendingApplicationCreatedAt = activeLoan.getLoanApplication().getCreatedAt();
+            if(Lender.ABFL.name().equals(activeLoan.getNbfc())){
+                lendingApplicationCreatedAt = activeLoan.getLoanApplication().getAgreementAt();
+            }
+
+            if(loanUtil.checkIfForeClosureChargesApplicable(lendingApplicationCreatedAt , activeLoan.getNbfc())){
                 log.info("loanId {} is eligible for fore closure charges ",activeLoan.getId());
                 data.setForeClosureDetail(loanUtil.calculateForeClosureCharges(activeLoan,data));
                 log.info("fore closure charges {} for loanId {}",data.getForeClosureDetail(),activeLoan.getId());
@@ -443,6 +445,10 @@ public class PaymentService {
         Double dueInterest = activeLoan.getDueInterest() != null ? activeLoan.getDueInterest()
                 : 0d;
         Double pendingAmount = loanAmount - paidPrinciple + dueInterest;
+
+        if(loanUtil.isTodayIsLoanLastDay(activeLoan)){
+            data.setHideForeclosure(true);
+        }
         data.setPaidAmount(activeLoan.getPaidAmount());
         data.setPendingAmount(pendingAmount);
         data.setPaidPrinciple(paidPrinciple);
@@ -458,7 +464,7 @@ public class PaymentService {
     public InitiatePaymentResponseDTO initiatePaymentV2(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request) {
         logger.info("Received initiate payment request  for merchant {} : {}", merchantBasicDetails.getId(), request);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(),  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No active loan found.");
@@ -536,6 +542,12 @@ public class PaymentService {
             if (request.getPayload().getSource() != null) {
                 order.setSource(request.getPayload().getSource().name());
             }
+
+            if(PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) && loanUtil.isTodayIsLoanLastDay(activeLoan)){
+                logger.info("Foreclosure not allowed on last day of the loan: {}", activeLoan.getId());
+                return new InitiatePaymentResponseDTO("Foreclosure not allowed");
+            }
+
             if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(paymentType) || PaymentType.ADVANCE_EDI.name().equalsIgnoreCase(paymentType)) {
                 order.setDescription(paymentType);
             }
@@ -654,7 +666,7 @@ public class PaymentService {
     public InitiatePaymentResponseDTO initiatePayment(BasicDetailsDto merchantBasicDetails, RequestDTO<InitiatePaymentRequestDTO> request, String token) {
         logger.info("Received initiate payment request  for merchant {} : {}", merchantBasicDetails.getId(), request);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantBasicDetails.getId(),  Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantBasicDetails.getId());
                 return new InitiatePaymentResponseDTO("No active loan found.");
@@ -704,6 +716,10 @@ public class PaymentService {
             order.setStatus("INIT");
 
             if (PaymentType.FORECLOSURE.name().equalsIgnoreCase(request.getPayload().getPaymentType())) {
+                if(loanUtil.isTodayIsLoanLastDay(activeLoan)){
+                    logger.info("Foreclosure not allowed on last day of the loan: {}", activeLoan.getId());
+                    return new InitiatePaymentResponseDTO("Foreclosure not allowed");
+                }
                 order.setDescription(PaymentType.FORECLOSURE.name());
             }
 
@@ -1554,7 +1570,7 @@ public class PaymentService {
         logger.info("going to post charges for loanId {} and nbfc {}", activeLoan.getId(), activeLoan.getNbfc());
         if (isLoanClosed && preclosure && !ObjectUtils.isEmpty(lendingLedger)) {
             if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
-                sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+                sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger, orderId);
             }
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 postForeclosureReceiptPiramal(activeLoan, lendingLedger);
@@ -2170,7 +2186,15 @@ public class PaymentService {
         return new ResponseDTO(true, "Entry Created");
     }
 
-    public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger) {
+    public void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId) {
+        logger.info("Send Foreclosure Event: applicationId: {}, mobile: {}, lendingLedger: {}, orderId: {}", applicationId, mobile, lendingLedger, orderId);
+        String status = "SUCCESS";
+        Double charge = 0.0;
+        Double chargeTax = 0.0;
+        String postingStatus = "FAILURE";
+        LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);
+        logger.info("LoanForeclosureCharges Record: {}", loanForeClosureCharges);
+
         try{
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, com.bharatpe.lending.common.enums.Status.ACTIVE.name());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -2183,6 +2207,45 @@ public class PaymentService {
                 return;
             }
             String txnId = Optional.ofNullable(lendingLedger.getTerminalOrderId()).orElse(String.valueOf(lendingLedger.getId()));
+            Date txnDate = LoanPaymentUtil.getNonFutureTransactionDate(lendingLedger.getDate());
+
+            if(loanForeClosureCharges != null) {
+                logger.info("Creating foreclosurecharges post charge request");
+                ForeclosureChargesRequestDto foreclosureChargesRequestDto = ForeclosureChargesRequestDto.builder()
+                        .applicationId(applicationId)
+                        .productName("LENDING")
+                        .lender(Lender.ABFL.name())
+                        .payload(ForeclosureChargesRequestDto.Payload.builder()
+                                         .accountId(lendingApplicationLenderDetails.getAccountId())
+                                         .uniqueId(PaymentAdjustmentModes.getAdjustedModeAbbr(lendingLedger.getAdjustmentMode()) + "_" + TransferTypeModes.getTransferTypeAbbr(lendingLedger.getTransferType()) + "_" + "FC" + "_" + txnId)
+                                         .dealNo(lendingApplicationLenderDetails.getDealNo())
+                                         .loanNo(lendingApplicationLenderDetails.getLan())
+                                         .transactionId(String.valueOf(lendingLedger.getId()))
+                                         .chargeType("R")
+                                         .businessPartnerType("CS")
+                                         .chargeAmount(String.valueOf(loanForeClosureCharges.getAmount()))
+                                         .taxInclusive("N")
+                                         .finalAmount(String.valueOf(loanForeClosureCharges.getAmount()))
+                                         .chargeCode("112")
+                                         .build())
+                        .build();
+                logger.info("ABFL: posting foreclosure charges to lender {}", foreclosureChargesRequestDto);
+                NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcForeClosureChargePosting);
+                log.info("ABFL: response foreclosure charges posting request :{} and response : {}", objectMapper.writeValueAsString(foreclosureChargesRequestDto), nbfcResponseDto);
+
+                if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                    log.info("ABFL: foreclosure charges posted to lender{}",nbfcResponseDto);
+                    charge = loanForeClosureCharges.getAmount();
+                    chargeTax = loanForeClosureCharges.getTax();
+                    postingStatus = "POSTED";
+                } else {
+                    // Bhuvnesh :- if charge posting is failed then cancel foreclosure posting
+                    // and make lendingCollectionAudit entry as failed
+                    log.info("ABFL: foreclosure charges posting failed to request {} response {}", foreclosureChargesRequestDto, nbfcResponseDto);
+                    throw new Exception("Foreclosure failed");
+                }
+            }
+
             ForeclosureRequestDto foreclosureRequestDto = ForeclosureRequestDto.builder()
                     .applicationId(applicationId)
                     .lender(Lender.ABFL.name())
@@ -2197,15 +2260,29 @@ public class PaymentService {
                                     .receiptAmount(lendingLedger.getAmount())
                                     .paidByContactNo(mobile.substring(2))
                                     .transactionRefNumber(String.valueOf(lendingLedger.getId()))
-                                    .receiptDateTime(lendingLedger.getDate())
+                                    .receiptDateTime(txnDate)
                                     .build())
                             .build())
                     .build();
             logger.info("foreclosure event sent {}", foreclosureRequestDto);
             confluentKafkaTemplate.send("foreclose-loan", objectMapper.readValue(objectMapper.writeValueAsString(foreclosureRequestDto), new TypeReference<Map<String, Object>>() {
             }));
+            logger.info("ABFL: updating LCA for foreclosed event for application id : {} ", lendingApplicationLenderDetails.getApplicationId());
         } catch (Exception e) {
             logger.error("error occurred while sending foreclosure event {}", e.getMessage());
+            status = "FAILED";
+        }
+
+        logger.info("ABFL: updating LCA for foreclosed event for application id : {}  and status is {}", applicationId, status);
+        LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
+        if (lendingCollectionAudit != null) {
+            lendingCollectionAudit.setStatus(status);
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            logger.info("ABFL: updated LCA for foreclosed event for application id : {} and status :{} ", applicationId, status);
+        }
+        if (loanForeClosureCharges != null) {
+            loanForeClosureCharges.setChargePostingStatus(postingStatus);
+            loanForeClosureChargesDao.save(loanForeClosureCharges);
         }
     }
 
@@ -2433,7 +2510,7 @@ public class PaymentService {
 
         if (isLoanClosed && preclosure && !ObjectUtils.isEmpty(lendingLedger)) {
             if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
-                sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger);
+                sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger, orderId);
             }
             else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
                 postForeclosureReceiptPiramal(activeLoan,lendingLedger);
@@ -2501,7 +2578,7 @@ public class PaymentService {
     public PaymentDetailsResponseDTO getPaymentDetails(Long merchantId,String externalLoanId) {
         logger.info("Received payment details request for merchant id:{} and externalLoanId:{}", merchantId,externalLoanId);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId, Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id:{} and externalLoanId:{}",merchantId,externalLoanId);
                 return new PaymentDetailsResponseDTO("NO ACTIVE LOAN");
@@ -2538,7 +2615,7 @@ public class PaymentService {
     public InitiatePaymentResponseDTO initiatePaymentThroughLink(Long merchantId,String externalLoanId, RequestDTO<InitiatePaymentRequestDTO> request) {
         logger.info("Received initiate payment request  for merchantId {} : {}", merchantId, request);
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId,"ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndExternalLoanIdAndStatus(merchantId, externalLoanId, Arrays.asList("ACTIVE", "DECEASED"));
             if(activeLoan == null) {
                 logger.info("No active loan found for merchant id {}", merchantId);
                 return new InitiatePaymentResponseDTO("NO ACTIVE LOAN");

@@ -164,4 +164,11 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.status(status).body(response);
     }
 
+    @PostMapping("/retryStage")
+    public ResponseEntity<RetryStageRequestDTO> retrySpecificStage(@RequestBody RetryStageRequestDTO retryStageRequestDTO) {
+        log.info("initiated the retry stage request {}", retryStageRequestDTO);
+        nbfcUtils.retryApplicationStage(retryStageRequestDTO.getApplicationId(), retryStageRequestDTO.getLender(), retryStageRequestDTO.getStage());
+        return ResponseEntity.ok().body(retryStageRequestDTO);
+    }
+
 }

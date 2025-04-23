@@ -6,7 +6,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 public interface LoanClosurePostingService {
     void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger);
 
-    void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger);
+    void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId);
 
     void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger);
 

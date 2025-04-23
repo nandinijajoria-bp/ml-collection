@@ -4,12 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@Data
+@AllArgsConstructor
 public class PaymentDetailsResponseDTO {
 
 	private boolean success;
@@ -48,16 +49,18 @@ public class PaymentDetailsResponseDTO {
 		this.data = data;
 	}
 
-	@Override
-	public String toString() {
-		return "PaymentDetailsResponseDTO [success=" + success + ", message=" + message + ", data=" + data + "]";
-	}
+//	@Override
+//	public String toString() {
+//		return "PaymentDetailsResponseDTO [success=" + success + ", message=" + message + ", data=" + data + "]";
+//	}
 
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 	@Getter
 	@Setter
+	@lombok.Data
+	@AllArgsConstructor
 	public static class Data { 
 		private Integer loanAmount;
 		private Integer overdueAmount;
@@ -81,7 +84,7 @@ public class PaymentDetailsResponseDTO {
 		private Integer penaltyFee;
 
 		private Double foreClosureAmount;
-
+		private Boolean hideForeclosure = false;
         private ForeClosureDetailDTO foreClosureDetail;
 		private Double foreClosureAmountAtLender;
 		private Double foreClosureAmountAtBp;
@@ -185,19 +188,20 @@ public class PaymentDetailsResponseDTO {
 			this.ediAmount = ediAmount;
 		}
 
-		@Override
-		public String toString() {
-			return "Data{" +
-					"loanAmount=" + loanAmount +
-					"penaltyFee=" + penaltyFee +
-					", overdueAmount=" + overdueAmount +
-					", principalDueAmount=" + principalDueAmount +
-					", lenderPrincipalDueAmount=" + lenderPrincipalDueAmount +
-					", overdueDays=" + overdueDays +
-					", isEligibleForPayment=" + isEligibleForPayment +
-					", remainingEdiCount=" + remainingEdiCount +
-					", ediAmount=" + ediAmount +
-					'}';
-		}
+//		@Override
+//		public String toString() {
+//			return "Data{" +
+//					"loanAmount=" + loanAmount +
+//					"penaltyFee=" + penaltyFee +
+//					", overdueAmount=" + overdueAmount +
+//					", principalDueAmount=" + principalDueAmount +
+//					", lenderPrincipalDueAmount=" + lenderPrincipalDueAmount +
+//					", overdueDays=" + overdueDays +
+//					", isEligibleForPayment=" + isEligibleForPayment +
+//					", remainingEdiCount=" + remainingEdiCount +
+//					", ediAmount=" + ediAmount +
+//					", hideForeclosure=" + hideForeclosure +
+//					'}';
+//		}
 	}
 }

@@ -6,8 +6,6 @@ public interface LendingConstants {
 	Integer MAX_LOAN_AMOUNT_INTEGER = 1000000;
 	Double MAX_LOAN_AMOUNT_DOUBLE = 1000000d;
 	String GUPSHUP_OTP_API_USERID = "2000182191";
-	//TODO : infosec issue, need to remove hardcoded value
-	String GUPSHUP_OTP_API_PASSWORD = "";
 	String GUPSHUP_SMS_SERVICE_URL = "https://enterprise.smsgupshup.com/GatewayAPI/rest";
 	
 	String GUPSHUP_SEND_OTP_METHOD= "TWO_FACTOR_AUTH";
@@ -60,6 +58,7 @@ public interface LendingConstants {
 	String HEADER_HASH = "hash";
 	String KYC_DOC_URL = "/api/v2/internal/get-document";
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
+	String UPLOAD_SHOP_IMAGE = "/api/v3/internal/upload-shop";
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String PAN_NAME = "/api/v1/internal/pan-verify";
 	String PAN_VERIFY_V3_INTERNAL = "/api/v3/internal/pan-verify";
@@ -142,7 +141,11 @@ public interface LendingConstants {
 	String ELIGIBLE = "ELIGIBLE";
 	String INELIGIBLE = "INELIGIBLE";
 	String CALL_MASKED_MOBILE_FLOW="CALL_MASKED_MOBILE_FLOW";
+	String OFFER_DOWNGRADE_PERCENTAGE = "offer_downgrade_percentage";
+	String OFFER_DOWNGRADE_THRESHOLD = "offer_downgrade_threshold";
+
 	String HEADER_X_API_KEY = "X-API-KEY";
+	String INSURANCE_ELIGIBILITY_API =  "/api/eligibility";
 }
 
 

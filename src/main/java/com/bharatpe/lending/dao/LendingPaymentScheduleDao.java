@@ -22,8 +22,8 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 		
 	List<LendingPaymentSchedule> findByMerchantIdAndStatusAndCreditLoan(Long merchantId, String status, Boolean creditLoan);
 	
-	@Query(value="SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId and status=:status and credit_loan=false order by id limit 1",nativeQuery=true)
-	LendingPaymentSchedule findByMerchantIdAndStatus(Long merchantId, String status);
+	@Query(value="SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId and status IN (:status) and credit_loan=false order by id limit 1",nativeQuery=true)
+	LendingPaymentSchedule findByMerchantIdAndStatus(Long merchantId, List<String> status);
 	
 	List<LendingPaymentSchedule> findByMerchantIdAndCreditLoanOrderByIdDesc(Long merchantId, Boolean creditLoan);
 	@Query(value = "SELECT * FROM lending_payment_schedule WHERE merchant_id = :merchantId and credit_loan = :creditLoan ORDER BY start_date DESC", nativeQuery = true)
@@ -71,8 +71,8 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	LendingPaymentSchedule findByApplicationIdAndCreditLoan(Long applicationId, Boolean creditLoan);
 
 
-	@Query(value="SELECT lps.* FROM lending_payment_schedule lps join lending_application la on lps.application_id=la.id WHERE lps.merchant_id = :merchantId and la.external_loan_id=:externalLoanId and lps.status= :status", nativeQuery=true)
-	LendingPaymentSchedule findByMerchantIdAndExternalLoanIdAndStatus(Long merchantId,String externalLoanId,String status);
+	@Query(value="SELECT lps.* FROM lending_payment_schedule lps join lending_application la on lps.application_id=la.id WHERE lps.merchant_id = :merchantId and la.external_loan_id=:externalLoanId and lps.status IN (:status)", nativeQuery=true)
+	LendingPaymentSchedule findByMerchantIdAndExternalLoanIdAndStatus(Long merchantId,String externalLoanId, List<String> status);
 
 	@Query(nativeQuery = true, value = "select lps.* from lending_payment_schedule lps where lps.merchant_id =:merchantId and lps.id =:id and lps.status =:status")
 	Optional<LendingPaymentSchedule> findByMerchantIdAndIdAndStatus(Long merchantId,Long id,String status);

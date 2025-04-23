@@ -32,6 +32,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
@@ -45,7 +46,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_PERCENTAGE;
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_THRESHOLD;
 
 @Component
 @Slf4j
@@ -98,6 +104,8 @@ public class NbfcUtils {
 
     @Autowired
     LendingLenderPricingDao lendingLenderPricingDao;
+    @Autowired
+    CommonService commonService;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
@@ -335,6 +343,39 @@ public class NbfcUtils {
                 lendingApplication.getId(), lendingApplication.getLender(), result);
 
         return result;
+    }
+
+    public boolean offerDowngradeThresholdChecksFailed(double offerDowngradeThreshold, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        double requestedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount();
+        double approvedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt();
+        // Convert to BigDecimal
+        BigDecimal requestedAmount = BigDecimal.valueOf(requestedLoanAmount);
+        BigDecimal approvedAmount = BigDecimal.valueOf(approvedLoanAmount);
+        BigDecimal downgradeThreshold = BigDecimal.valueOf(offerDowngradeThreshold);
+
+        // Perform downgrade calculation without rounding up
+        BigDecimal one = BigDecimal.valueOf(1);
+        BigDecimal downgradePercentage = one.subtract(approvedAmount.divide(requestedAmount, 10, RoundingMode.DOWN)) // Trim in division
+                .multiply(BigDecimal.valueOf(100)) // Convert to percentage
+                .setScale(2, RoundingMode.DOWN); // Trim final result to 2 decimal places
+
+        LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+
+        // If downgrade percentage exceeds the threshold, modify the lender
+        if (downgradePercentage.compareTo(downgradeThreshold) > 0 && !ObjectUtils.isEmpty(fallbackLender.getLender())) {
+            log.info("downgrade percentage {} exceeds the threshold {} for lender {}, modifying lender",
+                    downgradePercentage, downgradeThreshold, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            lenderAssociationDetailsRequestDto.setModifyLender(true);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.OFFER_DOWNGRADE_THRESHOLD_BREACHED.name());
+            Map<String, Object> metaData = new HashMap<>();
+            metaData.put(OFFER_DOWNGRADE_PERCENTAGE, downgradePercentage);
+            metaData.put(OFFER_DOWNGRADE_THRESHOLD, downgradeThreshold);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setMetaData(metaData);
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+            return true ;
+        }
+
+        return false;
     }
 
 }

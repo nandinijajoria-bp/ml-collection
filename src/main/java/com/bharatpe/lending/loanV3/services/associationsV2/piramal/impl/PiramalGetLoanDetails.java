@@ -38,6 +38,9 @@ public class PiramalGetLoanDetails {
     @Value("${piramal.custom.read.timeout:20000}")
     int piramalCustomReadTimeout;
 
+    @Value("${piramal.get.loan.custom.read.timeout:20000}")
+    int piramalGetLoanCustomReadTimeout;
+
 
     public PiramalGetLoanResponseDto getLoanDetails(Long  applicationId) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PIRAMAL.name());
@@ -54,7 +57,7 @@ public class PiramalGetLoanDetails {
         nbfcRequestDto.setApplicationId(applicationId);
         nbfcRequestDto.setPayload(getLeadRequestDto);
         nbfcRequestDto.setTopup(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()));
-        NbfcResponseDto nbfcResponseDto = iLenderGateway.invokeStage(nbfcRequestDto,LenderAssociationStages.PiramalAssociationStages.GET_LOAN_DETAILS);
+        NbfcResponseDto nbfcResponseDto = iLenderGateway.invokeStage(nbfcRequestDto,LenderAssociationStages.PiramalAssociationStages.GET_LOAN_DETAILS, piramalGetLoanCustomReadTimeout);
         try {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 return objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()),PiramalGetLoanResponseDto.class);

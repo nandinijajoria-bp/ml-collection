@@ -200,9 +200,9 @@ public class SettlementService {
         double duePenalty = Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0.0;
         double dueOtherCharges = Objects.nonNull(lendingPaymentSchedule.getDueOtherCharges()) ? lendingPaymentSchedule.getDueOtherCharges() : 0.0;
 
-        double dueAmount = lendingPaymentSchedule.getTotalPayableAmount() - paidTillDate.getTotalPaidAmount() + duePenalty + dueOtherCharges;
         double duePrinciple = lendingPaymentSchedule.getLoanAmount() - paidTillDate.getTotalPaidPrinciple();
         double dueInterest = lendingPaymentSchedule.getInterest() - paidTillDate.getTotalPaidInterest();
+        double dueAmount = duePrinciple + dueInterest + duePenalty + dueOtherCharges;
 
         log.info("SETTLEMENT_WAIVER for loanId: {} of dueAmount: {}, duePrinciple: {}, dueInterest: {}, duePenalty: {}, dueOtherCharges: {}",
                 lendingPaymentSchedule.getId(), dueAmount, duePrinciple, dueInterest, duePenalty, dueOtherCharges);
@@ -409,14 +409,13 @@ public class SettlementService {
         lendingPaymentSchedule.setLenderDisbursalNotify(lpsSnap.getLenderDisbursalNotify());
         lendingPaymentSchedule.setAdjustedDueAmount(lpsSnap.getAdjustedDueAmount());
         lendingPaymentSchedule.setAdjustedPaidAmount(lpsSnap.getAdjustedPaidAmount());
-        lendingPaymentSchedule.setSettlementStatus(lpsSnap.getSettlementStatus());
         lendingPaymentSchedule.setSettlementMechanism(lpsSnap.getSettlementMechanism());
         lendingPaymentSchedule.setSettleAllPrinciple(lpsSnap.getSettleAllPrinciple());
         lendingPaymentSchedule.setWriteoffFor(lpsSnap.getWriteoffFor());
         lendingPaymentSchedule.setLastOverDueAmount(lpsSnap.getLastOverDueAmount());
-//        For reversal cases these: reset these 2 fields
-        lendingPaymentSchedule.setSettlementDate(null);
+//        For reversal cases these: reset these fields
         lendingPaymentSchedule.setSettlementInitiated(false);
+        lendingPaymentSchedule.setSettlementStatus(SCHEME1.name());
 
         lendingPaymentScheduleDao.save(lendingPaymentSchedule);
     }
