@@ -1851,6 +1851,7 @@ public class MerchantLoansService {
             }
 
         } catch (Exception ex) {
+            addRejectionReason(eligiblity, "Exception occurred while checking derog test eligibilty for topup");
             logger.info("Exception Occured while checking derog test eligibilty for topup");
         }
         return eligiblity;
