@@ -309,6 +309,8 @@ public class AssociationServiceUtil {
                 return creditSaisonKYCService.invokeKyc(lenderAssociationDetailsRequest);
             case "OXYZO":
                 return oxyzoKycService.invokeKyc(lenderAssociationDetailsRequest);
+            case "TRILLIONLOANS":
+                return tlKycService.invokeKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
