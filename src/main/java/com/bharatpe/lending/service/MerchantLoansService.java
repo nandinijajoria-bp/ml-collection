@@ -1396,6 +1396,7 @@ public class MerchantLoansService {
                             .setScale(0, RoundingMode.CEILING);
                 }
                 else{
+                    addRejectionReason(eligiblity, "Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                     throw new IllegalArgumentException("Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                 }
 
@@ -1439,6 +1440,7 @@ public class MerchantLoansService {
             lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
             lendingRiskVariablesDao.save(lendingRiskVariables);
         } catch (Exception e) {
+            addRejectionReason(eligiblity, "Exception occurred in Additional Topup Rule Engine");
             logger.info("Exception occurred in Additional Topup Rule Engine for merchantId: {} {}", lendingPaymentSchedule.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return eligiblity;
@@ -1556,6 +1558,7 @@ public class MerchantLoansService {
                 logger.info("eligible loan: {}", eligibleLoan);
 
                 if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
+                    addRejectionReason(eligiblity, "Additional topup checks failed");
                     log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1567,6 +1570,7 @@ public class MerchantLoansService {
                             .setScale(0, RoundingMode.CEILING);
                 }
                 else{
+                    addRejectionReason(eligiblity, "Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                     throw new IllegalArgumentException("Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                 }
 
@@ -1602,6 +1606,7 @@ public class MerchantLoansService {
             }
 
         } catch (Exception e) {
+            addRejectionReason(eligiblity, "Exception occurred while existing topup rule engine");
             logger.info("Exception occurred while existing topup rule engine for merchantId: {} {}", lendingPaymentSchedule.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return eligiblity;
@@ -1760,6 +1765,7 @@ public class MerchantLoansService {
         try {
 
             if(!topupLenders.contains(lendingPaymentSchedule.getNbfc())){
+                addRejectionReason(eligiblity, "Topup not enabled on lender");
                 logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
                 return eligiblity;
             }
@@ -1779,12 +1785,14 @@ public class MerchantLoansService {
                     eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 }
                 if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                    addRejectionReason(eligiblity, "No topup eligibility found as eligibleAmount is 0");
                     logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
                 int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                 if (eligibleAmount - posAmount < 10000) {
+                    addRejectionReason(eligiblity, "Outstanding amount less than 10k");
                     logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
