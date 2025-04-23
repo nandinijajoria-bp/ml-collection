@@ -297,6 +297,9 @@ public class LiquiloansService {
     @Value("${sameDayEdiAdjusment.partial.rollout.eligible.lenders:}")
     String pdpPartialRollout;
 
+    @Value("${kfs.template.notification.privacy.policy.link:-}")
+    private String privacyPolicyLink;
+
     @Autowired
     private LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
@@ -2164,6 +2167,7 @@ public class LiquiloansService {
             templateParams.put("Merchant Name", basicDetailsDto.getBeneficiaryName());
             templateParams.put("Link 1", loanAgreementShortUrl);
             templateParams.put("Link 2", kfsDocShortUrl);
+            templateParams.put("Link 3", privacyPolicyLink);
 
             //FOR SMS
             NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
@@ -2191,6 +2195,7 @@ public class LiquiloansService {
             message = message.replace("{Merchant Name}", basicDetailsDto.getBeneficiaryName());
             message = message.replace("{{Link 1}}", loanAgreementShortUrl);
             message = message.replace("{{Link 2}}", kfsDocShortUrl);
+            message = message.replace("{{Link 3}}", privacyPolicyLink);
             logger.info("message->{}", message);
             lendingKfs.setMessage(message);
             lendingKfsDao.save(lendingKfs);
