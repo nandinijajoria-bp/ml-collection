@@ -722,7 +722,7 @@ public class MerchantLoansService {
                 try {
                     List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, false);
                     List<LoanEligibilityDTO> rejectedLoans = loans.stream()
-                            .filter(LoanEligibilityDTO::getIsRejected) // Keep objects where isRejected is true
+                            .filter(dto -> dto.getIsRejected() != null && dto.getIsRejected()) // Keep objects where isRejected is true
                             .collect(Collectors.toList());
                     log.info("Rejected loans: {}", rejectedLoans);
                     if(!rejectedLoans.isEmpty() && rejectedLoans.get(0).getIsRejected() && !StringUtils.isEmpty(rejectedLoans.get(0).getRejectionReason())){
