@@ -558,5 +558,19 @@ public class KycUtils {
         return categories;
     }
 
+    public String getCareOfName(String careOf, String prefix) {
+        try {
+            if (ObjectUtils.isEmpty(careOf) || !careOf.contains(prefix)){
+                return null;
+            }
+            careOf = careOf.toUpperCase();
+            careOf = careOf.replaceAll(prefix, "").replaceAll("\\.", "").replaceAll(":", "").replaceFirst(" ", "");
+            return careOf.substring(0, careOf.indexOf(","));
+        } catch (Exception e) {
+            log.info("Exception in fetching careOf name from kyc address {}", Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
 
 }
