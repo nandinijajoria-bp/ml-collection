@@ -1,27 +1,18 @@
 package com.bharatpe.lending.loanV3.services;
 
-import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
+import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dao.mongo.NBFCRetryRepository;
-import com.bharatpe.lending.common.entity.LendingEligibleLoan;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.mongo.NBFCRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.enums.NbfcRetryStatus;
 import com.bharatpe.lending.common.enums.Status;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingAuditTrialDao;
@@ -141,6 +132,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
 
+    @Value("${offer.modified.eligible.lender:}")
+    String offerModifiedEligibleLenders;
+
     public final Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.KYC_IN_PROGRESS.name()));
 
 
@@ -205,6 +199,7 @@ public abstract class LendingApplicationServiceV3Base {
                     .build());
 
         } else {
+            Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
             if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
                 // check if interest rate is lower ??
                 if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
@@ -221,6 +216,19 @@ public abstract class LendingApplicationServiceV3Base {
                                 .build());
                     }
                 }
+                if(offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
+                        !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
+                    log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
+                    return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                            .isRoiDecreased(true)
+                            .lender(currentDraftApplication.getLender())
+                            .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                            .stage(LenderAssociationStages.COMPLETED)
+                            .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                            .lender(currentDraftApplication.getLender())
+                            .build());
+                }
+
                 log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .isRoiDecreased(false)
@@ -810,18 +818,62 @@ public abstract class LendingApplicationServiceV3Base {
                             eligibleLoan.get().getApr(),
                             eligibleLoan.get().getIrr(),
                             eligibleLoan.get().getEdiCount(), eligibleLoan.get().getTenureInMonths());
-                    ModifiedOfferResponseDto.OfferDetails newOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
-                            lendingApplication.getLoanAmount(),
-                            lendingApplication.getEdi(),
-                            lendingApplication.getInterestRate(),
-                            lendingApplication.getProcessingFee(),
-                            lendingApplication.getRepayment(),
-                            lendingApplication.getDisbursalAmount(),
-                            Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),lendingApplication.getEdi(),lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), merchantId, lendingApplication.getLender()))),
-                            Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),lendingApplication.getEdi(),lendingApplication.getLoanAmount(),merchantId, lendingApplication.getLender()))),
-                            lendingApplication.getPayableDays().intValue(),
-                            lendingApplication.getTenureInMonths()
-                            );
+
+                    LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
+                    ModifiedOfferResponseDto.OfferDetails newOfferDetails = null;
+                    Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
+
+                    if(offerModifiedEligibleLenders.contains(lendingApplication.getLender()) &&
+                            !ObjectUtils.isEmpty(approvedLoanOfferAmount) && lendingApplication.getLoanAmount() > approvedLoanOfferAmount) {
+                        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                                lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                                lendingRiskVariablesSnapshot.getRiskGroup(),
+                                lendingApplication.getTenureInMonths(),
+                                lendingApplication.getLender(),
+                                lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                                lendingApplication.getCreatedAt()
+                        );
+
+                        Double pfRate;
+                        if(ObjectUtils.isEmpty(lendingLenderPricing)){
+                            log.info("Lending lender pricing not available, using eligible loan values");
+                            pfRate = eligibleLoan.get().getProcessingFeeRate();
+                        } else {
+                            pfRate = lendingLenderPricing.getProcessingFeeRate();
+                        }
+
+                        Double processingFee = Math.ceil((pfRate * approvedLoanOfferAmount) / 100);
+                        Double interestAmt = (approvedLoanOfferAmount * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
+                        Double ediAmount = Math.ceil((approvedLoanOfferAmount + interestAmt) / lendingApplication.getPayableDays());
+                        Double repayment = ediAmount * lendingApplication.getPayableDays();
+
+                        newOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
+                                approvedLoanOfferAmount,
+                                ediAmount,
+                                lendingApplication.getInterestRate(),
+                                processingFee,
+                                repayment,
+                                approvedLoanOfferAmount - processingFee,
+                                Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),ediAmount,approvedLoanOfferAmount - processingFee, merchantId, lendingApplication.getLender()))),
+                                Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),ediAmount,approvedLoanOfferAmount,merchantId, lendingApplication.getLender()))),
+                                lendingApplication.getPayableDays().intValue(),
+                                lendingApplication.getTenureInMonths()
+                        );
+                        modifiedOfferResponseDto.setIsOfferModified(true);
+                    } else {
+                        newOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
+                                lendingApplication.getLoanAmount(),
+                                lendingApplication.getEdi(),
+                                lendingApplication.getInterestRate(),
+                                lendingApplication.getProcessingFee(),
+                                lendingApplication.getRepayment(),
+                                lendingApplication.getDisbursalAmount(),
+                                Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),lendingApplication.getEdi(),lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), merchantId, lendingApplication.getLender()))),
+                                Double.valueOf(df.format(lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(),lendingApplication.getEdi(),lendingApplication.getLoanAmount(),merchantId, lendingApplication.getLender()))),
+                                lendingApplication.getPayableDays().intValue(),
+                                lendingApplication.getTenureInMonths()
+                        );
+                    }
 
                     modifiedOfferResponseDto.setOldOffer(oldOfferDetails);
                     modifiedOfferResponseDto.setNewOffer(newOfferDetails);

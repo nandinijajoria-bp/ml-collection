@@ -30,4 +30,5 @@ public class RiskVariablesDTO {
     private double monthlyTpv;
     private double unsecuredPos;
     private Map<Long, PricingExperiment> pricingExperimentMap = new HashMap<>();
+    private boolean isSTPFlag;
 }

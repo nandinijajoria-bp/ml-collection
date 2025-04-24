@@ -26,5 +26,6 @@ public class AutoPayUPIRegisterPgRequestDto {
 	private Long mandateEndDate;
     private String accountNumber;
     private String ifscCode;
+    private Double maxMandateAmount;
 
 }

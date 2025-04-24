@@ -126,12 +126,6 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     }
                 }
             }
-            if(offerModifiedEligibleLenders.contains(lendingApplication.getLender())) {
-                LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-                if(!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) && lendingApplication.getLoanAmount() > lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()) {
-                    nextPage = LendingViewStates.MODIFIED_OFFER;
-                }
-            }
 
             lenderEvaluationStateDTO.setLender(lendingApplication.getLender());
             loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.LENDER_EVALUATION_PAGE);

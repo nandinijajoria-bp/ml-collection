@@ -75,7 +75,6 @@ public class LenderAssociationStageFactoryV2 {
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
-                    case SMFG:
                     case UGRO:
                         return LenderAssociationStages.DRAWDOWN;
                     default:
@@ -85,13 +84,13 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case OXYZO:
+                    case SMFG:
                         return LenderAssociationStages.DRAWDOWN;
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
-                    case SMFG:
                     case UGRO:
                         return LenderAssociationStages.SANCTION_WRAPPER;
                     default:
@@ -209,13 +208,13 @@ public class LenderAssociationStageFactoryV2 {
                 switch (lender) {
                     case USFB:
                     case OXYZO:
+                    case SMFG:
                         return Boolean.FALSE;
                     case TRILLIONLOANS:
                     case MUTHOOT:
                     case CAPRI:
                     case PAYU:
                     case CREDITSAISON:
-                    case SMFG:
                     case UGRO:
                         return Boolean.TRUE;
                     default:

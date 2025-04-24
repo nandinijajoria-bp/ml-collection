@@ -22,6 +22,8 @@ public class OfferUtils {
                 return ediModel.getNoOfEdiDaysInAWeek() == 6 ? 155: 180;
             case 9:
                 return ediModel.getNoOfEdiDaysInAWeek() == 6 ? 234: 270;
+            case 10:
+                return ediModel.getNoOfEdiDaysInAWeek() == 6 ? 260: 300;
             case 12:
                 return ediModel.getNoOfEdiDaysInAWeek() == 6 ? 311: 360;
             case 15:

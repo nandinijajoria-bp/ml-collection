@@ -183,6 +183,7 @@
 
         .common-text-margin {
             margin: 6px 16px;
+            text-align: justify;
         }
 
         .m16 {
@@ -210,6 +211,10 @@
         .terms-text {
             font-weight: 400;
             margin-bottom: 10px;
+        }
+
+        .justify {
+            text-align: justify;
         }
 
         .text-heading {
@@ -243,7 +248,17 @@
             font-weight: bold;
             width: 30%;
             vertical-align: baseline;
+            text-align: justify;
         }
+
+        .sub-table-heading-cell {
+            padding: 10px;
+            font-weight: bold;
+            width: 35%;
+            vertical-align: baseline;
+            text-align: justify;
+        }
+
 
         .table-value-cell {
             padding: 10px;
@@ -280,7 +295,7 @@
         <span class="fw-bold">(“Facility”)</span> from PayU Finance India Private Limited (as the <span
             class="fw-bold">“Lender”</span>). The Borrower by clicking on the confirm and accept button below,
         hereby confirms that he/she has applied for the Facility and irrevocably and unconditionally accepts and
-        confirms the following:
+        confirms the following terms and conditions:
     </p>
     <!--    -->
     <table border="1" cellspacing="0" class="width-100 m-auto word-wrap mb50" style="table-layout: fixed">
@@ -396,11 +411,10 @@
                         class="fw-bold">{{tenure_of_loan_in_months}}</span>
                     months from the date of disbursement under the Facility.</p>
 
-                <p >The overall tenure of the Facility will be calculated on the basis of a year
+                <p>The overall tenure of the Facility will be calculated on the basis of a year
                     of 360 days and a month of 30 days.</p>
 
-                <p>The Facility shall be repayable in <span
-                        class="fw-bold">{{no_of_edis}}</span> number of
+                <p>The Facility shall be repayable in <span class="fw-bold">{{no_of_edis}}</span> number of
                     Instalments payable on a daily basis in accordance with the repayment schedule specified in
                     the KFS.</p>
             </td>
@@ -413,31 +427,26 @@
                 Interest Rate per annum (calculated on a daily basis)
             </td>
             <td class="table-value-cell">
-                The applicable Interest Rate will be reducing rate <span class="fw-bold"> {{annual_roi}} % </span> per annum
+                The applicable Interest Rate will be reducing rate <span class="fw-bold"> {{annual_roi}} %
+                        </span> per annum
                 <p class="table-data-text">
                     In relation to the above:
                 </p>
                 <ol type="A" class="table-ol">
+
                     <li class="table-data-text">
-                        the Interest Rate may be varied from time to time at the sole discretion of the
-                        Lender based on, among other things, the behavior and performance of the Borrower;
-                    </li>
-                    <li class="table-data-text">
-                        subject to Applicable Law, the Lender may at its sole discretion also change the
-                        Interest Rate from time to time;
-                    </li>
-                    <li class="table-data-text">
-                        the Interest Rate may also be changed pursuant to directions issued by RBI or other
-                        Governmental Authorities;
+                        the Interest Rate may be changed pursuant to directions issued by RBI or other
+                        Governmental Authorities or otherwise subject to Applicable Laws;
                     </li>
                     <li class="table-data-text">
                         any such variation or change or revision in the Interest Rate will be applicable
                         prospectively and the Lender shall intimate the Borrower in relation to the same at
-                        least 15 (fifteen) days prior to such change by way of a notification on the dashboard
+                        least 15 (fifteen) days prior to such change taking effect, by way of a notification on
+                        the dashboard
                         provided on the Service Platform or a notification on the dashboard provided by the
                         Lender or a notification sent either on the registered mobile number of the Borrower or
                         the registered email address of the Borrower or a notification sent on the communication
-                        address details, which are provided by the Borrower to the Lender in the Application
+                        address, which are provided by the Borrower to the Lender in the Application
                         Form; and
                     </li>
                     <li class="table-data-text">
@@ -462,18 +471,19 @@
             </td>
             <td class="table-value-cell">
                 <p class="table-data-text">
-                    <span class="fw-bold">36 % per annum plus GST (as applicable)</span> may be charged per day
+                    <span class="fw-bold">36 % per annum </span> may be charged per day
                     on principal
-                    overdue amount for the Instalment that remains unpaid for a period of 07 (seven) days from
-                    the respective Due Date, in addition to the applicable Interest Rate.
+                    overdue amount for the Instalment that remains unpaid for a period of 02 (two) days from
+                    the respective Pay-By Date, in addition to the applicable Interest Rate.
                 </p>
                 <p class="table-data-text">
                     If the Instalment remains unpaid, then penal charges as mentioned above shall continue to be
-                    levied upto 180 (one hundred and eighty) days from the respective Due Date.
+                    levied upto 180 (one hundred and eighty) days from the respective Pay-By Date.
                 </p>
                 <p class="table-data-text">
                     It is being clarified that no penal charges shall be levied upon expiry of 180 (one hundred
-                    and eighty) days from the Due Date, even if the Instalment continues to remain unpaid beyond
+                    and eighty) days from the Pay-By Date, even if the Instalment continues to remain unpaid
+                    beyond
                     such period of 180 (one hundred and eighty) days.
                 </p>
             </td>
@@ -483,14 +493,22 @@
                 13
             </td>
             <td class="table-heading-cell">
-                Due Date(s)
+                Due Date(s) and Pay-By Date(s)
             </td>
             <td class="table-value-cell">
                 <p class="table-data-text">
                     The Borrower agree that the repayment frequency permitted by the Lender shall be a daily
                     repayment basis <span class="fw-bold">(Due Date)</span> during the tenure of the Facility in
-                    accordance with the repayment schedule specified in the KFS <span class="fw-bold">(Due
-                                Date).</span>
+                    accordance with the repayment schedule specified in the KFS <span class="fw-bold">.</span>
+                </p>
+                <p>
+                    The Borrower shall be required to pay the Outstanding under the Facility in full, together
+                    with
+                    the accrued amount of interest and all other applicable fees/charges etc. on or before
+                    expiry
+                    of <strong> 5 days’ time-period </strong> commencing from the Due Date <strong> (Pay-By
+                    Date)</strong>, as specified in the repayment
+                    schedule mentioned in the KFS .
                 </p>
                 <p class="table-data-text">
                     Where the Borrower makes a payment which is more than the Instalment amount which is due on
@@ -498,14 +516,15 @@
                     Lender shall be adjusted against subsequent Instalments of the Borrower on the succeeding
                     Due Dates. In case the tenure for the Facility has ended, the Lender shall refund/transfer
                     any excess amount paid by the Borrower to the Lender into the Borrower’s Bank Account(s)
-                    within 5 Business Days of receipt of such excess amount by the Lender.
+                    within 5 (five) Business Days of receipt of such excess amount by the Lender.
                 </p>
                 <p class="table-data-text">
                     Notwithstanding the foregoing, the Borrower shall be entitled to pay the Facility in whole
-                    at any time prior to the applicable Due Date subject to payment of applicable Charges.
+                    at any time prior to the applicable Pay-By Date subject to payment of applicable Charges.
                 </p>
                 <p class="table-data-text">
-                    Any changes to the Due Date(s) in relation to the disbursement under this Facility will be
+                    Any changes to the Due Date(s) and/or Pay-By Date(s) in relation to the disbursement under
+                    this Facility will be
                     at the sole discretion of the Lender and may be notified to the Borrower by way of a
                     notification sent either on the registered mobile number of the Borrower or the registered
                     email address of the Borrower or on the Online Account of the Borrower at any time during
@@ -545,7 +564,7 @@
             </td>
             <td class="table-value-cell">
                 <p class="table-data-text">
-                    After the Cooling Off Period, a prior notice of 05 (five) days from the Borrower to the
+                    After the Cooling Off Period, no prior notice from the Borrower to the
                     Lender will be required.
                 </p>
             </td>
@@ -558,11 +577,12 @@
                 Taxes and Levies
             </td>
             <td class="table-value-cell">
-                All the charges indicated in the Facility Documents shall be exclusive of all taxes and
-                statutory levies as may be applicable on the same including, without limitation, GST at the rate
-                of 18% (or any other rate that may be specified by the relevant Governmental Authority in this
-                regard from time to time) together with any cess and such taxes and statutory levies shall be
-                payable by the Borrower as specified in the Facility Documents.
+                All the charges indicated in the Facility Documents shall be exclusive of all
+                taxes and statutory levies as may be applicable on the same including, without
+                limitation, GST at the rate of 18% (or any other rate that may be specified by
+                the relevant Governmental Authority in this regard from time to time) together
+                with any cess and such taxes and statutory levies shall be payable by the
+                Borrower as specified in the Facility Documents.
             </td>
         </tr>
         <tr>
@@ -657,8 +677,7 @@
                 Payment Instructions bounce charges
             </td>
             <td class="table-value-cell fw-bold">
-                Not exceeding INR 500+ applicable GST for dishonour of NACH/e-mandate. To be levied only once
-                across a 30-day period.
+                Not exceeding INR 500 per bounce/dishonour.
             </td>
         </tr>
         <tr>
@@ -689,32 +708,38 @@
                 </p>
                 <ol type="i" class="table-ol">
                     <li class="terms-text">
-                        if the Due Date for payment of any portion of the Outstanding amount is March 31st
+                        if the Pay-By Date for payment of any portion of the Outstanding amount is March 31st
                         and the Borrower fails to pay the relevant portion of the Outstanding amount on such
                         date in full before the closure of the day-end process, the loan account of the Borrower
                         shall be classified and reported as overdue with effect from March 31st;
                     </li>
                     <li class="terms-text">
                         if the aforesaid portion of the Outstanding amount continues to remain overdue for
-                        a period of 30 days from the Due Date, that is, the Borrower fails to pay the relevant
+                        a period of 30 days from the Pay-By Date, that is, the Borrower fails to pay the
+                        relevant
                         portion of the Outstanding amount in full before the closure of the day-end process on
-                        the 30th day from the Due Date, the loan account of the Borrower shall be classified and
+                        the 30th day from the Pay-By Date, the loan account of the Borrower shall be classified
+                        and
                         reported as a special mention account-1 <span class="fw-bold">(SMA-1)</span> on April
                         30th;
                     </li>
                     <li class="terms-text">
                         if the aforesaid portion of the Outstanding amount continues to remain overdue for
-                        a period of 60 days from the Due Date, that is, the Borrower fails to pay the relevant
+                        a period of 60 days from the Pay-By Date, that is, the Borrower fails to pay the
+                        relevant
                         portion of the Outstanding amount in full before the closure of the day-end process on
-                        the 60th day from the Due Date, the loan account of the Borrower shall be classified and
+                        the 60th day from the Pay-By Date, the loan account of the Borrower shall be classified
+                        and
                         reported as a special mention account-2 <span class="fw-bold">(SMA-2)</span> on May
                         30th; and
                     </li>
                     <li class="terms-text">
                         if the aforesaid portion of the Outstanding amount continues to remain overdue for
-                        a period of 90 days from the Due Date, that is, the Borrower fails to pay the relevant
+                        a period of 90 days from the Pay-By Date, that is, the Borrower fails to pay the
+                        relevant
                         portion of the Outstanding amount in full before the closure of the day-end process on
-                        the 90th day from the Due Date, the loan account of the Borrower shall be classified and
+                        the 90th day from the Pay-By Date, the loan account of the Borrower shall be classified
+                        and
                         reported as a non-performing asset <span class="fw-bold">(NPA)</span> on June 29th.
                     </li>
                 </ol>
@@ -758,7 +783,7 @@
                     Haryana, India, 122002.
                 </p>
                 <p class="table-data-text">
-                    Website: <a href="https://www.bharatpemoney.com/"
+                    Website: <a href="http://www.bharatpemoney.com"
                                 target="_blank">https://www.bharatpemoney.com/</a>
                 </p>
                 <p class="table-data-text">
@@ -776,7 +801,7 @@
                        target="_blank">https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf</a>
                 </p>
                 <p class="table-data-text">Digital Lending Application/Service Platform: <span
-                        class="fw-bold">BharatPe for Business</span></p>
+                        class="fw-bold">BharatPe </span></p>
             </td>
         </tr>
         <tr>
@@ -794,6 +819,9 @@
                     undertake collection or recovery from the Borrower. For details of service providers and/or
                     its/their agents. please refer to <a href="https://www.payufin.in/"
                                                          target="_blank">https://www.payufin.in/</a>
+                    and
+                    <a href="https://www.payufin.in/dlp-details/bharatpe"
+                       target="_blank">https://www.payufin.in/dlp-details/bharatpe</a>
                 </p>
                 <p class="table-data-text fw-bold">
                     <span class="fw-bold">Recovery Partner:</span>
@@ -828,7 +856,7 @@
                        target="_blank">https://bharatpemoney.com/documents/TERMS-AND-CONDITIONS-FOR-LENDING-SERVICES_FINAL-2.docx.pdf</a>
                 </p>
                 <p class="table-data-text">Digital Lending Application/Service Platform: <span
-                        class="fw-bold">BharatPe for Business</span></p>
+                        class="fw-bold">BharatPe </span></p>
                 <p class="table-data-text">
                     Please note that the LSP has been authorized by the Lender to contact
                     the Borrower in case the Borrower defaults on his/her repayment obligations towards the
@@ -858,19 +886,38 @@
                 Email id and phone number of nodal/grievance redressal officer
             </td>
             <td class="table-value-cell">
-                <p class="table-data-text">
-                    Phone Number: 91-9899355922 / 91-2269821144
+                <p> <strong>For lending service provider:</strong></p>
+                <p class="common-text">
+                    Name: {{lsp_contact_name}}
                 </p>
-                <p class="table-data-text">
-                    Email-ID-1: <a
-                        href="mailto: nodalofficer@bharatpemoney.com">nodalofficer@bharatpemoney.com</a>
+                <p class="common-text"> Designation: Nodal Officer</p>
+                <p class="common-text">
+                    Email: nodal.officer@bharatpemoney.com
+
                 </p>
+                <p class="common-text">
+
+                    Phone Number: 91-7289000552 / 91-8882555444
+                </p>
+
+                <p> <strong>For Lender:</strong></p>
+
                 <p class="table-data-text">
-                    Email-ID-2: <a
+                    Email-1: <a
                         href="mailto: grievance.smbbharatpe@payufin.com">grievance.smbbharatpe@payufin.com</a>
                 </p>
                 <p class="table-data-text">
-                    Email-ID-3: <a href="mailto: nodalofficer@payufin.com">nodalofficer@payufin.com</a>
+                    Email-2: <a href="mailto: nodalofficer@payufin.com">nodalofficer@payufin.com
+                </a>
+                </p>
+                <p class="table-data-text">
+                    Phone number: 022 6982 1177 (Monday to Friday between 10AM–7PM)
+                </p>
+
+                <p class="table-data-text">
+                    For details grievance redressal mechanism of the Lender, please visit
+                    <a href=" www.payufin.com ">www.payufin.com
+                    </a>
                 </p>
             </td>
         </tr>
@@ -883,213 +930,596 @@
             </td>
             <td class="table-value-cell">
                 <p class="table-data-text">
-                    Manner of Registering Complaints
+                    <strong>Manner of Registering Complaints</strong>
                 </p>
-                <ol type="I" class="table-ol">
-                    <li class="table-data-text">
-                        <p class="common-text">
-                            <span class="fw-bold">Level-1:</span>
-                        </p>
-                        <p class="common-text">
-                            The Customer can address the Grievance to the below address for escalations in
-                            accordance with paragraph ID above:
-                        </p>
-                        <p>
-                            Grievance Redressal Office:
+                <p class="table-data-text">The Borrower can register grievances in accordance with the process
+                    set out below.
+                </p>
+                <ol type="A">
 
-                        <table border="1" cellspacing="0" class="width-100 mb20">
-                            <tbody class="width-100">
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Designation
-                                </td>
-                                <td class="table-value-cell">
-                                    Grievance Redressal Officer
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Address
-                                </td>
-                                <td class="table-value-cell">
-                                    Wallace Tower, Fourth Floor, Crossing of Sahar Road, Vile Parle East,
-                                    Mumbai, Maharashtra, 400 057, India
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Email
-                                </td>
-                                <td class="table-value-cell">
-                                    <a href="mailto: grievance.smbbharatpe@payufin.com">grievance.smbbharatpe@payufin.com</a>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        </p>
-                        <p class="common-text">
-                            All escalations received are acknowledged within 24 Business hours and a resolution
-                            is provided by PayU Finance within the timelines set out in paragraph III below.
-                        </p>
-                        <p class="common-text">
-                            In case any escalation takes more than the specified resolution time, the Customers
-                            are:
-                        <ol type="i" class="table-ol">
-                            <li class="terms-text">
-                                intimated accordingly; and
+                    <li>
+
+                        <ol type="a" class="table-ol">
+                            <li class="table-data-text">
+                                <p class="common-text">
+                                    <span class="fw-bold">Level-1:</span>
+                                </p>
+                                <p class="common-text">
+                                    The Borrower can address the grievance to the address below:
+                                </p>
+
+                                <ol type="i">
+                                    <li>
+                                        <table border="1" cellspacing="0" class="width-100 mb20">
+                                            <tbody class="width-100">
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Email
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    nodal.officer@bharatpemoney.com
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Voice support number
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    91-7289000552 / 91-8882555444
+                                                </td>
+                                            </tr>
+
+                                            </tbody>
+                                        </table>
+                                    </li>
+                                    <li>Acknowledgement
+
+                                        <ol type="a">
+                                            <li>
+                                                <p class="common-text justify">
+
+                                                    All Grievances received are acknowledged by a system
+                                                    generated
+                                                    response
+                                                    or via individual emails (to the extent possible) and
+                                                    (registered
+                                                    office
+                                                    address) are acknowledged by individual emails.
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">
+
+                                                    The Borrower will be given a ticket bearing a reference
+                                                    number for
+                                                    all
+                                                    future communication around the particular complaint.
+                                                </p>
+
+                                            </li>
+                                            <li>
+                                                <p class="common-text">
+
+                                                    The Borrowers are informed via e-mail about the follow up
+                                                    action and
+                                                    the
+                                                    turnaround times for complaint resolution.
+                                                </p>
+                                            </li>
+                                        </ol>
+                                    </li>
+
+                                    <li>
+                                        Resolution
+                                        <p class="common-text">All grievances received are resolved within the
+                                            timelines
+                                            set out in
+                                            paragraph B below.
+                                        </p>
+                                    </li>
+                                    <li>Customer Grievance Redress Escalation
+                                        <p class="common-text"> In case the Borrower: (a) does not receive a
+                                            response
+                                            within the timelines
+                                            set out in Level 1; or (b) is dissatisfied with the response
+                                            received from
+                                            Level-1, the Borrower may escalate the grievance to the next level
+                                            as
+                                            indicated below.</p>
+                                    </li>
+                                </ol>
+
+
                             </li>
-                            <li class="terms-text">
-                                kept updated on the progress / status of the escalation on a periodic basis
-                                until the escalation is resolved.
+                            <li class="table-data-text">
+                                <p class="common-text">
+                                    <span class="fw-bold">Level-2:</span>
+                                </p>
+                                <ol type="i">
+                                    <li>
+                                        <p class="common-text">
+                                            The Borrower can address the grievance to the address below:
+                                        </p>
+                                        <p class="common-text">
+
+                                            Grievance Redressal Office:
+                                        </p>
+                                        <table border="1" cellspacing="0" class="width-100 mb20">
+                                            <tbody class="width-100">
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Name
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    Suraj Sapte
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Address:
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    PayU Finance India Private Limited
+                                                    Wallace Towers, Second Floor, Crossing of Sahar Road,
+                                                    Vile Parle
+                                                    East, Mumbai, Maharashtra, 400 057 India </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Email
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    <a href="mailto: grievance.smbbharatpe@payufin.com">
+                                                        grievance.smbbharatpe@payufin.com
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </li>
+                                    <li>Acknowledgement
+                                        <ol type="1">
+                                            <li>
+                                                <p class="common-text">All Grievances received (that is, by
+                                                    e-mail or
+                                                    through the voice support complaint mechanism) are
+                                                    acknowledged by a
+                                                    system generated response or via individual emails (to the
+                                                    extent
+                                                    possible) and (registered office address) are acknowledged
+                                                    by
+                                                    individual emails.
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">The Borrower will be given a ticket
+                                                    bearing a
+                                                    reference number for all future communication around the
+                                                    particular
+                                                    complaint. The aspects relating to quoting the ticket number
+                                                    in
+                                                    future communications is provided below.
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">The customer support team initiates
+                                                    action on the
+                                                    grievance and where necessary contacts the Borrower for any
+                                                    additional details as may be necessary to address the
+                                                    Grievance.
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">The Borrowers are kept informed of the
+                                                    action
+                                                    taken, the progress while redressing grievances, and/or, the
+                                                    reasons
+                                                    for delay if any, in redressing any grievance.
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">The Borrowers are informed via e-mail
+                                                    about the
+                                                    follow up action and the turnaround times for complaint
+                                                    resolution.
+                                                </p>
+                                            </li>
+                                        </ol>
+                                    </li>
+
+                                    <li>
+                                        <p class="common-text">All escalations received are acknowledged within
+                                            24
+                                            Business hours and a resolution is provided by PayU Finance within
+                                            the
+                                            timelines set out in paragraph B below.
+                                        </p>
+
+                                    </li>
+                                    <li>
+                                        <p class="common-text">In case any escalation takes more than the
+                                            specified
+                                            resolution time, the Borrowers are:
+
+                                        </p>
+                                        <ol type="1">
+                                            <li>
+                                                <p class="common-text">intimated accordingly; and
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">kept updated on the progress / status of
+                                                    the
+                                                    escalation on a periodic basis until the escalation is
+                                                    resolved.
+                                                </p>
+                                            </li>
+                                        </ol>
+                                    </li>
+
+                                    <li>
+                                        <p class="common text">Borrowers are required to approach Level 3 with
+                                            the
+                                            original ticket number generated by PayU Finance.
+                                        </p>
+                                    </li>
+                                </ol>
+
                             </li>
+                            <li class="table-data-text">
+                                <p class="common-text">
+                                    <span class="fw-bold">Level-3:</span>
+                                </p>
+
+                                <ol type="i">
+                                    <li>
+                                        <p class="common-text">
+                                            In case there is no response within the defined timeframe for Level
+                                            2 or in
+                                            case the response provided is not satisfactory, the Borrower can
+                                            escalate
+                                            the matter to:
+                                        </p>
+                                        <p class=" common-text"> Principal Nodal Officer:
+                                        </p>
+
+                                        <table border="1" cellspacing="0" class="width-100 mb20">
+                                            <tbody class="width-100">
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Name
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    Ms. Bhavana Bharat
+
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td class="sub-table-heading-cell">
+                                                    Address:
+                                                </td>
+                                                <td class="table-value-cell">
+                                                    PayU Finance India Private Limited
+                                                    Wallace Towers, Second Floor, Crossing of Sahar Road,
+                                                    Vile Parle
+                                                    East, Mumbai, Maharashtra, 400 057 India
+
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                  <td class="sub-table-heading-cell">
+                                                Email
+                                            </td>
+                                                <td class="table-value-cell">
+                                                    <a href="mailto: nodalofficer@payufin.com">
+                                                        nodalofficer@payufin.com
+
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+
+
+                                    </li>
+                                    <li>
+                                        <p class="common-text">All escalations received under Level 3 are
+                                            acknowledged
+                                            within 48 business hours and a resolution is provided within the
+                                            timelines
+                                            set out in paragraph B below.
+                                        </p>
+                                    </li>
+                                    <li>
+                                        <p class="common-text">In case any escalation takes more than the
+                                            specified
+                                            resolution time, the Borrowers are:
+                                        </p>
+                                        <ol type="1">
+                                            <li>
+                                                <p class="common-text">intimated accordingly; and
+                                                </p>
+                                            </li>
+                                            <li>
+                                                <p class="common-text">kept updated on the progress / status of
+                                                    the
+                                                    escalation on a periodic basis until the escalation is
+                                                    resolved.
+                                                </p>
+                                            </li>
+                                        </ol>
+
+                                    </li>
+                                    <li>
+                                        <p class="common-text">While making an escalation under Level 3, the
+                                            Borrower is
+                                            required to send an email to the Principal Nodal Officer setting out
+                                            a
+                                            description of the grievance viz ticket number and discrepancies due
+                                            to
+                                            which the grievance could not be resolved.
+                                        </p>
+                                    </li>
+                                </ol>
+                            </li>
+
                         </ol>
-                        </p>
-                        <p class="common-text">
-                            Customers are required to approach Level 1 with the original ticket number generated
-                            by PayU Finance.
-                        </p>
                     </li>
-                    <li class="table-data-text">
-                        <p class="common-text">
-                            <span class="fw-bold">Level-2:</span>
-                        </p>
-                        <p class="common-text">
-                            In case there is no response within the defined timeframe for Level 2 or in case the
-                            response provided is not satisfactory, the Customer can escalate the matter to:
 
+                    <li>
+                        <p class="common-text">
+                            <strong>
+                                Time Estimate
+                            </strong>
                         </p>
                         <p class="common-text">
-                            Customer Care Head:
-
-                        <table border="1" cellspacing="0" class="width-100 mb20">
-                            <tbody class="width-100">
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Designation
-                                </td>
-                                <td class="table-value-cell">
-                                    Nodal Officer
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Address
-                                </td>
-                                <td class="table-value-cell">
-                                    Wallace Tower, Fourth Floor, Crossing of Sahar Road, Vile Parle East,
-                                    Mumbai, Maharashtra, 400 057, India
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Email
-                                </td>
-                                <td class="table-value-cell">
-                                    Email: <a href="mailto: nodalofficer@payufin.com">
-                                    nodalofficer@payufin.com</a>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        </p>
-                        <p class="common-text">
-                            All escalations received under Level 2 are acknowledged within 48 business hours and
-                            a resolution is provided within the timelines set out in paragraph III below.
-                        </p>
-                        <p class="common-text">
-                            All escalations received under Level 2 are acknowledged within 48 business hours and
-                            a resolution is provided within the timelines set out in paragraph III below.
-                        </p>
-                        <p class="common-text">
-                            In case any escalation takes more than the specified resolution time, the Customers
-                            are:
-                        <ol type="i" class="table-ol">
-                            <li class="terms-text">
-                                intimated accordingly; and
-                            </li>
-                            <li class="terms-text">
-                                kept updated on the progress / status of the escalation on a periodic basis
-                                until the escalation is resolved.
-                            </li>
-                        </ol>
-                        </p>
-                        <p class="common-text">
-                            While making an escalation under Level 2, the Customer is required to send an email
-                            to the Customer Care Head setting out a full description of the Grievance and all
-                            necessary details and discrepancies due to which the Grievance could not be
-                            resolved.
-                        </p>
-                    </li>
-                    <li class="table-data-text">
-                        <p class="common-text">
-                            <span class="fw-bold">Time Estimate</span>
-                        </p>
-                        <p class="common-text">
-                            PayU Finance endeavors to address all Grievances within the below mentioned
+                            PayU Finance endeavors to address all grievances within the below mentioned
                             timelines, except where an investigation is involved in resolving the same:
+
                         </p>
-                        <p class="m0">
-                            Level 1
-                        <table border="1" cellspacing="0" class="width-100 mb20">
-                            <tbody class="width-100">
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Acknowledgement
-                                </td>
-                                <td class="table-value-cell">
-                                    24 Business hours
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Further response
-                                </td>
-                                <td class="table-value-cell">
-                                    10 Business Days
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        </p>
-                        <p class="m0">
-                            Level 2
-                        <table border="1" cellspacing="0" class="width-100 mb20">
-                            <tbody class="width-100">
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Acknowledgement
-                                </td>
-                                <td class="table-value-cell">
-                                    48 Business hours
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="table-heading-cell">
-                                    Further response
-                                </td>
-                                <td class="table-value-cell">
-                                    10 Business Days
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        </p>
-                        <p class="common-text">
-                            In case the Grievance is not redressed within a period of 30 days, the Customer may
-                            appeal to the Officer-in-Charge of the Regional Office of Department of Non-Banking
-                            Supervision of RBI situated at 3rd Floor, RBI Building, Opp. Mumbai Central Railway
-                            Station, Near Maratha Mandir, Byculla, Mumbai 400008, Contact:
-                            <a href="mailto: cms.nbfcomumbai@rbi.org.in">cms.nbfcomumbai@rbi.org.in</a>
-                        </p>
-                        <p class="common-text">
-                            The above grievance redressal mechanism is subject to change from time to time,
-                            Borrower/customer is requested to visit
-                            <a href="https://assets.payufin.com/docs/PayU_Finance_Grievance_Redressal_Policy_BM_Dec_2023.pdf"
-                               target="_blank">https://assets.payufin.com/docs/PayU_Finance_Grievance_Redressal_Policy_BM_Dec_2023.pdf</a>
-                            for checking any updates/modifications.
-                        </p>
+
+                        <ol type="i">
+                            <li>
+                                <p class="common-text">Level 1</p>
+                                <table border="1" cellspacing="0" class="width-100 mb20">
+                                    <tbody class="width-100">
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Response to a Borrower’s query / concern
+
+
+                                        </td>
+                                        <td class="table-value-cell">
+                                            24 business hours
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Follow-up queries
+                                        </td>
+                                        <td class="table-value-cell">
+                                            48 business hours
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Borrower grievances resolution process
+                                        </td>
+                                        <td class="table-value-cell">
+                                            10 business days
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </li>
+                            <li>
+                                <p class="common-text">Level 2</p>
+                                <table border="1" cellspacing="0" class="width-100 mb20">
+                                    <tbody class="width-100">
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Acknowledgement
+                                        </td>
+                                        <td class="table-value-cell">
+                                            24 business hours
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Further response
+                                        </td>
+                                        <td class="table-value-cell">
+                                            10 business days
+                                        </td>
+                                    </tr>
+
+                                    </tbody>
+                                </table>
+                            </li>
+                            <li>
+                                <p class="common-text">Level 3</p>
+                                <table border="1" cellspacing="0" class="width-100 mb20">
+                                    <tbody class="width-100">
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Acknowledgement
+
+                                        </td>
+                                        <td class="table-value-cell">
+                                            48 business hours
+
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Further response
+
+                                        </td>
+                                        <td class="table-value-cell">
+                                            10 business days
+                                        </td>
+                                    </tr>
+
+                                    </tbody>
+                                </table>
+                            </li>
+                            <li>
+                                <p class="common-text">In case the grievance is not redressed within a period of
+                                    30 days or the Borrower is not satisfied with the resolution or has not
+                                    received any resolution within the time as prescribed in this regard the
+                                    Borrower can appeal to the RBI Ombudsman, as per the ‘Reserve
+                                    Bank-Integrated Ombudsman Scheme 2021’, a copy of which has been uploaded on
+                                    PayU Finance’s website. The details for registering the complaint with RBI
+                                    Ombudsman are as follows:-
+
+
+                                <p class="common-text">
+                                    Website: https://cms.rbi.org.in
+
+                                </p>
+                                <p class="common-text">
+
+                                    Mail to: CRPC@rbi.org.in
+                                </p>
+                                Write to: Centralised Receipt and Processing Centre’ Reserve Bank of India,
+                                4th Floor, Sector 17, Chandigarh – 160017
+                                <p class="common-text">
+                                    Toll free: 14448 (9:30 am to 5:15 pm)
+                                </p>
+                                </p>
+                            </li>
+                        </ol>
+
                     </li>
+
+                    </li>
+
+                    <li>
+                        <p class="common-text">
+                            <strong>
+                                Details of Officers
+                            </strong>
+                        </p>
+
+                        <ol type="i">
+                            <li>
+                                <p class="common-text">Details of the Principal Nodal Officer
+                                </p>
+
+                                <table border="1" cellspacing="0" class="width-100 mb20">
+                                    <tbody class="width-100">
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Name
+                                        </td>
+                                        <td class="table-value-cell">
+                                            Ms. Bhavana Bharat
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Address:
+                                        </td>
+                                        <td class="table-value-cell">
+                                            PayU Finance India Private Limited
+                                            Wallace Towers, Second Floor, Crossing of Sahar Road,
+                                            Vile Parle
+                                            East, Mumbai, Maharashtra, 400 057 India
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                          <td class="sub-table-heading-cell">
+                                        Mobile Number:
+                                    </td>
+                                        <td class="table-value-cell">
+                                            022 6982 1177 (Monday to Friday between
+                                            10AM–7PM)
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                          <td class="sub-table-heading-cell">
+                                        Email
+                                    </td>
+                                        <td class="table-value-cell">
+                                            <a href="mailto: nodalofficer@payufin.com">
+                                                nodalofficer@payufin.com
+
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </li>
+                            <li>
+                                <p class="common-text">Details of the RBI Ombudsman
+
+                                </p>
+
+                                <table border="1" cellspacing="0" class="width-100 mb20">
+                                    <tbody class="width-100">
+
+                                    <tr>
+                                        <td class="sub-table-heading-cell">
+                                            Address:
+                                        </td>
+                                        <td class="table-value-cell">
+                                            RBI Ombudsman
+                                            C/o Reserve Bank of India,
+                                            1st Floor, RBI Byculla Office Building, Opp. Mumbai Central
+                                            Railway Station, Byculla, Mumbai-400008.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                          <td class="sub-table-heading-cell">
+                                        Telephone Number:
+
+                                    </td>
+                                        <td class="table-value-cell">
+                                            022- 23001280
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                          <td class="sub-table-heading-cell">
+                                        Fax Number:
+                                    </td>
+                                        <td class="table-value-cell">
+                                            2302 2024
+
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                          <td class="sub-table-heading-cell">
+                                        E-mail:
+
+                                    </td>
+                                        <td class="table-value-cell">
+                                            CRPC@rbi.org.in
+
+
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+
+                                <p class="common-text">The above grievance redressal mechanism is subject to
+                                    change from time to time, Borrower/customer is requested to visit
+                                    <a href=" www.payufin.com ">www.payufin.com</a>
+                                    for checking any updates/modifications.
+                                </p>
+                            </li>
+                        </ol>
+
+                    </li>
+
                 </ol>
+
+
+                <!-- <li><p class="common text"></p></li> -->
             </td>
         </tr>
         <tr>
@@ -1126,7 +1556,8 @@
                         respective Due Date, the Borrower shall make payment of the Outstanding through any
                         other mode such as Electronic Clearing Mandate/ECS/National Automated Clearing House
                         (NACH)/UPI Autopay/standing instructions and/or any other electronic or other clearing
-                        mandate or instructions available through the Lender and/or the Referral Partner or the
+                        mandate or instructions available through the Lender and/or the Referral Partner.
+                        Further, the
                         Lender, at its sole discretion, may also present any Payment Instruction(s) granted in
                         its favor for repayment of the Facility.
                     </li>
@@ -1164,7 +1595,7 @@
                         The Borrower further irrevocably and unconditionally confirms and authorizes the
                         Lender to invoke Lender’s right under the instructions issued by the Borrower to
                         Mandated Third Party or Borrower’s bank, in the event Borrower has failed to make
-                        payment of the Outstanding Amount on the respective Due Date.
+                        payment of the Outstanding Amount on the respective Due Date and Pay-By Date..
                     </li>
                     <li class="terms-text">
                         The Borrower shall: (i) not close or issue any instructions for the closure of the
@@ -1234,7 +1665,8 @@
                     Borrower to any other person.
                 </li>
                 <li class="terms-text">
-                    The Lender shall be entitled at its sole discretion to review the CIBIL report, or report by
+                    The Lender shall be entitled at its sole discretion to obtain and review the CIBIL report, or
+                    report by
                     any other credit information company, of the Borrower prior to any disbursement under the
                     Facility by the Borrower.
                 </li>
@@ -1246,10 +1678,10 @@
             </p>
             <ol type="i" style="padding-left: 15px;">
                 <li class="terms-text">
-                    The Interest on the Facility shall begin to accrue from the date of disbursement of the
+                    Interest on the Facility shall begin to accrue from the date of disbursement of the
                     Facility into the Borrower(s)' Bank Account. The Borrower agrees and acknowledges that the
                     Interest is based on risk gradation, cost of funds, margin and risk premium and is in line with
-                    the Lender's credit evaluation.
+                    the Lender's credit evaluation process.
                 </li>
                 <li class="terms-text">
                     The Outstanding under this Facility shall be calculated and paid by the Borrower at the
@@ -1261,19 +1693,21 @@
                 </li>
                 <li class="terms-text">
                     The Outstanding, including the Charges, and other amounts shall be paid by the Borrower to the
-                    Lender on or prior to the Due Dates, as applicable, in the manner as may be set out in the
-                    Statement (s) or as shown on the dashboard provided on the Service Platform or the dashboard
-                    provided by the Lender or the KFS or otherwise or as indicated in the Facility Documents.
+                    Lender on or prior to the Pay-By Dates, as applicable, in the manner as may be set out in the
+                    Facility Documents or otherwise as shown on the dashboard provided on the Service Platform or
+                    the dashboard
+                    provided by the Lender.
                 </li>
                 <li class="terms-text">
-                    The Borrower shall have the option of paying the Outstanding through various payment
+                    The Borrower, if permitted by the Lender, shall have the option of paying the Outstanding
+                    through various payment
                     options made available to the Borrower by the Lender from time to time, including by way of
                     issuance of instructions to the Referral Partner or on the dashboard provided on the Service
                     Platform or the dashboard provided by the Lender or otherwise.
                 </li>
                 <li class="terms-text">
-                    If the Borrower fail to pay any amount in accordance with the specified timelines, the
-                    Borrower may be liable to pay additional interest/charges as may be specified in the KFS and
+                    If the Borrower fails to pay any amount in accordance with the specified timelines, the
+                    Borrower may be liable to pay penal charges/charges as may be specified in the KFS and
                     these MITCs or in the Statement or any other Facility Documents and other consequences of such
                     payment default as set out in the Facility Documents shall follow. For any early repayment,
                     Early Repayment Charges as may be specified in the KFS and these MITCs will be applicable.
@@ -1288,6 +1722,7 @@
                     <li class="terms-text">
                         The Borrower agrees and acknowledges that the Instalments and the Payment Instruction(s)
                         shall automatically stand increased by reason of increase in the Interest Rate and/or any
+                        Charges,
                         fees, rates, taxes, charges, imposts, levies, and monies whatsoever that are or may be
                         levied on the Instalments or the transaction contemplated hereunder or may become payable by
                         the Lender by virtue of the terms and conditions under the Facility Documents. Such an
@@ -1337,42 +1772,43 @@
                         and executing the Facility Documents, has unconditionally and irrevocably authorized the
                         Lender for the same.
                     </li>
-                    <li class="terms-text">
-                        The Borrower further irrevocably and unconditionally confirms and authorizes the
-                        Lender to invoke Lender’s right under the instructions issued by the Borrower to Mandated
-                        Third Party or Borrower’s bank, in the event Borrower has failed to make payment of the
-                        Outstanding Amount on the respective Due Date.
-                    </li>
-                    <li class="terms-text">
-                        The Borrower irrevocably and unconditionally confirms and undertakes that the
-                        Borrower shall: (i) not close or issue any instructions for the closure of the Borrower’s
-                        Bank Account(s) or for any modification or cancellation or revocation of instructions to any
-                        Mandated Third Party without the prior written consent of the Lender; (ii) not commit or
-                        omit to do any act, agreement or thing which may entitle its bank to close or suspend the
-                        Borrower’s Bank Account or entitle any Mandated Third Party to close or suspend payment to
-                        the Lender; (iii) not claim that any Payment Instruction(s) is invalid; (iv) ensure
-                        availability of funds in the Borrower’s Bank Account or with the Mandated Third Party, as
-                        applicable, in respect of which the Payment Instruction(s), if any, have been made; and (v)
-                        not issue any notice instructing the Lender not to present any such Payment Instruction(s),
-                        if any, towards payment of any Instalment or other Outstanding.
-                    </li>
+
                 </ol>
+                <li class="terms-text">
+                    The Borrower further irrevocably and unconditionally confirms and authorizes the
+                    Lender to invoke Lender’s right under the instructions issued by the Borrower to Mandated
+                    Third Party or Borrower’s bank, in the event Borrower has failed to make payment of the
+                    Outstanding Amount on the respective Pay-By Date.
+                </li>
+                <li class="terms-text">
+                    The Borrower irrevocably and unconditionally confirms and undertakes that the
+                    Borrower shall: (i) not close or issue any instructions for the closure of the Borrower’s
+                    Bank Account(s) or for any modification or cancellation or revocation of instructions to any
+                    Mandated Third Party without the prior written consent of the Lender; (ii) not commit or
+                    omit to do any act, agreement or thing which may entitle its bank to close or suspend the
+                    Borrower’s Bank Account or entitle any Mandated Third Party to close or suspend payment to
+                    the Lender; (iii) not claim that any Payment Instruction(s) is invalid; (iv) ensure
+                    availability of funds in the Borrower’s Bank Account or with the Mandated Third Party, as
+                    applicable, in respect of which the Payment Instruction(s), if any, have been made; and (v)
+                    not issue any notice instructing the Lender not to present any such Payment Instruction(s),
+                    if any, towards payment of any Instalment or other Outstanding.
+                </li>
             </ol>
         </li>
         <li class="common-text">
             <p>
                 <span class="fw-bold">Payment of Charges</span>
             </p>
-            <p class="common-text">
+            <p class="common-text justify">
                 All charges or fees applicable for the Facility mentioned in the Facility Documents are hereby
                 irrevocably and unconditionally accepted by the Borrower.
             </p>
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             <p>
                 <span class="fw-bold">Additional conditions for disbursement</span>
             </p>
-            <p class="common-text">
+            <p class=" justify common-text">
                 The Borrower will be required to provide such documents and comply with such conditions, as may be
                 required or specified by the Lender from time to time.
             </p>
@@ -1380,7 +1816,7 @@
     </ol>
 
     <div class="width-100 bg-color-orange mb30" style="padding: 6px;">
-        <p class="fw-bold text-left common-text-margin">
+        <p class="fw-bold text-left  justify common-text-margin">
                 <span class="upper-case text-color-white">
                     INFORMATION FOR THE BORROWER
                 </span>
@@ -1388,14 +1824,14 @@
     </div>
 
     <ol type="1">
-        <li class="common-text">
+        <li class=" justify common-text">
             The Lender or any of its employees or representatives or agents or Referral Partner (including its
             agents) shall not demand any payments from the Borrower for the processing of this Facility. In case the
             Borrower is asked for any payment for such purpose, the Borrower must refuse and contact the Lender at
             its registered office address or at its corporate office address or other addresses of the Lender as
             specified in the KFS or the General Terms and Conditions.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Lender or any of its employees or representatives or agents have not and shall not verbally
             communicate anything to the Borrower which is or will be in contradiction to the Facility Documents. The
             Borrower must contact the Lender as mentioned in paragraph 1 above if the Borrower receives any such
@@ -1404,73 +1840,76 @@
     </ol>
 
     <div class="width-100 bg-color-orange mb30" style="padding: 6px;">
-        <p class="fw-bold text-left common-text-margin">
+        <p class="fw-bold text-left  justify common-text-margin">
                 <span class="upper-case text-color-white">
                     ACKNOWLEDGMENT BY THE BORROWER
                 </span>
         </p>
     </div>
 
-    <p class="common-text">
+    <p class=" justify common-text">
         The Borrower hereby expressly, irrevocably, and unconditionally confirms and agrees the following:
     </p>
     <ol type="1">
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower has agreed to borrow from the Lender and the Lender has agreed to lend to the Borrower
             the Facility amount as specified in these MITCs and the KFS.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Lender will not be liable for any losses or delays in receipt of information or documents or
             photographs etc.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             All Charges or fees applicable for the Facility mentioned in the KFS, these MITCs or as may be set
             out in the Statement(s) or otherwise as may be mentioned in any other Facility Documents are hereby
             irrevocably and unconditionally accepted and shall be borne by the Borrower.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower confirms that the Taxes as may be applicable will be charged in connection with the
             Facility and will be borne solely by the Borrower.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Lender is entitled to cancel and/or recall the Facility in case of an Event of Default or
             otherwise and to appropriate and set-off any amounts towards the Outstanding at its sole discretion
             including, without limitation, any amounts due to the Borrower and available with any of the Affiliates
             of the Lender, without any notice, or to modify any of the applicable terms and conditions contained in
             the Facility Documents and the same shall be binding on the Borrower.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower confirms that he/she understands English and has carefully read and understood the terms
-            and conditions of the Welcome Letter, the KFS, these MITCs (each of which includes the Charges payable
-            by the Borrower to the Lender) and shall carefully read and understand the GTCs and other Facility
-            Documents before accepting and executing the Facility Documents and the disbursement of the Facility to
-            the Borrower will be governed by the terms and conditions of all the Facility Documents. The Borrower
-            confirms that the disbursement under the Facility shall constitute his/her irrevocable and unconditional
-            acceptance of the Facility Documents.
+            and conditions of the Facility Documents before accepting and executing the Facility Documents and the
+            disbursement of the Facility to the Borrower will be governed by the terms and conditions of all the
+            Facility Documents. The Borrower confirms that: (a) the disbursement under the Facility shall
+            constitute his/her irrevocable and unconditional acceptance of the Facility Documents and (b) he/she has
+            accepted to receive all future correspondence about the Facility (including the Facility Documents) and
+            any
+            other correspondences from the Lender in English Language.
+
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower will notify the Lender at least 1 (one) month in advance before making any change in
             his/her address for communication and other notice details.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower confirms that the Borrower is not a politically exposed person (PEP). The Borrower
-            understands that PEPs are individuals who are or have been entrusted with prominent public functions in
-            a foreign country including the heads of States/Governments, senior politicians, senior government or
-            judicial or military officers, senior executives of state-owned corporations and important political
-            party officials.
+            understands
+            that PEPs are individuals who are or have been entrusted with prominent public functions in a foreign
+            country
+            including the heads of States/Governments, senior politicians, senior government or judicial or military
+            officers, senior executives of state-owned corporations and important political party officials.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             These MITCs together with the other Facility Documents constitute the entire agreement between the
             Borrower and the Lender with respect to the Facility with effect from the Effective Date and supersede
             all previous agreements, sanction letters, understandings, documents and/or other written agreements
             which may have been entered into between the Borrower and the Lender in relation to the Facility.
         </li>
-        <li class="common-text fw-bold underline">
+        <li class=" justify common-text fw-bold underline">
                 <span class="fw-bold">The Borrower confirms that the total household income of the Borrower exceeds INR
                     3,00,000 (Rupees Three Lacs) per annum.
                 </span>
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower hereby confirms that the interest rate policy of the Lender is available on the website
             <a href="https://www.payufin.in" target="_blank">https://www.payufin.in</a> and the Borrower has read
             through the interest rate policy and has understood the same. The Borrower understands and acknowledges
@@ -1482,7 +1921,7 @@
             change in the rate of interest. The Borrower agrees and acknowledges that such a revised rate of
             interest shall be applicable prospectively.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower hereby confirms, understands, and acknowledges that the Lender in its sole and absolute
             discretion, shall be verifying Borrower’s know-your customer details (including the permanent address
             details) provided by the Borrower to the Lender under the Facility Documents, by way of issuing/sending
@@ -1492,14 +1931,14 @@
             verifying Borrower’s permanent address details through any other methods permitted as per the policy of
             the Lender or under Applicable Laws.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             In the case of V-CIP and/or e-KYC verification the Borrower understands and acknowledges that the
             sanctioning of the Facility shall be subject to successful completion of the V-CIP and/or e-KYC
             verification as determined by the Lender in its sole discretion. In case of non-satisfactory V-CIP/e-KYC
             or non-completion of the same, the Borrower understands that the Facility shall not be sanctioned to the
             Borrower.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
             The Borrower further understands that the verification process (other than through V-CIP and/or
             e-KYC) shall be completed on or before the 90th day from the date of acceptance and execution of the
             Facility Documents by the Borrower. In the event Borrower’s permanent address verification cannot be
@@ -1513,26 +1952,44 @@
             hours of being so called upon, pay the whole of the Outstanding to the Lender without any delay or
             demur.
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
+
             The Borrower would like to know through, telephonic calls, or SMS on Borrower’s mobile number(s) or
-            email id provided through the Facility application/processing journey, or through any other
-            communication mode, (a) transactional information, various loan offer schemes or loan promotional
-            schemes, or any other promotional schemes which may be provided by the Lender or its service provider or
-            the Referral Partner or any of their affiliates or group companies and (b) Outstanding related
-            information, and hereby authorize the Lender / service provider/Referral Partner and their employees,
-            representatives, agents, or associates to do so. <span class="fw-bold">The Borrower hereby irrevocably
-                    and unconditionally waives, <span class="underline">the application of any laws in relation to the
-                        unsolicited communication (including collection and recovery related communication) referred in
-                        National Do Not Call Registry as laid down by Telecom Regulatory Authority of India </span> and
-                    confirms that the same will not be applicable for such communications, emails, calls, SMSs and
-                    WhatsApp messages received from the Lender, any of its Affiliates or group companies or business
-                    partners/service provider/Referral Partner and their employees, agents and/or associates.</span>
+            email
+            id provided through the Facility application/processing journey, or through any other communication
+            mode,
+            (a) transactional information, various loan offer schemes or loan promotional schemes, or any other
+            promotional schemes which may be provided by the Lender or its service provider or the Referral Partner
+            or any of their affiliates or group companies and (b) Outstanding related information, and hereby
+            authorize the Lender / service provider/Referral Partner and their employees, representatives, agents,
+            or
+            associates to do so. The Borrower hereby irrevocably and unconditionally waives, <span
+                class="underline">the application of any
+                    laws in relation to the unsolicited communication (including collection and recovery related
+                    communications) referred in National Do Not Call Registry as laid down by Telecom Regulatory
+                    Authority
+                    of India </span> and confirms that the same will not be applicable for such communications, emails,
+            calls,
+            SMSs and WhatsApp messages received from the Lender, any of its Affiliates or group companies or
+            business partners/service provider/Referral Partner and their employees, agents and/or associates.
+
+
         </li>
-        <li class="common-text">
+        <li class=" justify common-text">
+                <span class="underline">
+                    In case of any update in the know-your-customer (KYC) information / documents submitted by the
+                    Borrower
+                    after sanction of the Facility, the Borrower shall submit to the Lender the updated KYC information
+                    /
+                    documents, within 30 days of such update for the purpose of updating the records of the Lenders.
+                </span>
+
+        </li>
+        <li class=" justify common-text">
             The Borrower has applied for the Facility and the Borrower irrevocably and unconditionally accepts
             and confirms the aforesaid MITCs.
         </li>
-        <li class="common-text" style="margin-bottom: 30px;">
+        <li class=" justify common-text" style="margin-bottom: 30px;">
             All capitalized terms used but not specifically defined in these MITCs shall have their respective
             meanings as ascribed to them in the Facility Documents.
         </li>
@@ -1553,11 +2010,12 @@
     </div>
 
     <div class="mt30">
-        <table id="repayment" border="1" cellspacing="0" class="m-auto mb60" style="page-break-inside: avoid !important">
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb60"
+               style="page-break-inside: avoid !important">
             <tbody>
-<!--            <tr class="width-100">-->
-<!--                <td colspan="2" style="padding: 0px 5px; text-align: center" class="width-auto"> Table </td>-->
-<!--            </tr>-->
+            <!--            <tr class="width-100">-->
+            <!--                <td colspan="2" style="padding: 0px 5px; text-align: center" class="width-auto"> Table </td>-->
+            <!--            </tr>-->
             <tr class="width-100">
                 <td style="padding: 0px 5px" class="width-auto">
                     <p style="margin: 6px 16px" class="fw400 text-left"> Mobile Number </p>
