@@ -175,7 +175,7 @@ public class LenderAssignService implements ILenderAssignService {
     @Value("${max.pf.eligible.lenders:}")
     String maxPfEligibleLender;
 
-    @Value("${pricing.experiment.enable: false}")
+    @Value("${pricing.experiment.enable:false}")
     boolean pricingExpEnabled;
 
     @Lazy

@@ -104,7 +104,7 @@ public class NbfcUtils {
     @Autowired
     PricingExperimentDao pricingExperimentDao;
 
-    @Value("${pricing.experiment.enable: false}")
+    @Value("${pricing.experiment.enable:false}")
     boolean pricingExpEnabled;
 
     @Async

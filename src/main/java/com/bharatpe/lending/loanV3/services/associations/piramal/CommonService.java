@@ -59,7 +59,7 @@ public class CommonService {
     @Autowired
     PricingExperimentDao pricingExperimentDao;
 
-    @Value("${pricing.experiment.enable: false}")
+    @Value("${pricing.experiment.enable:false}")
     boolean pricingExpEnabled;
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
