@@ -109,6 +109,16 @@ public class OxyzoLeadService {
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.LEAD_CREATION_FAILED);
                 return false;
             }
+
+            OxyzoCreateLeadRequestDTO payload = (OxyzoCreateLeadRequestDTO) createLeadRequest.getPayload();
+
+            if(ObjectUtils.isEmpty(payload.getSonOfDaughterOf()) && ObjectUtils.isEmpty(payload.getWifeOf()) && ObjectUtils.isEmpty(payload.getCareOf())){
+                log.info("oxyzo: careOf check in aadhar failed");
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_FAILED.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.LEAD_CREATION_FAILED);
+                return false;
+            }
+
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(createLeadRequest, LenderAssociationStages.CREATE_LEAD);
             log.info("create lead response of oxyzo from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
@@ -158,6 +168,24 @@ public class OxyzoLeadService {
 
             NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
 
+            CKycResponseDto poa = kycUtils.parsePoaXML(cKycResponseDto.getPoaString(), lendingApplication.getMerchantId(), cKycResponseDto, lendingApplication.getId());
+
+            String careOf = poa.getCareOf();
+            careOf += ",";
+
+            String sonOfDaughterOf = "";
+            String wifeOf = "";
+            String careOfGuardian = "";
+
+
+            if (careOf.contains("S/O") || careOf.contains("D/O")) {
+                String relation = careOf.contains("S/O") ? "S/O" : "D/O";
+                sonOfDaughterOf = kycUtils.getCareOfName(careOf, relation);
+            } else if (careOf.contains("W/O")) {
+                wifeOf = kycUtils.getCareOfName(careOf, "W/O");
+            } else if (careOf.contains("C/O")) {
+                careOfGuardian = kycUtils.getCareOfName(careOf, "C/O");
+            }
 
             return NBFCRequestDTO.builder()
                     .applicationId(lendingApplication.getId())
@@ -198,6 +226,9 @@ public class OxyzoLeadService {
                             .shopGeoTagLongitude(location.get("longitude"))
                             .geoTagLatitude(location.get("latitude"))
                             .geoTagLongitude(location.get("longitude"))
+                            .sonOfDaughterOf(!ObjectUtils.isEmpty(sonOfDaughterOf) ? sonOfDaughterOf : null)
+                            .wifeOf(!ObjectUtils.isEmpty(wifeOf) ? wifeOf : null)
+                            .careOf(!ObjectUtils.isEmpty(careOfGuardian) ? careOfGuardian : null)
                             .build())
                     .build();
         } catch (Exception e) {

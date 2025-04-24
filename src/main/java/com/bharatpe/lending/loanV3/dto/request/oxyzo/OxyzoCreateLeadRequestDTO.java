@@ -52,6 +52,9 @@ public class OxyzoCreateLeadRequestDTO {
     private String shopGeoTagLongitude;
     private String geoTagLatitude;
     private String geoTagLongitude;
+    private String sonOfDaughterOf;
+    private String wifeOf;
+    private String careOf;
 
     @Data
     @AllArgsConstructor
