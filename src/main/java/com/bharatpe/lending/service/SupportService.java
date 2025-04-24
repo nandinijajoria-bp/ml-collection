@@ -856,7 +856,10 @@ public class SupportService {
                 supportApiResponseDto.setApplicationStage(ApplicationStage.ACTIVE_LOAN.getStage());
                 supportApiResponseDto.setActiveLoan(Boolean.TRUE);
                 supportApiResponseDto.setDpd(LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()));
-                List<LoanEligibilityDTO> topUpLoans = merchantLoansService.topupLoan(lendingPaymentSchedule, false);
+                List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, false);
+                List<LoanEligibilityDTO> topUpLoans = loans.stream()
+                        .filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+                        .collect(Collectors.toList());
                 if (!topUpLoans.isEmpty()) {
                     supportApiResponseDto.setEligibleForTopUp(Boolean.TRUE);
                 }
