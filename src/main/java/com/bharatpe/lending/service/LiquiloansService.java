@@ -2166,7 +2166,6 @@ public class LiquiloansService {
             templateParams.put("Merchant Name", basicDetailsDto.getBeneficiaryName());
             templateParams.put("Link 1", loanAgreementShortUrl);
             templateParams.put("Link 2", kfsDocShortUrl);
-
             //FOR SMS
             NotificationPayloadDto notificationPayloadDto = new NotificationPayloadDto();
             notificationPayloadDto.setTemplateIdentifier(identifierSMS);

@@ -115,6 +115,7 @@ public class LoanDetailsV3Response {
     private Boolean udyamRegistrationRequired;
     private String udyamRegistrationLink;
     private String kycAddress;
+    private Boolean invalidState;
 
     @Data
     @ToString
@@ -126,6 +127,10 @@ public class LoanDetailsV3Response {
     }
 
     public static LoanDetailsV3Response populateResponseForRequestWithScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response) {
+        if(lendingStateDTO.getLendingViewStates()==null){
+            loanDetailsV3Response.setInvalidState(true);
+            return loanDetailsV3Response;
+        }
         try {
             switch (lendingStateDTO.getScopeState()) {
                 case OFFER_PAGE:

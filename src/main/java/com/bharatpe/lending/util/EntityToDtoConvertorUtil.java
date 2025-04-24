@@ -43,7 +43,16 @@ public class EntityToDtoConvertorUtil {
             riskVariablesDTO.setRejectedLenders(rejectedLenders);
 
             riskVariablesDTO.setMaxTenure(Objects.nonNull(lendingRiskVariables.getTenure()) ? lendingRiskVariables.getTenure() : 0);
+            riskVariablesDTO.setSTPFlag(isSTPFromScenaptic(lendingRiskVariables));
         }
         return riskVariablesDTO;
+    }
+
+    public static boolean isSTPFromScenaptic(LendingRiskVariables lendingRiskVariables) {
+        if (!ObjectUtils.isEmpty(lendingRiskVariables.getStpFlag())
+                && lendingRiskVariables.getStpFlag()) {
+            return true;
+        }
+        return false;
     }
 }

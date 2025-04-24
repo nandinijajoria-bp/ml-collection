@@ -11,6 +11,7 @@ import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.*;
+import com.bharatpe.lending.util.BQPublisherUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.apache.commons.collections.MapUtils;
 import org.slf4j.Logger;
@@ -62,6 +63,9 @@ public class LoanDetailsController {
 
 	@Autowired
 	MerchantService merchantService;
+
+	@Autowired
+	BQPublisherUtil bqPublisherUtil;
 
 //	 for testing - to be removed in future
 	@Value("${lending.edi.model:7}")
@@ -335,21 +339,41 @@ public class LoanDetailsController {
 
 	@RequestMapping(value = "/merchant/application/data",method = RequestMethod.GET)
 	public ResponseEntity<?> getApplicationData(@RequestParam(name = "merchantId") Long merchantId,
-												@RequestHeader(name = "token") String token){
-		if(!loanUtil.validateToken(token)){
-			logger.info("token {} for merchant {} is incorrect", token, merchantId);
-			return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+												@RequestHeader(name = "token") String token) {
+		logger.info("Received getApplicationData request for merchantId: {}", merchantId);
+
+		if (!loanUtil.validateToken(token)) {
+			logger.warn("Invalid token: {} for merchantId: {}", token, merchantId);
+			return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+					.body(new ResponseDTO(false, "Invalid token"));
 		}
 
-		if (ObjectUtils.isEmpty(merchantId)){
-			return new ResponseEntity<>(new ResponseDTO(false, "merchantId is missing"), HttpStatus.BAD_REQUEST);
+		if (ObjectUtils.isEmpty(merchantId)) {
+			logger.warn("Missing merchantId in request");
+			return ResponseEntity.badRequest()
+					.body(new ResponseDTO(false, "merchantId is missing"));
 		}
-		logger.info("get application data request for merchant:{}", merchantId);
-		ApplicationDataResponseDTO response = loanDetailsService.getApplicationData(merchantId);
-		logger.info("get application data response:{}", response);
-		if (Objects.nonNull(response)){
-			return new ResponseEntity<>(new ResponseDTO(true, null, response), HttpStatus.OK);
+
+		try {
+			String requestDetails = String.format("merchantId: %d, token: %s", merchantId, token);
+			logger.info("Processing getApplicationData request: {}", requestDetails);
+
+			ApplicationDataResponseDTO response = loanDetailsService.getApplicationData(merchantId);
+
+			logger.info("Pushing application data to BigQuery for merchantId: {}", merchantId);
+			bqPublisherUtil.sendBqAudit("Lending", "external_agency_audit", response.toString(), requestDetails, merchantId);
+			logger.info("Successfully pushed to BigQuery for merchantId: {}", merchantId);
+			if (Objects.nonNull(response)) {
+				return ResponseEntity.ok(new ResponseDTO(true, null, response));
+			} else {
+				logger.error("Application data is null for merchantId: {}", merchantId);
+				return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+						.body(new ResponseDTO(false, "Application data not found"));
+			}
+		} catch (Exception e) {
+			logger.error("Error processing getApplicationData for merchantId: {}, error: {}", merchantId, e.getMessage(), e);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+					.body(new ResponseDTO(false, "Something went wrong"));
 		}
-		return new ResponseEntity<>(new ResponseDTO(false, "Something went wrong", null), HttpStatus.BAD_REQUEST);
 	}
 }

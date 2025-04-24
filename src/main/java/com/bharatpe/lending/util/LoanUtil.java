@@ -367,15 +367,14 @@ public class LoanUtil {
 	@Value("${lender.aggregation.screens:}")
 	String lenderAggregationScreens;
 
-	@Value("${api.token:}")
-	String apiToken;
+	@Value("#{'${api.token:}'.split(',')}")
+	List<String> apiTokens;
 
 	@Autowired
 	LendingLenderPricingDao lendingLenderPricingDao;
 
 	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
 	private List<Integer> lenderPricingEligibleMerchantsPercent;
-
 
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
@@ -2769,10 +2768,10 @@ public class LoanUtil {
         logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
 	}
-	public Boolean validateToken(String token){
-		return apiToken.equals(token);
-	}
 
+	public Boolean validateToken(String token) {
+		return apiTokens.contains(token);
+	}
 
 	public boolean isLenderPricingApplicableMerchant(Long merchantId){
 		return LoanUtil.isRolledOutByPercentage(String.valueOf(merchantId), (lenderPricingEligibleMerchantsPercent));

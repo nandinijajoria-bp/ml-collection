@@ -540,4 +540,37 @@ public class KycUtils {
         log.info("gst no ckyc response {} for merchant id {}", cKycResponseDto, merchantId);
         return cKycResponseDto;
     }
+
+    public Map<String, String> getBusinessCategoryAndSubCategoryByApplicationId(Long applicationId) {
+        Map<String, String> categories = new HashMap<>();
+        categories.put("businessCategory", null);
+        categories.put("businessSubcategory", null);
+        try {
+            LmsFieldValues businessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_CATEGORY_LMS_FIELD_ID, applicationId);
+            if (!ObjectUtils.isEmpty(businessCategoryField)) {
+                categories.put("businessCategory", businessCategoryField.getFieldDropdownValue());
+                LmsFieldValues subBusinessCategoryField = lmsFieldValuesDao.findByFieldIdAndLendingApplicationId(BUSINESS_SUBCATEGORY_LMS_FIELD_ID, applicationId);
+                categories.put("businessSubcategory", ObjectUtils.isEmpty(subBusinessCategoryField) ? "OTHERS" : subBusinessCategoryField.getFieldDropdownValue());
+            }
+        } catch (Exception e) {
+            log.info("Exception in fetching business category for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+        return categories;
+    }
+
+    public String getCareOfName(String careOf, String prefix) {
+        try {
+            if (ObjectUtils.isEmpty(careOf) || !careOf.contains(prefix)){
+                return null;
+            }
+            careOf = careOf.toUpperCase();
+            careOf = careOf.replaceAll(prefix, "").replaceAll("\\.", "").replaceAll(":", "").replaceFirst(" ", "");
+            return careOf.substring(0, careOf.indexOf(","));
+        } catch (Exception e) {
+            log.info("Exception in fetching careOf name from kyc address {}", Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
+
+
 }
