@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.concurrent.TimeUnit;
+
 @Configuration
 public class UnderwritingRestTemplateConfig {
 
@@ -24,6 +26,10 @@ public class UnderwritingRestTemplateConfig {
     private int maxTotal;
     @Value("${lending.platform.underwriting.rest.template.default.max.per.route:250}")
     private int defaultMaxPerRoute;
+    @Value("${lending.platform.underwriting.rest.template.validate.after.inactivity:500}")
+    private int validateAfterInactivity;
+    @Value("${lending.platform.underwriting.rest.template.evict.idle.connections:60000}")
+    private int evictIdleConnections;
 
     @Bean(name = "underwritingRestTemplate")
     public RestTemplate generalRestTemplate() {
@@ -41,9 +47,12 @@ public class UnderwritingRestTemplateConfig {
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
         connectionManager.setMaxTotal(maxTotal);
         connectionManager.setDefaultMaxPerRoute(defaultMaxPerRoute);
+        connectionManager.setValidateAfterInactivity(validateAfterInactivity);
         CloseableHttpClient httpClient = HttpClientBuilder.create()
                 .setDefaultRequestConfig(requestConfig)
                 .setConnectionManager(connectionManager)
+                .evictExpiredConnections()
+                .evictIdleConnections(evictIdleConnections, TimeUnit.MILLISECONDS)
                 .build();
         return new HttpComponentsClientHttpRequestFactory(httpClient);
     }
