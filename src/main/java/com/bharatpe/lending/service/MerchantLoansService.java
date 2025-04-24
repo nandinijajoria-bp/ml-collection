@@ -56,6 +56,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.constant.LendingConstants.PAYTM;
 import static com.bharatpe.lending.constant.LendingConstants.TOPUP_PILOT_IDENTIFIER;
@@ -720,10 +721,20 @@ public class MerchantLoansService {
 
                 try {
                     List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, false);
-                    if (!loans.isEmpty()) {
+                    List<LoanEligibilityDTO> rejectedLoans = loans.stream()
+                            .filter(dto -> dto.getIsRejected() != null && dto.getIsRejected()) // Keep objects where isRejected is true
+                            .collect(Collectors.toList());
+                    log.info("Rejected loans: {}", rejectedLoans);
+                    if(!rejectedLoans.isEmpty() && rejectedLoans.get(0).getIsRejected() && !StringUtils.isEmpty(rejectedLoans.get(0).getRejectionReason())){
+                        responseDTO.setIsRejected(true);
+                        responseDTO.setRejectionReason(loans.get(0).getRejectionReason());
+                    }
+                    List<LoanEligibilityDTO> topUpLoans = loans.stream()
+                            .filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+                            .collect(Collectors.toList());
+                    if (!topUpLoans.isEmpty()) {
                         responseDTO.setEligibility(loans);
                         responseDTO.setTopup(Boolean.TRUE);
-//                            responseDTO.setTopupLender(!Lender.LDC.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) ? Lender.LDC.name() : Lender.MAMTA.name());
                         responseDTO.setTopupLender(topupLenderMapper(lendingPaymentSchedule.getNbfc()));
                         Experian experian = experianDao.getByMerchantId(merchantId);
                         if(!ObjectUtils.isEmpty(experian) && !ObjectUtils.isEmpty(experian.getPancardNumber())) {
@@ -1082,35 +1093,42 @@ public class MerchantLoansService {
           lendingApplicationDao.findByIdAndMerchantId(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
         try {
             if (!isTopUpEnabled) {
-                logger.info("Topup are loans are disabled");
+                addRejectionReason(eligiblity, "Topup are disabled");
+                logger.info("Topup loans are disabled");
                 return eligiblity;
             }
             if(!topupLenders.contains(lendingPaymentSchedule.getNbfc())){
+                addRejectionReason(eligiblity, "Topup not enabled for this lender");
                 logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
                 return eligiblity;
             }
 
             if(LIQUILOANS_NBFC.toString().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), topupOnTltoTlRolloutPercent)){
+                addRejectionReason(eligiblity, "LIQUILOANS_NBFC Topup not enabled for this lender");
                 logger.info("LIQUILOANS_NBFC topup not enabled for merchantId:{}",lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
             if (!(easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(),rolloutTopupPercent)) && LIQUILOANS_TOPUP_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+                addRejectionReason(eligiblity, "Topup not enabled for this merchant");
                 logger.info("Topup not enabled for this merchant :{}",lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
             if(TRILLIONLOANS.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), trillionTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                addRejectionReason(eligiblity, "TRILLIONLOANS Topup not enabled for this merchant");
                 log.info("TRILLIONLOANS Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
             if(ABFL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), abflTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                addRejectionReason(eligiblity, "ABFL Topup not enabled for this merchant");
                 log.info("ABFL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
 
             if(PIRAMAL.name().equalsIgnoreCase(lendingPaymentSchedule.getNbfc()) && !easyLoanUtil.percentScaleUp(lendingPaymentSchedule.getMerchantId(), piramalTopupRolloutPercent) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                addRejectionReason(eligiblity, "PIRAMAL Topup not enabled for this merchant");
                 log.info("PIRAMAL Topup not enabled for merchantId: {}", lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
@@ -1120,6 +1138,7 @@ public class MerchantLoansService {
                         lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc());
                 if (ObjectUtils.isEmpty(lenderTopupEligibility)) {
                     log.info("Merchant not eligible from lender {} for merchantId: {}",lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getMerchantId());
+                    addRejectionReason(eligiblity, "Merchant not eligible from lender");
                     return eligiblity;
                 }
             }
@@ -1194,10 +1213,12 @@ public class MerchantLoansService {
 
             if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
                 if (lendingApplication == null) {
+                    addRejectionReason(eligiblity, "Lending Application not found/topup loan");
                     logger.info("Lending Application not found/topup loan for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
                 if (LoanType.SMALL_TICKET.name().equals(lendingApplication.getLoanType())) {
+                    addRejectionReason(eligiblity, "Last loan is small ticket");
                     logger.info("last loan is small ticket for merchant:{} with applicationId: {}", lendingPaymentSchedule.getMerchantId(), lendingApplication.getId());
                     return eligiblity;
                 }
@@ -1207,17 +1228,20 @@ public class MerchantLoansService {
 //                }
                 KycStatusDTO kycStatus = kycHandler.getKycStatus(lendingApplication.getMerchantId());
                 if (!KycStatus.APPROVED.equals(kycStatus.getKycStatus())) {
+                    addRejectionReason(eligiblity, "Kyc not approved");
                     logger.info("Kyc not approved for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
                 Integer age = apiGatewayService.getMerchantAge(lendingPaymentSchedule.getMerchantId());
                 if (age > 0 && age < 21) {
+                    addRejectionReason(eligiblity, "Merchant age is less than 21");
                     logger.info("Age requirement not fulfilled for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
                 BigInteger maxDpd = loanDpdDaoSlave.findMaxDpd(lendingPaymentSchedule.getId());
                 if (maxDpd.intValue() > 30) {
+                    addRejectionReason(eligiblity, "Merchant Dpd greater than 30");
                     logger.info("Merchant Dpd Greater than 30 merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1228,6 +1252,7 @@ public class MerchantLoansService {
                 }*/
 
                 if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount()) > llBalanceTransferLoanCurrentDpdThreshold) {
+                    addRejectionReason(eligiblity, "Merchant current Dpd greater than 0 for Liquiloans BT lenders");
                     logger.info("Merchant current Dpd Greater than 0 merchant:{} for lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
                     return eligiblity;
                 }
@@ -1238,6 +1263,7 @@ public class MerchantLoansService {
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
                 if (qrPaidRatio <= topupMinQrPaidRatio) {
+                    addRejectionReason(eligiblity, "QR payment less than 40%");
                     logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1280,6 +1306,7 @@ public class MerchantLoansService {
                 logger.info("shop type found for merchant: {} from lending_gst_detail for last application: {}", shopType, lendingApplication.getId());
             }
             if (ObjectUtils.isEmpty(shopType) || !"PERMANENT".equalsIgnoreCase(shopType)) {
+                addRejectionReason(eligiblity, "Photo shop is not permanent");
                 logger.info("Photo shop is not permanent of merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return eligiblity;
             }
@@ -1311,6 +1338,7 @@ public class MerchantLoansService {
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(lendingPaymentSchedule.getMerchantId(), EligibilityRequestSource.EASY_LOANS);
                 if(!ObjectUtils.isEmpty(globalLimitResponse) && !ObjectUtils.isEmpty(globalLimitResponse.getData())
                         && !ObjectUtils.isEmpty(globalLimitResponse.getData().getRiskGroup()) && !allowedRiskGroupsStp.contains(globalLimitResponse.getData().getRiskGroup())) {
+                    addRejectionReason(eligiblity, "Risk group is not R1 or R2");
                     logger.info("Risk group is not R1 or R2 of new loan of merchant: {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1319,6 +1347,7 @@ public class MerchantLoansService {
                     eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 }
                 if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                    addRejectionReason(eligiblity, "No topup eligibility found as eligibleAmount is 0");
                     logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1330,6 +1359,7 @@ public class MerchantLoansService {
                     }*/
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                     if (eligibleAmount - posAmount < 10000) {
+                        addRejectionReason(eligiblity, "Outstanding amount less than 10k");
                         logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
                         return eligiblity;
                     }
@@ -1354,6 +1384,7 @@ public class MerchantLoansService {
 
 
                 if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
+                    addRejectionReason(eligiblity, "Additional topup checks failed");
                     log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1365,6 +1396,7 @@ public class MerchantLoansService {
                             .setScale(0, RoundingMode.CEILING);
                 }
                 else{
+                    addRejectionReason(eligiblity, "Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                     throw new IllegalArgumentException("Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                 }
 
@@ -1408,6 +1440,7 @@ public class MerchantLoansService {
             lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
             lendingRiskVariablesDao.save(lendingRiskVariables);
         } catch (Exception e) {
+            addRejectionReason(eligiblity, "Exception occurred in Additional Topup Rule Engine");
             logger.info("Exception occurred in Additional Topup Rule Engine for merchantId: {} {}", lendingPaymentSchedule.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return eligiblity;
@@ -1432,6 +1465,7 @@ public class MerchantLoansService {
             Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
             double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
             if (!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc()) && qrPaidRatio <= topupMinQrPaidRatio) {
+                addRejectionReason(eligiblity, "QR paid ratio is less than 40%");
                 logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                 return eligiblity;
             }
@@ -1447,13 +1481,15 @@ public class MerchantLoansService {
                 logger.info("shop type found for merchant: {} for last application: {}", shopType, lendingApplication.getMerchantId());
             }
             if ("PHOTO_NOT_A_SHOP".equalsIgnoreCase(shopType)) {
+                addRejectionReason(eligiblity, "Photo not of a shop");
                 logger.info("Photo not of a shop found for merchant: {} for last application: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
                 return eligiblity;
             }
-            Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
+            //Not used anywhere
+            /*Integer ediPaidCount = lendingLedgerDao.findLedgerCountOnAmountGreaterThanEdiAmount(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getEdiAmount());
             int paidCount = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
             logger.info("ediPaidCount:{} and paidCount:{} for merchant:{}", ediPaidCount, paidCount, lendingPaymentSchedule.getMerchantId());
-            double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;
+            double ediPaidRatio = (ediPaidCount * 1.0 / paidCount) * 100;*/
 
             Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
@@ -1479,6 +1515,7 @@ public class MerchantLoansService {
                     eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 }
                 if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                    addRejectionReason(eligiblity, "No topup eligibility found as eligibleAmount is 0");
                     logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1497,6 +1534,7 @@ public class MerchantLoansService {
 //                    }
                     int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                     if (eligibleAmount - posAmount < 10000) {
+                        addRejectionReason(eligiblity, "Outstanding amount less than 10k");
                         logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
                         return eligiblity;
                     }
@@ -1520,6 +1558,7 @@ public class MerchantLoansService {
                 logger.info("eligible loan: {}", eligibleLoan);
 
                 if (additionalTopupChecksFailed(lendingPaymentSchedule, eligibleLoan)) {
+                    addRejectionReason(eligiblity, "Additional topup checks failed");
                     log.info("additional topup checks failed for merchant id {}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1531,6 +1570,7 @@ public class MerchantLoansService {
                             .setScale(0, RoundingMode.CEILING);
                 }
                 else{
+                    addRejectionReason(eligiblity, "Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                     throw new IllegalArgumentException("Either loan amount or prevLoanunpainAmount or processing fee rate is null");
                 }
 
@@ -1566,6 +1606,7 @@ public class MerchantLoansService {
             }
 
         } catch (Exception e) {
+            addRejectionReason(eligiblity, "Exception occurred while existing topup rule engine");
             logger.info("Exception occurred while existing topup rule engine for merchantId: {} {}", lendingPaymentSchedule.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return eligiblity;
@@ -1724,6 +1765,7 @@ public class MerchantLoansService {
         try {
 
             if(!topupLenders.contains(lendingPaymentSchedule.getNbfc())){
+                addRejectionReason(eligiblity, "Topup not enabled on lender");
                 logger.info("Topup not enabled on lender:{}",lendingPaymentSchedule.getNbfc());
                 return eligiblity;
             }
@@ -1743,12 +1785,14 @@ public class MerchantLoansService {
                     eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
                 }
                 if (eligibleAmount.equals(0D) && !loanUtil.isInternalMerchant(lendingPaymentSchedule.getMerchantId())) {
+                    addRejectionReason(eligiblity, "No topup eligibility found as eligibleAmount is 0");
                     logger.info("No topup eligibility found for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
 
                 int posAmount = loanUtil.getForeclosureAmount(lendingPaymentSchedule);
                 if (eligibleAmount - posAmount < 10000) {
+                    addRejectionReason(eligiblity, "Outstanding amount less than 10k");
                     logger.info("Outstanding amount less than 10k for merchant:{}", lendingPaymentSchedule.getMerchantId());
                     return eligiblity;
                 }
@@ -1807,6 +1851,7 @@ public class MerchantLoansService {
             }
 
         } catch (Exception ex) {
+            addRejectionReason(eligiblity, "Exception occurred while checking derog test eligibilty for topup");
             logger.info("Exception Occured while checking derog test eligibilty for topup");
         }
         return eligiblity;
@@ -1906,6 +1951,14 @@ public class MerchantLoansService {
             }
         }
         return false;
+    }
+
+    private void addRejectionReason(List<LoanEligibilityDTO> eligibility, String reason) {
+        log.info("TopUp rejected:{}", reason);
+        LoanEligibilityDTO loanEligibilityDTO = new LoanEligibilityDTO();
+        loanEligibilityDTO.setRejectionReason(reason);
+        loanEligibilityDTO.setIsRejected(true);
+        eligibility.add(loanEligibilityDTO);
     }
 
 }
