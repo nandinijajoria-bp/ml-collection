@@ -16,6 +16,8 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.ApplicationDocType;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV3.dto.InvokeLenderAssociationRequest;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
@@ -77,6 +79,10 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
 
     @Value("${invoke.env:prod}")
     public String invokeEnv;
+    @Autowired
+    private LoanCreationService loanCreationService;
+    @Autowired
+    private RolloutUtil rolloutUtil;
 
 
     public void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest) {
@@ -86,6 +92,11 @@ public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if (!lendingApplication.isPresent()) {
             log.info("no application found for application {}", applicationId);
+            return;
+        }
+        if (rolloutUtil.lendingPlatformNbfcFlowApplicable(lendingApplication.get().getMerchantId())) {
+            log.info("Application rolled out to rearch v1 version: {}", invokeLenderAssociationRequest.getApplicationId());
+            loanCreationService.initiateLoanCreationWorkflow(invokeLenderAssociationRequest.getApplicationId());
             return;
         }
         String currStage = ObjectUtils.isEmpty(stage) ? LenderAssociationStages.INIT.name() : stage;

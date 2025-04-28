@@ -1793,7 +1793,7 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
         logger.info("Get scenaptic limit for merchant:{}", merchantId);
-        if(rolloutUtil.underwritingNewFLowApplicable(merchantId)){
+        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(merchantId)){
             log.info("Merchant {} has been rolled out to the platform v1 flow for Global Limit Response.", merchantId);
             GlobalLimitResponse globalLimitResponse =  underwritingService.getEligibility(String.valueOf(merchantId),
                     LendingConstants.LENDING_SOURCE, isPincodeChanged, flagForUwToSkipCache);
@@ -3189,7 +3189,7 @@ public class APIGatewayService {
 
     public BureauConsentDTO.Data getBureauConsent(BureauConsentDTO.Data bureauConsentDTO) {
         logger.info("Get scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
-        if(rolloutUtil.underwritingNewFLowApplicable(bureauConsentDTO.getMerchantId())){
+        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
             log.info("Merchant {} is rolled out to platform v1 flow to retrieve bureau consent.", bureauConsentDTO.getMerchantId());
             BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.getBureauConsentData(LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile());
             log.info("Bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
@@ -3230,7 +3230,7 @@ public class APIGatewayService {
 
     public BureauConsentDTO.Data updateConsent(BureauConsentDTO.Data bureauConsentDTO) {
         logger.info("update scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
-        if(rolloutUtil.underwritingNewFLowApplicable(bureauConsentDTO.getMerchantId())){
+        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
             log.info("Merchant {} is rolled out to platform v1 flow for bureau consent update.", bureauConsentDTO.getMerchantId());
             BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.updateBureauConsent(bureauConsentDTO.getMerchantId(),
                     LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile(), bureauConsentDTO.isConsent_expired(),
