@@ -24,6 +24,9 @@ import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
+import com.bharatpe.lending.lendingplatform.lending.util.StageUtil;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
@@ -131,6 +134,12 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
+    @Autowired
+    private LoanCreationService loanCreationService;
+    @Autowired
+    private RolloutUtil rolloutUtil;
+    @Autowired
+    private StageUtil stageUtil;
 
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
@@ -198,7 +207,18 @@ public abstract class LendingApplicationServiceV3Base {
                     .lender(currentDraftApplication.getLender())
                     .build());
 
-        } else {
+        }
+        else {
+            if (rolloutUtil.lendingPlatformNbfcFlowApplicable(merchantId)) {
+                log.info("Application rolled out to rearch v1 version: {}", lendingApplicationLenderDetails.getApplicationId());
+                loanCreationService.initiateLoanCreationWorkflow(lendingApplicationLenderDetails.getApplicationId());
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(stageUtil.getLenderAssociationStatus(lendingApplicationLenderDetails.getApplicationId(), lendingApplicationLenderDetails.getLender()))
+                        .stage(stageUtil.getLenderAssociationStages(lendingApplicationLenderDetails.getApplicationId(), lendingApplicationLenderDetails.getLender()))
+                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                        .lender(currentDraftApplication.getLender())
+                        .build());
+            }
             Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
             if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
                 // check if interest rate is lower ??

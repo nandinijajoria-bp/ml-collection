@@ -41,6 +41,8 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
@@ -243,6 +245,12 @@ public class VerifyOTPService {
     @Autowired
     PaymentService paymentService;
 
+    @Autowired
+    VerifyOTPServiceV2 verifyOTPServiceV2;
+
+    @Autowired
+    RolloutUtil rolloutUtil;
+
     @Lazy
     @Autowired
     LoanPaymentServiceImpl loanPaymentService;
@@ -260,6 +268,10 @@ public class VerifyOTPService {
             lendingCache.delete(loanDashboardCacheKey);
         } else {
             logger.info("merchant id not found in verifyOtp flow");
+        }
+
+        if (rolloutUtil.lendingPlatformNbfcFlowApplicable(merchant.getId())) {
+            return verifyOTPServiceV2.verifyOTP(merchant, commonAPIRequest);
         }
 
         Map<String, Object> finalResponse = new LinkedHashMap<>();
