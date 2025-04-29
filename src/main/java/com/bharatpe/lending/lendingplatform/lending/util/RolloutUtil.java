@@ -77,10 +77,9 @@ public class RolloutUtil {
 				laldDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(
 						lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
 
-		if(!(ObjectUtils.isEmpty(lendingApplicationLenderDetails))
-				&& Boolean.TRUE.equals(lendingApplicationLenderDetails.getRearchFlow())) {
-			log.info("Application: {} already in rearch flow", lendingApplication.getId());
-			return true;
+		if(!(ObjectUtils.isEmpty(lendingApplicationLenderDetails))) {
+			log.info("Application: {} and rearch flow: {}", lendingApplication.getId(), lendingApplicationLenderDetails.getRearchFlow());
+			return Boolean.TRUE.equals(lendingApplicationLenderDetails.getRearchFlow());
 		}
 
 		if (topupLoans.contains(lendingApplication.getLoanType())) {
