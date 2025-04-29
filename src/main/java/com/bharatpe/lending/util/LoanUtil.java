@@ -2541,6 +2541,14 @@ public class LoanUtil {
 		double foreclosureAmount = data.getPrincipalDueAmount();
 		double principleOutstanding = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() - activeLoan.getDuePrinciple());
 
+		double advancePerpetualDuePrinciple = fetchExtraEdiPrincipleCollectionForPerpetualDpdLoan(activeLoan.getId());
+		logger.info("Advance perpetual due principle {} for loanId {}", advancePerpetualDuePrinciple, activeLoan.getId());
+
+		if(advancePerpetualDuePrinciple > 0) {
+			logger.info("Adding advance perpetual due principle {} to principle outstanding for loanId {}", advancePerpetualDuePrinciple, activeLoan.getId());
+			principleOutstanding += advancePerpetualDuePrinciple;
+		}
+
 		if(FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER.contains(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
 			return null;
 		}
@@ -2700,6 +2708,14 @@ public class LoanUtil {
 		LendingLedger lendingLedger = fetchAdvanceEdi(lpsId);
 		if(!ObjectUtils.isEmpty(lendingLedger)){
 			return Math.abs(lendingLedger.getInterest());
+		}
+		return 0d;
+	}
+
+	public double fetchExtraEdiPrincipleCollectionForPerpetualDpdLoan(Long lpsId){
+		LendingLedger lendingLedger = fetchAdvanceEdi(lpsId);
+		if(!ObjectUtils.isEmpty(lendingLedger)){
+			return Math.abs(lendingLedger.getPrinciple());
 		}
 		return 0d;
 	}
