@@ -68,7 +68,9 @@ public class DisbursalCallbackProcessingService {
                     .leadId(lald.getLeadId())
                     .lender(String.valueOf(disbursalCallbackResponse.getLender()))
                     .disbursalDate(disbursalCallbackResponse.getData().getDisbursalDate())
-                    .disbursalAmount(disbursalCallbackResponse.getData().getDisbursalAmount().doubleValue())
+                    .disbursalAmount(Optional.ofNullable(disbursalCallbackResponse.getData().getDisbursalAmount())
+                            .map(BigDecimal::doubleValue)
+                            .orElse(lendingApplication.getDisbursalAmount()))
                     .utr(disbursalCallbackResponse.getData().getUtr())
                     .lan(disbursalCallbackResponse.getData().getLoanAccountNumber())
                     .status(disbursalCallbackResponse.getData().isStatus())
@@ -100,7 +102,7 @@ public class DisbursalCallbackProcessingService {
                 lendingApplicationDetailsDao.save(lendingApplicationDetails);
             }
 
-            if (disbursalCallbackDto.getStatus()) {
+            if (Boolean.TRUE.equals(disbursalCallbackDto.getStatus())) {
                 handleSuccessCallback(disbursalCallbackResponse, disbursalCallbackDto, lald, lendingApplication);
                 log.info("Disbursal callback processed successfully for applicationId: {}", disbursalCallbackResponse.getApplicationId());
             } else {
