@@ -134,7 +134,7 @@ public class LendingPlatformClient {
             log.info("Initiating {} request for applicationId={} to URL={}, payload:{}", operation, applicationId, url, requestData);
             ResponseEntity<LenderApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, LenderApiResponse.class);
 
-            if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
+            if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null && responseEntity.getBody().isSuccess()) {
                 log.info("{} request successful for applicationId={} - response: {}", operation, applicationId, responseEntity.getBody());
                 LenderApiResponse<?> rawResponse = responseEntity.getBody();
                 T typedData = objectMapper.convertValue(rawResponse.getData(), responseType);
