@@ -96,9 +96,9 @@ public interface KfsConstants {
     String LENDER_CONTACT_NUMBER_PAYU = "+91 2269821144";
     String LENDER_CORPORATE_NAME_CREDITSAISON = "KISETSU SAISON FINANCE INDIA PRIVATE LIMITED";
     String LENDER_BUSINESS_ADDRESS_CREDITSAISON = "IndiQube Lexington Tower, First Floor, Tavarekere Main Rd, Tavarekere, S.G. Palya, Bengaluru, Karnataka 560029";
-    String LENDER_CONTACT_NAME_CREDITSAISON = "Emaad Khan";
-    String LENDER_CONTACT_EMAIL_CREDITSAISON = "emaad.khan@creditsaison-in.com";
-    String LENDER_CONTACT_NUMBER_CREDITSAISON = "+91-9899355922";
+    String LENDER_CONTACT_NAME_CREDITSAISON = "Mr. Emaad Khan";
+    String LENDER_CONTACT_EMAIL_CREDITSAISON = "grievance@creditsaison-in.com";
+    String LENDER_CONTACT_NUMBER_CREDITSAISON = "+91-9962003070";
     String LENDER_CORPORATE_NAME_SMFG = "SMFG India Credit Company Limited (formerly Fullerton India Credit Company Limited)";
     String LENDER_BUSINESS_ADDRESS_SMFG = "Commerzone IT Park, Tower B, 1st Floor No.111, Mount Poonamallee Road, Porur, Chennai, Tamil Nadu. Pincode - 600116";
     String LENDER_CONTACT_NAME_SMFG = "Grievance Redressal Officer";
