@@ -21,7 +21,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
@@ -42,7 +41,6 @@ public class DisbursalCallbackProcessingService {
     private final ObjectMapper objectMapper;
     private final LiquiloansService liquiloansService;
 
-    @Transactional
     public void processDisbursalCallback(String message) {
         LenderApiResponse<DisbursalCallback> disbursalCallbackResponse = null;
         try {

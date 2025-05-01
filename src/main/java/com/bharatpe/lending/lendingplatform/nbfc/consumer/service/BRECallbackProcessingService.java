@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 
@@ -34,7 +33,6 @@ public class BRECallbackProcessingService {
     private final ObjectMapper objectMapper;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
-    @Transactional
     public void processBRECallback(String message) {
         LenderApiResponse<BRECallback> breCallbackResponse = null;
         LendingApplication lendingApplication = null;

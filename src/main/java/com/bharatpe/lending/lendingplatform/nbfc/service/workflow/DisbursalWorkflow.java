@@ -45,6 +45,11 @@ public class DisbursalWorkflow implements Workflow {
     public void invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
+        //checking is disbursal already initiated
+        if (lald.getStage().equalsIgnoreCase(LenderAssociationStages.COMPLETED.name())) {
+            log.warn("Disbursal already initiated for applicationId: {}", lendingApplication.getId());
+            return;
+        }
         lald.setLeadStatus(LOAN_DISBURSAL.name());
         lald.setLeadSubStatus(LeadSubStatus.PENDING);
         lendingApplicationLenderDetailsService.save(lald);
