@@ -27,6 +27,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
@@ -54,6 +55,8 @@ public class TLKycService {
     @Autowired
     private KycUtils kycUtils;
 
+    private final List<String> kycCallbackValidStatus = Arrays.asList(LenderAssociationStatus.KYC_IN_PROGRESS.name(), LenderAssociationStatus.AADHAR_UPLOAD_IN_PROGRESS.name());
+
     public Boolean processKycCallback(NBFCResponseDTO nbfcResponseDTO) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
@@ -64,6 +67,10 @@ public class TLKycService {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !nbfcResponseDTO.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+                return false;
+            }
+            if(!kycCallbackValidStatus.contains(lendingApplicationLenderDetails.getKycStatus())) {
+                log.info("Kyc status {} not correct for kyc callback for applicationId {}", lendingApplicationLenderDetails.getKycStatus(), lendingApplication.getId());
                 return false;
             }
             LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
