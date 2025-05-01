@@ -1,7 +1,6 @@
 package com.bharatpe.lending.entity;
 
 import com.bharatpe.lending.common.entity.BaseEntity;
-import lombok.AllArgsConstructor;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -9,13 +8,10 @@ import javax.persistence.Table;
 
 @Entity
 @Table(name = "nach_mandate_revoke_request")
-@AllArgsConstructor
 public class NachMandateRevokeRequest extends BaseEntity {
 
     @Column(name = "merchant_id")
     private Long merchantId;
-    @Column(name = "application_id")
-    private Long applicationId;
     @Column(name = "mobile")
     private String mobile;
     @Column(name = "name")
@@ -39,14 +35,6 @@ public class NachMandateRevokeRequest extends BaseEntity {
 
     public void setMerchantId(Long merchantId) {
         this.merchantId = merchantId;
-    }
-
-    public Long getApplicationId() {
-        return applicationId;
-    }
-
-    public void setApplicationId(Long applicationId) {
-        this.applicationId = applicationId;
     }
 
     public String getMobile() {

@@ -2,19 +2,14 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.exception.CancelNachApiException;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.service.ENachService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -83,33 +78,5 @@ public class ENachController {
 	public ResponseEntity<CommonResponse> mandateRevokeRequest(@RequestAttribute BasicDetailsDto merchant){
 		return new ResponseEntity<>(eNachService.captureMandateRevokeRequest(merchant), HttpStatus.OK);
 
-	}
-
-	@GetMapping(value = "/revoke/status")
-	public ResponseEntity<ApiResponse<List<NachDetail>>> fetchAll(@RequestAttribute BasicDetailsDto merchant){
-		logger.info("Request received for get all nach details for merchant: {}", merchant.getId());
-		ApiResponse<List<NachDetail>> apiResponse = eNachService.getNachDetails(merchant);
-		logger.info("Response for get all nach details for merchant: {}, is: {}", merchant.getId(), apiResponse);
-		return new ResponseEntity<>(apiResponse, HttpStatus.OK);
-	}
-
-	@PostMapping(value = "/cancel")
-	public ResponseEntity<ApiResponse<?>> cancelNach(@RequestAttribute BasicDetailsDto merchant,
-										@RequestBody CancelNachRequest cancelNachRequest){
-		logger.info("received cancel nach request for merchant_id: {}, cancel enach:{}", merchant.getId(), cancelNachRequest);
-		if (cancelNachRequest == null || cancelNachRequest.getApplicationId() == null){
-			logger.info("invalid request for cancel enach");
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(false, "Invalid request", "400"));
-		}
-		try {
-			ApiResponse<?> response = eNachService.cancelNach(merchant, cancelNachRequest.getApplicationId());
-			logger.info("response for cancel nach request for merchant: {}, and application_id: {} is: {}",
-					merchant.getId(), cancelNachRequest.getApplicationId(), response);
-			return ResponseEntity.ok(response);
-		}catch (CancelNachApiException exception){
-			logger.info("Got exception while for cancelling nach for merchant: {}, and application_id: {} is: {}",
-					merchant.getId(), cancelNachRequest.getApplicationId(), exception.getMessage());
-			return ResponseEntity.status(exception.getStatus()).body(new ApiResponse<>(false, exception.getMessage()));
-		}
 	}
 }

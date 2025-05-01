@@ -22,13 +22,10 @@ import com.bharatpe.lending.dao.NachMandateRevokeRequestDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.NachMandateRevokeRequest;
 import com.bharatpe.lending.enums.*;
-import com.bharatpe.lending.exception.CancelNachApiException;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.lendingplatform.lending.service.ENachRegister;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
-import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -45,12 +42,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.core.env.Environment;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
-import javax.validation.constraints.NotNull;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -58,7 +52,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
 @Service
 public class ENachService {
@@ -137,12 +130,6 @@ public class ENachService {
     @Value("${v3.easyloan.deeplink}")
     public String v3EasyloanDeeplink;
 
-    @Value("${topup.nach.expiry.buffer:60}")
-    private int topupNachExpiryBuffer;
-
-    @Value("${skip.nach.disabled.lenders:ABFL}")
-    private Set<String> skipNachDisabledLenders;
-
     @Autowired
     LenderAssociationStageFactoryV2 lenderAssociationStageFactoryV2;
 
@@ -158,11 +145,6 @@ public class ENachService {
     @Autowired
     private ENachRegister eNachRegister;
 
-
-    private final List<String> preFinalNachStatus = Arrays.asList(NachStatus.INPROCESS.name(), NachStatus.PENDING.name(),NachStatus.PENDING_VERIFICATION.name());
-    private final List<String> nachCancellationInProgressStatus = Arrays.asList(NachStatus.CANCEL_INIT.name(), NachStatus.CANCEL_PENDING.name());
-    private final List<String> nachCancellationSuccessStatus = Arrays.asList(NachStatus.CANCELLED.name(), NachStatus.REVOKED.name());
-    private static final String NACH_APPROVED_STATUS = NachStatus.APPROVED.name();
 
     public ENachIntitiationResponseDTO eNachInitiate(BasicDetailsDto merchant, String token, String provider, String nachMode){
         ENachIntitiationResponseDTO responseDTO = new ENachIntitiationResponseDTO();
@@ -586,299 +568,6 @@ public class ENachService {
             }
         }
         return new CommonResponse(true, "success");
-    }
-
-    public ApiResponse<List<NachDetail>> getNachDetails(BasicDetailsDto merchantDetails){
-        List<MerchantNachDetailsResponseDTO> merchantNachList = enachHandler.findByMerchantId(merchantDetails.getId());
-        if(CollectionUtils.isEmpty(merchantNachList)){
-            return null;
-        }
-        List<NachMandateRevokeRequest> mandateRevokeRequests = nachMandateRevokeRequestDao.findByMerchantId(merchantDetails.getId());
-        Set<Long> mandateRevokeRaiseApplications = mandateRevokeRequests.stream()
-                        .map(NachMandateRevokeRequest::getApplicationId)
-                        .filter(Objects::nonNull)
-                        .collect(Collectors.toSet());
-
-        merchantNachList = merchantNachList.stream()
-                .filter(nach-> Objects.nonNull(nach.getStatus()))
-                .map(nach-> {
-                    nach.setStatus(nach.getStatus().toUpperCase());
-                    return nach;
-                })
-                .collect(Collectors.toList());
-
-        List<MerchantNachDetailsResponseDTO> nachDetailList = merchantNachList.stream()
-                .filter(nach -> ! preFinalNachStatus.contains(nach.getStatus()))
-                .filter(nach->
-                        NACH_APPROVED_STATUS.equals(nach.getStatus())
-                                || mandateRevokeRaiseApplications.contains(nach.getOwnerId()))
-                .collect(Collectors.toList());
-
-        List<Long> nonExpirableNachApplicationIds = getNonExpirableNachApplicationId(merchantDetails, merchantNachList);
-        logger.info("non expirable nach application_ids are: {}", nonExpirableNachApplicationIds);
-        if( ! CollectionUtils.isEmpty(nonExpirableNachApplicationIds)){
-            nachDetailList = nachDetailList.stream()
-                    .filter(nach-> ! nonExpirableNachApplicationIds.contains(nach.getOwnerId()))
-                    .collect(Collectors.toList());
-        }
-
-        List<NachDetail> finalNachDetail = new ArrayList<>();
-        for(MerchantNachDetailsResponseDTO nachDetailsResponseDTO: nachDetailList){
-            NachDetail.NachDetailBuilder nachDetailBuilder = NachDetail.builder()
-                    .id(nachDetailsResponseDTO.getId())
-                    .applicationId(nachDetailsResponseDTO.getOwnerId())
-                    .mandateId(nachDetailsResponseDTO.getMandateId())
-                    .bankCode(nachDetailsResponseDTO.getBankCode())
-                    .bankName(nachDetailsResponseDTO.getBankName())
-                    .branchName(nachDetailsResponseDTO.getBranchName())
-                    .accountNumber(nachDetailsResponseDTO.getAccountNumber())
-                    .ifscCode(nachDetailsResponseDTO.getIfscCode())
-                    .beneficiaryName(nachDetailsResponseDTO.getBeneficiaryName())
-                    .nachStatus(nachDetailsResponseDTO.getNachStatus())
-                    .status(nachDetailsResponseDTO.getStatus())
-                    .nachLender(nachDetailsResponseDTO.getNachLender());
-            nachDetailBuilder.revokeStatus(getNachRevokeStatus(nachDetailsResponseDTO.getStatus()));
-            finalNachDetail.add(nachDetailBuilder.build());
-        }
-        return new ApiResponse<>(finalNachDetail);
-    }
-
-    private NachRevokeStatus getNachRevokeStatus(@NotNull String status) {
-        if(nachCancellationInProgressStatus.contains(status.toUpperCase())){
-            return NachRevokeStatus.INIT;
-        }
-        if(nachCancellationSuccessStatus.contains(status.toUpperCase())){
-            return NachRevokeStatus.SUCCESS;
-        }
-        return NachRevokeStatus.PENDING;
-    }
-
-    private List<Long> getNonExpirableNachApplicationId(BasicDetailsDto merchantDetails, List<MerchantNachDetailsResponseDTO> nachDetailList) {
-        LendingPaymentSchedule activeLendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantDetails.getId(), LoanStatus.ACTIVE.name());
-        List<MerchantNachDetailsResponseDTO> approvedNachList = nachDetailList.stream()
-                .filter(nach-> NACH_APPROVED_STATUS.equals(nach.getStatus()))
-                .collect(Collectors.toList());
-        if(activeLendingPaymentSchedule!=null){
-            logger.info("Found active application for merchant:{}", merchantDetails.getId());
-            LendingApplication activeApplication = activeLendingPaymentSchedule.getLoanApplication();
-            List<Long> usedNach = getUsedNachApplicationIds(merchantDetails, approvedNachList, activeApplication);
-            LendingApplication latestApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
-            if(LoanType.TOPUP.name().equalsIgnoreCase(latestApplication.getLoanType())){
-                if(latestApplication.getStatus()==null
-                    || ApplicationStatus.DELETED.name().equalsIgnoreCase(latestApplication.getStatus())
-                        || ApplicationStatus.REJECTED.name().equalsIgnoreCase(latestApplication.getStatus())){
-                    return usedNach;
-                }
-                logger.info("latest application is of type topup with non expirable status");
-                Long usedForTopup = getUsedNach(approvedNachList, latestApplication.getId(), latestApplication.getLender());
-                if(usedForTopup!=null){
-                    usedNach.add(usedForTopup);
-                }
-            }
-            return usedNach;
-
-        }else {
-            LendingApplication latestApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
-            logger.info("latest application details for merchant: {} is: {}", merchantDetails.getId(), latestApplication);
-            if(checkIfApplicationIsInMandateExpirableStatus(latestApplication)){
-                return new ArrayList<>();
-            }
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByApplicationId(latestApplication.getId());
-            logger.info("latest application payment schedule details for merchant: {} is: {}",
-                    merchantDetails.getId(), lendingPaymentSchedule==null ? null : lendingPaymentSchedule.toString());
-            if(lendingPaymentSchedule !=null && "CLOSED".equalsIgnoreCase(lendingPaymentSchedule.getStatus())){
-                return new ArrayList<>();
-            }
-            return getUsedNachApplicationIds(merchantDetails, approvedNachList, latestApplication);
-        }
-    }
-
-    private List<Long> getUsedNachApplicationIds(
-            BasicDetailsDto merchantDetails, List<MerchantNachDetailsResponseDTO> approvedNachList, LendingApplication loanApplication) {
-        List<Long> finalApplicationIds = new ArrayList<>();
-        finalApplicationIds.add(loanApplication.getId());
-        String nachLender = loanUtil.enachServiceLenderMapper(loanApplication.getLender());
-        Long usedNachApplicationId = getUsedNach(approvedNachList, loanApplication.getId(), nachLender);
-        if(usedNachApplicationId != null){
-            finalApplicationIds.add(usedNachApplicationId);
-        }
-        if(LoanType.TOPUP.name().equalsIgnoreCase(loanApplication.getLoanType())
-                && ! isDisbursementTimeInCancellableState(loanApplication.getDisburseTimestamp())){
-            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(loanApplication.getId());
-            logger.info("lending application detail entry for latest application for merchant: {} is: {}",
-                    merchantDetails.getId(), lendingApplicationDetails==null ? null : lendingApplicationDetails.toString());
-            if(lendingApplicationDetails!=null && lendingApplicationDetails.getPrevAppId()!=null){
-                // using same nachLender bec, topup is given on same lender only
-                usedNachApplicationId = getUsedNach(approvedNachList, lendingApplicationDetails.getPrevAppId(), nachLender);
-                if(usedNachApplicationId != null){
-                    finalApplicationIds.add(usedNachApplicationId);
-                }
-            }
-        }
-        return finalApplicationIds;
-    }
-    public ApiResponse<?> cancelNach(BasicDetailsDto merchantDetails, Long applicationId) throws CancelNachApiException {
-        Long merchantId = merchantDetails.getId();
-        LendingApplication requestedApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-        if (requestedApplication == null) {
-            logger.warn("Application not available for id: {}, and merchant_id: {}", applicationId, merchantId);
-            throw new CancelNachApiException("Application not available");
-        }
-        logger.info("Application details: {}", requestedApplication);
-
-        NachMandateRevokeRequest nachRevokeRequest = nachMandateRevokeRequestDao.findTop1ByMerchantIdAndApplicationIdOrderByIdDesc(merchantId, applicationId);
-        logger.info("nach mandate revoke entry: {}", nachRevokeRequest);
-
-        if (nachRevokeRequest != null) {
-            throw new CancelNachApiException("Application NACH cancellation already raised");
-        }
-
-        MerchantNachDetailsResponseDTO nachDetails = enachHandler.findSuccessEnach(merchantId, applicationId);
-        if (nachDetails == null) {
-            logger.info("No approved nach exists for the given application id");
-            throw new CancelNachApiException("No approved NACH exists for the given application");
-        }
-        logger.info("nach mandate revoke entry: {}", nachDetails);
-
-        LendingPaymentSchedule activeSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
-        if (activeSchedule != null) {
-            return handleActivePaymentSchedule(merchantDetails, merchantId, applicationId, requestedApplication, activeSchedule);
-        }
-
-        return handleNoActivePaymentSchedule(merchantDetails, merchantId, applicationId, requestedApplication);
-    }
-
-    private ApiResponse<?> handleActivePaymentSchedule(BasicDetailsDto merchantDetails, Long merchantId, Long applicationId,
-                                                       LendingApplication requestedApplication, LendingPaymentSchedule activeSchedule)
-            throws CancelNachApiException{
-        LendingApplication activeApplication = activeSchedule.getLoanApplication();
-        logger.info("Active application exists: {}", activeApplication);
-
-        if (activeApplication.getId().equals(applicationId)) {
-            throw new CancelNachApiException("Application is active");
-        }
-
-        if (!loanUtil.enachServiceLenderMapper(requestedApplication.getLender())
-                .equalsIgnoreCase(loanUtil.enachServiceLenderMapper(activeApplication.getLender()))) {
-            return startNachCancellation(merchantId, applicationId, merchantDetails);
-        }
-
-        MerchantNachDetailsResponseDTO usedNach = getPossibleUsedNach(merchantId, activeApplication.getId(), activeApplication.getLender());
-        if(usedNach.getOwnerId().equals(applicationId)){
-            throw new CancelNachApiException("NACH is used in active loan");
-        }
-        return handleNachCancellation(merchantDetails, merchantId, applicationId, activeApplication);
-    }
-
-    private ApiResponse<?> handleNoActivePaymentSchedule(BasicDetailsDto merchantDetails, Long merchantId, Long applicationId,
-                                                         LendingApplication requestedApplication) throws CancelNachApiException{
-        LendingApplication latestApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
-
-        if (!loanUtil.enachServiceLenderMapper(requestedApplication.getLender())
-                .equals(loanUtil.enachServiceLenderMapper(latestApplication.getLender()))) {
-            return startNachCancellation(merchantId, applicationId, merchantDetails);
-        }
-
-        if (checkIfApplicationIsInMandateExpirableStatus(latestApplication)) {
-            return startNachCancellation(merchantId, applicationId, merchantDetails);
-        }
-
-        LendingPaymentSchedule latestAppSchedule = lendingPaymentScheduleDao.findByApplicationId(latestApplication.getId());
-        if (latestAppSchedule != null && "CLOSED".equalsIgnoreCase(latestAppSchedule.getStatus())) {
-            return startNachCancellation(merchantId, applicationId, merchantDetails);
-        }
-
-        MerchantNachDetailsResponseDTO usedNach = getPossibleUsedNach(merchantId, latestApplication.getId(), latestApplication.getLender());
-        if(usedNach.getOwnerId().equals(applicationId)){
-            throw new CancelNachApiException("NACH may be used in latest loan");
-        }
-        return (usedNach.getOwnerId().equals(applicationId))
-                ? handleNachCancellation(merchantDetails, merchantId, applicationId, latestApplication)
-                : new ApiResponse<>(false, "NACH may be used in latest loan");
-    }
-
-    private ApiResponse<?> handleNachCancellation(BasicDetailsDto merchantDetails, Long merchantId,
-                                                  Long applicationId, LendingApplication lendingApplication) throws CancelNachApiException {
-        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-            return handleTopCaseForNachCancellation(merchantId, applicationId, lendingApplication, merchantDetails);
-        }
-        return startNachCancellation(merchantId, applicationId, merchantDetails);
-    }
-
-    private ApiResponse<?> startNachCancellation(Long merchantId, Long applicationId, BasicDetailsDto merchantDetails) throws CancelNachApiException{
-        logger.info("starting nach cancellation for merchant_id: {}, and application_id: {}",merchantId, applicationId);
-        boolean response = apiGatewayService.cancelEnach(merchantId, applicationId);
-        if(response){
-            NachMandateRevokeRequest nachMandateRevokeRequest = new NachMandateRevokeRequest(
-                    merchantId, applicationId,  merchantDetails.getMobile(), merchantDetails.getBeneficiaryName(), "INIT");
-            HashMap<String, Object> cleverTapEvtData = new HashMap<>();
-            cleverTapEvtData.put("applicationId", applicationId);
-            nachMandateRevokeRequestDao.save(nachMandateRevokeRequest);
-            executorService.execute(() -> cleverTapEventService.sendClevertapEvent(
-                    CleverTapEvents.NACH_CANCELLATION_INIT.name(), cleverTapEvtData, merchantId.toString()));
-            return new ApiResponse<>(true, "cancel nach request submitted");
-        }
-        throw new CancelNachApiException(HttpStatus.UNPROCESSABLE_ENTITY, "Got exception from nach");
-    }
-
-
-    private ApiResponse<?> handleTopCaseForNachCancellation(Long merchantId, Long applicationIdToCancel,
-                                                            LendingApplication lendingApplication,
-                                                            BasicDetailsDto merchantDetails) throws CancelNachApiException{
-        logger.info("handling topup case for nach cancellation for merchant_id: {} and application_id: {}", merchantId, applicationIdToCancel);
-        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findByApplicationId(lendingApplication.getId());
-        Long parentLoanApplicationId = lendingApplicationDetails.getPrevAppId();
-        // not fetching lender info bec it should be same as the topup.
-        MerchantNachDetailsResponseDTO parentLoanNachDetailsResponseDTO = getPossibleUsedNach(merchantId, parentLoanApplicationId, lendingApplication.getLender());
-        if(parentLoanNachDetailsResponseDTO!= null
-                && ! parentLoanNachDetailsResponseDTO.getOwnerId().equals(applicationIdToCancel)
-                && isDisbursementTimeInCancellableState(lendingApplication.getDisburseTimestamp())){
-            return startNachCancellation(merchantId, applicationIdToCancel, merchantDetails);
-        }
-        throw new CancelNachApiException("nach is used in topup loan of latest application");
-    }
-
-    private MerchantNachDetailsResponseDTO getPossibleUsedNach(Long merchantId, Long applicationId, String lender){
-        MerchantNachDetailsResponseDTO merchantNachDetailsResponseDTO = enachHandler.findSuccessEnach(merchantId, applicationId);
-        if(merchantNachDetailsResponseDTO!=null){
-            return merchantNachDetailsResponseDTO;
-        }
-        String nachLender = loanUtil.enachServiceLenderMapper(lender);
-        return enachHandler.findByMerchantIdAndLender(merchantId, nachLender);
-    }
-
-    private boolean isDisbursementTimeInCancellableState(Date disbursalTimestamp) {
-        if(disbursalTimestamp==null){
-            return false;
-        }
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.DAY_OF_MONTH, -topupNachExpiryBuffer); // Get the date 60 days ago
-        Date lastInEligibleDate = calendar.getTime();
-        return disbursalTimestamp.before(lastInEligibleDate);
-    }
-
-    private Long getUsedNach(@NotNull List<MerchantNachDetailsResponseDTO> nachDetailList, Long id, String lender) {
-         Optional<MerchantNachDetailsResponseDTO> nachByApplicationId = nachDetailList.stream()
-                 .filter(nachDetail -> nachDetail.getOwnerId().equals(id))
-                 .findFirst();
-        if(nachByApplicationId.isPresent()){
-            return nachByApplicationId.get().getOwnerId();
-        }
-        Optional<MerchantNachDetailsResponseDTO> nachByLender = nachDetailList.stream()
-                .filter(nachDetail -> nachDetail.getNachLender().equals(lender))
-                .findFirst();
-        return nachByLender.map(MerchantNachDetailsResponseDTO::getOwnerId).orElse(null);
-    }
-
-    private boolean checkIfApplicationIsInMandateExpirableStatus(LendingApplication lendingApplication) {
-        if(skipNachDisabledLenders.contains(lendingApplication.getLender())){
-            return ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplication.getStatus())
-                    || ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus())
-                    || ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus());
-        }
-        return lendingApplication.getStatus()==null
-                || ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplication.getStatus())
-                || ApplicationStatus.REJECTED.name().equalsIgnoreCase(lendingApplication.getStatus());
     }
 
     public CommonResponse captureMandateRevokeRequest(BasicDetailsDto merchantDetails){
