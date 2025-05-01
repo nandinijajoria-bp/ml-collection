@@ -121,7 +121,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static com.bharatpe.lending.common.enums.EdiModel.SEVEN_DAY_MODEL;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
@@ -873,7 +872,7 @@ public class LendingApplicationServiceV2 {
         lendingApplicationDetails.setStage(LenderAssociationStages.INIT.name());
         lendingApplicationDetails.setEdiModelModified(false);
         lendingApplicationDetails.setLenderAssc(false);
-        lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
+        lendingApplicationDetails.setEdiModel(eligibleLoan.getEdiCount() % 30 == 0 ? EdiModel.SEVEN_DAY_MODEL.name() : EdiModel.SIX_DAY_MODEL.name());
         lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender()));
         if (loanUtil.isLenderPricingApplicableMerchant(merchantBasicDetails.getId())){
             lendingApplicationDetails.setOfferId(eligibleLoan.getId());
@@ -887,7 +886,7 @@ public class LendingApplicationServiceV2 {
             lendingApplication = lendingApplicationDao.save(lendingApplication);
         } else {
             lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
-                    SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
+                    EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
         }
 
         if(LendingConstants.NONE_LENDER.equalsIgnoreCase(lendingApplication.getLender())){
@@ -2900,7 +2899,7 @@ public class LendingApplicationServiceV2 {
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
-                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
+                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.SMFG.name()).contains(lender)) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -3161,7 +3160,7 @@ public class LendingApplicationServiceV2 {
                 PdfDocument pdfDocument = new PdfDocument(writer);
                 if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
                     if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()
-                            , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
+                            , Lender.CAPRI.name(), Lender.SMFG.name()).contains(lendingKfs.getLender())) {
                         ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                         ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                                 ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -3652,19 +3651,13 @@ public class LendingApplicationServiceV2 {
             version = 1;
         }
         Double aprWithoutGst = null;
-        if (kfsDto.getLoanAmount() != null && kfsDto.getProcessingFee() != null && kfsDto.getLoanAmount() != 0) {
-            Double processingFeePercentageWithoutGst = Double.valueOf(String.format("%.4f",
-                    (kfsDto.getProcessingFee() * 100D / (100D + GST_PERCENTAGE)) / (kfsDto.getLoanAmount()) * 100));
+        if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender()) && Objects.nonNull(kfsDto.getLoanAmount()) && Objects.nonNull(kfsDto.getProcessingFeeWithoutGst()) && kfsDto.getLoanAmount() != 0) {
 
-            Double processingFeeWithoutGst = Double.valueOf(String.format("%.2f",
-                    (kfsDto.getLoanAmount() * processingFeePercentageWithoutGst) / 100D));
+            Double amountToCalculateAprOn = kfsDto.getLoanAmount() - kfsDto.getProcessingFeeWithoutGst();;
 
-            Double amountToCalculateAprOn = kfsDto.getLoanAmount() - processingFeeWithoutGst;
-
-            Double rawApr = getApr(kfsDto.getMerchantId(), applicationId, amountToCalculateAprOn,
-                    SEVEN_DAY_MODEL.getNoOfEdiDaysInAWeek(), kfsDto.getLender());
-
-            aprWithoutGst = Double.valueOf(String.format("%.2f", rawApr));
+            aprWithoutGst = getApr(kfsDto.getMerchantId(), applicationId, amountToCalculateAprOn,
+                    EdiModel.SEVEN_DAY_MODEL.getNoOfEdiDaysInAWeek(), kfsDto.getLender());
+            aprWithoutGst = Double.valueOf(String.format("%.2f", aprWithoutGst));
         }
 
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
@@ -3716,7 +3709,6 @@ public class LendingApplicationServiceV2 {
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
         data.put("monthlyIncome", kfsDto.getMonthlyIncome());
-        data.put("apr_without_gst", aprWithoutGst);
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = "";
@@ -3975,6 +3967,9 @@ public class LendingApplicationServiceV2 {
             data.put("business_category", businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""));
             data.put("business_sub_category", businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", ""));
             data.put("udyam_number", null);
+            data.put("apr_without_gst", aprWithoutGst);
+            Double gstAmountOfProcessingFee = kfsDto.getProcessingFee() - kfsDto.getProcessingFeeWithoutGst();
+            data.put("gst_amount_of_processing_fee", String.format("%.2f",gstAmountOfProcessingFee));
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
                 PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
@@ -4049,7 +4044,10 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
         } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SMICC-Logo-1724934813170_1-1728285292259.png";
-        } else if(lender.equalsIgnoreCase(Lender.OXYZO.name()) && applicationDocType.equals(ApplicationDocType.OXYZO_LETTERHEAD_FOOTER)){
+        } else if(lender.equalsIgnoreCase(Lender.SMFG.name()) && applicationDocType.equals(ApplicationDocType.SMFG_LETTERHEAD_FOOTER)) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/smicc_footer-1746180929725.jpg";
+        }
+        else if(lender.equalsIgnoreCase(Lender.OXYZO.name()) && applicationDocType.equals(ApplicationDocType.OXYZO_LETTERHEAD_FOOTER)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Oxyzo_footer-1737110322362.png";
         }
         else if(lender.equalsIgnoreCase(Lender.OXYZO.name())){
