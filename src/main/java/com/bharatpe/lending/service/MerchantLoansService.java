@@ -11,7 +11,6 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.*;
-import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.*;
 import com.bharatpe.lending.common.query.entity.*;
@@ -27,10 +26,11 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.lendingplatform.lms.service.LoanDisplayService;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
-import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
@@ -64,6 +64,7 @@ import static com.bharatpe.lending.enums.Lender.*;
 import static com.bharatpe.lending.enums.LoanStatus.ACTIVE;
 import static com.bharatpe.lending.enums.LoanStatus.DECEASED;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 import static com.bharatpe.lending.service.impl.LenderAssignService.topupLenderMapper;
 
 @Service
@@ -280,7 +281,7 @@ public class MerchantLoansService {
 
     @Lazy
     @Autowired
-    LendingApplicationServiceV2 lendingApplicationServiceV2;
+    private LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Value("${piramal.max.irr:36.0}")
     Double piramalMaxIrr;
@@ -305,6 +306,9 @@ public class MerchantLoansService {
 
     @Value("${show.pan.pin.page.enabled:true}")
     private boolean showPanPinPage;
+
+    @Autowired
+    LoanDisplayService loanDisplayService;
 
     public LendingActiveLoansResponseDTO getActiveLoans(Long merchantId, Long merchantStoreId) {
         LendingActiveLoansResponseDTO responseDTO = new LendingActiveLoansResponseDTO();
@@ -473,7 +477,8 @@ public class MerchantLoansService {
     public LendingMerchantLoansResponseDTO getMerchantLoans(String token, Long merchantId) {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
-        List<LendingPaymentScheduleSlave> merchantLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndCreditLoan(merchantId, false);
+        List<LendingPaymentScheduleSlave> merchantLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndCreditLoan(merchantId, false); // This is for old flow where lms_source is null
+        List<LendingPaymentScheduleSlave> loansFromOneLms = lendingPaymentScheduleDaoSlave.findByMerchantIdAndLmsSource(merchantId, ONE_LMS); // This is for new flow where lms_source is "1LMS"
         responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
@@ -481,9 +486,16 @@ public class MerchantLoansService {
             responseDTO.setMessage("No merchant loans found");
             responseDTO.setSuccess(false);
         } else {
-            logger.info("{} loans found for merchantId: {}", merchantLoans.size(), merchantId);
+            logger.info("{} loans found from existing flow for merchantId: {}", merchantLoans.size(), merchantId);
             responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
 
+
+//            LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+//            responseDTO.setLoansFromLendingPaymentSchedule(merchantLoans);
+//            LendingPaymentScheduleSlave activeLoanFromLms;
+//            if (lendingPaymentSchedule.getLmsSource() != null) {
+//                activeLoanFromLms = lendingPaymentSchedule;
+//            }
 
             for (LendingMerchantLoansResponseDTO.Loan loan : responseDTO.getLoans()) {
                 LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
@@ -779,13 +791,52 @@ public class MerchantLoansService {
                         responseDTO.setHalfLoan(lendingPaymentSchedule, loanBreakupDetail);
                     } else {
                         logger.info("Entry not found in lending_io_half_topup for merchant:{}", merchantId);
+                        }
                     }
                 }
             }
 
+        log.info("responseDTO size before merging from new 1LMS flow : {}", responseDTO.getLoans().size());
+        LendingMerchantLoansResponseDTO responseDTOFromOneLms = new LendingMerchantLoansResponseDTO();
+
+        if (ObjectUtils.isEmpty(loansFromOneLms)) {
+            log.info("No loans found from new 1LMS flow for merchantId: {}", merchantId);
+            responseDTOFromOneLms.setLoans(Collections.emptyList());
+        } else {
+            log.info("{} loans found from new 1LMS flow for merchantId: {}", loansFromOneLms.size(), merchantId);
+            responseDTOFromOneLms.updateTotalAmounts(loansFromOneLms);
+        }
+
+        log.info("MerchantLoans from new 1LMS flow with size {} for merchantId: {}", loansFromOneLms.size(), merchantId);
+
+        if (!ObjectUtils.isEmpty(loansFromOneLms)) {
+            log.info("MerchantLoans from new 1LMS flow with size {} for merchantId: {}", loansFromOneLms.size(), merchantId);
+            responseDTOFromOneLms = loanDisplayService.setLendingMerchantLoansForOneLms(token, responseDTOFromOneLms, loansFromOneLms, merchantId);
+        }
+
+        log.info("responseDTO size before merging with new 1LMS flow : {}", responseDTO.getLoans().size());
+
+        List<LendingMerchantLoansResponseDTO.Loan> mutableLoansList = new ArrayList<>(responseDTO.getLoans());
+        mutableLoansList.addAll(responseDTOFromOneLms.getLoans());
+        responseDTO.setLoans(mutableLoansList);
+
+        if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getRepaymentDetails())) {
+            responseDTO.setRepaymentDetails(responseDTOFromOneLms.getRepaymentDetails());
+        } else {
+            log.info("responseDTO RepaymentDetails from old flow for merchantId: {}", merchantId);
+        }
+
+        log.info("responseDTO size after merging with old and new 1LMS flow : {}", responseDTO.getLoans().size());
+
+        if (!ObjectUtils.isEmpty(responseDTO.getLoans())) {
             responseDTO.getLoans().sort(Comparator.comparing(LendingMerchantLoansResponseDTO.Loan::getLoanId, Comparator.reverseOrder()));
             responseDTO.setMessage("Successfully fetched merchant loans");
             responseDTO.setSuccess(true);
+        } else {
+            log.info("No loans found from old and new 1LMS flow for merchantId: {}", merchantId);
+            responseDTO.setLoans(Collections.emptyList());
+            responseDTO.setMessage("No merchant loans found");
+            responseDTO.setSuccess(false);
         }
 
         return responseDTO;

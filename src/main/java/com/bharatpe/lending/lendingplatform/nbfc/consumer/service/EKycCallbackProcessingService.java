@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Date;
@@ -43,7 +42,6 @@ public class EKycCallbackProcessingService {
     private final LendingApplicationLenderDetailsDao laldDao;
     private final ObjectMapper objectMapper;
 
-    @Transactional
     public void processEKYCCallback(String message) {
         LenderApiResponse<KYCCallback> ekycCallbackResponse = null;
         LendingApplication lendingApplication = null;

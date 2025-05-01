@@ -2,7 +2,9 @@ package com.bharatpe.lending.lendingplatform.lending.util;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LmsLoanStatusDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LmsLoanStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.LoanType;
@@ -17,6 +19,7 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 
 @Component
@@ -42,6 +45,19 @@ public class RolloutUtil {
     private List<Long> eligibleUnderwritingMerchants;
     @Value("${lending.platform.underwriting.flow.merchant.rollout:0}")
     private int eligibleUnderwritingMerchantRollout;
+
+    @Value("${new.flow.eligible.lenders.onelms:TRILLIONLOANS}")
+    private List<String> eligibleLendersForOneLms;
+    @Value("${lending.platform.lms.eligible.merchants:20000100}")
+    private List<Long> lmsEligibleMerchants;
+    @Value("${lending.platform.lms.application.limit:2}")
+    private int lendingPlatformLmsApplicationLimit;
+    @Value("${lending.platform.lms.merchant.rollout:0}")
+    private int eligibleLendingPlatformLmsMerchantRollout;
+
+    @Value("${new.oneLms.flow.enable:false}")
+    private boolean oneLmsFlowEnable;
+    private final LmsLoanStatusDao lmsLoanStatusDao;
 
 
 	private final LendingApplicationLenderDetailsDao laldDao;
@@ -122,4 +138,47 @@ public class RolloutUtil {
 		log.info("Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
 		return true;
 	}
+
+    public boolean checkEligibilityForOneLmsLoans(String bpLoanId) {
+        LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(bpLoanId);
+        LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLoanByBpLoanIdAndStatus(lendingApplication.getExternalLoanId(), "FAILED");
+        Long lmsLoanStatusCount = lmsLoanStatusDao.countAllLoanStatusRecords();
+
+        if (ObjectUtils.isEmpty(lendingApplication)) {
+            return false;
+        }
+        if (topupLoans.contains(lendingApplication.getLoanType())) {
+            log.info("Application: {} not eligible for new flow due to Topup loan", lendingApplication.getId());
+            return false;
+        }
+        if (!ObjectUtils.isEmpty(lmsLoanStatus)) {
+            return false;
+        }
+        if (!eligibleLendersForOneLms.contains(lendingApplication.getLender())) {
+            log.info("Lender not eligible for new flow {}", lendingApplication.getLender());
+            return false;
+        }
+
+        if (lmsEligibleMerchants.contains(lendingApplication.getMerchantId())) {
+            log.info("Internal Merchant eligible for new flow");
+            return true;
+        }
+        if (!oneLmsFlowEnable) {
+            return false;
+        }
+
+        int merchantIdPercentage = lendingApplication.getMerchantId().intValue() % 100;
+        if (merchantIdPercentage > eligibleLendingPlatformLmsMerchantRollout) {
+            log.info("New flow for Merchant:{} is not eligible due to rollout percent", lendingApplication.getMerchantId());
+            return false;
+        }
+
+        if(lendingPlatformLmsApplicationLimit!=-1 && lmsLoanStatusCount>=lendingPlatformLmsApplicationLimit){
+            log.info("New flow for bpLoanId:{} is not eligible due to application limit", bpLoanId);
+            return false;
+        }
+
+        log.info("New flow applicable for LMS");
+        return true;
+    }
 }

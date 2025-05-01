@@ -83,7 +83,7 @@ public class SmfgDocUploadService {
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {
                 log.info("doc upload request of SMFG success for {} {}", docName, lenderAssociationDetailsDto.getApplicationId());
                 SmfgDocUploadResponseDto docUploadResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), SmfgDocUploadResponseDto.class);
-                if ("SUCCESS".equalsIgnoreCase(docUploadResponseDTO.getStatus())) {
+                if (isSuccessResponse(docUploadResponseDTO)) {
                     lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(docUploadUtils.getStatusForDocumentUpload(docName, "SUCCESS").name());
                     commonService.manageApplicationState(lenderAssociationDetailsDto);
                     return true;
@@ -152,6 +152,13 @@ public class SmfgDocUploadService {
             default:
                 return null;
         }
+    }
+
+    private boolean isSuccessResponse(SmfgDocUploadResponseDto docUploadResponseDto) {
+        return (!ObjectUtils.isEmpty(docUploadResponseDto)
+                && !ObjectUtils.isEmpty(docUploadResponseDto.getStatus())
+                && !ObjectUtils.isEmpty(docUploadResponseDto.getData())
+                && ("SUCCESS".equalsIgnoreCase(docUploadResponseDto.getStatus()) || "DOCUMENT UPLOAD NOT ALLOWED".equalsIgnoreCase(docUploadResponseDto.getData().getErrorDesc())));
     }
 
 }

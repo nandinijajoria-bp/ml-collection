@@ -3,6 +3,7 @@ package com.bharatpe.lending.dto;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Builder;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Date;
@@ -19,6 +21,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
@@ -599,6 +602,77 @@ public class LendingMerchantLoansResponseDTO {
                 disbursedAmount, pendingAmount, paidPrinciple, tenure, startDate, endDate, loanType, status, lendingPaymentSchedule.getPaidAmount(),
                 lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus, penaltyFee, settlementInitiated);
     }
+
+    private Loan loanDetailsUpdateFromLendingSchedule(LendingPaymentScheduleSlave oneLmsLoan) {
+        // Fill data from LA & LPS Table Data :
+
+        LendingApplicationSlave application = oneLmsLoan.getLoanApplication();
+        if (ObjectUtils.isEmpty(application)) {
+            log.error("LendingApplicationSlave is null for LendingPaymentScheduleSlave with ID: {}", oneLmsLoan.getId());
+            throw new NullPointerException("An unexpected error occurred while processing your request");
+        }
+
+        Long applicationId = application.getId();
+        Double loanAmount = application.getLoanAmount() != null ? application.getLoanAmount() : 0d;
+        Double interestRate = application.getInterestRate() != null ? application.getInterestRate() : 0d;
+        Double processingFee = application.getProcessingFee() != null ? application.getProcessingFee() : 0d;
+        Double disbursedAmount = loanAmount - processingFee;
+        String tenure = application.getTenure() != null ? application.getTenure() : "";
+        String startDate = oneLmsLoan.getStartDate() != null ? oneLmsLoan.getStartDate().toString() : "";
+        String setEndDate = oneLmsLoan.getTentativeClosingDate() != null ? oneLmsLoan.getTentativeClosingDate().toString() : "";
+        String loanType = application.getLoanType() != null ? application.getLoanType() : "";
+        String status = oneLmsLoan.getStatus() != null ? oneLmsLoan.getStatus() : "ACTIVE";
+        String lender = oneLmsLoan.getNbfc();
+        String settlementStatus = oneLmsLoan.getSettlementStatus();
+        boolean settlementInitiated = oneLmsLoan.getSettlementInitiated();
+
+        // Mark for description  :
+        //application.getIoPayableDays()  is EdiCount
+
+        return new LendingMerchantLoansResponseDTO.Loan(applicationId, oneLmsLoan.getId(), loanAmount, null, null, interestRate, processingFee,
+                disbursedAmount, null, null, tenure, startDate, setEndDate, loanType, status, null,
+                oneLmsLoan.getTotalPayableAmount(), oneLmsLoan.getEdiCount(), lender, settlementStatus, 0.d, settlementInitiated);
+    }
+
+    public void updateFromLoanSummaryOneLms(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse lmsLoanDetails, LendingPaymentScheduleSlave lpsTable) {
+        LoanDetailsResponse.LoanSummary loanSummary = getLoanSummary(lmsLoanDetails);
+        if (!ObjectUtils.isEmpty(loanSummary)) {
+            loan.setLoanId(lpsTable.getId());
+            updateFromLoanSummary(loan, loanSummary, lpsTable);
+        }
+    }
+
+    public void updateTotalAmounts(List<LendingPaymentScheduleSlave> loansList) {
+        log.info("Updating total amounts for {} loans", loansList.size());
+        this.loans = loansList.stream().map(this::loanDetailsUpdateFromLendingSchedule).collect(Collectors.toList());
+        this.totalAmount = this.loans.stream().reduce(0D,
+                (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getLoanAmount()) ? 0 : loan.getLoanAmount()), Double::sum);
+        this.totalDueAmount = this.loans.stream().reduce(0D,
+                (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getDueAmount()) ? 0 : loan.getDueAmount()) , Double::sum);
+        this.totalPaidAmount = this.loans.stream().reduce(0D,
+                (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getPaidAmount()) ? 0 : loan.getPaidAmount()), Double::sum);
+        log.info("Total amounts updated: totalAmount={}, totalDueAmount={}, totalPaidAmount={}", totalAmount, totalDueAmount, totalPaidAmount);
+    }
+
+    private LoanDetailsResponse.LoanSummary getLoanSummary(LoanDetailsResponse lmsLoanDetails) {
+        return !ObjectUtils.isEmpty(lmsLoanDetails) ? lmsLoanDetails.getLoanSummary() : null;
+    }
+
+    private void updateFromLoanSummary(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse.LoanSummary loanSummary, LendingPaymentScheduleSlave lpsTable) {
+        loan.setEdiAmount((double) loanSummary.getInstalmentAmount());
+        loan.setDueAmount((double) loanSummary.getOverdueInstalmentAmount());
+        loan.setPendingAmount((double) loanSummary.getPendingInstalmentAmount());
+        loan.setPaidPrinciple((double) loanSummary.getPaidPrincipalAmount());
+        loan.setPaidAmount((double) loanSummary.getTotalPaidAmount());
+        loan.setDuePenalty(loanSummary.getPaidPenalCharges());
+    }
+
+    private double calculateRepaymentAmount(LoanDetailsResponse.LoanSummary loanSummary) {
+        return Double.sum(loanSummary.getLoanAmount(),
+                Double.sum(loanSummary.getPendingInterest().doubleValue(),
+                        loanSummary.getOverdueInterest().doubleValue()));
+    }
+
 
     public boolean getSuccess() {
         return success;

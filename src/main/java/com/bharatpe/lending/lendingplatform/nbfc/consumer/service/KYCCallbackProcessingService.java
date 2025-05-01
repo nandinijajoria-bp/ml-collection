@@ -19,7 +19,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.ObjectUtils;
 
 import java.util.List;
@@ -38,7 +37,6 @@ public class KYCCallbackProcessingService {
     private final WorkflowUtil workflowUtil;
     private final ObjectMapper objectMapper;
 
-    @Transactional
     public void processKYCCallback(String message) {
         LenderApiResponse<KYCCallback> kycCallbackResponse = null;
         LendingApplication lendingApplication = null;
