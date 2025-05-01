@@ -118,7 +118,6 @@ public class LendingPlatformTokenHandler {
                     "Connector TokenGeneration - error occurred with message: {} : ",
                     exception.getMessage(),
                     exception);
-            // TODO: Handle exception here
             throw new RuntimeException("Unable to generate token for Connector");
         }
     }

@@ -38,7 +38,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(validateTokenInterceptor)
 				.excludePathPatterns("/lending/internal/**", "/lending/loanDetails/v2", "/lending/loanDetails", "/lending/merchant_loans","/support/fetchBulkContacts/**","/support/showBulkContacts",
-				"/lending/push_lead_response",
+				"/lending/push_lead_response", "/lms/v1/**",
 				"/lending/csPanel/**",
 				"/lending/handshake/**", "/lending/common/**", "/lending/liquiloan/**", "/lending/payment/callback","/lending/credit_line" +
 				"/application_status_update","/lending/credit_line/vpa/update", "/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund",
@@ -57,7 +57,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
-		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication",
+		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication", "/lms/v1/**",
 		"/support/showBulkContacts","/lending/liquiloan/approveLoan", "/lending/liquiloan/postPayoutStatusUpdate", "/lending/credit_line/application_status_update",
 				"/lending/credit_line/bpb/check_status", "/lending/credit_line/bpb/refund", "/lending/active_loans", "/lending/offers", "/lending/derog_application",
 				"/fos/**","/lending/fos/**", "/lending/adhaar_mask","/lending/allow_bankaccount_change", "/lending/edi_schedule", "/lending/edi_schedule/v2",
