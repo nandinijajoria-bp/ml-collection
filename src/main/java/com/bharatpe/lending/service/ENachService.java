@@ -655,7 +655,7 @@ public class ENachService {
     }
 
     private List<Long> getNonExpirableNachApplicationId(BasicDetailsDto merchantDetails, List<MerchantNachDetailsResponseDTO> nachDetailList) {
-        LendingPaymentSchedule activeLendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantDetails.getId(), LoanStatus.ACTIVE.name());
+        LendingPaymentSchedule activeLendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantDetails.getId(), Collections.singletonList(LoanStatus.ACTIVE.name()));
         List<MerchantNachDetailsResponseDTO> approvedNachList = nachDetailList.stream()
                 .filter(nach-> NACH_APPROVED_STATUS.equals(nach.getStatus()))
                 .collect(Collectors.toList());
@@ -741,7 +741,7 @@ public class ENachService {
         }
         logger.info("nach mandate revoke entry: {}", nachDetails);
 
-        LendingPaymentSchedule activeSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+        LendingPaymentSchedule activeSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
         if (activeSchedule != null) {
             return handleActivePaymentSchedule(merchantDetails, merchantId, applicationId, requestedApplication, activeSchedule);
         }
