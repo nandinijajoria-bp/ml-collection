@@ -491,9 +491,9 @@ public class LendingApplicationServiceV2 {
                         lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
                         lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
                         if(Objects.isNull(lendingApplicationKycDetails.getAadharApprovedAt()))lendingApplicationKycDetails.setAadharApprovedAt(new Date());
-                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
-                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
-                        }
+//                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+//                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+//                        }
                         String dob = KycUtils.getDOB(kycDoc);
                         log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchant.getId());
                         lendingApplicationKycDetails.setDob(dob);

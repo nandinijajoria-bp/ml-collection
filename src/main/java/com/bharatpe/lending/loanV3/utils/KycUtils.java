@@ -416,7 +416,7 @@ public class KycUtils {
             lendingApplicationKycDetails.setFatherName(getFatherName(cKycResponseDto.getCareOf() + ","));
             lendingApplicationKycDetails.setDob(cKycResponseDto.getDob());
             lendingApplicationKycDetails.setAadharIdentifier(cKycResponseDto.getAadharNumber());
-            lendingApplicationKycDetails.setAadharXml(cKycResponseDto.getPoaString());
+//            lendingApplicationKycDetails.setAadharXml(cKycResponseDto.getPoaString());
             lendingApplicationKycDetails.setGender(cKycResponseDto.getGender());
             lendingApplicationKycDetails.setAadharState(cKycResponseDto.getState());
             lendingApplicationKycDetails.setAadharCity(cKycResponseDto.getCity());
