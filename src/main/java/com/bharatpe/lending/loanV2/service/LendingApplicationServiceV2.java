@@ -1415,8 +1415,8 @@ public class LendingApplicationServiceV2 {
 
             boolean cpvRequired = loanUtil.cpvRequired(lendingApplication);
             LendingDisbursalStage lendingDisbursalStage = lendingDisbursalStageDao.findByApplicationId(lendingApplication.getId());
-            String cpvStatus = lendingApplication.getPhysicalVerificationStatus() != null && 
-                    (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") || 
+            String cpvStatus = lendingApplication.getPhysicalVerificationStatus() != null &&
+                    (lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("APPROVED") ||
                             lendingApplication.getPhysicalVerificationStatus().equalsIgnoreCase("REJECTED")) ?
                     lendingApplication.getPhysicalVerificationStatus() : "PENDING";
             String pncRejectionReason = lendingApplication.getRejectionStage() != null
