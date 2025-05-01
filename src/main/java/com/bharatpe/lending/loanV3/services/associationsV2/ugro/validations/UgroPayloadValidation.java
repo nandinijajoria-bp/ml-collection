@@ -20,7 +20,7 @@ public class UgroPayloadValidation {
 
     public boolean isInvalidCreateLeadCKycData(CKycResponseDto cKycResponseDto) {
         return (ObjectUtils.isEmpty(cKycResponseDto)
-                || ObjectUtils.isEmpty(cKycResponseDto.getDob())
+                || (ObjectUtils.isEmpty(cKycResponseDto.getDob()) && ObjectUtils.isEmpty(cKycResponseDto.getPanDob()))
                 || ObjectUtils.isEmpty(cKycResponseDto.getName())
                 || ObjectUtils.isEmpty(cKycResponseDto.getMobile())
                 || ObjectUtils.isEmpty(cKycResponseDto.getAadharNumber())
