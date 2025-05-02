@@ -1,5 +1,7 @@
 package com.bharatpe.lending.dto;
 
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.enums.Lender;
@@ -603,10 +605,10 @@ public class LendingMerchantLoansResponseDTO {
                 lendingPaymentSchedule.getTotalPayableAmount(), lendingPaymentSchedule.getEdiCount(), lender, settlementStatus, penaltyFee, settlementInitiated);
     }
 
-    private Loan loanDetailsUpdateFromLendingSchedule(LendingPaymentScheduleSlave oneLmsLoan) {
+    private Loan loanDetailsUpdateFromLendingSchedule(LendingPaymentSchedule oneLmsLoan) {
         // Fill data from LA & LPS Table Data :
 
-        LendingApplicationSlave application = oneLmsLoan.getLoanApplication();
+        LendingApplication application = oneLmsLoan.getLoanApplication();
         if (ObjectUtils.isEmpty(application)) {
             log.error("LendingApplicationSlave is null for LendingPaymentScheduleSlave with ID: {}", oneLmsLoan.getId());
             throw new NullPointerException("An unexpected error occurred while processing your request");
@@ -634,7 +636,7 @@ public class LendingMerchantLoansResponseDTO {
                 oneLmsLoan.getTotalPayableAmount(), oneLmsLoan.getEdiCount(), lender, settlementStatus, 0.d, settlementInitiated);
     }
 
-    public void updateFromLoanSummaryOneLms(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse lmsLoanDetails, LendingPaymentScheduleSlave lpsTable) {
+    public void updateFromLoanSummaryOneLms(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse lmsLoanDetails, LendingPaymentSchedule lpsTable) {
         LoanDetailsResponse.LoanSummary loanSummary = getLoanSummary(lmsLoanDetails);
         if (!ObjectUtils.isEmpty(loanSummary)) {
             loan.setLoanId(lpsTable.getId());
@@ -642,7 +644,7 @@ public class LendingMerchantLoansResponseDTO {
         }
     }
 
-    public void updateTotalAmounts(List<LendingPaymentScheduleSlave> loansList) {
+    public void updateTotalAmounts(List<LendingPaymentSchedule> loansList) {
         log.info("Updating total amounts for {} loans", loansList.size());
         this.loans = loansList.stream().map(this::loanDetailsUpdateFromLendingSchedule).collect(Collectors.toList());
         this.totalAmount = this.loans.stream().reduce(0D,
@@ -658,7 +660,7 @@ public class LendingMerchantLoansResponseDTO {
         return !ObjectUtils.isEmpty(lmsLoanDetails) ? lmsLoanDetails.getLoanSummary() : null;
     }
 
-    private void updateFromLoanSummary(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse.LoanSummary loanSummary, LendingPaymentScheduleSlave lpsTable) {
+    private void updateFromLoanSummary(LendingMerchantLoansResponseDTO.Loan loan, LoanDetailsResponse.LoanSummary loanSummary, LendingPaymentSchedule lpsTable) {
         loan.setEdiAmount((double) loanSummary.getInstalmentAmount());
         loan.setDueAmount((double) loanSummary.getOverdueInstalmentAmount());
         loan.setPendingAmount((double) loanSummary.getPendingInstalmentAmount());

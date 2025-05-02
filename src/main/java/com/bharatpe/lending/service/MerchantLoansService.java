@@ -478,7 +478,7 @@ public class MerchantLoansService {
         LendingMerchantLoansResponseDTO responseDTO = new LendingMerchantLoansResponseDTO();
         responseDTO.setTopup(Boolean.FALSE);
         List<LendingPaymentScheduleSlave> merchantLoans = lendingPaymentScheduleDaoSlave.findByMerchantIdAndCreditLoan(merchantId, false); // This is for old flow where lms_source is null
-        List<LendingPaymentScheduleSlave> loansFromOneLms = lendingPaymentScheduleDaoSlave.findByMerchantIdAndLmsSource(merchantId, ONE_LMS); // This is for new flow where lms_source is "1LMS"
+        List<LendingPaymentSchedule> loansFromOneLms = lendingPaymentScheduleDao.findByMerchantIdAndLmsSource(merchantId, ONE_LMS); // This is for new flow where lms_source is "1LMS"
         responseDTO.setAccountDetails(loanUtil.getAccountDetails(merchantId));
         if (merchantLoans == null || merchantLoans.isEmpty()) {
             logger.info("No loans found for merchantId: {}", merchantId);
