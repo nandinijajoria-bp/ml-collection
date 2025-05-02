@@ -5,10 +5,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
 import com.bharatpe.lending.common.dao.LmsLoanStatusDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.LendingShopDocuments;
-import com.bharatpe.lending.common.entity.LmsLoanStatus;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.handlers.S3BucketHandler;
@@ -211,11 +208,25 @@ public class LmsLoanCreationService {
             log.error("Error parsing date of birth: {}", e.getMessage(), e);
         }
 
+        String customerCity = cKycResponseDto.getCity();
+        String customerState = cKycResponseDto.getState();
+        String customerPinCode = cKycResponseDto.getPincode();
+
+        if (Objects.nonNull(customerPinCode) && !customerPinCode.trim().isEmpty()) {
+            LendingPincodes lendingPincodes = lmsLoandetailsservice.getCustomerAddressDetails(Integer.parseInt(customerPinCode.trim()));
+            if (!ObjectUtils.isEmpty(lendingPincodes)) {
+                log.info("Pincode available in lending_pincodes table for bpLoanId: {}", lendingApplication.getExternalLoanId());
+                customerCity = lendingPincodes.getCity();
+                customerState = lendingPincodes.getState();
+            }
+        }
+
+
         return CreateLoanRequest.CustomerDetails.builder()
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))
                 .customerAddress(cKycResponseDto.getAddress())
-                .customerCity(cKycResponseDto.getCity())
-                .customerState(cKycResponseDto.getState())
+                .customerCity(customerCity)
+                .customerState(customerState)
                 .customerPinCode(Long.parseLong(cKycResponseDto.getPincode()))
                 .customerAadharNo(cKycResponseDto.getAadharNumber())
                 .customerDOB(formattedDob)

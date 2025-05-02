@@ -4,10 +4,12 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -65,6 +67,9 @@ public class LmsLoanDetailsService {
 
     @Autowired
     private LoanUtil loanUtil;
+
+    @Autowired
+    private LendingPincodesDao lendingPincodesDao;
 
     public LoanDetailsResponse getLoanSummaryFromOneLms(String bpLoanId) {
         Map<String, String> params = new HashMap<>();
@@ -128,5 +133,10 @@ public class LmsLoanDetailsService {
 
     public List<LendingShopDocuments> getShopFrontImage(Long merchantId, Long applicationId) {
         return lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
+    }
+
+    public LendingPincodes getCustomerAddressDetails(Integer pincode) {
+        log.info("Fetching merchant city & state details for pincode:{}", pincode);
+        return lendingPincodesDao.findByPincode(pincode);
     }
 }
