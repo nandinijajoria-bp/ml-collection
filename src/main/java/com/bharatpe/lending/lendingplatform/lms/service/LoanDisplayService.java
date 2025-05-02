@@ -18,10 +18,7 @@ import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingCategoryDao;
-import com.bharatpe.lending.dao.LendingGstDao;
-import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.LendingMerchantLoansResponseDTO;
@@ -129,6 +126,9 @@ public class LoanDisplayService {
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
+
+    @Autowired
+    LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     @Autowired
     MerchantService merchantService;
@@ -255,15 +255,15 @@ public class LoanDisplayService {
     private Logger logger = LoggerFactory.getLogger(LoanDisplayService.class);
 
     public LendingMerchantLoansResponseDTO setLendingMerchantLoansForOneLms(String token, LendingMerchantLoansResponseDTO responseDTOFromOneLms,
-                                                 List<LendingPaymentScheduleSlave> merchantLoansFromOneLms, Long merchantId) {
+                                                                            List<LendingPaymentSchedule> merchantLoansFromOneLms, Long merchantId) {
 
 
         // The merchantLoansMap is created by converting a list of LendingPaymentScheduleSlave objects into a map
         // where the key is the loan ID and the value is the corresponding LendingPaymentScheduleSlave object.
         // This allows for O(1) time complexity for lookups by loan ID, which is efficient for larger sets.
 
-        Map<Long, LendingPaymentScheduleSlave> merchantLoansMap = merchantLoansFromOneLms.stream()
-                .collect(Collectors.toMap(LendingPaymentScheduleSlave::getId, Function.identity()));
+        Map<Long, LendingPaymentSchedule> merchantLoansMap = merchantLoansFromOneLms.stream()
+                .collect(Collectors.toMap(LendingPaymentSchedule::getId, Function.identity()));
 
 
         logger.info("{} New 1LMS flow loans found for merchantId: {}", merchantLoansFromOneLms.size(), merchantId);
@@ -272,7 +272,7 @@ public class LoanDisplayService {
 //        O(m + n) Complexity loop : m = merchantLoansFromOneLms.size(), n = responseDTOFromOneLms.getLoans().size()
         for (LendingMerchantLoansResponseDTO.Loan loan : responseDTOFromOneLms.getLoans()) {
             String bpLoanId = "";
-            LendingPaymentScheduleSlave matchedLoan = merchantLoansMap.get(loan.getLoanId());
+            LendingPaymentSchedule matchedLoan = merchantLoansMap.get(loan.getLoanId());
             if (matchedLoan != null && matchedLoan.getLoanApplication() != null) {
                 bpLoanId = matchedLoan.getLoanApplication().getExternalLoanId();
                 logger.info("[setLendingMerchantLoansFromOneLms] bpLoanId: {}", bpLoanId);
@@ -284,7 +284,7 @@ public class LoanDisplayService {
             responseDTOFromOneLms.updateFromLoanSummaryOneLms(loan, lmsLoanDetails, matchedLoan);
 
             matchedLoan.setDueAmount((double) lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount());
-            lendingPaymentScheduleDaoSlave.save(matchedLoan);
+            lendingPaymentScheduleDao.save(matchedLoan);
 
 
             //  LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(merchantId, loan.getLoanId());
@@ -504,12 +504,12 @@ public class LoanDisplayService {
 // Below code are dependent from above as copied similar way || Will try to remove dependency and then refactor the code ::
 
 
-    private List<LendingPaymentScheduleSlave> fetchLendingPaymentScheduleSlave(Long merchantId, Long merchantStoreId, String status) {
+    private List<LendingPaymentSchedule> fetchLendingPaymentSchedule(Long merchantId, Long merchantStoreId, String status) {
         if (merchantStoreId != null) {
-            return lendingPaymentScheduleDaoSlave.findByMerchantIdAndMerchantStoreIdAndStatus(merchantId, merchantStoreId,
+            return lendingPaymentScheduleDao.findByMerchantIdAndMerchantStoreIdAndStatus(merchantId, merchantStoreId,
                     status);
         }
-        return lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatusList(merchantId, status);
+        return lendingPaymentScheduleDao.findByMerchantIdAndStatusList(merchantId, status);
     }
 
 
@@ -1227,9 +1227,9 @@ public class LoanDisplayService {
             logger.error("exception occurred while retrieving data from redis for: {} {}", basicDetailsDto.getId(), e.getMessage());
         }
         Double dueAmount = 0D;
-        List<LendingPaymentScheduleSlave> activeLoans = fetchLendingPaymentScheduleSlave(basicDetailsDto.getId(), merchantStoreId, "ACTIVE");
+        List<LendingPaymentSchedule> activeLoans = fetchLendingPaymentSchedule(basicDetailsDto.getId(), merchantStoreId, "ACTIVE");
         if (!activeLoans.isEmpty()) {
-            for (LendingPaymentScheduleSlave activeLoan : activeLoans) {
+            for (LendingPaymentSchedule activeLoan : activeLoans) {
                 dueAmount += activeLoan.getDueAmount();
                 dueAmount += Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0d;
             }
