@@ -149,23 +149,6 @@ public class ForeclosureService {
                 .class);
         netForeclosureAtLender = lenderForeclosureResponse.getData().getForeclosureAmount();
 
-        ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-                .getLenderAssociationService(activeLoan.getNbfc());
-        if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-            int retry = 0;
-            while (retry < 3) {
-                try {
-                    netForeclosureAtLender = (Double) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
-                    if (netForeclosureAtLender != null) {  // skip retry
-                        break;
-                    }
-                }catch (Exception e) {
-                    logger.error("Exception while fetching foreclosure details for merchantId: {} {}", activeLoan.getMerchantId(), Arrays.asList(e.getStackTrace()));
-                }
-                retry++;
-            }
-            if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
-        }
         log.info("Foreclosure amount at lender side for applicationId:{} is {}",activeLoan.getApplicationId(), netForeclosureAtLender);
         return netForeclosureAtLender;
     }
