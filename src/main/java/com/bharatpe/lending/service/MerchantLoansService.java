@@ -816,15 +816,7 @@ public class MerchantLoansService {
 
         log.info("responseDTO size before merging with new 1LMS flow : {}", responseDTO.getLoans().size());
 
-        List<LendingMerchantLoansResponseDTO.Loan> mutableLoansList = new ArrayList<>(responseDTO.getLoans());
-        mutableLoansList.addAll(responseDTOFromOneLms.getLoans());
-        responseDTO.setLoans(mutableLoansList);
-
-        if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getRepaymentDetails())) {
-            responseDTO.setRepaymentDetails(responseDTOFromOneLms.getRepaymentDetails());
-        } else {
-            log.info("responseDTO RepaymentDetails from old flow for merchantId: {}", merchantId);
-        }
+        loanDisplayService.updateResponseDto(responseDTO, responseDTOFromOneLms);
 
         log.info("responseDTO size after merging with old and new 1LMS flow : {}", responseDTO.getLoans().size());
 

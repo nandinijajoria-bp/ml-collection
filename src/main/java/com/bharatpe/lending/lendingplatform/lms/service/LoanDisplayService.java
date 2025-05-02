@@ -414,6 +414,7 @@ public class LoanDisplayService {
         if (lendingPaymentSchedule != null) {
             Date date = new Date();
             if (date.after(lendingPaymentSchedule.getStartDate())) {
+                log.info("OneLms loan start date is after current date");
                 responseDTOFromOneLms.setEdiStarted(Boolean.TRUE);
             }
 
@@ -1474,5 +1475,25 @@ public class LoanDisplayService {
         return false;
     }
 
+    public void updateResponseDto(LendingMerchantLoansResponseDTO responseDTO, LendingMerchantLoansResponseDTO responseDTOFromOneLms) {
+
+        if (!ObjectUtils.isEmpty(responseDTOFromOneLms)) {
+            List<LendingMerchantLoansResponseDTO.Loan> loansList = new ArrayList<>(responseDTO.getLoans());
+            loansList.addAll(responseDTOFromOneLms.getLoans());
+            responseDTO.setLoans(loansList);
+
+            if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getRepaymentDetails())) {
+                responseDTO.setRepaymentDetails(responseDTOFromOneLms.getRepaymentDetails());
+            }
+
+            if (Boolean.TRUE.equals(responseDTOFromOneLms.getEdiStarted())) {
+                responseDTO.setEdiStarted(true);
+            }
+
+            if (!ObjectUtils.isEmpty(responseDTOFromOneLms.getPenaltyConfig())) {
+                responseDTO.setPenaltyConfig(responseDTOFromOneLms.getPenaltyConfig());
+            }
+        }
+    }
 }
 
