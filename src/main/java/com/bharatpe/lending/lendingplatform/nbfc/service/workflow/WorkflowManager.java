@@ -25,7 +25,7 @@ public class WorkflowManager {
 						return LOAN_DOCUMENT_UPLOAD;
 				}
 			default:
-				log.error("Invalid lender: {}. Returning an empty workflow stage", lender);
+				log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
 				return null;
 		}
 	}
@@ -44,7 +44,7 @@ public class WorkflowManager {
 						return null;
 				}
 			default:
-				log.error("No workflow stage found for invalid lender:{}", lender);
+				log.warn("No workflow stage found for invalid lender:{}", lender);
 				return null;
 		}
 	}

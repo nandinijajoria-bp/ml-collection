@@ -46,7 +46,7 @@ public class NachWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<NachRegistrationRequest> nachRegistrationRequest = getNachRegistrationRequest(lendingApplication);
         if (ObjectUtils.isEmpty(nachRegistrationRequest)) {
-            log.error("Nach request is empty for application id {}", applicationId);
+            log.warn("Nach request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
             return;

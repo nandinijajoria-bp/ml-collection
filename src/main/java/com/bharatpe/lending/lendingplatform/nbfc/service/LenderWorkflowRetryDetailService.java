@@ -19,7 +19,7 @@ public class LenderWorkflowRetryDetailService {
         try {
             Optional<LenderWorkflowRetryDetail> optional = lenderWorkflowRetryDetailDao.findById(id);
             if (!optional.isPresent()) {
-                log.error("Lender workflow retry detail not found for id: {}", id);
+                log.warn("Lender workflow retry detail not found for id: {}", id);
                 return;
             }
             LenderWorkflowRetryDetail lenderWorkflowRetryDetail = optional.get();

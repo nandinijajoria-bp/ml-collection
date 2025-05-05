@@ -45,7 +45,7 @@ public class LoanDocumentDigiSignWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<LoanDocumentDigiSignRequest> loanDocumentDigiSignRequest = getLoanDocumentDigiSignRequest(lendingApplication);
         if (ObjectUtils.isEmpty(loanDocumentDigiSignRequest)) {
-            log.error("Loan document digi sign request is empty for application id {}", applicationId);
+            log.warn("Loan document digi sign request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, DIGI_SIGN_FAILED);
             return;

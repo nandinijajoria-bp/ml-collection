@@ -42,7 +42,7 @@ public class LoanDocumentWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<LoanDocumentUploadRequest> loanDocumentUploadRequest = getLoanDocumentUploadRequest(lendingApplication);
         if (ObjectUtils.isEmpty(loanDocumentUploadRequest)) {
-            log.error("Loan document upload request is empty for application id {}", applicationId);
+            log.warn("Loan document upload request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
             return;

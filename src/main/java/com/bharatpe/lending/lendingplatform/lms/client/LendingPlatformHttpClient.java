@@ -6,6 +6,7 @@ import com.bharatpe.lending.lendingplatform.lms.dto.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class LendingPlatformHttpClient {
     private static final String NO_RESPONSE_BODY = "No response body";
 
     @Autowired
+    @Qualifier("LendingPlatformRestTemplate")
     private RestTemplate restTemplate;
 
     @Autowired

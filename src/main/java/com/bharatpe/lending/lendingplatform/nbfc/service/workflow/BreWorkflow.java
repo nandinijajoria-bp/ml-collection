@@ -52,7 +52,7 @@ public class BreWorkflow implements Workflow {
         lendingApplicationDetailsService.save(lendingApplicationDetails);
         LenderBaseRequest<BRERequest> breRequest = getBRERequest(lendingApplication);
         if (ObjectUtils.isEmpty(breRequest)) {
-            log.error("BRE request is empty for application id {}", applicationId);
+            log.warn("BRE request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
             return;
