@@ -44,7 +44,7 @@ public class LoanSanctionWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<LoanSanctionRequest> loanSanctionRequest = getLoanSanctionRequest(lendingApplication);
         if (ObjectUtils.isEmpty(loanSanctionRequest)) {
-            log.error("Loan sanction request is empty for application id {}", applicationId);
+            log.warn("Loan sanction request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, SANCTION_FAILED);
             return;

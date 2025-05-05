@@ -46,7 +46,7 @@ public class KYCWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<KYCRequest> kycRequest = getKYCRequest(lendingApplication);
         if (ObjectUtils.isEmpty(kycRequest)) {
-            log.error("KYC request is empty for application id {}", applicationId);
+            log.warn("KYC request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
             return;

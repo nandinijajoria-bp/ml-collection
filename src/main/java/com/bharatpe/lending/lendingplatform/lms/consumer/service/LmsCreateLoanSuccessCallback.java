@@ -2,11 +2,12 @@ package com.bharatpe.lending.lendingplatform.lms.consumer.service;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LmsLoanStatusDao;
 import com.bharatpe.lending.common.dto.KafkaAudit;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LmsLoanStatus;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -55,6 +56,9 @@ public class LmsCreateLoanSuccessCallback {
     @Lazy
     private LiquiloansAsyncService liquiloansAsyncService;
 
+    @Autowired
+    private LendingApplicationLenderDetailsDao laldDao;
+
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Autowired
@@ -91,10 +95,19 @@ public class LmsCreateLoanSuccessCallback {
 
             executeSmsAndPaymentLink(lendingApplication, newSchedule, basicDetails);
 
-            //Updating lms_loan_status Entity
+            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    laldDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(
+                            lendingApplication.getId(),
+                            Status.ACTIVE.name(),
+                            lendingApplication.getLender());
+            lendingApplicationLenderDetails.setLan(postPayoutResponseDto.getNbfcId());
+            lendingApplicationLenderDetails.setLoanCreationTimestamp(postPayoutResponseDto.getLoanStartDate());
+            lendingApplicationLenderDetails.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_COMPLETED.name());
+            lendingApplicationLenderDetails.setLeadSubStatus(LeadSubStatus.SUCCESS);
+
             lmsLoanStatus.setStatus("SUCCESS");
             lmsLoanStatus.setUpdatedAt(new Date());
-            updateDBForDisbursedLoan(newSchedule, lendingApplication, lmsLoanStatus);
+            updateDBForDisbursedLoan(newSchedule, lendingApplication, lmsLoanStatus, lendingApplicationLenderDetails);
             log.info("Disbursed loan successful for applicationId: {}", lendingApplication.getId());
         }catch (Exception e) {
             log.error("Exception in processing loan creation callback: {}", e.getMessage(), e);
@@ -214,12 +227,13 @@ public class LmsCreateLoanSuccessCallback {
      * @param loanMigrationStatus the loan migration status
      */
     @Transactional
-    private void updateDBForDisbursedLoan(LendingPaymentSchedule newSchedule, LendingApplication application, LmsLoanStatus loanMigrationStatus) {
+    private void updateDBForDisbursedLoan(LendingPaymentSchedule newSchedule, LendingApplication application, LmsLoanStatus loanMigrationStatus, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
         log.info("Updating database for disbursed loan: applicationId={}, scheduleId={}, migrationStatusId={}",
                 application.getId(), newSchedule.getId(), loanMigrationStatus.getId());
         lendingApplicationDao.save(application);
         lendingPaymentScheduleDao.save(newSchedule);
         lmsLoanStatusDao.save(loanMigrationStatus);
+        laldDao.save(lendingApplicationLenderDetails);
         log.info("Database update completed for disbursed loan: applicationId={}", application.getId());
     }
 }

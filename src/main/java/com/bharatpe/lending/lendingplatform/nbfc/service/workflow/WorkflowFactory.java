@@ -41,7 +41,7 @@ public class WorkflowFactory {
 			case UPDATE_LEAD:
 				return updateLeadWorkflow;
 			default:
-				log.error("Invalid workflow stage: {}. Returning null", stage);
+				log.warn("Invalid workflow stage: {}. Returning null", stage);
 				return null;
 		}
 	}

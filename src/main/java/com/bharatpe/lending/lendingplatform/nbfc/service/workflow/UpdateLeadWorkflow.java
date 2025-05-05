@@ -45,7 +45,7 @@ public class UpdateLeadWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<UpdateLeadRequest> updateLeadRequest = getUpdateLeadRequest(lendingApplication);
         if (ObjectUtils.isEmpty(updateLeadRequest)) {
-            log.error("Update lead request is empty for application id {}", applicationId);
+            log.warn("Update lead request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, UPDATE_LEAD_FAILED);
             return;

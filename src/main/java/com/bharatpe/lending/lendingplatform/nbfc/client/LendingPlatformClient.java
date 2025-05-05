@@ -148,7 +148,7 @@ public class LendingPlatformClient {
                         typedData
                 );
             } else {
-                log.error("failed for applicationId={} - HTTP Status: {},response status code: {}", operation, applicationId, responseEntity.getStatusCode());
+                log.warn("failed for applicationId={} - HTTP Status: {},response status code: {}", operation, applicationId, responseEntity.getStatusCode());
                 return LenderApiResponse.error(INTERNAL_SERVER_ERROR, "Unexpected response from lender", null);
             }
         } catch (HttpClientErrorException e) {

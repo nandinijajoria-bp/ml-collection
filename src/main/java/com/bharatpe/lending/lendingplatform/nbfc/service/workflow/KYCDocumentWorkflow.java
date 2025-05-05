@@ -46,7 +46,7 @@ public class KYCDocumentWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<KYCDocumentUploadRequest> kycDocumentUploadRequest = getKYCDocumentUploadRequest(lendingApplication);
         if (ObjectUtils.isEmpty(kycDocumentUploadRequest)) {
-            log.error("KYC document upload request is empty");
+            log.warn("KYC document upload request is empty");
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
             return;

@@ -55,12 +55,12 @@ public class CreateLeadWorkflow implements Workflow {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = createLald(lendingApplication);
         if (ObjectUtils.isEmpty(lald)) {
-            log.error("Lending application lender details not created for application id: {}", applicationId);
+            log.warn("Lending application lender details not created for application id: {}", applicationId);
             return;
         }
         LenderBaseRequest<CreateLeadRequest> createLeadRequest = getCreateLeadRequest(lendingApplication);
         if(ObjectUtils.isEmpty(createLeadRequest)) {
-            log.error("Create lead request is empty for applicationId={}", applicationId);
+            log.warn("Create lead request is empty for applicationId={}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
             return;
@@ -90,7 +90,7 @@ public class CreateLeadWorkflow implements Workflow {
     private void processCreateLeadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                            LenderApiResponse<CreateLeadResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isCreateLeadResponseDataSuccess(response)) {
-            log.error("Create lead failed for application id {}", applicationId);
+            log.info("Create lead failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
             return;

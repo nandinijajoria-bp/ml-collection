@@ -78,7 +78,7 @@ public class LmsLoanCreationService {
                 return;
             }
 
-            log.error("Loan request failed: Empty or invalid response received for BP Loan ID: {}",
+            log.info("Loan request failed: Empty or invalid response received for BP Loan ID: {}",
                     lendingApplication.getExternalLoanId());
             throw new RuntimeException("Loan initiation failed: Invalid response from lending platform.");
         } catch (Exception e) {
@@ -221,7 +221,7 @@ public class LmsLoanCreationService {
             }
         }
 
-
+        String customerName = cKycResponseDto.getName().replaceAll("[^a-zA-Z0-9 ]", "");
         return CreateLoanRequest.CustomerDetails.builder()
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))
                 .customerAddress(cKycResponseDto.getAddress())
@@ -236,16 +236,16 @@ public class LmsLoanCreationService {
                 .customerBankIFSC(merchantBankDetail.getIfsc())
                 .customerFatherName(
                         ObjectUtils.isEmpty(lendingApplicationKycDetails) || ObjectUtils.isEmpty(lendingApplicationKycDetails.getFatherName())
-                                ? "FO " + lendingApplication.getMerchantName()
-                                : lendingApplicationKycDetails.getFatherName()
+                                ? "FO " + customerName
+                                : lendingApplicationKycDetails.getFatherName().replaceAll("[^a-zA-Z0-9 ]", "")
                 )
                 .customerMobileNo(cKycResponseDto.getMobile().length() > 10
                         ? cKycResponseDto.getMobile().substring(cKycResponseDto.getMobile().length() - 10)
                         : cKycResponseDto.getMobile())
                 .customerName(
-                        cKycResponseDto.getName().contains(" ") ?
-                                cKycResponseDto.getName() :
-                                cKycResponseDto.getName() + " " + cKycResponseDto.getName()
+                        customerName.contains(" ")
+                                ? customerName
+                                : customerName + " " + customerName
                 )
                 .customerPAN(cKycResponseDto.getPanNumber())
                 .shopAddress(lendingApplication.getStreetAddress())

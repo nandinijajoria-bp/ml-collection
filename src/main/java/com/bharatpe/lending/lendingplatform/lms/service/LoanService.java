@@ -121,7 +121,7 @@ public class LoanService {
         }
 
         try {
-            return processPostPayoutSchedule(postPayoutRequestDto);
+            return processPostPayoutSchedule(postPayoutRequestDto, lendingApplication);
         } catch (Exception e) {
             logger.error("Unexpected error in populatePostPayoutSchedule: {}", Arrays.toString(e.getStackTrace()));
             logger.info("Changing loan_disbursal_status back to 'PENDING'");
@@ -132,18 +132,10 @@ public class LoanService {
         }
     }
 
-    public ResponseEntity<PostPayoutResponseDto> processPostPayoutSchedule(PostPayoutRequestDto postPayoutRequestDto) {
+    public ResponseEntity<PostPayoutResponseDto> processPostPayoutSchedule(PostPayoutRequestDto postPayoutRequestDto, LendingApplication lendingApplication) {
         PostPayoutResponseDto responseDto = initializeResponse(postPayoutRequestDto);
         KafkaAudit<PostPayoutAuditDto> kafkaAudit = new KafkaAudit<>("easy_loan", "lending", "post_payout", null);
         PostPayoutAuditDto auditDto = createAuditDto(postPayoutRequestDto);
-
-        logger.info("Fetching loan application for application id {}", postPayoutRequestDto.getApplicationId());
-        LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(postPayoutRequestDto.getApplicationId());
-
-        if (ObjectUtils.isEmpty(lendingApplication)) {
-            logger.error("Loan application not found for loanId {}", postPayoutRequestDto.getApplicationId());
-            return handleFailure(responseDto, auditDto, kafkaAudit, "Invalid applicationId", HttpStatus.BAD_REQUEST);
-        }
 
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY); // Include all fields

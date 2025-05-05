@@ -57,7 +57,7 @@ public class DisbursalWorkflow implements Workflow {
         lendingApplicationLenderDetailsService.save(lald);
         LenderBaseRequest<LoanDisbursalRequest> loanDisbursalRequest = getLoanDisbursalRequest(lendingApplication);
         if (ObjectUtils.isEmpty(loanDisbursalRequest)) {
-            log.error("Loan disbursal request is empty for application id {}", applicationId);
+            log.warn("Loan disbursal request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
             return;
