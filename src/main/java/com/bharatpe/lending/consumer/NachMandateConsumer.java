@@ -55,7 +55,7 @@ public class NachMandateConsumer {
                 HashMap<String, Object> cleverTapEvtData = new HashMap<String, Object>() {{
                     put("applicationId", applicationId);
                 }};
-                cleverTapEventService.sendClevertapEvent(CleverTapEvents.NACH_CANCELLATION_INIT.name(), cleverTapEvtData, merchantId.toString());
+                cleverTapEventService.sendClevertapEvent(CleverTapEvents.NACH_CANCELLATION_SUCCESS.name(), cleverTapEvtData, merchantId.toString());
                 nachMandateRevokeRequest.setStatus("SUCCESS");
                 nachMandateRevokeRequestDao.save(nachMandateRevokeRequest);
                 return;
