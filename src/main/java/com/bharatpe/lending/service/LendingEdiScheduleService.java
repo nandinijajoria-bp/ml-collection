@@ -10,7 +10,6 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.dto.EdiScheduleDTO;
 import com.bharatpe.lending.dto.EdiScheduleV2DTO;
-import com.bharatpe.lending.dto.LoanApplicationDetailsDto;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.util.Finance;
 import org.slf4j.Logger;
@@ -353,37 +352,37 @@ public class LendingEdiScheduleService {
         return new CommonResponse(false, "Something went wrong in V3 edi schedule");
     }
 
-    public CommonResponse getEdiScheduleForEdi(long applicationId, Double edi , LoanApplicationDetailsDto loanApplicationDetailsDto) {
+    public CommonResponse getEdiScheduleForEdi(long merchantId, long applicationId, Double edi , LendingApplication lendingApplication) {
         logger.info("Creating EDI Schedule V2 for applicationId:{}", applicationId);
         try {
-            if (loanApplicationDetailsDto == null) {
+            if (lendingApplication == null) {
                 return new CommonResponse(false, "Lending application not found");
             }
 
             int installmentNo = 1;
-            int ediCount = loanApplicationDetailsDto.getPayableDays().intValue();
-            Double openingBalance = loanApplicationDetailsDto.getLoanAmount();
+            int ediCount = lendingApplication.getPayableDays().intValue();
+            Double openingBalance = lendingApplication.getLoanAmount();
             double totalInterest = 0D;
             Double totalPrincipal = 0D;
             List<EdiScheduleV2DTO> ediSchedules = new ArrayList<>();
             Calendar cal = Calendar.getInstance();
 
             double reducingInterestRateDaily =
-                    Finance.rate(ediCount, edi.intValue(), loanApplicationDetailsDto.getLoanAmount());
+                    Finance.rate(ediCount, edi.intValue(), lendingApplication.getLoanAmount());
             int normalEdIinstallmentNo = 1;
             while (normalEdIinstallmentNo <= ediCount) {
-                Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * loanApplicationDetailsDto.getLoanAmount()));
+                Double principal = round(Finance.ppmt(reducingInterestRateDaily, normalEdIinstallmentNo, ediCount, -1 * lendingApplication.getLoanAmount()));
                 double interest = round(edi.intValue() - principal);
 
-                if (Lender.PIRAMAL.name().equalsIgnoreCase(loanApplicationDetailsDto.getLender())) {
+                if (Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender())) {
                     interest = roundToWhole(interest);
                     principal = edi.intValue() - interest;
                 }
 
-                if(normalEdIinstallmentNo == ediCount && !loanApplicationDetailsDto.getLoanAmount().equals(totalPrincipal + principal)) {
-                    double diff = loanApplicationDetailsDto.getLoanAmount() - (totalPrincipal + principal);
-                    principal = round(loanApplicationDetailsDto.getLoanAmount() - totalPrincipal);
-                    interest = round(interest - diff < 0 ? 0 : interest - diff);
+                if(normalEdIinstallmentNo == ediCount && !lendingApplication.getLoanAmount().equals(totalPrincipal + principal)) {
+                        double diff = lendingApplication.getLoanAmount() - (totalPrincipal + principal);
+                        principal = round(lendingApplication.getLoanAmount() - totalPrincipal);
+                        interest = round(interest - diff < 0 ? 0 : interest - diff);
                 }
                 totalPrincipal = totalPrincipal + principal;
                 totalInterest = totalInterest + interest;
@@ -406,5 +405,4 @@ public class LendingEdiScheduleService {
         }
         return new CommonResponse(false, "Something went wrong");
     }
-
 }
