@@ -121,7 +121,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
             LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId()).orElse(null);
             if ("UPI".equalsIgnoreCase(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), 1)
                     && "TRILLIONLOANS".equalsIgnoreCase(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
-                    && lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted().equalsIgnoreCase("Y")) {
+                    && !"Y".equalsIgnoreCase(lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted())) {
                 log.info("Real time reciept posting for UPI {}", lendingLedger);
                 confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
             }
