@@ -56,6 +56,7 @@ import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.NachBounceChargesService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -297,7 +298,6 @@ public class LoanUtil {
 	List<Long> updateLeadLenderClientIdsList = new ArrayList();
 
 
-
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
@@ -312,6 +312,12 @@ public class LoanUtil {
 
 	@Autowired
 	EasyLoanUtil easyLoanUtil;
+
+	@Autowired
+	NachBounceChargesService nachBounceChargesService;
+
+	@Value("${payu.nach.bounce.charge:500}")
+	Integer payUNachBounceCharge;
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
@@ -2430,14 +2436,14 @@ public class LoanUtil {
 				nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
 				netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
 				double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
-				penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-				penalCharge.setPaidNachBounce(paidNachBounce);
+				penalCharge.setDueNachBounce((double) Math.round(penalCharge.getDueNachBounce() - nachBounceAdjusted));
+				penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
 			}
 
 			if (Objects.nonNull(penalCharge.getDuePenalty())) {
 				double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
-				penalCharge.setPaidPenalty(paidPenalty);
-				penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+				penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+				penalCharge.setDuePenalty((double) Math.round(penalCharge.getDuePenalty() - netPenaltyAdjusted));
 			}
 			penalChargesDao.save(penalCharge);
 		} catch (Exception e) {

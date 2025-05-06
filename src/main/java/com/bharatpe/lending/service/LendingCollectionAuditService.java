@@ -50,8 +50,11 @@ public class LendingCollectionAuditService {
             String nbfcId = null;
 
             if (!ObjectUtils.isEmpty(lendingLedger.getLendingPaymentSchedule().getApplicationId())) {
+                log.info("inside creating lending collection audit for lending payment schedule {}",lendingLedger.getLendingPaymentSchedule());
+                log.info("inside creating lending collection audit for lending application id {}",lendingLedger.getLendingPaymentSchedule().getApplicationId());
                 Optional<LendingApplicationSlave> lendingApplicationSlave = lendingApplicationDaoSlave.findById(lendingLedger.getLendingPaymentSchedule().getApplicationId());
                 if (lendingApplicationSlave.isPresent()) {
+                    log.info("inside creating lending collection audit for lending application {}",lendingApplicationSlave.get());
                     bpLoanId = lendingApplicationSlave.get().getExternalLoanId();
                     nbfcId = lendingApplicationSlave.get().getNbfcId();
                 }
