@@ -25,6 +25,7 @@ import com.bharatpe.lending.common.dto.SettleLoanPaymentDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
 import com.bharatpe.lending.common.query.dao.LoanDpdDaoSlave;
 import com.bharatpe.lending.common.query.dao.LoanPaymentOrderSlaveDao;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
@@ -95,6 +96,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
@@ -267,6 +269,12 @@ public class PaymentService {
     @Value("${easy.loans.pg.redirection.url:easy-loans}")
     String pgRedirectionUrl;
 
+    @Value("${payu.nach.bounce.charge:500}")
+    Integer payUNachBounceCharge;
+
+    @Autowired
+    LendingPullPaymentDaoSlave lendingPullPaymentDaoSlave;
+
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
@@ -336,6 +344,9 @@ public class PaymentService {
     UgroConfig ugroConfig;
 
     @Autowired
+    NachBounceChargesService nachBounceChargesService;
+  
+    @Autowired
     PaymentAsynchronousService paymentAsynchronousService;
 
     @Autowired
@@ -346,6 +357,7 @@ public class PaymentService {
 
     @Autowired
     LmsPaymentDetailsDao lmsPaymentDetailsDao;
+
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -465,6 +477,11 @@ public class PaymentService {
                     data.setForeClosureAmount(data.getForeClosureDetail().getPrincipalOutstanding() +
                             data.getForeClosureDetail().getForeclosureCharges()+data.getForeClosureDetail().getGst());
                 }
+            }
+            if(LendingEnum.LENDER.PAYU.toString().equals(activeLoan.getNbfc()) && nachBounceChargesService.checkForNachBounce(activeLoan)){
+                log.info("loanId {} adding nach bounce charges to penalty and foreclosure amount",activeLoan.getId());
+                penaltyFee += payUNachBounceCharge;
+                data.setForeClosureAmount(data.getForeClosureAmount()+payUNachBounceCharge);
             }
         }
         Double paidPrinciple = activeLoan.getPaidPrinciple() != null
@@ -896,14 +913,13 @@ public class PaymentService {
                             lendingPullPayment.setErrorDescription(request.getErrorDescription());
                             lendingPullPayment.setStatus(request.getPaymentStatus());
                             lendingPullPaymentDao.save(lendingPullPayment);
-                            if("FAILED".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                            if(!"PENDING".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),previouMandateFailed -1);
                             log.info("consecutive records for id {} lendingPullPaymentList size is {}",lendingPullPayment.getId(),lendingPullPaymentList.size());
                             if(checkConsecutiveFailures(lendingPullPaymentList,previouMandateFailed -1) ){
                                 log.info("Consecutive failures found for mandateId {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
                                 List<String> statusList = new ArrayList<>();
-                                statusList.add(AutoPayStatusEnum.PENDING.name());
-                                statusList.add(AutoPayStatusEnum.SUCCESS.name());
+                                statusList.add(AutoPayStatusEnum.ACTIVE.name());
                                 AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc(), statusList);
                                 autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.HARD_QR_DEDUCTION.name());
                                 autoPayUPIDao.save(autoPayUPI);
@@ -1359,9 +1375,19 @@ public class PaymentService {
             return;
         }
 
-        if(principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
+        String requestId = UUID.randomUUID().toString().replaceAll("-", "");
+        Boolean postChargesToLender = false;
+        Integer pendingNachCharges = nachBounceChargesService.getNachCharges(activeLoan).intValue();
+        if(principalDueAmount + ediHolidayInterestAmount + pendingNachCharges - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
+            if (LendingEnum.LENDER.PAYU.name().equals(activeLoan.getNbfc()) && nachBounceChargesService.checkForNachBounce(activeLoan)) {
+                log.info("Found Nach Bounce Charges for loan: {}, nbfc: {} ", activeLoan.getId(), activeLoan.getNbfc());
+                nachBounceChargesService.createCharges(activeLoan, requestId);
+                //TODO LPS update
+                penaltyFee += payUNachBounceCharge;
+                postChargesToLender = true;
+            }
             paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0) + ediHolidayInterestAmount;
             paidPrincipalAmount = amount - paidInterestAmount + advanceEdiAmount + excessCollectionBalance - penaltyFee - foreclosureChargesAmount;
             double extraPrinciple = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
@@ -1615,7 +1641,7 @@ public class PaymentService {
             } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())){
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
             } else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())){
-                loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId);
+                loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId,postChargesToLender,requestId);
             }else if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(activeLoan.getNbfc())
                       || Lender.LIQUILOANS_P2P_OF.name().equalsIgnoreCase(activeLoan.getNbfc())
                       || Lender.LIQUILOANS_NBFC.name().equalsIgnoreCase(activeLoan.getNbfc())){
@@ -2445,10 +2471,20 @@ public class PaymentService {
             waiverSettlement(activeLoan, amount, bankRefNo, source, transferType, terminalOrderId, excessCollectionBalance, lendingCollectionExcessList);
             return;
         }
-        if(foreclosureAmount - amount <= 1D) {
+        String requestId = UUID.randomUUID().toString().replaceAll("-", "");
+        Boolean postChargesToLender = false;
+        Integer pendingNachCharges = nachBounceChargesService.getNachCharges(activeLoan).intValue();
+        if(foreclosureAmount + pendingNachCharges - amount <= 1D) {
             logger.info("Received pre closure amount:{} for loan:{}", amount, activeLoan.getId());
             paidInterestAmount = (activeLoan.getDueInterest() != null ? activeLoan.getDueInterest() : 0);
             penaltyFee = Objects.nonNull(activeLoan.getDuePenalty()) ? activeLoan.getDuePenalty() : 0;
+
+            if (LendingEnum.LENDER.PAYU.name().equals(activeLoan.getNbfc()) && nachBounceChargesService.checkForNachBounce(activeLoan)) {
+                log.info("Found Nach Bounce Charges for loan: {}, nbfc: {} ", activeLoan.getId(), activeLoan.getNbfc());
+                nachBounceChargesService.createCharges(activeLoan, requestId);
+                penaltyFee += payUNachBounceCharge;
+                postChargesToLender = true;
+            }
             paidPrincipalAmount = amount - paidInterestAmount + excessCollectionBalance - penaltyFee - foreclosureChargesAmount;
             remainingBalance = (activeLoan.getPaidPrinciple() + paidPrincipalAmount) - activeLoan.getLoanAmount();
 
@@ -2568,7 +2604,7 @@ public class PaymentService {
                 sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
             }
             else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())) {
-                loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId);
+                loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId, postChargesToLender, requestId);
             }
             else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", Lender.UGRO.name()).contains(activeLoan.getNbfc())) {
                 postForeclosureReceipt(activeLoan, lendingLedger);

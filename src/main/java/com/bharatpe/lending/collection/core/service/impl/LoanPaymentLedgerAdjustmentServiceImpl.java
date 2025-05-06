@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -80,6 +81,8 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     LoanUtil loanUtil;
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+    @Autowired
+    private EasyLoanUtil easyLoanUtil;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -112,6 +115,18 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
             //push loanId to kafka
             confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+        }
+        try {
+            log.info("inside sending upi-real-time-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId());
+            LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId()).orElse(null);
+            if ("UPI".equalsIgnoreCase(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), 1)
+                    && "TRILLIONLOANS".equalsIgnoreCase(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
+                    && lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted().equalsIgnoreCase("Y")) {
+                log.info("Real time reciept posting for UPI {}", lendingLedger);
+                confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+            }
+        }catch (Exception ex){
+            log.error("Error while sending autopayupi-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId(), ex);
         }
         return lendingLedger;
     }
@@ -295,8 +310,8 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                 nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
                 netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
                 double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
-                penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-                penalCharge.setPaidNachBounce(paidNachBounce);
+                penalCharge.setDueNachBounce((double) Math.round(penalCharge.getDueNachBounce() - nachBounceAdjusted));
+                penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
                 LendingApplicationLenderDetails lendingApplicationLenderDetails =
                         lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
                 PenaltyFeeLedger nachBounceLedgerApplied = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(loan.getId());
@@ -307,8 +322,8 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
 
             if (Objects.nonNull(penalCharge.getDuePenalty())) {
                 double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
-                penalCharge.setPaidPenalty(paidPenalty);
-                penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+                penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+                penalCharge.setDuePenalty((double) Math.round(penalCharge.getDuePenalty() - netPenaltyAdjusted));
             }
             penalChargesDao.save(penalCharge);
         } catch (Exception e) {

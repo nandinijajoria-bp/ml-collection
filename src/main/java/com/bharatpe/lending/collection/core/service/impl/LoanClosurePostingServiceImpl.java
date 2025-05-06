@@ -7,12 +7,15 @@ import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingCollectionAuditDao;
 import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
+import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.entity.LoanForeClosureCharges;
+import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.PaymentAdjustmentModes;
+import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.enums.TransferTypeModes;
-import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
@@ -24,7 +27,6 @@ import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
-import com.bharatpe.lending.loanV3.dto.request.oxyzo.OxyzoForeclosureDetailsRequestDTO;
 import com.bharatpe.lending.loanV3.dto.trillions.TrillionForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
@@ -76,16 +78,24 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
-
     @Autowired
-    LoanUtil loanUtil;
+    PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
+    @Autowired
+    LoanUtil loanUtil;
+
     @Lazy
     @Autowired
     CreditSaisonConfig csConfig;
+
+    @Value("${payu.nach.bounce.charge:500}")
+    Integer payUNachBounceCharge;
+
+    @Value("${nbfc.foreclosure.charge:api/v3/lender/post-charges}")
+    String nbfcChargePosting;
 
     @Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
     String nbfcBaseUrl;
@@ -419,8 +429,60 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         loanForeClosureChargesDao.save(loanForeClosureCharges);
     }
 
+    public void postPenaltyFeeChargeToLender(LendingPaymentSchedule activeLoan, PostChargesToLenderDTO postChargesToLenderDTO) {
+        try{
+            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(activeLoan.getApplicationId(), Status.ACTIVE.name());
+
+            PayUChargesRequestDto payUChargesRequestDto = PayUChargesRequestDto.builder()
+                    .applicationId(activeLoan.getApplicationId().toString())
+                    .productName("LENDING")
+                    .lender(Lender.PAYU.name())
+                    .payload(PayUChargesRequestDto.Payload.builder()
+                            .chargeDate(new SimpleDateFormat("yyyy-MM-dd").format( Calendar.getInstance(TimeZone.getDefault()).getTime()))
+                            .chargeType(postChargesToLenderDTO.getChargeType())
+                            .requestId(postChargesToLenderDTO.getChargeId())
+                            .loanId(lendingApplicationLenderDetails.getLan())
+                            .amount(postChargesToLenderDTO.getPenaltyFee())
+                            .applicationId(lendingApplicationLenderDetails.getLeadId())
+                            .build())
+                    .build();
+
+            log.info("PayU: posting penalty charges to lender {}", payUChargesRequestDto);
+
+            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(payUChargesRequestDto), NbfcResponseDto.class, nbfcBaseUrl + nbfcChargePosting);
+
+            log.info("PayU: response penalty charges posting request :{} and response : {}", objectMapper.writeValueAsString(payUChargesRequestDto), nbfcResponseDto);
+            PenaltyFeeLedger penaltyFeeLedger = penaltyFeeLedgerDao.findNachBounceCharge(activeLoan.getId(),postChargesToLenderDTO.getChargeId());
+
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                log.info("PayU: penalty charges posted to lender: {}", nbfcResponseDto);
+                penaltyFeeLedger.setIsPosted(true);
+                penaltyFeeLedger.setPostingStatus("SUCCESS");
+                penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            } else {
+                penaltyFeeLedger.setIsPosted(false);
+                penaltyFeeLedger.setPostingStatus("FAILED");
+                penaltyFeeLedgerDao.save(penaltyFeeLedger);
+                log.error("PayU: penalty charges posting failed to request {} response {}", payUChargesRequestDto, nbfcResponseDto);
+                throw new Exception("Penalty charges posting failed");
+            }
+        }
+        catch (Exception e){
+            log.error("Error in Posting Penalty Charge to Lender for loan: {} and error: {}: {}", activeLoan.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
     @Override
-    public void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId) {
+    public void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId, Boolean postPendingCharges, String requestId) {
+        LendingPaymentSchedule loan = lendingPaymentScheduleDao.findByApplicationId(applicationId);
+        if(postPendingCharges){
+            postPenaltyFeeChargeToLender(loan, PostChargesToLenderDTO.builder()
+                    .penaltyFee(payUNachBounceCharge)
+                    .chargeType("NACH_BOUNCE_CHARGE")
+                    .chargeId(requestId)
+                    .build());
+        }
         String postingStatus = "FAILURE";
         String status="SUCCESS";
         LoanForeClosureCharges loanForeClosureCharges = loanForeClosureChargesDao.findByOrderId(orderId);

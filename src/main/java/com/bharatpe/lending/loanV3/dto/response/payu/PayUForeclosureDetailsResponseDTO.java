@@ -39,4 +39,18 @@ public class PayUForeclosureDetailsResponseDTO {
 
     private List<Integer> valueDate;
 
-}
+    private List<FeeChargesDetails> feeChargesDetails;
+
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class FeeChargesDetails {
+        private String chargeType;
+        private Double amount;
+    }
+
+    }

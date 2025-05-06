@@ -15,7 +15,7 @@ public interface LoanClosurePostingService {
 
     void sendForeclosureChargesEventLiquiLoans(long applicationId, long loanId, long lendingLedgerId, String lender, long orderId);
 
-    void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId);
+    void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId, Boolean postCharges, String requestId);
 
     void sendForeclosureEventToLender(Long applicationId, LendingLedger lendingLedger, Long orderId, String lender);
 

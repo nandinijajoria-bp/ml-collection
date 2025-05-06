@@ -48,12 +48,12 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     ForeClosureAmountInfoDao foreClosureAmountInfoDao;
 
     @Override
-    public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId) {
+    public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId, Boolean postCharges, String requestId) {
         log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),orderId);
         loan = closeLoanAndUpdateStatus(loan);
         updateForeclosureAmountInfoLedgerId(lendingLedger, orderId,loan.getId());
         log.info("posting closure status to lender for loanId {} and loan-details {}",loan.getId(),loan);
-        postClosureStatusToLender( loan,  lendingLedger,  orderId);
+        postClosureStatusToLender( loan,  lendingLedger,  orderId, postCharges, requestId);
     }
 
     private void updateForeclosureAmountInfoLedgerId(LendingLedger lendingLedger, Long orderId, Long loanId) {
@@ -72,7 +72,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     }
 
 
-    private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId) {
+    private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId, Boolean postCharges, String requestId) {
 
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
             if ("LDC".equals(activeLoan.getNbfc())) {
@@ -93,7 +93,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())) {
             loanClosurePostingService.sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
         } else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())) {
-            loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId);
+            loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId, postCharges,requestId);
         } else if(Lender.OXYZO.name().equalsIgnoreCase(activeLoan.getNbfc())){
             loanClosurePostingService.sendForeclosureEventToLender(activeLoan.getApplicationId(), lendingLedger, orderId, activeLoan.getNbfc());
         }

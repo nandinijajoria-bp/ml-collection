@@ -54,7 +54,7 @@ class LoanClosureServiceImplTest {
 
 
         // Act
-        loanClosureService.closeLoanAndUpdateLender(loan, lendingLedger, 123L);
+        loanClosureService.closeLoanAndUpdateLender(loan, lendingLedger, 123L,false, null);
 
 
         verify(lendingPaymentScheduleDao, times(1)).save(loan);
