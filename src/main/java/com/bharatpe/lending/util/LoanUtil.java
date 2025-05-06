@@ -45,6 +45,7 @@ import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -247,6 +248,9 @@ public class LoanUtil {
 
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+	@Autowired
+	LendingApplicationServiceV2 lendingApplicationServiceV2;
 
 	@Autowired
 	private LoanDashboardService loanDashboardService;
@@ -2847,6 +2851,20 @@ public class LoanUtil {
 			return (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
 		}
 		return 0D;
+	}
+
+	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount){
+		eligibleLoan.setRateOfInterest(interestRate);
+		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
+		Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		Double repayment = ediAmount * eligibleLoan.getEdiCount();
+		eligibleLoan.setProcessingFee(processingFee.intValue());
+		eligibleLoan.setRepayment(repayment.intValue());
+		eligibleLoan.setEdi(ediAmount.intValue());
+		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
+		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
+		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
+		eligibleLoanDao.save(eligibleLoan);
 	}
 
 
