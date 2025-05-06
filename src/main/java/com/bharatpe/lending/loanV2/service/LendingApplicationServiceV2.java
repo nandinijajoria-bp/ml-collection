@@ -2899,7 +2899,7 @@ public class LendingApplicationServiceV2 {
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
-                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
+                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name(), Lender.SMFG.name()).contains(lender)) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -3160,7 +3160,7 @@ public class LendingApplicationServiceV2 {
                 PdfDocument pdfDocument = new PdfDocument(writer);
                 if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
                     if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()
-                            , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
+                            , Lender.CAPRI.name(), Lender.SMFG.name()).contains(lendingKfs.getLender())) {
                         ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                         ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                                 ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -4044,7 +4044,10 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/MamtaLogoKFS.png";
         } else if (lender.equalsIgnoreCase(Lender.SMFG.name())) {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/SMICC-Logo-1724934813170_1-1728285292259.png";
-        } else if(lender.equalsIgnoreCase(Lender.OXYZO.name()) && applicationDocType.equals(ApplicationDocType.OXYZO_LETTERHEAD_FOOTER)){
+        } else if(lender.equalsIgnoreCase(Lender.SMFG.name()) && applicationDocType.equals(ApplicationDocType.SMFG_LETTERHEAD_FOOTER)) {
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/smicc_footer-1746180929725.jpg";
+        }
+        else if(lender.equalsIgnoreCase(Lender.OXYZO.name()) && applicationDocType.equals(ApplicationDocType.OXYZO_LETTERHEAD_FOOTER)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/Oxyzo_footer-1737110322362.png";
         }
         else if(lender.equalsIgnoreCase(Lender.OXYZO.name())){

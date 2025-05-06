@@ -20,7 +20,8 @@ public enum ApplicationDocType {
     PAYU_GTC_DOC,
     LOA_DOC,
     APPLICATION_FORM_DOC,
-    OXYZO_LETTERHEAD_FOOTER;
+    OXYZO_LETTERHEAD_FOOTER,
+    SMFG_LETTERHEAD_FOOTER;
 
 
     public static ApplicationDocType getFooterMapping(Lender lender) {
@@ -38,6 +39,8 @@ public enum ApplicationDocType {
                 return CAPRI_LETTERHEAD_FOOTER;
             case PAYU:
                 return PAYU_LETTERHEAD_FOOTER;
+            case SMFG:
+                return SMFG_LETTERHEAD_FOOTER;
         }
         return null;
     }
