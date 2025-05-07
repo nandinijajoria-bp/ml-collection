@@ -2394,7 +2394,7 @@ public class LendingApplicationService {
             }
 
             // Fetch business category and subcategory
-            Map<String, String> businessCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(merchantId);
+            Map<String, String> businessCategoryMap = kycUtils.getBusinessCategoryAndSubCategoryByApplicationId(activeLoan.getApplicationId());
 
             // Build response DTO
             MerchantActiveLoanDetailsDTO responseDTO = MerchantActiveLoanDetailsDTO.builder()

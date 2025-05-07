@@ -29,10 +29,7 @@ import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.AesEncryptionUtil;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.common.util.LendingHmacCalculator;
-import com.bharatpe.lending.common.util.MapperUtil;
+import com.bharatpe.lending.common.util.*;
 import com.bharatpe.lending.constant.CreditConstants;
 import com.bharatpe.lending.constant.ExperianConstants;
 import com.bharatpe.lending.constant.LendingConstants;
@@ -48,6 +45,8 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
+import com.bharatpe.lending.lendingplatform.underwriting.service.UnderwritingService;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.BureauConsentDTO;
 import com.bharatpe.lending.loanV2.dto.LoanDetailsResponse;
@@ -286,6 +285,9 @@ public class APIGatewayService {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
+    @Autowired
+    ConfigResolver configResolver;
+
     @Value("${global.api.cache.ttl:48}")
     Long globalApiCacheTtl;
 
@@ -304,6 +306,13 @@ public class APIGatewayService {
 
     @Value("${shortner.api.signature}")
     private String shortnerApiSignature;
+    @Autowired
+    private UnderwritingService underwritingService;
+    @Autowired
+    private RolloutUtil rolloutUtil;
+
+    @Value("${insurance.service.base.url:}")
+    private String insuranceServiceBaseurl;
 
 
     @PostConstruct
@@ -374,6 +383,7 @@ public class APIGatewayService {
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("checkout",pgCreateTransactionRequestDTO.getCheckout());
+            requestParams.put("mandateMaxAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
 
             if (Objects.nonNull(pgCreateTransactionRequestDTO.getAccountNumber()) && Objects.nonNull(pgCreateTransactionRequestDTO.getIfscCode())) {
                 Map<String, String> bankDetail = new HashMap<>();
@@ -405,7 +415,7 @@ public class APIGatewayService {
                     logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
-                    logger.error("Exception in creation of mandate for the merchantId {} and exception e{} is ", merchantId, e);
+                    logger.error("Exception in creation of mandate for the merchantId {} and exception e {} is {}", merchantId, Arrays.asList(e.getStackTrace()),e.getMessage());
                 }
                 retryCount++;
             }
@@ -445,7 +455,7 @@ public class APIGatewayService {
             requestParams.put("customerId",pgCreateTransactionRequestDTO.getCustomerId());
             requestParams.put("mandateStartDate",pgCreateTransactionRequestDTO.getMandateStartDate());
             requestParams.put("mandateEndDate",pgCreateTransactionRequestDTO.getMandateEndDate());
-            requestParams.put("maxMandateAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
+            requestParams.put("mandateMaxAmount",pgCreateTransactionRequestDTO.getMaxMandateAmount());
 
 
 
@@ -470,7 +480,7 @@ public class APIGatewayService {
                     logger.info("Response received from Create Mandate pg transaction API {}", mapper.writeValueAsString(response));
                     return response;
                 } catch (Exception e) {
-                    logger.error("Exception in creation of mandate for the merchantId {} and exception e{} is ", merchantId, e);
+                    logger.error("Exception in creation of mandate for the merchantId {} and exception e {} is {}", merchantId, Arrays.asList(e.getStackTrace()),e.getMessage());
                 }
                 retryCount++;
             }
@@ -1783,6 +1793,13 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getScenapticGlobalLimit(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
         logger.info("Get scenaptic limit for merchant:{}", merchantId);
+        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(merchantId)){
+            log.info("Merchant {} has been rolled out to the platform v1 flow for Global Limit Response.", merchantId);
+            GlobalLimitResponse globalLimitResponse =  underwritingService.getEligibility(String.valueOf(merchantId),
+                    LendingConstants.LENDING_SOURCE, isPincodeChanged, flagForUwToSkipCache);
+            log.info("Global Limit response from platform v1 flow for merchantId : {} {}", merchantId, globalLimitResponse);
+            return globalLimitResponse;
+        }
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("merchantId", merchantId);
@@ -1846,6 +1863,7 @@ public class APIGatewayService {
                 if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingScenapticCachingPercent)) {
                     globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
                 }
+                logger.info("Global limit response for merchantId: {} {}", merchantId, globalLimitResponse);
                 return globalLimitResponse;
             }
             logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
@@ -3171,6 +3189,12 @@ public class APIGatewayService {
 
     public BureauConsentDTO.Data getBureauConsent(BureauConsentDTO.Data bureauConsentDTO) {
         logger.info("Get scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
+        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
+            log.info("Merchant {} is rolled out to platform v1 flow to retrieve bureau consent.", bureauConsentDTO.getMerchantId());
+            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.getBureauConsentData(LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile());
+            log.info("Bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
+            return bureauConsentDtoData;
+        }
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("mobile", bureauConsentDTO.getMobile());
@@ -3206,6 +3230,14 @@ public class APIGatewayService {
 
     public BureauConsentDTO.Data updateConsent(BureauConsentDTO.Data bureauConsentDTO) {
         logger.info("update scenaptic bureau consent for merchant:{}", bureauConsentDTO.getMerchantId());
+        if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(bureauConsentDTO.getMerchantId())){
+            log.info("Merchant {} is rolled out to platform v1 flow for bureau consent update.", bureauConsentDTO.getMerchantId());
+            BureauConsentDTO.Data bureauConsentDtoData =  underwritingService.updateBureauConsent(bureauConsentDTO.getMerchantId(),
+                    LendingConstants.LENDING_SOURCE, bureauConsentDTO.getMobile(), bureauConsentDTO.isConsent_expired(),
+                    bureauConsentDTO.getBureau_mobile());
+            log.info("Update bureau consent response from platform v1 flow for merchantId : {} {}", bureauConsentDTO.getMerchantId(), bureauConsentDtoData);
+            return bureauConsentDtoData;
+        }
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
             put("mobile", bureauConsentDTO.getMobile());
@@ -3308,6 +3340,43 @@ public class APIGatewayService {
             return responseEntity.getBody();
         } catch (Exception ex) {
             logger.info("Exception while getting payment link: {}, {}", externalPaymentLinkRequest.getAccountId(), externalPaymentLinkRequest.getCustomerId(), ex);
+        }
+        return null;
+    }
+
+    public InsuranceEligibilityResponseDTO.InsuranceEligibilityData fetchInsuranceEligibility(InsuranceEligibilityRequestDTO insuranceEligibilityRequest) {
+        try {
+            logger.info("get insurance eligibility for loan with amount {} and tenure {} for merchantId :{}", insuranceEligibilityRequest.getAmount(), insuranceEligibilityRequest.getTenure(), insuranceEligibilityRequest.getCustomerId());
+            Map<String, Object> request = configResolver.getConfig(objectMapper.writeValueAsString(insuranceEligibilityRequest), new TypeReference<Map<String, Object>>() {});
+
+            MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
+            request.forEach((key, value) -> queryParams.add(key, String.valueOf(value)));
+
+            String url = UriComponentsBuilder
+                    .fromHttpUrl(insuranceServiceBaseurl + LendingConstants.INSURANCE_ELIGIBILITY_API)
+                    .queryParams(queryParams)
+                    .build()
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Client-Name", CLIENT);
+            headers.set("hash", getHmacBase64(request));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
+
+            logger.info("request entity for insurance eligibility API:{} and url:{}", requestEntity, url);
+            ResponseEntity<InsuranceEligibilityResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, InsuranceEligibilityResponseDTO.class);
+            logger.info("response entity for insurance eligibility API:{} and url:{}", responseEntity, url);
+            if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
+                InsuranceEligibilityResponseDTO insuranceEligibilityResponse = responseEntity.getBody();
+                if(!ObjectUtils.isEmpty(insuranceEligibilityResponse) && insuranceEligibilityResponse.getSuccess() && !ObjectUtils.isEmpty(insuranceEligibilityResponse.getData())) {
+                    log.info("insurance eligibility response for merchantId {} {}", merchantId, insuranceEligibilityResponse.getData());
+                    return insuranceEligibilityResponse.getData();
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("Exception occurred while calling insurance eligibility API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }

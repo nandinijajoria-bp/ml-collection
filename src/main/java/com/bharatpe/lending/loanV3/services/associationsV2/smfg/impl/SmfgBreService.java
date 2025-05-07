@@ -44,6 +44,8 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.*;
 
+import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+
 @Slf4j
 @Service
 public class SmfgBreService {
@@ -111,7 +113,14 @@ public class SmfgBreService {
             }
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-            NBFCRequestDTO breRequest = getPayload(lenderAssociationDetailsRequestDto);
+            LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lenderAssociationDetailsRequestDto.getApplicationId());
+            NBFCRequestDTO<SmfgAppPushRequest> breRequest = getPayload(lenderAssociationDetailsRequestDto, lendingRiskVariablesSnapshot);
+            if (!ObjectUtils.isEmpty(breRequest) && ObjectUtils.isEmpty(breRequest.getPayload().getAdditionaldetails().getMerchantcategory())) {
+                log.info("merchant category not found for application id : {}, merchant category : {}, merchant subcategory {}", lenderAssociationDetailsRequestDto.getApplicationId(), breRequest.getPayload().getAdditionaldetails().getMerchantcategory(), breRequest.getPayload().getAdditionaldetails().getMerchantsubcategory());
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.MERCHANT_CATEGORY_NOT_FOUND.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+                return false;
+            }
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE);
             log.info("Bre response of SMFG from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
@@ -132,11 +141,10 @@ public class SmfgBreService {
         return false;
     }
 
-    private NBFCRequestDTO getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
+    private NBFCRequestDTO<SmfgAppPushRequest> getPayload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
         NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
-        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lenderAssociationDetailsRequest.getMerchantId());
         if (!bankDetailsDtoOptional.isPresent()) {
             log.info("bank details not found for merchantId : {}", lenderAssociationDetailsRequest.getMerchantId());
@@ -148,7 +156,6 @@ public class SmfgBreService {
             log.info("lending risk variable snapshot not found for applicationId : {}", lendingApplication.getId());
             throw new RuntimeException("lending risk variable snapshot not found for SMFG application " + lendingApplication.getId());
         }
-        Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
         PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(lendingApplication.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
         String mobile = ObjectUtils.isEmpty(cKycResponseDto.getBureauMobile()) ? kycUtils.getMobileFromKycData(cKycResponseDto) : cKycResponseDto.getBureauMobile();
         try {
@@ -203,13 +210,11 @@ public class SmfgBreService {
                             .livelinessscore(cKycResponseDto.getSelfieLivelinessScore())
                             .selfiematchscore(!ObjectUtils.isEmpty(cKycResponseDto.getSelfieAadhaarFaceMatchPer()) ? cKycResponseDto.getSelfieAadhaarFaceMatchPer() / 100 : null)
                             .pennydropnamematchper(cKycResponseDto.getBankBenePanNameMatchPer())
-                            .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).map(Double::intValue).orElse(null))
+                            .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).filter(nfiVal -> nfiVal > 0).map(Double::intValue).orElse(0))
                             .riskgroup(lendingRiskVariablesSnapshot.getRiskGroup())
                             .monthlyadjtpv(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? lendingRiskVariablesSnapshot.getMonthlyTpv().intValue() : null)
                             .appvintage(lendingRiskVariablesSnapshot.getVintage())
-                            .last3monthtpv(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> (int) (tpv * 90)).orElse(null))
-                            .merchantcategory(businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", ""))
-                            .merchantsubcategory(businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", "")).build())
+                            .last3monthtpv(Optional.ofNullable(lendingRiskVariablesSnapshot.getSummaryTpv()).map(tpv -> (int) (tpv * 90)).orElse(null)).build())
                     .currentaddressdetails(getKycAddress(cKycResponseDto, smfgConfig.getCurrentAddressType()))
                     .permanentaddressdetails(getKycAddress(cKycResponseDto, smfgConfig.getPermanentAddressType()))
                     .workdetails(getShopAddress(lendingApplication))
@@ -225,11 +230,23 @@ public class SmfgBreService {
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(smfgConfig.getPslFlagTrue());
             }
 
-            return NBFCRequestDTO.builder()
-                    .applicationId(lendingApplication.getId())
-                    .lender(lendingApplication.getLender())
-                    .productName("LENDING")
-                    .payload(smfgAppPushRequest).build();
+            String businessCategory = "Regular_ETC";
+            String businessSubCategory = "Others";
+            if (REPEAT.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
+                Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
+                businessCategory = businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
+                businessSubCategory = businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+            }
+            smfgAppPushRequest.getAdditionaldetails().setMerchantcategory(businessCategory);
+            smfgAppPushRequest.getAdditionaldetails().setMerchantsubcategory(businessSubCategory);
+
+            NBFCRequestDTO<SmfgAppPushRequest> requestDTO = new NBFCRequestDTO<>();
+            requestDTO.setApplicationId(lendingApplication.getId());
+            requestDTO.setPayload(smfgAppPushRequest);
+            requestDTO.setLender(Lender.SMFG.name());
+            requestDTO.setProductName("LENDING");
+            return requestDTO;
+
         } catch (Exception e) {
             log.info("Exception in creating BRE payload of SMFG for application {} {} {}", lendingApplication.getId(), e.getLocalizedMessage(), Arrays.asList(e.getStackTrace()));
         }
@@ -318,11 +335,6 @@ public class SmfgBreService {
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.LIVELINESS_CHECK_FAILED.name());
             return true;
         }
-        if (ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer()) || cKycResponseDto.getBankBenePanNameMatchPer() < smfgConfig.getBenePanNameMatchPerThreshold()) {
-            log.info("bre check failed application id {}, bank and pan name match {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(), cKycResponseDto.getBankBenePanNameMatchPer(), smfgConfig.getBenePanNameMatchPerThreshold());
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_BANK_NAME_MISMATCH.name());
-            return true;
-        }
         if (!ObjectUtils.isEmpty(lendingShopDocuments)) {
             Double sid = uploadDocumentService.calculateShopInferredDistance(lendingShopDocuments.getLatitude(), lendingShopDocuments.getLongitude(), lenderAssociationDetailsRequest.getMerchantId());
             if (ObjectUtils.isEmpty(sid) || sid > smfgConfig.getShopInferredDistanceThreshold()) {
@@ -348,7 +360,7 @@ public class SmfgBreService {
             case REGULAR_ETC:
                 return smfgConfig.getRegularEtcLoanType();
             default:
-                return smfgConfig.getFreshLoanType();
+                throw new RuntimeException(riskSegment + " : risk segment not allowed for SMFG");
         }
     }
 

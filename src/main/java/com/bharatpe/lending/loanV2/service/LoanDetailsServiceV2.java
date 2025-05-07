@@ -1141,7 +1141,7 @@ public class LoanDetailsServiceV2 {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
             } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "BRE".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
-            } else if ("PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.PNC, lendingApplication.getMerchantId());
             } else {
                 reapplyDayDiff = 0;
@@ -3236,7 +3236,10 @@ public class LoanDetailsServiceV2 {
             //case:16
             LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
             if(!ObjectUtils.isEmpty(lendingPaymentSchedule1)){
-                List<LoanEligibilityDTO> topUpcheck = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                List<LoanEligibilityDTO> topUpcheck = loans.stream()
+                        .filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+                        .collect(Collectors.toList());
                 if(!ObjectUtils.isEmpty(topUpcheck)){
                     responseDTO.setState(HomePageCardsState.CARD_TOPUP_LOAN_OFFER_AMOUNT);
                     populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);

@@ -11,6 +11,7 @@ import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.ugro.UgroCreateLeadRequest;
 import com.bharatpe.lending.loanV3.dto.response.ugro.UgroCreateLeadResponse;
@@ -150,12 +151,13 @@ public class UgroLeadService {
         }
         return null;
     }
-
     public UgroCreateLeadRequest.ProfileData getProfileData(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, CKycResponseDto cKycResponseDto, CKycResponseDto gstResponseDto, LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot) {
+        NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
+
         return UgroCreateLeadRequest.ProfileData.builder()
                 .name(cKycResponseDto.getName())
                 .panNumber(cKycResponseDto.getPanNumber())
-                .dob(DateTimeUtil.getDateInMillis(cKycResponseDto.getDob(), "dd/MM/yyyy"))
+                .dob(DateTimeUtil.getDateInMillis(nameAndDobDetailsDto.getDob(), "dd/MM/yyyy"))
                 .gender(ObjectUtils.isEmpty(cKycResponseDto.getGender()) ? "transgender" : kycUtils.getGender(cKycResponseDto.getGender()).toLowerCase())
                 .mobile(ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ? "" : cKycResponseDto.getMobile().substring(2))
                 .currentEmployer(ObjectUtils.isEmpty(gstResponseDto) || ObjectUtils.isEmpty(gstResponseDto.getTradeName()) ? lendingApplication.getBusinessName() : gstResponseDto.getTradeName())

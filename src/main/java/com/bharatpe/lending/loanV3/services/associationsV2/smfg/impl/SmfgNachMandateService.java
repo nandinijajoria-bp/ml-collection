@@ -4,9 +4,11 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.util.DateTimeUtil;
@@ -18,6 +20,7 @@ import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgAppPushRequest;
 import com.bharatpe.lending.loanV3.dto.response.smfg.SmfgAppPushResponseDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +29,11 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
+
+import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
+import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 
 @Slf4j
 @Service
@@ -51,7 +58,13 @@ public class SmfgNachMandateService {
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
+
+    @Autowired
     SmfgConfig smfgConfig;
+
+    @Autowired
+    KycUtils kycUtils;
 
     @Transactional
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -74,13 +87,20 @@ public class SmfgNachMandateService {
                 commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
                 return false;
             }
-            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nachMandateRequest, LenderAssociationStages.NACH_MANDATE);
+            if (ObjectUtils.isEmpty(nachMandateRequest.getPayload().getAdditionaldetails().getMerchantcategory())) {
+                log.info("merchant category not found for application id : {}, merchant category : {}, merchant subcategory {}", lenderAssociationDetailsRequest.getApplicationId(), nachMandateRequest.getPayload().getAdditionaldetails().getMerchantcategory(), nachMandateRequest.getPayload().getAdditionaldetails().getMerchantsubcategory());
+                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.MERCHANT_CATEGORY_NOT_FOUND.name());
+                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStatus.NACH_MANDATE_FAILED.name());
+                commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
+                return false;
+            }
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(nachMandateRequest, LenderAssociationStages.NACH_MANDATE);
             log.info("nach mandate response of SMFG from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequest.getApplicationId());
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 SmfgAppPushResponseDto responseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), SmfgAppPushResponseDto.class);
                 if (!ObjectUtils.isEmpty(responseDto) && "SUCCESS".equalsIgnoreCase(responseDto.getStatus())) {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStatus.NACH_MANDATE_SUCCESS.name());
-                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
+                    commonService.manageApplicationState(lenderAssociationDetailsRequest);
                     return true;
                 }
             }
@@ -129,6 +149,7 @@ public class SmfgNachMandateService {
                                 .mandatereferenceno(merchantNachDetailsResponseDTO.getProviderUmrn()).build())
                         .build();
             }
+            populateMerchantCategoryAndSubCategory(lendingApplication, requestDto);
             NBFCRequestDTO<SmfgAppPushRequest> requestDTO = new NBFCRequestDTO<>();
             requestDTO.setApplicationId(lendingApplication.getId());
             requestDTO.setLender(lendingApplication.getLender());
@@ -139,6 +160,24 @@ public class SmfgNachMandateService {
             log.info("Exception in creating nach mandate payload of SMFG for applicationId {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
+    }
+
+    private void populateMerchantCategoryAndSubCategory(LendingApplication lendingApplication, SmfgAppPushRequest smfgAppPushRequest) {
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        String businessCategory = null;
+        String businessSubCategory = null;
+        if (REPEAT.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
+                Map<String, String> prevBusinessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
+                businessCategory = prevBusinessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
+                businessSubCategory = prevBusinessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+        }
+        if (REGULAR_ETC.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
+            Map<String, String> currentBusinessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategoryByApplicationId(lendingApplication.getId());
+            businessCategory = currentBusinessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
+            businessSubCategory = currentBusinessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+        }
+        smfgAppPushRequest.getAdditionaldetails().setMerchantcategory(businessCategory);
+        smfgAppPushRequest.getAdditionaldetails().setMerchantsubcategory(businessSubCategory);
     }
 
 }

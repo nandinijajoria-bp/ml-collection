@@ -23,6 +23,8 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -106,6 +108,13 @@ public class NbfcUtils {
     LendingLenderPricingDao lendingLenderPricingDao;
     @Autowired
     CommonService commonService;
+
+    @Autowired
+    private RolloutUtil rolloutUtil;
+
+    @Autowired
+    @Lazy
+    private LoanCreationService loanCreationService;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
@@ -199,6 +208,14 @@ public class NbfcUtils {
             lendingApplicationDetails.setApplicationId(applicationId);
             lendingApplicationDetails.setEdiModel(EdiModel.SEVEN_DAY_MODEL.name());
         }
+        //sending the application through new rearch flow
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingApplicationDetails.getApplicationId());
+        if (lendingApplication.isPresent() && rolloutUtil.lendingPlatformNbfcFlowApplicable(lendingApplication.get().getMerchantId())) {
+            log.info("Application rolled out to rearch v1 version from NbfcUtils for applicationId: {} {}", lendingApplication.get().getId(), lendingApplication.get().getLender());
+            loanCreationService.initiateLoanCreationWorkflow(lendingApplicationDetails.getApplicationId());
+            return ;
+        }
+
         LenderAssociationStages nextStage = nextStage(Lender.valueOf(lender), LenderAssociationStages.valueOf(lenderAssociationStage));
         lendingApplicationDetails.setStage(nextStage.name());
         lendingApplicationDetails.setLenderAssc(Boolean.TRUE);

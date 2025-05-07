@@ -56,6 +56,7 @@ import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.NachBounceChargesService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -297,7 +298,6 @@ public class LoanUtil {
 	List<Long> updateLeadLenderClientIdsList = new ArrayList();
 
 
-
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
@@ -312,6 +312,12 @@ public class LoanUtil {
 
 	@Autowired
 	EasyLoanUtil easyLoanUtil;
+
+	@Autowired
+	NachBounceChargesService nachBounceChargesService;
+
+	@Value("${payu.nach.bounce.charge:500}")
+	Integer payUNachBounceCharge;
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
@@ -367,15 +373,14 @@ public class LoanUtil {
 	@Value("${lender.aggregation.screens:}")
 	String lenderAggregationScreens;
 
-	@Value("${api.token:}")
-	String apiToken;
+	@Value("#{'${api.token:}'.split(',')}")
+	List<String> apiTokens;
 
 	@Autowired
 	LendingLenderPricingDao lendingLenderPricingDao;
 
 	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
 	private List<Integer> lenderPricingEligibleMerchantsPercent;
-
 
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
@@ -2431,14 +2436,14 @@ public class LoanUtil {
 				nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
 				netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
 				double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
-				penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-				penalCharge.setPaidNachBounce(paidNachBounce);
+				penalCharge.setDueNachBounce((double) Math.round(penalCharge.getDueNachBounce() - nachBounceAdjusted));
+				penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
 			}
 
 			if (Objects.nonNull(penalCharge.getDuePenalty())) {
 				double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
-				penalCharge.setPaidPenalty(paidPenalty);
-				penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+				penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+				penalCharge.setDuePenalty((double) Math.round(penalCharge.getDuePenalty() - netPenaltyAdjusted));
 			}
 			penalChargesDao.save(penalCharge);
 		} catch (Exception e) {
@@ -2541,6 +2546,14 @@ public class LoanUtil {
         double duration = calculateDurationInMonths(activeLoan.getStartDate());
 		double foreclosureAmount = data.getPrincipalDueAmount();
 		double principleOutstanding = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() - activeLoan.getDuePrinciple());
+
+		double advancePerpetualDuePrinciple = fetchExtraEdiPrincipleCollectionForPerpetualDpdLoan(activeLoan.getId());
+		logger.info("Advance perpetual due principle {} for loanId {}", advancePerpetualDuePrinciple, activeLoan.getId());
+
+		if(advancePerpetualDuePrinciple > 0) {
+			logger.info("Adding advance perpetual due principle {} to principle outstanding for loanId {}", advancePerpetualDuePrinciple, activeLoan.getId());
+			principleOutstanding += advancePerpetualDuePrinciple;
+		}
 
 		if(FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER.contains(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
 			return null;
@@ -2705,6 +2718,14 @@ public class LoanUtil {
 		return 0d;
 	}
 
+	public double fetchExtraEdiPrincipleCollectionForPerpetualDpdLoan(Long lpsId){
+		LendingLedger lendingLedger = fetchAdvanceEdi(lpsId);
+		if(!ObjectUtils.isEmpty(lendingLedger)){
+			return Math.abs(lendingLedger.getPrinciple());
+		}
+		return 0d;
+	}
+
 	public LendingLedger fetchAdvanceEdi(Long lpsId) {
 		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
 		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
@@ -2769,10 +2790,10 @@ public class LoanUtil {
         logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
 	}
-	public Boolean validateToken(String token){
-		return apiToken.equals(token);
-	}
 
+	public Boolean validateToken(String token) {
+		return apiTokens.contains(token);
+	}
 
 	public boolean isLenderPricingApplicableMerchant(Long merchantId){
 		return LoanUtil.isRolledOutByPercentage(String.valueOf(merchantId), (lenderPricingEligibleMerchantsPercent));

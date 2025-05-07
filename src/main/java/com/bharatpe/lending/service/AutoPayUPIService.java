@@ -63,7 +63,7 @@ public class AutoPayUPIService {
     @Autowired
     LoanUtil loanUtil;
 
-    @Value(("${pg.android.version:7.1.9}"))
+    @Value(("${pg.android.version.merchant.plugin:7.1.9}"))
     String androidVersion;
 
     @Value(("${pg.ios.version:254}"))
@@ -408,7 +408,7 @@ public class AutoPayUPIService {
                 registerPgRequest.setMandateStartDate(epochMandateStartDate);
                 registerPgRequest.setMandateEndDate(epochMandateStartDate + 157680000000L);
                 registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + "&wroute=key-factor-statement&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
-
+                registerPgRequest.setMaxMandateAmount(15000.0);
 
                 AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
 
@@ -463,7 +463,7 @@ public class AutoPayUPIService {
         AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender(), statusList);
         if (autoPayUPIExistingEntity != null) {
             log.info("For this application Id, mandate is already in progress {} ", lendingApplication.getId());
-//            throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", lendingApplication.getId()));
+            throw new InvalidRequestException(String.format(" For this application Id, mandate is already in progress: %s", lendingApplication.getId()));
         }
 
         if (merchantBasicDetails.getId().equals(lendingApplication.getMerchantId())) {

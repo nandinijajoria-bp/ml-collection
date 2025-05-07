@@ -1,6 +1,5 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.payu.impl;
 
-import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
@@ -61,8 +60,14 @@ public class PayUForeclosureService {
 
                 PayUForeclosureDetailsResponseDTO foreclosureResponse =  objectMapper.convertValue(commonResponseDTO.getApiResponse(), PayUForeclosureDetailsResponseDTO.class);
 
-                if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus())) {
-                    return foreclosureResponse.getAmount().doubleValue() - foreclosureResponse.getFeeChargesPortion().doubleValue();
+                if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus()) && !ObjectUtils.isEmpty(foreclosureResponse.getAmount()) && !ObjectUtils.isEmpty(foreclosureResponse.getFeeChargesPortion())) {
+                    double nachBounceCharges = foreclosureResponse.getFeeChargesDetails() == null ? 0.0 :
+                            foreclosureResponse.getFeeChargesDetails().stream()
+                                    .filter(fee -> "NACH_BOUNCE_CHARGE".equals(fee.getChargeType()))
+                                    .map(PayUForeclosureDetailsResponseDTO.FeeChargesDetails::getAmount)
+                                    .findFirst()
+                                    .orElse(0.0);
+                    return foreclosureResponse.getAmount().doubleValue() - foreclosureResponse.getFeeChargesPortion().doubleValue() + nachBounceCharges;
                 }
 
             }
