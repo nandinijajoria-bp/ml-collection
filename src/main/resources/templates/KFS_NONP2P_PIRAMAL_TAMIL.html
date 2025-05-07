@@ -90,6 +90,1040 @@
 </head>
 
 <body>
+    <!-- Tamil Section -->
+    <div style="padding: 20px 30px; margin-top: 50px">
+        <div style="display: flex; justify-content: center;" class="width-100">
+            {{lender_logo}}
+        </div>
+        <h2 class="text-center">
+            <span class="underline">முக்கிய தகவல் தாள் /அறிக்கை</span>
+        </h2>
+        <p class="fw400 mb30"> இந்த முக்கிய தகவல் தாள் <span class="bold">(கேஎஃப்எஸ் KFS)</span> டிஜிட்டல் முறையில் கடன்
+            வழங்கும் செயலி மூலம் கடன் வாங்குபவர் விண்ணப்பிக்கும் காலவரை கடன் வசதிக்கு பொருந்தும்: </p>
+
+        <div class="text-left bold mb10">தேதி: {{date}}</div>
+        <div class="text-left bold mb10">கடன் வழங்குபவரின் பெயர் : பிரமல் கேபிட்டல் & ஹவுசிங் ஃபைனான்ஸ் லிமிட்டெட்
+        </div>
+        <div class="text-left bold mb10">விண்ணப்பதாரர் பெயர் : {{borrower_name}}</div>
+        <div class="text-left bold mb40">நிரந்தர கணக்கு எண் (பான் அட்டை எண்): {{pan_of_borrower}}</div>
+
+        <div class="mb20 bold text-center underline"> பாகம் 1 (வட்டி விகிதம் மற்றும் கட்டணத் தொகைகள் (ஃபீஸ்)/கட்டணங்கள்)
+        </div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+            <tr class="width-100">
+                <td class="bold text-center width-6">1</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">கடன் முன்மொழிவு/கணக்கு எண் </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{lead_id}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">2</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold"> கடன் வகை</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        தனிப்பட்ட கடன்
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">3</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">ஒப்புதல் அளிக்கப்பட்ட கடன் தொகை
+                        (ரூபாயில்)</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ரூபாய் {{loan_amount_in_figure}}/- (ரூபாய்
+                        {{loan_amount_in_words}} மட்டும்)</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">4</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">பட்டுவாடா அட்டவணை</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">நிரல் 10 இல் உள்ள கட்டணத்தொகைகள் /
+                        கட்டணங்கள் 100 % முன்கூட்டியே கழிக்கப்படுவதற்கு உட்பட்டது</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">5</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">கடன் காலம் / தவணைக்காலம் </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">(ஆண்டுகள் / மாதங்கள் / நாட்கள்) </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 10px 16px;" class="fw400 text-left">
+                        {{no_of_edis}} மாதங்கள்
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">6</td>
+                <td colspan="12" class="bold text-left width-100">
+                    <p style="margin: 6px 16px;">தவணை விவரங்கள் (விவரங்களுக்கு, தயவுசெய்து விரிவான திருப்பிச்
+                        செலுத்தும் அட்டவணையைப் பார்க்கவும்)</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6"></td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;">தவணையின் வகை</p>
+                </td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;">தவணைகளின் எண்ணிக்கை</p>
+                </td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;">தொகை(ரூபாய்)*</p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;">ஒப்புதலுக்குப் பிறகு திருப்பிச் செலுத்துதல் தொடங்குதல்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center"></td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">சமமான தினசரி தவணை</p>
+                </td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
+                </td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{edi_amount}}</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">*தவணைத் தொகை அருகிலுள்ள ரூபாய் மதிப்புக்கு
+                        முழுமைப்படுத்தப்பட்டுள்ளது. அதிகப்படியான பணம் (சேகரிக்கப்பட்டால்) கடைசி தவணையுடன்
+                        சரிசெய்யப்படும் அல்லது கடன் பெறுபவருக்கு திருப்பித் தரப்படும் (கடனளிப்பவரின் விருப்பப்படி)
+                    </p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பட்டுவாடா தேதியிலிருந்து உடனடியாக மறுநாள்
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">7</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">வட்டி விகிதம் (%) மற்றும் வகை </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">(நிலையான / மாறுபடும்/ கலப்பின)</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} % பிரதி வருடத்திற்கு </p>
+                    <p style="margin: 10px 16px;" class="fw400 text-left">வகை - சரி
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">8</td>
+                <td colspan="12" class="bold text-left width-100">
+                    <p style="margin: 6px 16px;">மாறுபடும் வட்டி விகிதம் இருந்தால் கூடுதல் தகவல்</p>
+                </td>
+            </tr>
+
+            <tr class="width-100">
+                <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="text-left bold">குறிப்பு அளவுகோல் (பெஞ்ச்மார்க்)</p>
+                </td>
+                <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">அளவுகோல் விகிதம் (%) (B)</p>
+                </td>
+                <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">பரவிய (%)
+                        (S)</p>
+                </td>
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">இறுதி விகிதம்
+                        (%)
+                        R =
+                        (B)
+                        + (S)</p>
+                </td>
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">காலம்(மாதங்கள்)</p>
+                </td>
+                <td colspan="3" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">குறிப்பு அளவுகோலில் மாற்றத்தின்
+                        தாக்கம்
+                        ('R' இல் 25 bps மாற்றத்திற்கு, இதில் மாற்றவும்:3)</p>
+                </td>
+            </tr>
+
+            <tr class="width-100">
+                <td colspan="2" style="padding: 0px 5px;" class="width-24"></td>
+
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">B</p>
+                </td>
+                <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">S</p>
+                </td>
+                <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">இபிஐ</p>
+                </td>
+                <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">இபிஐ களின் எண்ணிக்கை</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
+
+                <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+                <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+                <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+                <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+
+            <tr class="width-100">
+                <td class="bold text-center width-6">9</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">மீள்கொடுப்பனவு முறை </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        கடன் பெறுபவரின் ரெசிலியன்ட் இன்னோவேஷன்ஸ் பிரைவேட் லிமிடெட்டிடம் (கடன் பெறுபவரின் ஆஃப்லைன்
+                        பணம்செலுத்தல் அக்ரிகேட்டர்) கடன் பெறுபவரின் அறிவுறுத்தல்களின்படி தினசரி செட்டில்மென்ட்
+                        தொகையிலிருந்து, கடன் ஆவணங்களின்படி தவணைத் தொகை அல்லது வேறு ஏதேனும் நிலுவைத் தொகைகளைக்
+                        கழித்தல் (“<span class="bold">ஆஃப்லைன் PA</span>”)
+                    </p>
+                    <p style="margin: 10px 16px;" class="fw400 text-center">மற்றும்/அல்லது</p>
+                    <p style="margin: 10px 16px;" class="fw400 text-left">கடன் பெறுபவரின் வங்கிக் கணக்கிலிருந்து
+                        யூபிஐ (UPI), ஆட்டோபே/என்ஏசிஎச் (NACH) அல்லது இதுபோன்ற பிற மின்னணு முறை போன்ற இ-மேண்டேட்
+                        மூலம் கடன் ஆவணங்களின்படி தவணைத் தொகை அல்லது நிலுவைத் தொகைகளைக் கழித்தல்</p>
+                    <p style="margin: 10px 16px;" class="fw400 text-left">கடன் ஆவணங்களின்படி தவணைத் தொகை மற்றும் பிற
+                        நிலுவைத் தொகைகளை ஏதேனும் ஒரு முறையிலிருந்து அல்லது மேலே குறிப்பிட்டுள்ள முறைகளின் கலவையின்
+                        மூலம் கழிப்பதற்கான பொருத்தமான வழிமுறைகளை வழங்க கடனளிப்பவருக்கு உரிமை உண்டு.</p>
+                    <p style="margin: 10px 16px;" class="fw400 text-left">*கடன் பெறுபவர் இதன்மூலம் வெளிப்படையாகவும்,
+                        நிபந்தனையின்றியும், திரும்பப்பெறமுடியாத வகையிலும் கடன் ஆவணங்களின்படி தவணைத் தொகை மற்றும் பிற
+                        நிலுவைத் தொகைகளைக் கழிக்க ஆஃப்லைன் பிஏ (PA) க்கு அங்கீகாரம் அளிக்கிறார் மற்றும்
+                        கடனளிப்பவருக்கு நேரடியாக பணம் செலுத்துகிறார்.</p>
+                    <p style="margin: 10px 16px;" class="fw400 text-left">**தீர்வுத் தொகை என்பது ஒப்புதல் கடிதம்
+                        மற்றும் கடன் ஒப்பந்தத்தின் கீழ் வரையறுக்கப்பட்ட பொருளைக் கொண்டிருக்கும்.</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">10</td>
+                <td colspan="12" class="bold text-left width-100">
+                    <p style="margin: 6px 16px;">கட்டணத் தொகைகள் / கட்டணங்கள் </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6"></td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        கட்டணங்கள்
+                    </p>
+                </td>
+                <td colspan="6" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">கடனளிப்பவருக்கு செலுத்த வேண்டும் (A)</p>
+                </td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">கடனளிப்பவர் மூலம் மூன்றாம் தரப்பினருக்கு
+                        செலுத்தப்பட வேண்டும் (B)
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6"></td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு முறை / தொடர்ந்து</p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">தொகை (ரூபாய்கள்) அல்லது சதவீதம் %
+                        (பொருந்தும் வகையில்)
+                    </p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு முறை / தொடர்ந்து</p>
+                </td>
+                <td colspan="1" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">தொகை (ரூபாய்கள்) அல்லது சதவீதம் %
+                        (பொருந்தும் வகையில்)
+                    </p>
+                </td>
+            </tr>
+
+
+            <tr class="width-100">
+                <td class="text-center width-6">(i)</td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">செயலாக்க கட்டணம்</p>
+                </td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு தடவை*</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">செயலாக்க கட்டணம் என்பது ஒரு தடவை
+                        விதிக்கப்படும் கட்டணம் ஆகும் மற்றும் அது பட்டுவாடா தொகையிலிருந்து கழிக்கப்படும்.</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        * கூலிங் ஆஃப் (தணிப்பு) காலத்தின் போது கடன் பெறுபவரால் முன்கூட்டியே கடன் அடைக்கப்பட்டால், 3
+                        செயலாக்கக் கட்டணம், கடன் பெறுபவருக்கு திருப்பித் தரப்படும்.
+                    </p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_without_gst}} + ஜிஎஸ்டி =
+                        {{processing_fee_includes_tax}}</p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="1" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(ii)</td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">காப்பீட்டுக் </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">கட்டணங்கள்/பிரிமியம்</p>
+                </td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு முறை*</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        காப்பீட்டு நிறுவனத்திற்கு வழங்கப்படும் காப்பீட்டு பிரீமியம் தொகை பட்டுவாடா தொகையிலிருந்து
+                        கழிக்கப்படும்
+                    </p>
+                </td>
+                <td colspan="1" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">(iii)</td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">மதிப்பீட்டுக் கட்டணம்</p>
+                </td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="1" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">(iv)</td>
+                <td colspan="3" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">வேறு ஏதேனும் கட்டணங்கள் (ஏதேனும் இருந்தால்)
+                    </p>
+                </td>
+                <td colspan="4" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="2" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+                <td colspan="1" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">11</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">வருடாந்தர சதவீத விகிதம் </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 bold text-left">{{apr}} % பிரதி வருடம் </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">12</td>
+                <td colspan="12" class="bold text-left width-100">
+                    <p style="margin: 6px 16px;">தற்செயல் (கன்டின்ஜென்ட்) கட்டணங்களின் விவரங்கள் (பொருந்தும் வகையில்
+                        ரூபாயில் அல்லது %)</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="bold text-center width-6">(i)</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">ஒருவேளை தாமதமாக பணம் செலுத்தினால்,
+                        அபராத கட்டணங்கள், ஏதேனும் இருந்தால் </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஆண்டுக்கு 24% 24% முதல் 24% வரை 2% EMI
+                        நிரப்புதலை மாதத்திற்கு 2% முதல் 2% வரை நிரப்ப இயல்புநிலை தேதியிலிருந்து</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(ii)</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பிற அபராத கட்டணங்கள், ஏதேனும் இருந்தால்</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(iii)</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">முன்கூட்டியே அடைத்தல்/முன்கூட்டியே
+                        செலுத்தல் கட்டணங்கள், பொருந்தினால்</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+
+            <tr class="width-100">
+                <td class="text-center width-6">(iv)</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பகுதியளவு-பணம் செலுத்தல் கட்டணங்கள் </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class=" text-center width-6">(v)</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left ">இ-மேண்டேட் (என்ஏசிஎச் (NACH)/யூபிஐ (UPI)
+                        ஆட்டோபே/மேண்டேட் பவுன்ஸ் கட்டணங்கள் போன்றவை)</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(vi)</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பிற ஏதேனும் கட்டணங்கள் (தயவுசெய்து
+                        குறிப்பிடவும்)</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+
+            <!-- <tr class="width-100">
+                <td class="text-center width-6 bold">14</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">वैधता अवधि</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">3 इस मुख्य तथ्य विवरण की तिथि का दिन</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6 bold">15</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">कूलिंग ऑफ/लुक-अप अवधि (ऋणदाता की बोर्ड द्वारा अधिकृत नीति के अनुसार) जिसके दौरान ऋण के फोरक्लोजर/पूर्व भुगतान के लिए ऋणी से कोई जुर्माना नहीं लिया जाएगा।</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">3 ऋण के वितरण से दिन</p>
+                    <br>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि कूलिंग ऑफ अवधि के दौरान आनुपातिक ब्याज और अन्य शुल्क (पूर्व-भुगतान/फोरक्लोज़र शुल्क के अलावा) लगाए जाएंगे।</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6 bold">16</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ऋण सेवा प्रदाता </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6 bold">17</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">रिकवरी एजेंट के रूप में कार्य करने वाले और ऋणी से संपर्क करने के लिए अधिकृत एलएसपी का विवरण</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
+                    </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि ऋणदाता द्वारा रिकवरी एजेंट को पुनर्भुगतान में चूक के लिए संपर्क करने के लिए अधिकृत किया गया है। कृपया देय तिथि पर या उससे पहले भुगतान करें
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6 bold">18</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">डिजीटल ऋण आवेदन </p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">मोबाइल एप्लीकेशन “भारतपे फॉर बिजनेस”</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6 bold">19</td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">शासी कानून एवं मध्यस्थता का स्थान एवं स्थान</p>
+                </td>
+                <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                    <p style="margin: 6px 16px;" class="fw400 bold text-left">मुम्बई</p>
+                </td>
+            </tr> -->
+            </tbody>
+        </table>
+
+        <div class="mb20 bold text-center underline">பாகம் 2- (பிற பண்பு சார்ந்த தகவல்கள்)</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+            <tr class="width-100">
+                <td class="text-center width-6">1</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> செல்லுபடியாகும் காளஅளவு </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> 3 இந்த முக்கிய தகவல் அறிக்கையின்
+                        தேதியிலிருந்து நாட்கள்
+                        கடன் ஒப்புதலின் போது கடன் பெறுபவர் சமர்ப்பித்த ஆவணங்கள் மற்றும் விவரங்களின் அடிப்படையில்
+                        இந்த முக்கிய தகவல் அறிக்கை வெளியிடப்பட்டுள்ளது. கடன் அனுமதிக்கப்பட்ட முன்மொழிவில் ஏதேனும்
+                        பொருள் மாற்றங்கள் இருந்தால் அல்லது; கடனளிப்பவரின் கருத்தில், கடன் பெறுபவரின் நிதி நிலையை
+                        அல்லது கடனின் கீழ் ஏதேனும் கடமைப்பாடுகளைச் செய்வதற்கான அவரது / அவளது / அவர்களின் திறனைப்
+                        பாதிக்கக்கூடிய எந்தவொரு நிகழ்வும் நடந்தால்; கடன் விண்ணப்பத்தில் செய்யப்பட்ட எந்தவொரு
+                        அறிக்கையும் அல்லது செய்யப்பட்ட பிரதிநிதித்துவமும் தவறானது அல்லது பொய்யானது அல்லது பொருள்
+                        உண்மை மறைக்கப்பட்டதாகக் கண்டறியப்பட்டால், கடன் வழங்கப்படுவதற்கு முன்னர் எந்த நிலையிலும்
+                        பின்னர் ஏதேனும் பொருள் முரண்பாடு அல்லது தவறான பிரதிநிதித்துவம் கண்டறியப்பட்டால்,
+                        கடனளிப்பவருக்கு இந்த முக்கிய தகவல் அறிக்கையை மாற்ற அல்லது திரும்பப் பெற உரிமை உண்டு.</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        மேலே உள்ள விதிமுறைகள் மற்றும் நிபந்தனைகள் எனக்கு / எங்களுக்கு விளக்கப்பட்டது மற்றும் என்னால்
+                        / எங்களால் ஒப்புக்கொள்ளப்பட்டது மற்றும் புரிந்து கொள்ளப்பட்டது.”
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">2</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">வசூல் முகவர்களை நியமிப்பது தொடர்பான கடன்
+                        ஒப்பந்தத்தின் உட்பிரிவு</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">கடனளிப்பவர், இந்த ஒப்பந்தத்தின் கீழ்
+                        நிலுவையில் உள்ள எந்தவொரு நிலுவைத் தொகைகளையும் வசூலிக்க உதவுவதற்கு தனது அதிகாரிகள் அல்லது
+                        ஊழியர்கள் மூலமாக பின்வரும் நடவடிக்கைகளைச் செய்வதற்கான தனது உரிமைக்கு எந்தவித பாரபட்சமும்
+                        இல்லாமல், கடன் பெறுபவரிடம் இருந்து செலவு மற்றும் செலவுகளை மீட்பதில் உதவுவதற்காக
+                        கடனளிப்பவரின் தேர்வின்படி ஒரு மீட்பு முகவரை நியமிக்கவும் ஈடுபடுத்தவும் முற்றிலும் உரிமை
+                        மற்றும் முழு அதிகாரம் கொண்டவர் என்பதையும், கடன் பெறுபவரின் குடியிருப்பு அல்லது அலுவலகம்
+                        அல்லது வேறுவிதமாக இருந்தாலும் அவரது வளாகத்திற்குச் செல்லவும், பிணையத்தைச் சரிபார்த்து ஆய்வு
+                        செய்யவும், கடனளிப்பவர் சார்பாக செலுத்தப்படாத அனைத்து நிலுவைத் தொகைகளையும் வசூலித்தல்,
+                        பிணையத்தை அமல்படுத்துதல், கடன் பெறுபவர் / அவர்களின் சொத்துக்களின் எந்தவொரு தகவலையும் பெறுதல்
+                        அல்லது சரிபார்த்தல் மற்றும் கோரிக்கை அறிவிப்புகளை அனுப்புவது உட்பட அதனுடன் தொடர்புடைய அல்லது
+                        அதனுடன் தொடர்புடைய அனைத்து செயல் (செயல்கள்), பத்திரம் (பத்திரங்கள்), விஷயம் (விஷயங்கள்)
+                        மற்றும் பொருள் (பொருட்கள்) ஆகியவற்றைச் செய்து செயல்படுத்த, அல்லது கடன் பெறுபவரைத்
+                        தொடர்புகொண்டு, கடன் பெறுபவரிடமிருந்து நிலுவைத் தொகையை (பணமாக/வங்கி வரைவோலை/காசோலை மூலம்)
+                        பெறுதல், மற்றும் மீட்பு முகவர் இந்த நோக்கத்திற்காக பொருத்தமானதாகக் கருதக்கூடிய அனைத்து
+                        சட்டபூர்வமான செயல்கள், பத்திரங்கள், விஷயங்கள் மற்றும் இத்துடன் தொடர்புடைய அல்லது தற்செயலான
+                        விஷயங்களைச் செய்து செயல்படுத்துவதற்கும் கடன் பெறுபவர் வெளிப்படையாக அங்கீகரித்து
+                        ஏற்றுக்கொள்கிறார்.</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">3</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">குறை தீர்க்கும் வழிமுறையை விவரிக்கும் கடன்
+                        ஒப்பந்தத்தின் உட்பிரிவு</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பிரமல் கேபிடல் அன்ட் ஹவுசிங் ஃபைனான்ஸ்
+                        லிமிடெட் நிறுவனத்தில், வாடிக்கையாளர் சேவையில் சிறந்ததை வழங்குவது எங்கள் முயற்சியாகும்.
+                        எங்களது அனைத்து பொருட்கள், சேவைகள் மற்றும் கொள்கைகள் வாடிக்கையாளரை மையமாகக் கொண்ட அடிப்படை
+                        மதிப்பைச் சுற்றி கட்டமைக்கப்பட்டுள்ளன.
+                        வழங்கப்படும் சேவைகளில் வாடிக்கையாளர்கள் திருப்தியடையாத சந்தர்ப்பங்கள் இருக்கலாம். இதுபோன்ற
+                        நிகழ்வுகளை முன்னிலைப்படுத்த மற்றும் ஒரு புகாரைப் பதிவு செய்வதற்குத் தயவுசெய்து பின்வரும்
+                        செயல்முறையைப் பின்பற்றவும்:
+                    </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">a) கடன் பெறுபவர் தனது புகாரை
+                        www.piramalfinance.com இல் குறிப்பிடப்பட்டுள்ள கட்டணமில்லா எண் அல்லது
+                        customercare@piramal.com க்கு மின்னஞ்சல் மூலம் எழுப்பலாம்.</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        b) வழங்கப்பட்ட தீர்வில் வாடிக்கையாளர் திருப்தி அடையவில்லை என்றால், அல்லது அவரது / அவளது
+                        வினவல் 15 நாட்களுக்குள் தீர்க்கப்படவில்லை என்றால், வாடிக்கையாளர் எங்களுக்கு பின்வரும்
+                        மின்னஞ்சல் முகவரிக்கு எழுதுவதன் மூலம் விரிவாக்கலாம்: grievances@piramal.com
+                    </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        c) ஒருவேளை அந்த பிரச்சினை 15 நாட்களுக்கு மேல் தீர்க்கப்படாமல் இருந்தால், கடன் பெறுபவர் கீழே
+                        குறிப்பிடப்பட்டுள்ள "நோடல் அதிகாரி" விவரங்களுக்கு இந்த விஷயத்தை விரிவுபடுத்தலாம்.
+                    </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                        d) கடன் பெறுபவர் இந்த பதிலிலும் திருப்தி அடையவில்லை என்றால், கடன் பெறுபவர் தேசிய வீட்டுவசதி
+                        வங்கியின் புகார் தீர்வு பிரிவை https://grids.nhbonline.org.in என்ற இணைப்பில் ஆன்லைன்
+                        பயன்முறையில் பதிவு செய்வதன் மூலம் அணுகலாம் அல்லது தேசிய வீட்டுவசதி வங்கி, புகார் தீர்வு
+                        பிரிவு, ஒழுங்குமுறை மற்றும் மேற்பார்வைத் துறை, தேசிய வீட்டுவசதி வங்கி, 4 வது தளம், கோர் 5 ஏ,
+                        இந்தியா வாழ்விட மையம், லோதி சாலை, புது தில்லி - 110 003 என்னும் முகவரிக்கு எழுதலாம்
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">4</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">நோடல் குறை தீர்க்கும் அதிகாரியின் தொலைபேசி
+                        எண் மற்றும் மின்னஞ்சல் ஐடி </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left bold">கடன் வழங்குபவருக்கு</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">Ms. ஹெட்டல் பரிஹர் </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">6வது தளம், அமிதி பில்டிங், அகஸ்த்யா
+                        கார்ப்பொரேட் பார்க், கமனி ஜங்சன், எதிர்புறம்</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஃபயர் ஸ்டேசன், எல்பிஎஸ் (LBS) மார்க்,
+                        குர்லா (மேற்கு) மும்பை MH400070</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">மின்னஞ்சல்: nodal.officer@piramal.com</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">தொடர்பு எண்: 022- 69181439</p>
+
+
+                    <p style="margin: 20px 16px 6px 16px" class="fw400 text-left bold">எல்எஸ்பி (LSP) க்கு</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பெயர்: திரு. புஷ்பேந்தர் குமார்</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">மின்னஞ்சல்- nodalofficer@bharatpemoney.com
+                    </p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">தொடர்பு எண்: {{lsp_contact_number}}</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பணி நேரங்கள்: Monday to Friday from 10:00
+                        a.m. to 7:00 pm</p>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">இணையதளம்: <a href="bharatpemoney.com"
+                                                                                      target="_blank">bharatpemoney.com</a></p>
+
+                    <p style="margin: 16px;" class="fw400 text-left">புகார் 30 நாட்களில் தீர்க்கப்படாவிட்டால், கடன்
+                        பெறுபவர் ஆர்பிஐ (RBI) புகார்கள் முறையீட்டுப் பிரிவுக்கான (போர்ட்டல்) இந்த இணையதளத்தில் <a
+                                href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a> வெளியிட்டு
+                        அந்த விஷயத்தை விரிவாக்கலாம்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">5</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> எதிர்காலத்தில் அந்த கடன் வேறு
+                        ஒழுங்குபடுத்தப்பட்ட நிறுவனத்திற்கு மாற்றப்படுவதற்கு அல்லது பத்திரமயமாக்கலுக்கு உட்பட்டதாக
+                        ஆக்கப்படலாம் </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஆம்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">6</td>
+                <td colspan="2" class="text-center">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">டிஜிட்டல் கடன் விஷயத்தில், பின்வரும்
+                        குறிப்பிட்ட வெளிப்படுத்தல்களை வழங்கலாம்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(i)</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> கூலிங் ஆஃப் (தணிப்பு) / பார்வைக் காலம்
+                        (லுக்-அப் காலம்) (கடனளிப்பவரின் சபையின் ஒப்புதல் பெற்ற கொள்கையின் படி) இந்த காலஅளவின்
+                        பொழுது, கடன் வாங்குபவருக்கு கடனை முன்கூட்டியே அடைத்தல் / முன்கூட்டியே செலுத்துதல்
+                        ஆகியவற்றில் எந்த அபராதமும் விதிக்கப்படாது </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">3 கடன் வழங்கப்பட்டதிலிருந்து நாட்கள் </p>
+                    <p style="margin: 16px 16px 6px;" class="fw400 text-left">*கூலிங் ஆஃப் காலத்தின் போது விகிதாசார
+                        வட்டி மற்றும் பிற கட்டணங்கள் (முன்கூட்டியே செலுத்தல்/முன்கூட்டியே அடைத்தல் (ஃபோர்குளோசர்)
+                        விதிக்கப்படும் என்பதை தயவுசெய்து குறித்துக் கொள்ளவும்.</p>
+                </td>
+            </tr>
+
+            <tr class="width-100">
+                <td class="text-center width-6">(ii)</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் வழங்கும் சேவை வழங்குநர் </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ரெசிலியன்ட் டிஜி சர்வீசஸ் பிரைவேட்
+                        லிமிட்டெட்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(iii)</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> டிஜிட்டல் முறையிலான கடன் விண்ணப்பம் </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">மொபைல் அப்ளிகேசன் “<span
+                            class="bold">வர்த்தகத்திற்கான பாரத்பே (பாரத்பே ஃபார் பிசினஸ்)</span>”</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">(iv)</td>
+                <td style="padding: 0px 5px;" class="width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் வசூல் முகவராக செயல்படும் மற்றும் கடன்
+                        பெறுபவரை அணுக அங்கீகரிக்கப்பட்ட எல்எஸ்பி (LSP) பற்றிய விவரங்கள் </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ரெசிலியன்ட் டிஜி சர்வீசஸ் பிரைவேட்
+                        லிமிட்டெட்</p>
+                    <br>
+                    <p style="margin: 6px 16px;" class="fw400 text-left">*கடன் திருப்பிச் செலுத்த தவறுகை நேர்ந்தால்
+                        தொடர்பு கொள்ளும் வகையில் கடனளிப்பவரால் மீட்பு முகவர் அங்கீகரிக்கப்பட்டுள்ளார் என்பதைத்
+                        தயவுசெய்து குறித்துக் கொள்ளவும். அன்புகூர்ந்து நிலுவைத் தேதியன்று அல்லது அதற்கு முன்பாக பணம்
+                        செலுத்துங்கள்
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <p style="margin: 6px 16px" class="fw400 mb20"> *மேலும் விரிவான தகவல்களுக்கு, தயவுசெய்து கடன் வசதிக்கான ஒப்புதல்
+            கடிதம் மற்றும் கடன் ஒப்பந்தத்தைப் பார்க்கவும். This Key Fact Statement needs to be read along with the
+            Sanction Letter & Loan Agreement.
+            இந்த முக்கிய தகவல் அறிக்கையை ஒப்புதல் கடிதம் மற்றும் கடன் ஒப்பந்தத்துடன் சேர்த்து படிக்க வேண்டும்.</p>
+        <br />
+        <br />
+        <div class="mb20 bold text-center underline">சில்லறை மற்றும் எம்எஸ்எம்இ (MSME) கடன்களுக்கான ஏபிஆர் (APR)
+            கணக்கிடுவதற்கான விளக்கம்</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+            <tr class="width-100">
+                <td class="text-center bold width-6">எண்</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 bold text-left"> பண்பளவு </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 bold text-left">விபரங்கள்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">1</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> ஒப்புதலளிக்கப்பட்ட கடன் தொகை (ரூபாயில்)
+                        (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 3 – பகுதி 1)</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">2</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் காலம் (ஆண்டுகளில் / மாதங்களில் /
+                        நாட்களில்) (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண்.5 - பகுதி 1) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}} மாதங்களில்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">a)</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> சமமற்ற காலமுறை கடன்களாக இருந்தால், அசல்
+                        செலுத்துவதற்கான தவணைகளின் எண்ணிக்கை</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">-</p>
+                </td>
+            </tr>
+
+            <tr class="width-100">
+                <td rowspan="3" class="text-center width-6">b)</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">இபிஐ (EPI) யின் வகை
+                    </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">தினசரி</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> ஒவ்வொரு இபிஐ (EPI) யின் தொகை (ரூபாயில்)
+                        மற்றும்</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{edi_amount}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> இபிஐ களின் எண்ணிக்கை (எடுத்துக்காட்டாக
+                        மாதாந்திர தவணைகள் என்றால் இஎம்ஐ [EMI] களின் எண்ணிக்கை)
+                        (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 6 – பகுதி 1)
+                    </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">c)</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">மூலதனமாக்கப்பட்ட வட்டி ஏதேனும் இருப்பின்,
+                        செலுத்துவதற்கான தவணைகளின் எண்ணிக்கை</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">d)</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> ஒப்புதல் அளிப்புக்குப் பிறகு திருப்பிச்
+                        செலுத்துதல்களைத் தொடங்குதல் (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 6 – பகுதி 1) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">1 நாட்கள்</p>
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">3</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> வட்டி விகித வகை (நிலையான அல்லது
+                        மாறுபடுகின்ற அல்லது கலப்பின) (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 7 - பகுதி 1) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">சரி</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">4</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">வட்டி விகிதம் (கேஎஃப்எஸ் [KFS]
+                        வார்ப்புருவின் வரிசை எண் 7 – பகுதி-1)</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} %</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">5</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> ஒப்புதல் தேதியில் நிலவும் விகிதத்தின்படி
+                        கடனின் முழு தவணைக்காலத்திலும் வசூலிக்கப்பட வேண்டிய மொத்த வட்டித் தொகை (ரூபாயில்) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">6</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> செலுத்த வேண்டிய கட்டணத்தொகை/ கட்டணங்கள்8
+                        (ரூபாயில்) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}} +
+                        {{insurance_premium}} (A+B) </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">A</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> ஆர்இ (RE) க்கு செலுத்த வேண்டியது
+                        (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 8A – பகுதி-1) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">B</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">ஆர்இ (RE) மூலம் வழிநடத்தப்படும் மூன்றாம்
+                        தரப்பினருக்கு செலுத்தப்பட வேண்டியது (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 8B – பகுதி-1)
+                    </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">7</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">நிகர பட்டுவாடா தொகை (1-6) (ரூபாயில்)</p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_disbursed}} </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">8</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் பெறுபவர் செலுத்த வேண்டிய மொத்தத் தொகை
+                        (1 மற்றும் 5ன் கூட்டுத்தொகை) (ரூபாயில்) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">₹
+                        {{total_amount_including_interest_paid_by_borrower_entire_tenure}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">9</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> வருடாந்திர சதவீத விகிதம்- பயனுள்ள
+                        வருடாந்திர வட்டி விகிதம் (சதவீதத்தில்)10(கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 11 –
+                        பகுதி-1) </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">{{apr}} %</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">10</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">விதிமுறைகள் மற்றும் நிபந்தனைகளின்படி
+                        வழங்குவதற்கான அட்டவணை </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">விரிவான அட்டவணை வழங்கப்பட வேண்டும்</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td class="text-center width-6">11</td>
+                <td style="padding: 0px 5px;" class="width-70">
+                    <p style="margin: 6px 16px;" class="fw400 text-left"> தவணை மற்றும் வட்டி செலுத்த வேண்டிய தேதி
+                    </p>
+                </td>
+                <td style="padding: 0px 5px;" class="word-wrap width-24">
+                    <p style="margin: 6px 16px;" class="fw400 text-left">1st edi date</p>
+                </td>
+            </tr>
+
+            </tbody>
+        </table>
+
+        <br />
+        <br />
+        <div style="page-break-inside: avoid !important">
+            <h3 class="text-center">
+                <span class="underline bold">விரிவான பணம் திருப்பிச் செலுத்துதல் அட்டவணை</span>
+            </h3>
+            <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
+                <tbody>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                            <strong>தவணை எண்</strong>
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                            <strong>நிலுவையில் இருக்கும் அசல் தொகை (ரூபாயில்)</strong>
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                            <strong>அசல் தொகை (ரூபாயில்)</strong>
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                            <strong>வட்டி (ரூபாயில்)</strong>
+                        </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                            <strong>தவனைத் தொகை (ரூபாயில்)</strong>
+                        </p>
+                    </td>
+                </tr>
+                {{repayment_schedule}}
+                </tbody>
+            </table>
+        </div>
+        <br />
+        <br />
+        <br />
+
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+               style="page-break-inside: avoid !important">
+            <tbody>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> கடன் பெற்றவரின் பெயர்</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{borrower_name}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">தேதி</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left"> ஓடிபி (OTP) க்கான மொபைல் எண் </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{mobile_number_for_otp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">தளம்</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        BharatPe for Business
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">ஐபி முகவரி</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{ip_address}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">நேர முத்திரை
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{time_stamp}}
+                    </p>
+                </td>
+            </tr>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">கடன் ஐடி</p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 6px 16px" class="fw400 text-left">
+                        {{loan_id}}
+                    </p>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+
     <div style="padding: 20px 30px; margin-top: 50px">
         <div style="display: flex; justify-content: center;" class="width-100">
             {{lender_logo}}
@@ -1062,1040 +2096,6 @@
                     </p>
                 </td>
             </tr>
-            </tbody>
-        </table>
-    </div>
-
-
-    <!-- Tamil Section -->
-    <div style="padding: 20px 30px; margin-top: 50px">
-        <div style="display: flex; justify-content: center;" class="width-100">
-            {{lender_logo}}
-        </div>
-        <h2 class="text-center">
-            <span class="underline">முக்கிய தகவல் தாள் /அறிக்கை</span>
-        </h2>
-        <p class="fw400 mb30"> இந்த முக்கிய தகவல் தாள் <span class="bold">(கேஎஃப்எஸ் KFS)</span> டிஜிட்டல் முறையில் கடன்
-            வழங்கும் செயலி மூலம் கடன் வாங்குபவர் விண்ணப்பிக்கும் காலவரை கடன் வசதிக்கு பொருந்தும்: </p>
-
-        <div class="text-left bold mb10">தேதி: {{date}}</div>
-        <div class="text-left bold mb10">கடன் வழங்குபவரின் பெயர் : பிரமல் கேபிட்டல் & ஹவுசிங் ஃபைனான்ஸ் லிமிட்டெட்
-        </div>
-        <div class="text-left bold mb10">விண்ணப்பதாரர் பெயர் : {{borrower_name}}</div>
-        <div class="text-left bold mb40">நிரந்தர கணக்கு எண் (பான் அட்டை எண்): {{pan_of_borrower}}</div>
-
-        <div class="mb20 bold text-center underline"> பாகம் 1 (வட்டி விகிதம் மற்றும் கட்டணத் தொகைகள் (ஃபீஸ்)/கட்டணங்கள்)
-        </div>
-
-        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
-            <tbody>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">1</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">கடன் முன்மொழிவு/கணக்கு எண் </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{lead_id}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">2</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold"> கடன் வகை</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            தனிப்பட்ட கடன்
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">3</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">ஒப்புதல் அளிக்கப்பட்ட கடன் தொகை
-                            (ரூபாயில்)</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ரூபாய் {{loan_amount_in_figure}}/- (ரூபாய்
-                            {{loan_amount_in_words}} மட்டும்)</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">4</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">பட்டுவாடா அட்டவணை</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">நிரல் 10 இல் உள்ள கட்டணத்தொகைகள் /
-                            கட்டணங்கள் 100 % முன்கூட்டியே கழிக்கப்படுவதற்கு உட்பட்டது</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">5</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">கடன் காலம் / தவணைக்காலம் </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">(ஆண்டுகள் / மாதங்கள் / நாட்கள்) </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 10px 16px;" class="fw400 text-left">
-                            {{no_of_edis}} மாதங்கள்
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">6</td>
-                    <td colspan="12" class="bold text-left width-100">
-                        <p style="margin: 6px 16px;">தவணை விவரங்கள் (விவரங்களுக்கு, தயவுசெய்து விரிவான திருப்பிச்
-                            செலுத்தும் அட்டவணையைப் பார்க்கவும்)</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6"></td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;">தவணையின் வகை</p>
-                    </td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;">தவணைகளின் எண்ணிக்கை</p>
-                    </td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;">தொகை(ரூபாய்)*</p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;">ஒப்புதலுக்குப் பிறகு திருப்பிச் செலுத்துதல் தொடங்குதல்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center"></td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">சமமான தினசரி தவணை</p>
-                    </td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
-                    </td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{edi_amount}}</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">*தவணைத் தொகை அருகிலுள்ள ரூபாய் மதிப்புக்கு
-                            முழுமைப்படுத்தப்பட்டுள்ளது. அதிகப்படியான பணம் (சேகரிக்கப்பட்டால்) கடைசி தவணையுடன்
-                            சரிசெய்யப்படும் அல்லது கடன் பெறுபவருக்கு திருப்பித் தரப்படும் (கடனளிப்பவரின் விருப்பப்படி)
-                        </p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பட்டுவாடா தேதியிலிருந்து உடனடியாக மறுநாள்
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">7</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">வட்டி விகிதம் (%) மற்றும் வகை </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">(நிலையான / மாறுபடும்/ கலப்பின)</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} % பிரதி வருடத்திற்கு </p>
-                        <p style="margin: 10px 16px;" class="fw400 text-left">வகை - சரி
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">8</td>
-                    <td colspan="12" class="bold text-left width-100">
-                        <p style="margin: 6px 16px;">மாறுபடும் வட்டி விகிதம் இருந்தால் கூடுதல் தகவல்</p>
-                    </td>
-                </tr>
-
-                <tr class="width-100">
-                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="text-left bold">குறிப்பு அளவுகோல் (பெஞ்ச்மார்க்)</p>
-                    </td>
-                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">அளவுகோல் விகிதம் (%) (B)</p>
-                    </td>
-                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">பரவிய (%)
-                            (S)</p>
-                    </td>
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">இறுதி விகிதம்
-                            (%)
-                            R =
-                            (B)
-                            + (S)</p>
-                    </td>
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">காலம்(மாதங்கள்)</p>
-                    </td>
-                    <td colspan="3" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">குறிப்பு அளவுகோலில் மாற்றத்தின்
-                            தாக்கம்
-                            ('R' இல் 25 bps மாற்றத்திற்கு, இதில் மாற்றவும்:3)</p>
-                    </td>
-                </tr>
-
-                <tr class="width-100">
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24"></td>
-
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">B</p>
-                    </td>
-                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">S</p>
-                    </td>
-                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">இபிஐ</p>
-                    </td>
-                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">இபிஐ களின் எண்ணிக்கை</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">பொருந்தாது</td>
-
-                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-
-                <tr class="width-100">
-                    <td class="bold text-center width-6">9</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">மீள்கொடுப்பனவு முறை </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            கடன் பெறுபவரின் ரெசிலியன்ட் இன்னோவேஷன்ஸ் பிரைவேட் லிமிடெட்டிடம் (கடன் பெறுபவரின் ஆஃப்லைன்
-                            பணம்செலுத்தல் அக்ரிகேட்டர்) கடன் பெறுபவரின் அறிவுறுத்தல்களின்படி தினசரி செட்டில்மென்ட்
-                            தொகையிலிருந்து, கடன் ஆவணங்களின்படி தவணைத் தொகை அல்லது வேறு ஏதேனும் நிலுவைத் தொகைகளைக்
-                            கழித்தல் (“<span class="bold">ஆஃப்லைன் PA</span>”)
-                        </p>
-                        <p style="margin: 10px 16px;" class="fw400 text-center">மற்றும்/அல்லது</p>
-                        <p style="margin: 10px 16px;" class="fw400 text-left">கடன் பெறுபவரின் வங்கிக் கணக்கிலிருந்து
-                            யூபிஐ (UPI), ஆட்டோபே/என்ஏசிஎச் (NACH) அல்லது இதுபோன்ற பிற மின்னணு முறை போன்ற இ-மேண்டேட்
-                            மூலம் கடன் ஆவணங்களின்படி தவணைத் தொகை அல்லது நிலுவைத் தொகைகளைக் கழித்தல்</p>
-                        <p style="margin: 10px 16px;" class="fw400 text-left">கடன் ஆவணங்களின்படி தவணைத் தொகை மற்றும் பிற
-                            நிலுவைத் தொகைகளை ஏதேனும் ஒரு முறையிலிருந்து அல்லது மேலே குறிப்பிட்டுள்ள முறைகளின் கலவையின்
-                            மூலம் கழிப்பதற்கான பொருத்தமான வழிமுறைகளை வழங்க கடனளிப்பவருக்கு உரிமை உண்டு.</p>
-                        <p style="margin: 10px 16px;" class="fw400 text-left">*கடன் பெறுபவர் இதன்மூலம் வெளிப்படையாகவும்,
-                            நிபந்தனையின்றியும், திரும்பப்பெறமுடியாத வகையிலும் கடன் ஆவணங்களின்படி தவணைத் தொகை மற்றும் பிற
-                            நிலுவைத் தொகைகளைக் கழிக்க ஆஃப்லைன் பிஏ (PA) க்கு அங்கீகாரம் அளிக்கிறார் மற்றும்
-                            கடனளிப்பவருக்கு நேரடியாக பணம் செலுத்துகிறார்.</p>
-                        <p style="margin: 10px 16px;" class="fw400 text-left">**தீர்வுத் தொகை என்பது ஒப்புதல் கடிதம்
-                            மற்றும் கடன் ஒப்பந்தத்தின் கீழ் வரையறுக்கப்பட்ட பொருளைக் கொண்டிருக்கும்.</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">10</td>
-                    <td colspan="12" class="bold text-left width-100">
-                        <p style="margin: 6px 16px;">கட்டணத் தொகைகள் / கட்டணங்கள் </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6"></td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            கட்டணங்கள்
-                        </p>
-                    </td>
-                    <td colspan="6" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">கடனளிப்பவருக்கு செலுத்த வேண்டும் (A)</p>
-                    </td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">கடனளிப்பவர் மூலம் மூன்றாம் தரப்பினருக்கு
-                            செலுத்தப்பட வேண்டும் (B)
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6"></td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு முறை / தொடர்ந்து</p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">தொகை (ரூபாய்கள்) அல்லது சதவீதம் %
-                            (பொருந்தும் வகையில்)
-                        </p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு முறை / தொடர்ந்து</p>
-                    </td>
-                    <td colspan="1" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">தொகை (ரூபாய்கள்) அல்லது சதவீதம் %
-                            (பொருந்தும் வகையில்)
-                        </p>
-                    </td>
-                </tr>
-
-
-                <tr class="width-100">
-                    <td class="text-center width-6">(i)</td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">செயலாக்க கட்டணம்</p>
-                    </td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு தடவை*</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">செயலாக்க கட்டணம் என்பது ஒரு தடவை
-                            விதிக்கப்படும் கட்டணம் ஆகும் மற்றும் அது பட்டுவாடா தொகையிலிருந்து கழிக்கப்படும்.</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            * கூலிங் ஆஃப் (தணிப்பு) காலத்தின் போது கடன் பெறுபவரால் முன்கூட்டியே கடன் அடைக்கப்பட்டால், 3
-                            செயலாக்கக் கட்டணம், கடன் பெறுபவருக்கு திருப்பித் தரப்படும்.
-                        </p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_without_gst}} + ஜிஎஸ்டி =
-                            {{processing_fee_includes_tax}}</p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="1" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(ii)</td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">காப்பீட்டுக் </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">கட்டணங்கள்/பிரிமியம்</p>
-                    </td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஒரு முறை*</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            காப்பீட்டு நிறுவனத்திற்கு வழங்கப்படும் காப்பீட்டு பிரீமியம் தொகை பட்டுவாடா தொகையிலிருந்து
-                            கழிக்கப்படும்
-                        </p>
-                    </td>
-                    <td colspan="1" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">(iii)</td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">மதிப்பீட்டுக் கட்டணம்</p>
-                    </td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="1" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">(iv)</td>
-                    <td colspan="3" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">வேறு ஏதேனும் கட்டணங்கள் (ஏதேனும் இருந்தால்)
-                        </p>
-                    </td>
-                    <td colspan="4" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="2" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                    <td colspan="1" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">11</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">வருடாந்தர சதவீத விகிதம் </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 bold text-left">{{apr}} % பிரதி வருடம் </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">12</td>
-                    <td colspan="12" class="bold text-left width-100">
-                        <p style="margin: 6px 16px;">தற்செயல் (கன்டின்ஜென்ட்) கட்டணங்களின் விவரங்கள் (பொருந்தும் வகையில்
-                            ரூபாயில் அல்லது %)</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="bold text-center width-6">(i)</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">ஒருவேளை தாமதமாக பணம் செலுத்தினால்,
-                            அபராத கட்டணங்கள், ஏதேனும் இருந்தால் </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஆண்டுக்கு 24% 24% முதல் 24% வரை 2% EMI
-                            நிரப்புதலை மாதத்திற்கு 2% முதல் 2% வரை நிரப்ப இயல்புநிலை தேதியிலிருந்து</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(ii)</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பிற அபராத கட்டணங்கள், ஏதேனும் இருந்தால்</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(iii)</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">முன்கூட்டியே அடைத்தல்/முன்கூட்டியே
-                            செலுத்தல் கட்டணங்கள், பொருந்தினால்</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-
-                <tr class="width-100">
-                    <td class="text-center width-6">(iv)</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பகுதியளவு-பணம் செலுத்தல் கட்டணங்கள் </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class=" text-center width-6">(v)</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left ">இ-மேண்டேட் (என்ஏசிஎச் (NACH)/யூபிஐ (UPI)
-                            ஆட்டோபே/மேண்டேட் பவுன்ஸ் கட்டணங்கள் போன்றவை)</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(vi)</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பிற ஏதேனும் கட்டணங்கள் (தயவுசெய்து
-                            குறிப்பிடவும்)</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-
-                <!-- <tr class="width-100">
-                    <td class="text-center width-6 bold">14</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">वैधता अवधि</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">3 इस मुख्य तथ्य विवरण की तिथि का दिन</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6 bold">15</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">कूलिंग ऑफ/लुक-अप अवधि (ऋणदाता की बोर्ड द्वारा अधिकृत नीति के अनुसार) जिसके दौरान ऋण के फोरक्लोजर/पूर्व भुगतान के लिए ऋणी से कोई जुर्माना नहीं लिया जाएगा।</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">3 ऋण के वितरण से दिन</p>
-                        <br>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि कूलिंग ऑफ अवधि के दौरान आनुपातिक ब्याज और अन्य शुल्क (पूर्व-भुगतान/फोरक्लोज़र शुल्क के अलावा) लगाए जाएंगे।</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6 bold">16</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ऋण सेवा प्रदाता </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6 bold">17</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">रिकवरी एजेंट के रूप में कार्य करने वाले और ऋणी से संपर्क करने के लिए अधिकृत एलएसपी का विवरण</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
-                        </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि ऋणदाता द्वारा रिकवरी एजेंट को पुनर्भुगतान में चूक के लिए संपर्क करने के लिए अधिकृत किया गया है। कृपया देय तिथि पर या उससे पहले भुगतान करें
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6 bold">18</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">डिजीटल ऋण आवेदन </p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">मोबाइल एप्लीकेशन “भारतपे फॉर बिजनेस”</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6 bold">19</td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">शासी कानून एवं मध्यस्थता का स्थान एवं स्थान</p>
-                    </td>
-                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                        <p style="margin: 6px 16px;" class="fw400 bold text-left">मुम्बई</p>
-                    </td>
-                </tr> -->
-            </tbody>
-        </table>
-
-        <div class="mb20 bold text-center underline">பாகம் 2- (பிற பண்பு சார்ந்த தகவல்கள்)</div>
-
-        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
-            <tbody>
-                <tr class="width-100">
-                    <td class="text-center width-6">1</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> செல்லுபடியாகும் காளஅளவு </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> 3 இந்த முக்கிய தகவல் அறிக்கையின்
-                            தேதியிலிருந்து நாட்கள்
-                            கடன் ஒப்புதலின் போது கடன் பெறுபவர் சமர்ப்பித்த ஆவணங்கள் மற்றும் விவரங்களின் அடிப்படையில்
-                            இந்த முக்கிய தகவல் அறிக்கை வெளியிடப்பட்டுள்ளது. கடன் அனுமதிக்கப்பட்ட முன்மொழிவில் ஏதேனும்
-                            பொருள் மாற்றங்கள் இருந்தால் அல்லது; கடனளிப்பவரின் கருத்தில், கடன் பெறுபவரின் நிதி நிலையை
-                            அல்லது கடனின் கீழ் ஏதேனும் கடமைப்பாடுகளைச் செய்வதற்கான அவரது / அவளது / அவர்களின் திறனைப்
-                            பாதிக்கக்கூடிய எந்தவொரு நிகழ்வும் நடந்தால்; கடன் விண்ணப்பத்தில் செய்யப்பட்ட எந்தவொரு
-                            அறிக்கையும் அல்லது செய்யப்பட்ட பிரதிநிதித்துவமும் தவறானது அல்லது பொய்யானது அல்லது பொருள்
-                            உண்மை மறைக்கப்பட்டதாகக் கண்டறியப்பட்டால், கடன் வழங்கப்படுவதற்கு முன்னர் எந்த நிலையிலும்
-                            பின்னர் ஏதேனும் பொருள் முரண்பாடு அல்லது தவறான பிரதிநிதித்துவம் கண்டறியப்பட்டால்,
-                            கடனளிப்பவருக்கு இந்த முக்கிய தகவல் அறிக்கையை மாற்ற அல்லது திரும்பப் பெற உரிமை உண்டு.</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            மேலே உள்ள விதிமுறைகள் மற்றும் நிபந்தனைகள் எனக்கு / எங்களுக்கு விளக்கப்பட்டது மற்றும் என்னால்
-                            / எங்களால் ஒப்புக்கொள்ளப்பட்டது மற்றும் புரிந்து கொள்ளப்பட்டது.”
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">2</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">வசூல் முகவர்களை நியமிப்பது தொடர்பான கடன்
-                            ஒப்பந்தத்தின் உட்பிரிவு</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">கடனளிப்பவர், இந்த ஒப்பந்தத்தின் கீழ்
-                            நிலுவையில் உள்ள எந்தவொரு நிலுவைத் தொகைகளையும் வசூலிக்க உதவுவதற்கு தனது அதிகாரிகள் அல்லது
-                            ஊழியர்கள் மூலமாக பின்வரும் நடவடிக்கைகளைச் செய்வதற்கான தனது உரிமைக்கு எந்தவித பாரபட்சமும்
-                            இல்லாமல், கடன் பெறுபவரிடம் இருந்து செலவு மற்றும் செலவுகளை மீட்பதில் உதவுவதற்காக
-                            கடனளிப்பவரின் தேர்வின்படி ஒரு மீட்பு முகவரை நியமிக்கவும் ஈடுபடுத்தவும் முற்றிலும் உரிமை
-                            மற்றும் முழு அதிகாரம் கொண்டவர் என்பதையும், கடன் பெறுபவரின் குடியிருப்பு அல்லது அலுவலகம்
-                            அல்லது வேறுவிதமாக இருந்தாலும் அவரது வளாகத்திற்குச் செல்லவும், பிணையத்தைச் சரிபார்த்து ஆய்வு
-                            செய்யவும், கடனளிப்பவர் சார்பாக செலுத்தப்படாத அனைத்து நிலுவைத் தொகைகளையும் வசூலித்தல்,
-                            பிணையத்தை அமல்படுத்துதல், கடன் பெறுபவர் / அவர்களின் சொத்துக்களின் எந்தவொரு தகவலையும் பெறுதல்
-                            அல்லது சரிபார்த்தல் மற்றும் கோரிக்கை அறிவிப்புகளை அனுப்புவது உட்பட அதனுடன் தொடர்புடைய அல்லது
-                            அதனுடன் தொடர்புடைய அனைத்து செயல் (செயல்கள்), பத்திரம் (பத்திரங்கள்), விஷயம் (விஷயங்கள்)
-                            மற்றும் பொருள் (பொருட்கள்) ஆகியவற்றைச் செய்து செயல்படுத்த, அல்லது கடன் பெறுபவரைத்
-                            தொடர்புகொண்டு, கடன் பெறுபவரிடமிருந்து நிலுவைத் தொகையை (பணமாக/வங்கி வரைவோலை/காசோலை மூலம்)
-                            பெறுதல், மற்றும் மீட்பு முகவர் இந்த நோக்கத்திற்காக பொருத்தமானதாகக் கருதக்கூடிய அனைத்து
-                            சட்டபூர்வமான செயல்கள், பத்திரங்கள், விஷயங்கள் மற்றும் இத்துடன் தொடர்புடைய அல்லது தற்செயலான
-                            விஷயங்களைச் செய்து செயல்படுத்துவதற்கும் கடன் பெறுபவர் வெளிப்படையாக அங்கீகரித்து
-                            ஏற்றுக்கொள்கிறார்.</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">3</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">குறை தீர்க்கும் வழிமுறையை விவரிக்கும் கடன்
-                            ஒப்பந்தத்தின் உட்பிரிவு</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பிரமல் கேபிடல் அன்ட் ஹவுசிங் ஃபைனான்ஸ்
-                            லிமிடெட் நிறுவனத்தில், வாடிக்கையாளர் சேவையில் சிறந்ததை வழங்குவது எங்கள் முயற்சியாகும்.
-                            எங்களது அனைத்து பொருட்கள், சேவைகள் மற்றும் கொள்கைகள் வாடிக்கையாளரை மையமாகக் கொண்ட அடிப்படை
-                            மதிப்பைச் சுற்றி கட்டமைக்கப்பட்டுள்ளன.
-                            வழங்கப்படும் சேவைகளில் வாடிக்கையாளர்கள் திருப்தியடையாத சந்தர்ப்பங்கள் இருக்கலாம். இதுபோன்ற
-                            நிகழ்வுகளை முன்னிலைப்படுத்த மற்றும் ஒரு புகாரைப் பதிவு செய்வதற்குத் தயவுசெய்து பின்வரும்
-                            செயல்முறையைப் பின்பற்றவும்:
-                        </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">a) கடன் பெறுபவர் தனது புகாரை
-                            www.piramalfinance.com இல் குறிப்பிடப்பட்டுள்ள கட்டணமில்லா எண் அல்லது
-                            customercare@piramal.com க்கு மின்னஞ்சல் மூலம் எழுப்பலாம்.</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            b) வழங்கப்பட்ட தீர்வில் வாடிக்கையாளர் திருப்தி அடையவில்லை என்றால், அல்லது அவரது / அவளது
-                            வினவல் 15 நாட்களுக்குள் தீர்க்கப்படவில்லை என்றால், வாடிக்கையாளர் எங்களுக்கு பின்வரும்
-                            மின்னஞ்சல் முகவரிக்கு எழுதுவதன் மூலம் விரிவாக்கலாம்: grievances@piramal.com
-                        </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            c) ஒருவேளை அந்த பிரச்சினை 15 நாட்களுக்கு மேல் தீர்க்கப்படாமல் இருந்தால், கடன் பெறுபவர் கீழே
-                            குறிப்பிடப்பட்டுள்ள "நோடல் அதிகாரி" விவரங்களுக்கு இந்த விஷயத்தை விரிவுபடுத்தலாம்.
-                        </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                            d) கடன் பெறுபவர் இந்த பதிலிலும் திருப்தி அடையவில்லை என்றால், கடன் பெறுபவர் தேசிய வீட்டுவசதி
-                            வங்கியின் புகார் தீர்வு பிரிவை https://grids.nhbonline.org.in என்ற இணைப்பில் ஆன்லைன்
-                            பயன்முறையில் பதிவு செய்வதன் மூலம் அணுகலாம் அல்லது தேசிய வீட்டுவசதி வங்கி, புகார் தீர்வு
-                            பிரிவு, ஒழுங்குமுறை மற்றும் மேற்பார்வைத் துறை, தேசிய வீட்டுவசதி வங்கி, 4 வது தளம், கோர் 5 ஏ,
-                            இந்தியா வாழ்விட மையம், லோதி சாலை, புது தில்லி - 110 003 என்னும் முகவரிக்கு எழுதலாம்
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">4</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">நோடல் குறை தீர்க்கும் அதிகாரியின் தொலைபேசி
-                            எண் மற்றும் மின்னஞ்சல் ஐடி </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left bold">கடன் வழங்குபவருக்கு</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">Ms. ஹெட்டல் பரிஹர் </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">6வது தளம், அமிதி பில்டிங், அகஸ்த்யா
-                            கார்ப்பொரேட் பார்க், கமனி ஜங்சன், எதிர்புறம்</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஃபயர் ஸ்டேசன், எல்பிஎஸ் (LBS) மார்க்,
-                            குர்லா (மேற்கு) மும்பை MH400070</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">மின்னஞ்சல்: nodal.officer@piramal.com</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">தொடர்பு எண்: 022- 69181439</p>
-
-
-                        <p style="margin: 20px 16px 6px 16px" class="fw400 text-left bold">எல்எஸ்பி (LSP) க்கு</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பெயர்: திரு. புஷ்பேந்தர் குமார்</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">மின்னஞ்சல்- nodalofficer@bharatpemoney.com
-                        </p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">தொடர்பு எண்: {{lsp_contact_number}}</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பணி நேரங்கள்: Monday to Friday from 10:00
-                            a.m. to 7:00 pm</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">இணையதளம்: <a href="bharatpemoney.com"
-                                target="_blank">bharatpemoney.com</a></p>
-
-                        <p style="margin: 16px;" class="fw400 text-left">புகார் 30 நாட்களில் தீர்க்கப்படாவிட்டால், கடன்
-                            பெறுபவர் ஆர்பிஐ (RBI) புகார்கள் முறையீட்டுப் பிரிவுக்கான (போர்ட்டல்) இந்த இணையதளத்தில் <a
-                                href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a> வெளியிட்டு
-                            அந்த விஷயத்தை விரிவாக்கலாம்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">5</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> எதிர்காலத்தில் அந்த கடன் வேறு
-                            ஒழுங்குபடுத்தப்பட்ட நிறுவனத்திற்கு மாற்றப்படுவதற்கு அல்லது பத்திரமயமாக்கலுக்கு உட்பட்டதாக
-                            ஆக்கப்படலாம் </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஆம்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">6</td>
-                    <td colspan="2" class="text-center">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">டிஜிட்டல் கடன் விஷயத்தில், பின்வரும்
-                            குறிப்பிட்ட வெளிப்படுத்தல்களை வழங்கலாம்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(i)</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> கூலிங் ஆஃப் (தணிப்பு) / பார்வைக் காலம்
-                            (லுக்-அப் காலம்) (கடனளிப்பவரின் சபையின் ஒப்புதல் பெற்ற கொள்கையின் படி) இந்த காலஅளவின்
-                            பொழுது, கடன் வாங்குபவருக்கு கடனை முன்கூட்டியே அடைத்தல் / முன்கூட்டியே செலுத்துதல்
-                            ஆகியவற்றில் எந்த அபராதமும் விதிக்கப்படாது </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">3 கடன் வழங்கப்பட்டதிலிருந்து நாட்கள் </p>
-                        <p style="margin: 16px 16px 6px;" class="fw400 text-left">*கூலிங் ஆஃப் காலத்தின் போது விகிதாசார
-                            வட்டி மற்றும் பிற கட்டணங்கள் (முன்கூட்டியே செலுத்தல்/முன்கூட்டியே அடைத்தல் (ஃபோர்குளோசர்)
-                            விதிக்கப்படும் என்பதை தயவுசெய்து குறித்துக் கொள்ளவும்.</p>
-                    </td>
-                </tr>
-
-                <tr class="width-100">
-                    <td class="text-center width-6">(ii)</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் வழங்கும் சேவை வழங்குநர் </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ரெசிலியன்ட் டிஜி சர்வீசஸ் பிரைவேட்
-                            லிமிட்டெட்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(iii)</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> டிஜிட்டல் முறையிலான கடன் விண்ணப்பம் </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">மொபைல் அப்ளிகேசன் “<span
-                                class="bold">வர்த்தகத்திற்கான பாரத்பே (பாரத்பே ஃபார் பிசினஸ்)</span>”</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">(iv)</td>
-                    <td style="padding: 0px 5px;" class="width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் வசூல் முகவராக செயல்படும் மற்றும் கடன்
-                            பெறுபவரை அணுக அங்கீகரிக்கப்பட்ட எல்எஸ்பி (LSP) பற்றிய விவரங்கள் </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ரெசிலியன்ட் டிஜி சர்வீசஸ் பிரைவேட்
-                            லிமிட்டெட்</p>
-                        <br>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">*கடன் திருப்பிச் செலுத்த தவறுகை நேர்ந்தால்
-                            தொடர்பு கொள்ளும் வகையில் கடனளிப்பவரால் மீட்பு முகவர் அங்கீகரிக்கப்பட்டுள்ளார் என்பதைத்
-                            தயவுசெய்து குறித்துக் கொள்ளவும். அன்புகூர்ந்து நிலுவைத் தேதியன்று அல்லது அதற்கு முன்பாக பணம்
-                            செலுத்துங்கள்
-                        </p>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <p style="margin: 6px 16px" class="fw400 mb20"> *மேலும் விரிவான தகவல்களுக்கு, தயவுசெய்து கடன் வசதிக்கான ஒப்புதல்
-            கடிதம் மற்றும் கடன் ஒப்பந்தத்தைப் பார்க்கவும். This Key Fact Statement needs to be read along with the
-            Sanction Letter & Loan Agreement.
-            இந்த முக்கிய தகவல் அறிக்கையை ஒப்புதல் கடிதம் மற்றும் கடன் ஒப்பந்தத்துடன் சேர்த்து படிக்க வேண்டும்.</p>
-        <br />
-        <br />
-        <div class="mb20 bold text-center underline">சில்லறை மற்றும் எம்எஸ்எம்இ (MSME) கடன்களுக்கான ஏபிஆர் (APR)
-            கணக்கிடுவதற்கான விளக்கம்</div>
-
-        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
-            <tbody>
-                <tr class="width-100">
-                    <td class="text-center bold width-6">எண்</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 bold text-left"> பண்பளவு </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 bold text-left">விபரங்கள்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">1</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> ஒப்புதலளிக்கப்பட்ட கடன் தொகை (ரூபாயில்)
-                            (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 3 – பகுதி 1)</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">2</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் காலம் (ஆண்டுகளில் / மாதங்களில் /
-                            நாட்களில்) (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண்.5 - பகுதி 1) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}} மாதங்களில்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">a)</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> சமமற்ற காலமுறை கடன்களாக இருந்தால், அசல்
-                            செலுத்துவதற்கான தவணைகளின் எண்ணிக்கை</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">-</p>
-                    </td>
-                </tr>
-
-                <tr class="width-100">
-                    <td rowspan="3" class="text-center width-6">b)</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">இபிஐ (EPI) யின் வகை
-                        </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">தினசரி</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> ஒவ்வொரு இபிஐ (EPI) யின் தொகை (ரூபாயில்)
-                            மற்றும்</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{edi_amount}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> இபிஐ களின் எண்ணிக்கை (எடுத்துக்காட்டாக
-                            மாதாந்திர தவணைகள் என்றால் இஎம்ஐ [EMI] களின் எண்ணிக்கை)
-                            (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 6 – பகுதி 1)
-                        </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">c)</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">மூலதனமாக்கப்பட்ட வட்டி ஏதேனும் இருப்பின்,
-                            செலுத்துவதற்கான தவணைகளின் எண்ணிக்கை</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">பொருந்தாது</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">d)</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> ஒப்புதல் அளிப்புக்குப் பிறகு திருப்பிச்
-                            செலுத்துதல்களைத் தொடங்குதல் (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 6 – பகுதி 1) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">1 நாட்கள்</p>
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">3</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> வட்டி விகித வகை (நிலையான அல்லது
-                            மாறுபடுகின்ற அல்லது கலப்பின) (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 7 - பகுதி 1) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">சரி</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">4</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">வட்டி விகிதம் (கேஎஃப்எஸ் [KFS]
-                            வார்ப்புருவின் வரிசை எண் 7 – பகுதி-1)</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} %</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">5</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> ஒப்புதல் தேதியில் நிலவும் விகிதத்தின்படி
-                            கடனின் முழு தவணைக்காலத்திலும் வசூலிக்கப்பட வேண்டிய மொத்த வட்டித் தொகை (ரூபாயில்) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">6</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> செலுத்த வேண்டிய கட்டணத்தொகை/ கட்டணங்கள்8
-                            (ரூபாயில்) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}} +
-                            {{insurance_premium}} (A+B) </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">A</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> ஆர்இ (RE) க்கு செலுத்த வேண்டியது
-                            (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 8A – பகுதி-1) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">B</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ஆர்இ (RE) மூலம் வழிநடத்தப்படும் மூன்றாம்
-                            தரப்பினருக்கு செலுத்தப்பட வேண்டியது (கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 8B – பகுதி-1)
-                        </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">7</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">நிகர பட்டுவாடா தொகை (1-6) (ரூபாயில்)</p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_disbursed}} </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">8</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> கடன் பெறுபவர் செலுத்த வேண்டிய மொத்தத் தொகை
-                            (1 மற்றும் 5ன் கூட்டுத்தொகை) (ரூபாயில்) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">₹
-                            {{total_amount_including_interest_paid_by_borrower_entire_tenure}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">9</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> வருடாந்திர சதவீத விகிதம்- பயனுள்ள
-                            வருடாந்திர வட்டி விகிதம் (சதவீதத்தில்)10(கேஎஃப்எஸ் [KFS] வார்ப்புருவின் வரிசை எண் 11 –
-                            பகுதி-1) </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">{{apr}} %</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">10</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">விதிமுறைகள் மற்றும் நிபந்தனைகளின்படி
-                            வழங்குவதற்கான அட்டவணை </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">விரிவான அட்டவணை வழங்கப்பட வேண்டும்</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td class="text-center width-6">11</td>
-                    <td style="padding: 0px 5px;" class="width-70">
-                        <p style="margin: 6px 16px;" class="fw400 text-left"> தவணை மற்றும் வட்டி செலுத்த வேண்டிய தேதி
-                        </p>
-                    </td>
-                    <td style="padding: 0px 5px;" class="word-wrap width-24">
-                        <p style="margin: 6px 16px;" class="fw400 text-left">1st edi date</p>
-                    </td>
-                </tr>
-
-            </tbody>
-        </table>
-
-        <br />
-        <br />
-        <div style="page-break-inside: avoid !important">
-            <h3 class="text-center">
-                <span class="underline bold">விரிவான பணம் திருப்பிச் செலுத்துதல் அட்டவணை</span>
-            </h3>
-            <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
-                <tbody>
-                    <tr class="width-100">
-                        <td style="padding: 0px 5px" class="width-auto">
-                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                                <strong>தவணை எண்</strong>
-                            </p>
-                        </td>
-                        <td style="padding: 0px 5px" class="width-auto">
-                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                                <strong>நிலுவையில் இருக்கும் அசல் தொகை (ரூபாயில்)</strong>
-                            </p>
-                        </td>
-                        <td style="padding: 0px 5px" class="width-auto">
-                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                                <strong>அசல் தொகை (ரூபாயில்)</strong>
-                            </p>
-                        </td>
-                        <td style="padding: 0px 5px" class="width-auto">
-                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                                <strong>வட்டி (ரூபாயில்)</strong>
-                            </p>
-                        </td>
-                        <td style="padding: 0px 5px" class="width-auto">
-                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                                <strong>தவனைத் தொகை (ரூபாயில்)</strong>
-                            </p>
-                        </td>
-                    </tr>
-                    {{repayment_schedule}}
-                </tbody>
-            </table>
-        </div>
-        <br />
-        <br />
-        <br />
-
-        <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
-            style="page-break-inside: avoid !important">
-            <tbody>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left"> கடன் பெற்றவரின் பெயர்</p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            {{borrower_name}}
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">தேதி</p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left"> ஓடிபி (OTP) க்கான மொபைல் எண் </p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            {{mobile_number_for_otp}}
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">தளம்</p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            BharatPe for Business
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">ஐபி முகவரி</p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            {{ip_address}}
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">நேர முத்திரை
-                        </p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            {{time_stamp}}
-                        </p>
-                    </td>
-                </tr>
-                <tr class="width-100">
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">கடன் ஐடி</p>
-                    </td>
-                    <td style="padding: 0px 5px" class="width-auto">
-                        <p style="margin: 6px 16px" class="fw400 text-left">
-                            {{loan_id}}
-                        </p>
-                    </td>
-                </tr>
             </tbody>
         </table>
     </div>
