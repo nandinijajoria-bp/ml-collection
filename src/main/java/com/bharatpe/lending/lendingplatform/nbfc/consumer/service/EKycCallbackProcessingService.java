@@ -121,7 +121,7 @@ public class EKycCallbackProcessingService {
             kycDetails.setFatherName(getFatherName(kycData.getAadhaarDetails().getCareOf() + ","));
             kycDetails.setDob(String.valueOf(kycData.getAadhaarDetails().getDob()));
             kycDetails.setAadharIdentifier(kycData.getAadhaarDetails().getAadhaarNumber());
-            kycDetails.setAadharXml(kycData.getAadhaarDetails().getAadhaarXML());
+//            kycDetails.setAadharXml(kycData.getAadhaarDetails().getAadhaarXML());
             kycDetails.setGender(kycData.getAadhaarDetails().getGender());
             kycDetails.setAadharState(kycData.getAadhaarDetails().getState());
             kycDetails.setAadharCity(kycData.getAadhaarDetails().getCity());
