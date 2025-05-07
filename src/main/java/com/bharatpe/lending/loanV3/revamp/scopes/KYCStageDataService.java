@@ -264,7 +264,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                     }
                     return new LendingStateDTO<>(initiateKycResponse , LendingViewStates.LENDER_EVALUATION_PAGE, LendingViewStates.KYC_PAGE);
                 }
-                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, validAfter, initiateKycResponse.getConvertedKycRanking());
+                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, validAfter, initiateKycResponse.getConvertedKycRanking(), initiateKycResponse);
                 loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, lendingApplication.getId(), LendingViewStates.KYC_PAGE);
                 if(initiateKycResponse.isTopup() && !kycRetry && !Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())){
                     return new LendingStateDTO<>(initiateKycResponse, LendingViewStates.ENACH_PAGE, LendingViewStates.KYC_PAGE);
@@ -284,7 +284,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                         lendingApplicationKycDetails, lendingApplication, lendingApplicationDetails, scopeDataArgs.getMerchant().getId(),scopeDataArgs.getMerchant().getMid(),
                         lendingApplication.getCreatedAt(), initiateKycResponse, isResubmittedApplication);
 
-                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, lendingApplication.getUpdatedAt(), initiateKycResponse.getConvertedKycRanking());
+                initiateKycResponse=initiateKyc(lendingApplication,scopeDataArgs.getMerchant().getId(), initiateKycResponse.isTopup(), initiateKycResponse.isFreshKyc(), isResubmittedApplication, lendingApplication.getUpdatedAt(), initiateKycResponse.getConvertedKycRanking(), initiateKycResponse);
                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.LOAN_KYC_INITIATED_BE.name(), null, scopeDataArgs.getMerchant().getMid()));
                 funnelService.submitEventV3(scopeDataArgs.getMerchant().getId(), null, lendingApplication.getId(),lendingApplication.getLoanType(),
                         FunnelEnums.StageId.KYC, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
@@ -300,7 +300,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         }
     }
 
-    private KYCStateDTO initiateKyc(LendingApplication lendingApplication,Long merchantId, Boolean isTopup, boolean isFreshKyc, boolean isResubmittedApplication, Date validAfter, String convertedKycRanking){
+    private KYCStateDTO initiateKyc(LendingApplication lendingApplication, Long merchantId, Boolean isTopup, boolean isFreshKyc, boolean isResubmittedApplication, Date validAfter, String convertedKycRanking, KYCStateDTO kycStateDTO){
         KYCStateDTO initiateKycResponse = new KYCStateDTO();
         initiateKycResponse.setLender(lendingApplication.getLender());
         initiateKycResponse.setTopup(isTopup);
@@ -326,7 +326,7 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
                 .callBackUrl(callBackURL)
                 .merchantId(merchantId.toString()).build();
         boolean onlySelfieLivelinessRequired = kycUtils.isELigibleForLenderKyc(lendingApplication.getLender(), lendingApplication.getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
-        Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchantId, initiateKycDTO, docTypes, validAfter, onlySelfieLivelinessRequired, convertedKycRanking);
+        Map<String, String> ckycResponseObj = kycHandler.initiateKyc(merchantId, initiateKycDTO, docTypes, validAfter, onlySelfieLivelinessRequired, convertedKycRanking, kycStateDTO);
         if (ckycResponseObj.containsKey("ckycId")) {
             lendingApplicationDao.updateKycId(lendingApplication.getId(), ckycResponseObj.get("ckycId"), merchantId);
             if(isFreshKyc || !ObjectUtils.isEmpty(convertedKycRanking)){
@@ -364,6 +364,11 @@ public class KYCStageDataService implements IStageDataService<KYCStateDTO> {
         KycDocResponseDTO kycDocResponseDTO = kycHandler.getKycDocs(merchantId, vaildAfterDate, LendingConstants.POA_PROVIDER, docs, acceptRejected, acceptDraft, kycRankingConverted);
         log.info("KYC docs fetched for merchantId : {}", merchantId);
 
+        if(kycDocResponseDTO != null) {
+            kycStateDTO.setKycRanking(kycDocResponseDTO.getKycRanking());
+            kycStateDTO.setKycRankingStatus(kycDocResponseDTO.getEntityStatus());
+            log.info("kycRanking: {} and status: {} for merchantId : {}", kycDocResponseDTO.getKycRanking(), kycDocResponseDTO.getEntityStatus(), merchantId);
+        }
         if(p2pmChecks(kycDocResponseDTO.getKycRanking()) && ObjectUtils.isEmpty(kycRankingConverted)) {
             if(ObjectUtils.isEmpty(metaData)) {
                 metaData = new HashMap<>();
