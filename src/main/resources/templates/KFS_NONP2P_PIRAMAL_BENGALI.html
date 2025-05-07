@@ -137,912 +137,6 @@
 </head>
 
 <body>
-<!-- Bangla Section -->
-    <div style="padding: 20px 30px; margin-top: 50px">
-    <div style="display: flex; justify-content: center;" class="width-100">
-        {{lender_logo}}
-    </div>
-    <h2 class="text-center">
-        <span class="underline">মূল তথ্য পত্র/ স্টেটমেন্ট</span>
-    </h2>
-    <p class="fw400 mb30"> এই মূল তথ্য পত্র <span class="bold">(“কেএফএস”)</span> গ্রহীতার দ্বারা ডিজিটাল ঋণ আবেদনের জন্য মেয়াদি ঋণ আবেদনের ক্ষেত্রে প্রযোজ্য: </p>
-
-    <div class="text-left bold mb10">তারিখ: {{date}}</div>
-    <div class="text-left bold mb10">গ্রহীতার নাম: পিরামল ক্যাপিটাল & হাউসিং ফাইন্যান্স লিমিটেড</div>
-    <div class="text-left bold mb10">আবেদনকারীর: {{borrower_name}}</div>
-    <div class="text-left bold mb40">প্যান নম্বর: {{pan_of_borrower}}</div>
-
-    <div class="mb20 bold text-center underline"> ভাগ 1 (সুদের হার এবং ফী/চার্জ প্রযোজ্য)</div>
-
-    <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
-        <tbody>
-        <tr class="width-100">
-            <td class="bold text-center width-6">1</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণ প্রস্তাব/একাউন্ট নম্বর </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{lead_id}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">2</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold"> ঋণের ধরন</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    পার্সোনাল লোন
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">3</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">অনুমোদিত ঋণের পরিমাণ (টাকায়)</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">টাকা. {{loan_amount_in_figure}}/- (টাকা
-                    {{loan_amount_in_words}} মাত্র)</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">4</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">বিতরণ সময়সূচী</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">কলম 10-এর নির্দেশিত ফী/চার্জ বাদ দেওয়ার পর 100% অগ্রিম</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">5</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণের মেয়াদ/কাল  </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">(বৎসর/মাস/দিন)</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 10px 16px;" class="fw400 text-left">
-                    {{no_of_edis}} মাস
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">6</td>
-            <td colspan="12" class="bold text-left width-100">
-                <p style="margin: 6px 16px;">কিস্তির বিবরণ (বিস্তারিত বিবরণের জন্য, অনুগ্রহ করে বিস্তারিত পরিশোধের সময়সূচি পড়ুন)</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6"></td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;">কিস্তির ধরণ</p>
-            </td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;">কিস্তির সংখ্যা</p>
-            </td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;">কিস্তির পরিমাণ (টাকা)*</p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;">পরিশোধের সূচনা, অনুমোদনের পর</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center"></td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">সমান দৈনিক কিস্তি</p>
-            </td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
-            </td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{edi_amount}}</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">*কিস্তি নিকটবর্তী টাকার মূল্যে পূর্ণ সংখ্যায় গুনিত করা অতিরিক্ত টাকা (যদি সংগ্রহ করা হয়) শেষ কিস্তির সাথে সমন্বয় করা হবে অথবা গ্রহীতাকে ফেরত দেয়া হবে (ঋণদাতার বিচক্ষণতা অনুযায়ী)</p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">বিতরণের তারিখ থেকে অবিলম্বে পরের দিন</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">7</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">সুদের হার (%) এবং ধরন  </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">(ফিক্সড/ফ্লোটিং/হাইব্রিড)</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} % প্রতি বছর</p>
-                <p style="margin: 10px 16px;" class="fw400 text-left">প্রকার - স্থির
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">8</td>
-            <td colspan="12" class="bold text-left width-100">
-                <p style="margin: 6px 16px;">ফ্লোটিং সুদের হারের ক্ষেত্রে অতিরিক্ত তথ্য</p>
-            </td>
-        </tr>
-
-        <tr class="width-100">
-            <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="text-left bold">রেফারেন্স বেঞ্চমার্ক</p>
-            </td>
-            <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">বেঞ্চমার্ক রেট (%) (B)</p>
-            </td>
-            <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">স্প্রেড (%)
-                    (S)</p>
-            </td>
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">চূড়ান্ত হার
-                    (%)
-                    R =
-                    (B)
-                    + (S)</p>
-            </td>
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">পর্যায়ক্রমিকতা (মাস)</p>
-            </td>
-            <td colspan="3" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">প্রদত্ত মাত্রাসূচকে পরিবর্তনের প্রভাব (R'-এ 25 bps এর পরিবর্তনের জন্য, পরিবর্তন হয়:3)</p>
-            </td>
-        </tr>
-
-        <tr class="width-100">
-            <td colspan="2" style="padding: 0px 5px;" class="width-24"></td>
-
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">B</p>
-            </td>
-            <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">S</p>
-            </td>
-            <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">EPI</p>
-            </td>
-            <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">EPI-এর সংখ্যা</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
-
-            <td colspan="2" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-            <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-            <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-            <td colspan="1" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-
-        <tr class="width-100">
-            <td class="bold text-center width-6">9</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">পরিশোধের প্রণালী </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    দৈনিক নিষ্পত্তির পরিমাণ** থেকে ঋণ দলিল অনুসারে গ্রহীতার নির্দেশ অনুযায়ী কিস্তির পরিমাণ অথবা অন্য কোনো বকেয়া বাদ যাবে রেসিলিয়েন্ট ইনোভেশন প্রাইভেট লিমিটেডের তরফে (ঋণগ্রহীতার অফলাইন আদায় সমষ্টিকারী) (“<span class="bold">অফলাইন PA</span>”)
-                </p>
-                <p style="margin: 10px 16px;" class="fw400 text-center">এবং/অথবা</p>
-                <p style="margin: 10px 16px;" class="fw400 text-left">ঋণ গ্রহীতার ব্যাঙ্ক একাউন্ট থেকে ই-ম্যান্ডেটের মাধ্যমে যেমন UPI অটোপে/ NACH এরকম অন্য ইলেক্ট্রনিক প্রণালীতে ঋণ দলিল অনুসারে কিস্তির পরিমাণ বা অন্য কোনো বকেয়া কেটে নেওয়া</p>
-                <p style="margin: 10px 16px;" class="fw400 text-left">ঋণদাতার ঋণ দলিল অনুসারে উপর্যুক্ত যে কোনো প্রণালীতে অথবা একাধিক প্রণালীর সংযোগে কিস্তির পরিমাণ অথবা অন্য কোনো বকেয়া কেটে নেওয়ার যথাযথ নির্দেশ দেওয়ার অধিকার সংরক্ষিত থাকবে</p>
-                <p style="margin: 10px 16px;" class="fw400 text-left">*ঋণগ্রহীতা এতদ্বারা স্পষ্টভাবে, শর্তহীনভাবে এবং অপরিবর্তনীয়ভাবে অফলাইন PA কে কর্তৃত্ব দিচ্ছে ঋণ দলিল অনুযায়ী কিস্তির পরিমাণ এবং অন্য বকেয়া কেটে নিয়ে সরাসরি ঋণদাতাকে প্রদান করতে</p>
-                <p style="margin: 10px 16px;" class="fw400 text-left">**নিস্পত্তির পরিমান-এর অর্থ ব্যাখ্যা করা থাকবে অনুমোদন পত্রে এবং ঋণ চুক্তিতে</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">10</td>
-            <td colspan="12" class="bold text-left width-100">
-                <p style="margin: 6px 16px;">ফী/চার্জ  </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6"></td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    চার্জ
-                </p>
-            </td>
-            <td colspan="6" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ঋণদাতাকে প্রদেয় (A)</p>
-            </td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ঋণদাতা দ্বারা এক তৃতীয় পক্ষকে প্রদেয় (B)
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6"></td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">একবার/পুনরাবৃত্ত</p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">পরিমাণ (টাকা) অথবা শতাংশ % (প্রযোজ্য হিসেবে)
-                </p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">একবার/পুনরাবৃত্ত</p>
-            </td>
-            <td colspan="1" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">পরিমাণ (টাকা) অথবা শতাংশ % (প্রযোজ্য হিসেবে)
-                </p>
-            </td>
-        </tr>
-
-
-        <tr class="width-100">
-            <td class="text-center width-6">(i)</td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রক্রিয়াকরণ ফি</p>
-            </td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">এক বার*</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রক্রিয়াকরণ ফীটা একবারের ফী এবং বিতরণের পরিমাণ থেকে কেটে নেওয়া হবে।</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    * কুলিং অফ পর্যায়ে যদি ঋণগ্রহীতা ঋণটি পূর্বেই বন্ধ করে দেন, প্রক্রিয়াকরণ ফী এর 3  ঋণগ্রহীতাকে ফিরিয়ে দেওয়া হবে
-                </p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_without_gst}} + জিএসটি =
-                    {{processing_fee_includes_tax}}</p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="1" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(ii)</td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">বীমা </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">চার্জ/প্রিমিয়াম</p>
-            </td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">এক বার*</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    বীমা প্রিমিয়ামের পরিমাণ যা বীমা প্রতিষ্ঠানকে দেওয়া হবে তা বিতরণের পরিমান থেকে কেটে নেওয়া হবে
-                </p>
-            </td>
-            <td colspan="1" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">(iii)</td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">মূল্যায়ন ফী</p>
-            </td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="1" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">(iv)</td>
-            <td colspan="3" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">অন্য কোনো চার্জ (যদি থাকে)</p>
-            </td>
-            <td colspan="4" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="2" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-            <td colspan="1" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"></p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">11</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">বার্ষিক শতাংশের হার </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 bold text-left">{{apr}} % প্রতি বর্ষ </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">12</td>
-            <td colspan="12" class="bold text-left width-100">
-                <p style="margin: 6px 16px;">আনুষঙ্গিক চার্জএর বিশদ (টাকায় বা %, যা প্রযোজ্য)</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="bold text-center width-6">(i)</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">শাস্তিমূলক চার্জ, যদি থাকে, দেরিতে দেওয়ার জন্য </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রতি বছর 24% প্লাস 24% থেকে প্রতি বছর 24% অর্থাত্ প্রতি মাসে 2% প্লাস ইএমআই অর্থ প্রদানের ক্ষেত্রে ডিফল্ট তারিখ থেকে</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(ii)</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">অন্য শাস্তিমূলক চার্জ, যদি থাকে</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(iii)</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">পূর্বে বন্ধ/পূর্বে প্রদান চার্জ, যদি প্রযোজ্য হয়</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-
-        <tr class="width-100">
-            <td class="text-center width-6">(iv)</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">আংশিক প্রদান চার্জ </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class=" text-center width-6">(v)</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left ">ই-আদেশ (যেমন NACH/UPI অটোপে/আদেশ বিফল হওয়ার চার্জ</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(vi)</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">অন্য কোনো চার্জ (অনুগ্রহ করে নির্দিষ্ট করুন)</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-
-        <!-- <tr class="width-100">
-            <td class="text-center width-6 bold">14</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">वैधता अवधि</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">3 इस मुख्य तथ्य विवरण की तिथि का दिन</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6 bold">15</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">कूलिंग ऑफ/लुक-अप अवधि (ऋणदाता की बोर्ड द्वारा अधिकृत नीति के अनुसार) जिसके दौरान ऋण के फोरक्लोजर/पूर्व भुगतान के लिए ऋणी से कोई जुर्माना नहीं लिया जाएगा।</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">3 ऋण के वितरण से दिन</p>
-                <br>
-                <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि कूलिंग ऑफ अवधि के दौरान आनुपातिक ब्याज और अन्य शुल्क (पूर्व-भुगतान/फोरक्लोज़र शुल्क के अलावा) लगाए जाएंगे।</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6 bold">16</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ऋण सेवा प्रदाता </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6 bold">17</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">रिकवरी एजेंट के रूप में कार्य करने वाले और ऋणी से संपर्क करने के लिए अधिकृत एलएसपी का विवरण</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
-                </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि ऋणदाता द्वारा रिकवरी एजेंट को पुनर्भुगतान में चूक के लिए संपर्क करने के लिए अधिकृत किया गया है। कृपया देय तिथि पर या उससे पहले भुगतान करें
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6 bold">18</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">डिजीटल ऋण आवेदन </p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 text-left">मोबाइल एप्लीकेशन “भारतपे फॉर बिजनेस”</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6 bold">19</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">शासी कानून एवं मध्यस्थता का स्थान एवं स्थान</p>
-            </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
-                <p style="margin: 6px 16px;" class="fw400 bold text-left">मुम्बई</p>
-            </td>
-        </tr> -->
-        </tbody>
-    </table>
-
-    <div class="mb20 bold text-center underline">অংশ-2 (অন্য গুনগত তথ্য)</div>
-
-    <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
-        <tbody>
-        <tr class="width-100">
-            <td class="text-center width-6">1</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> বৈধতার মেয়াদ </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">3 দিন মূল তথ্য বিবৃতির তারিখ থেকে
-                    "এই মূল তথ্য বিবৃতিটি ঋণ অনুমোদনের সময় ঋণগ্রহীতার নথি এবং বিবরণের ওপর ভিত্তি করে জারি করা হয়েছে প্রস্তাবে যদি কোনো বস্তুগত পরিবর্তন হয় যাহার জন্য ঋণ অনুমোদন করা হয়েছে অথবা; যদি কোনো ঘটনা ঘটে যা, ঋণদাতার মতে ঋণগ্রহীতার অর্থনৈতিক পরিস্থিতিকে অথবা তাহার/তাহার (স্ত্রী)/তাহাদের ঋণের ওপর কোনো দায় সামলাতে তাদের ক্ষমতাকে প্রভাবিত করবে অথবা; ঋণ আবেদনপত্রে অথবা উপস্থাপনায় কোনো বিবৃতি যদি ভুল বা অসত্য পাওয়া যায় অথবা কোনো বস্তুগত তথ্য গোপন করা এবং যদি কোনো বস্তুগত অসঙ্গতি অথবা ভুল উপস্থাপনা পাওয়া যায় পরে যে কোনো পর্যায়ে ঋণ প্রদানের আগে, ঋণদাতার অধিকার থাকবে এই মূল তথ্য বিবৃতিকে সংশোধন করবার অথবা রদ করবার।</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    উপরোক্ত শর্তাবলী আমাকে/আমাদিগকে বুঝাইয়া দেওয়া হয়েছে এবং আমি/আমরা বুঝিয়াছি ও স্বীকার করিয়া নিয়েছি।
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">2</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">পুনরুদ্ধার এজেন্টদের নিযুক্তি সংক্রান্ত ঋণ চুক্তিটির ধারা</p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ঋণগ্রহীতা স্পষ্টভাবে স্বীকার করে এবং গ্রহণ করে যে ঋণদাতা তার অধিকারের প্রতি কোনো কুসংস্কার ছাড়াই এই ধরনের কার্যক্রম নিজে বা অফিসার বা কর্মচারীর মাধ্যমে সম্পাদন করতে পারবে, তার সম্পূর্ণ ভাবে অধিকার থাকবে এবং ঋণগ্রহীতার খরচে এই চুক্তি অনুসারে বকেয়া পরিমাণ উদ্ধার করবার জন্যে সহযোগিতা করতে ঋণগ্রহীতার পছন্দের একজন পুনরুদ্ধার এজেন্টকে নিয়োগ এবং নিযুক্ত করবার পূর্ণ ক্ষমতা এবং কর্তৃত্ব থাকবে, ঋণগ্রহীতার আবাস, কার্যালয় অথবা অন্য কোনো প্রাঙ্গনে পরিদর্শনে যাওয়ার, নিরাপত্তা যাচাই এবং পরিদর্শন করতে, ঋণদাতার পক্ষ থেকে সমস্ত বকেয়া পাওনা আদায় করবার জন্যে, নিরাপত্তা বলবৎ করার জন্য, ঋণগ্রহীতার/তাদের সম্পদের কোনো তথ্য আদায় বা যাচাই করতে এবং সমস্ত ধারা(গুলি), দলিল(গুলি), বিষয়(গুলি) এবং জিনিস(গুলি) এর সাথে যুক্ত বা ঘটনাগতভাবে সম্পাদন করা এবং চালানো, দাবীর বিজ্ঞপ্তি পাঠানোসহ, অথবা অন্যথায় ঋণগ্রহীতার সাথে সংযোগ স্থাপন করিবার হেতু, ঋণগ্রহীতার কাছ থেকে বকেয়া আদায় করিবার হেতু (নগদে/ব্যাঙ্ক ড্রাফ্ট/চেক মারফত), এবং সমস্ত ধারাগুলি, দলিলগুলি, বিষয়গুলি এবং জিনিসগুলি সঞ্চালন এবং কার্যকর করতে। এর সাথে সংযুক্ত বা আনুষঙ্গিক যা পুনরুদ্ধার এজেন্ট এই উদ্দেশ্যের জন্য উপযুক্ত বলে বিবেচনা করে।</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">3</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ঋণের ধারা যা অভিযোগ নিষ্পত্তি প্রক্রিয়ার বিবরণ দেয়</p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">পিরামল ক্যাপিটাল হাউজিং অ্যান্ড ফাইন্যান্স লিমিটেডে সেরা গ্রাহক পরিষেবা প্রদান করার জন্য আমাদের প্রচেষ্টা সর্বাত্মক। আমাদের সমস্ত পণ্য, পরিষেবা এবং নীতি গ্রাহককেন্দ্রিকতার দিকে লক্ষ্য রেখে নির্মাণ হয়। এরকম দৃষ্টান্ত থাকতে পারে যেখানে গ্রাহকগণ প্রতিষ্ঠান কর্তৃক পরিষেবায় সন্তুষ্ট নয়। এই ধরনের দৃষ্টান্তগুলি দৃষ্টিগোচর করতে এবং একটি অভিযোগ নিবন্ধন করতে অনুগ্রহ করে নিম্নলিখিত প্রক্রিয়াটি অনুসরণ করুন:</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">ক) ঋণগ্রহীতা www.piramalfinance.com-এ উল্লিখিত টোল ফ্রি নম্বর বা customercare@piramal.com-এ ইমেলের মাধ্যমে তার অভিযোগ জানাতে পারেন</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    খ) যদি গ্রাহক প্রদত্ত সমাধানের সাথে সন্তুষ্ট না হন, বা তার প্রশ্ন 15 দিনের মধ্যে সমাধান না করা হয়, তাহলে গ্রাহক আমাদের কাছে লিখতে পারেন: grievances@piramal.com
-                </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    গ) যদি উদ্বেগটি 15 দিনের পরেও অমীমাংসিত থাকে, তবে ঋণগ্রহীতা বিষয়টি "নোডাল অফিসার" এর কাছে এগিয়ে নিতে পারেন যার বিবরণ নীচে উল্লেখ করা হয়েছে।
-                </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                    ঘ) যদি ঋণগ্রহীতা এখনও প্রতিক্রিয়াতে সন্তুষ্ট না হন, তবে ঋণগ্রহীতা https://grids.nhbonline.org.in লিংকে অনলাইন মাধ্যমে তার অভিযোগ দায়ের করে ন্যাশনাল হাউজিং ব্যাঙ্কের অভিযোগ নিষ্পত্তি সেলের কাছে লিখতে পারেন বা ন্যাশনাল হাউসিং ব্যাঙ্ক, কমপ্লেইন্ট রিড্রেসল সেল, ডিপার্টমেন্ট অফ রেগুলেশন এন্ড সুপারভিশন, ন্যাশনাল হাউসিং ব্যাঙ্ক, 4থ ফ্লোর, কোর 5A, ইন্ডিয়া হ্যাবিট্যাট সেন্টার, লোধি রোড, নিউ দিল্লী-110003-এ যেতে পারেন
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">4</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">নোডাল অভিযোগ নিষ্পত্তি কর্মকর্তার ফোন নম্বর এবং ইমেল আইডি </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণদাতার জন্য</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">মিসেস হেতাল পরিহার</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">6ষ্ঠ তলা, অমিতি বিল্ডিং, অগস্ত্য কর্পোরেট পার্ক, কামানি জংশন,</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">সামনে ফায়ার স্টেশন, LBS মার্গ, কুর্লা (ডব্লিউ), মুম্বাই MH-400070</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">ইমেইল: nodal.officer@piramal.com</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">যোগাযোগ নম্বর: 022- 69181439</p>
-
-
-                <p style="margin: 20px 16px 6px 16px" class="fw400 text-left bold">LSP-এর জন্য</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">নাম: মিঃ পুষ্পেন্দ্র কুমার</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">ইমেইল- nodalofficer@bharatpemoney.com </p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">যোগাযোগ নম্বর: {{lsp_contact_number}}</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">সোমবার থেকে শুক্রবার সকাল 10:00 টা থেকে সন্ধ্যা 7:00 টা পর্যন্ত</p>
-                <p style="margin: 6px 16px;" class="fw400 text-left">ওয়েবসাইট: <a href="bharatpemoney.com" target="_blank">bharatpemoney.com</a></p>
-
-                <p style="margin: 16px;" class="fw400 text-left">যদি অভিযোগ 30 দিনের জন্য অমীমাংসিত থেকে যায়, ঋণগ্রহীতা RBI অভিযোগ পোর্টালে যেতে পারেন <a
-                        href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a></p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">5</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> ভবিষ্যতে ঋণ অন্য নিয়ন্ত্রিত সত্তার কাছে স্থানান্তর বা সিকিউরিটাইজেশন সাপেক্ষে হতে পারে কিনা </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">হ্যাঁ</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">6</td>
-            <td colspan="2" class="text-center">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ডিজিটাল ঋণের ক্ষেত্রে, নিম্নলিখিত নির্দিষ্ট আলোকপাতগুলি জমা করা যেতে পারে</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(i)</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> কুলিং অফ/লুক-আপ পিরিয়ড (ঋণদাতার বোর্ড অনুমোদিত নীতি অনুযায়ী) যে সময়ে ঋণগ্রহীতাকে ঋণের ফোরক্লোজার/প্রিপেমেন্টে কোনো জরিমানা নেওয়া হবে না </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">ঋণ বিতরণের থেকে 3 দিন </p>
-                <p style="margin: 16px 16px 6px;" class="fw400 text-left">*অনুগ্রহ করে মনে রাখবেন আনুপাতিক সুদ এবং অন্যান্য চার্জ (প্রি-পেমেন্ট/ফোরক্লোজার চার্জ ব্যতীত) কুলিং অফ পিরিয়ডের সময় আরোপ করা হবে।</p>
-            </td>
-        </tr>
-
-        <tr class="width-100">
-            <td class="text-center width-6">(ii)</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> ঋণ সেবা প্রদানকারী </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">রেসিলিয়েন্ট ডিজি সার্ভিসেস প্রাইভেট লিমিটেড</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(iii)</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> ডিজিটাল ঋণ আবেদন  </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">মোবাইল অ্যাপ্লিকেশন “<span
-                        class="bold">ভারত পে বিসনেস</span>”</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">(iv)</td>
-            <td style="padding: 0px 5px;" class="width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> পুনরুদ্ধার এজেন্ট হিসাবে কর্মরত এবং ঋণগ্রহীতার কাছে যাওয়ার জন্য অনুমোদিত LSP-এর বিবরণ </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">*অনুগ্রহ করে মনে রাখবেন যে পুনরুদ্ধার এজেন্ট ঋণদাতা দ্বারা অনুমোদিত হয়েছে ঋণ পরিশোধে অক্ষমতার জন্য যোগাযোগ করার জন্য </p>
-                <br>
-                <p style="margin: 6px 16px;" class="fw400 text-left">অনুগ্রহ করে নির্ধারিত তারিখে বা তার আগে অর্থপ্রদান করুন
-                </p>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-
-    <p style="margin: 6px 16px" class="fw400 mb20"> *আরও বিশদ তথ্যের জন্য, অনুগ্রহ করে অনুমোদন পত্র এবং ঋণ সুবিধার জন্য ঋণ চুক্তি পড়ুন এই মূল তথ্য বিবৃতিটি অনুমোদনের চিঠি এবং ঋণ চুক্তির সাথে পড়তে হবে।</p>
-    <br />
-    <br />
-    <div class="mb20 bold text-center underline">খুচরা এবং MSME ঋণের জন্য APR গণনার নিদর্শন</div>
-
-    <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
-        <tbody>
-        <tr class="width-100">
-            <td class="text-center bold width-6">ক্র.সংখ্যা</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 bold text-left"> স্থিতিমাপ(প্যারামিটার) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 bold text-left">বিস্তারিত</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">1</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> মঞ্জুরিকৃত ঋণের পরিমাণ (টাকায়) (KFS টেমপ্লেটের ক্র নং 3 - পার্ট 1)</p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">2</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> ঋণের মেয়াদ (বছর/মাস/দিনে) (KFS টেমপ্লেটের 5 নং - পার্ট 1) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}} দিনে</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">a)</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> অসমান পর্যায়ক্রমিক ঋণের ক্ষেত্রে মূল অর্থ প্রদানের জন্য কিস্তির সংখ্যা</p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">-</p>
-            </td>
-        </tr>
-
-        <tr class="width-100">
-            <td rowspan="3" class="text-center width-6">b)</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">EPI-এর ধরন</p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">দৈনিক</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> প্রত্যেক EPI এর পরিমাণ (টাকায়) এবং </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{edi_amount}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> EPIগুলির সংখ্যা (উদাহরণস্বরূপ মাসিক কিস্তির ক্ষেত্রে EMI-এর সংখ্যা)
-                    (KFS টেমপ্লেটের ক্র. সংখ্যা 6 - অংশ 1)
-                </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">c)</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">মূলধনী সুদ প্রদানের জন্য কিস্তির সংখ্যা, যদি থাকে </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">d)</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> পরিশোধের শুরু, অনুমোদনের পরে (KFS টেমপ্লেটের ক্র. সংখ্যা 6 - অংশ 1) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">
-                <p style="margin: 6px 16px;" class="fw400 text-left">1 দিন</p>
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">3</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> সুদের হারের ধরন (ফিক্সড অথবা ফ্লোটিং অথবা হাইব্রিড) (KFS টেমপ্লেটের ক্র. সংখ্যা 7 - অংশ 1) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">স্থির</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">4</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">সুদের হার (KFS টেমপ্লেটের ক্র. সংখ্যা 7 - অংশ 1)</p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} %</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">5</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> অনুমোদনের তারিখে বিদ্যমান হার অনুসারে ঋণের পুরো মেয়াদে মোট সুদের পরিমাণ যা চার্জ করা হবে (টাকায়) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">6</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> প্রদেয় ফী/চার্জ (টাকায়) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}} +
-                    {{insurance_premium}} (A+B) </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">A</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> RE কে প্রদেয় (KFS টেমপ্লেটের ক্র. সংখ্যা 8A - অংশ 1) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">B</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">তৃতীয় পক্ষের জন্য প্রদেয় RE-এর মাধ্যমে যুক্ত (KFS টেমপ্লেটের ক্র. সংখ্যা 8বি - অংশ 1) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">7</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">সমস্ত খরচ বাদ দিয়ে বিতরণ করা পরিমাণ (1-6) (টাকায়) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_disbursed}} </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">8</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> ঋণগ্রহীতা দ্বারা মোট প্রদেয় পরিমাণ (1 ও 5 এর সমষ্টি) (টাকায়) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹
-                    {{total_amount_including_interest_paid_by_borrower_entire_tenure}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">9</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> বার্ষিক শতাংশের হার - কার্যকর বার্ষিক সুদের হার (শতাংশে) 10 (KFS টেমপ্লেটের ক্র. সংখ্যা 11 - অংশ 1) </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{apr}} %</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">10</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left">শর্তাবলী অনুযায়ী বিতরণের সময়সূচী </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">বিস্তারিত সময়সূচী প্রদান করা হবে</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td class="text-center width-6">11</td>
-            <td style="padding: 0px 5px;" class="width-70">
-                <p style="margin: 6px 16px;" class="fw400 text-left"> কিস্তি এবং সুদ পরিশোধের নির্ধারিত তারিখ </p>
-            </td>
-            <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">1st edi date</p>
-            </td>
-        </tr>
-
-        </tbody>
-    </table>
-
-    <br />
-    <br />
-    <div style="page-break-inside: avoid !important">
-        <h3 class="text-center">
-            <span class="underline bold">বিস্তারিত পরিশোধের সময়সূচী</span>
-        </h3>
-        <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
-            <tbody>
-            <tr class="width-100">
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>কিস্তি নম্বর</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>মূলের বকেয়া (টাকায়)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>মূল (টাকায়)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>সুদ (টাকায়)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>কিস্তি (টাকায়)</strong>
-                    </p>
-                </td>
-            </tr>
-            {{repayment_schedule}}
-            </tbody>
-        </table>
-    </div>
-    <br />
-    <br />
-    <br />
-
-    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
-           style="page-break-inside: avoid !important">
-        <tbody>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left"> ঋণগ্রহীতার নাম</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{borrower_name}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">তারিখ</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left"> OTP এর জন্য মোবাইল নম্বর </p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{mobile_number_for_otp}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">প্ল্যাটফর্ম</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    BharatPe for Business
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">IP এড্রেস</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{ip_address}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">সময়ের স্ট্যাম্প</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{time_stamp}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">লোন ID</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{loan_id}}
-                </p>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-</div>
-
     <div style="padding: 20px 30px; margin-top: 50px">
         <div style="display: flex; justify-content: center;" class="width-100">
             {{lender_logo}}
@@ -2015,6 +1109,912 @@
                     </p>
                 </td>
             </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bangla Section -->
+    <div style="padding: 20px 30px; margin-top: 50px">
+        <div style="display: flex; justify-content: center;" class="width-100">
+            {{lender_logo}}
+        </div>
+        <h2 class="text-center">
+            <span class="underline">মূল তথ্য পত্র/ স্টেটমেন্ট</span>
+        </h2>
+        <p class="fw400 mb30"> এই মূল তথ্য পত্র <span class="bold">(“কেএফএস”)</span> গ্রহীতার দ্বারা ডিজিটাল ঋণ আবেদনের জন্য মেয়াদি ঋণ আবেদনের ক্ষেত্রে প্রযোজ্য: </p>
+
+        <div class="text-left bold mb10">তারিখ: {{date}}</div>
+        <div class="text-left bold mb10">গ্রহীতার নাম: পিরামল ক্যাপিটাল & হাউসিং ফাইন্যান্স লিমিটেড</div>
+        <div class="text-left bold mb10">আবেদনকারীর: {{borrower_name}}</div>
+        <div class="text-left bold mb40">প্যান নম্বর: {{pan_of_borrower}}</div>
+
+        <div class="mb20 bold text-center underline"> ভাগ 1 (সুদের হার এবং ফী/চার্জ প্রযোজ্য)</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">1</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণ প্রস্তাব/একাউন্ট নম্বর </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{lead_id}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">2</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold"> ঋণের ধরন</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            পার্সোনাল লোন
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">3</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">অনুমোদিত ঋণের পরিমাণ (টাকায়)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">টাকা. {{loan_amount_in_figure}}/- (টাকা
+                            {{loan_amount_in_words}} মাত্র)</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">4</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">বিতরণ সময়সূচী</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">কলম 10-এর নির্দেশিত ফী/চার্জ বাদ দেওয়ার পর 100% অগ্রিম</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">5</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণের মেয়াদ/কাল  </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">(বৎসর/মাস/দিন)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 10px 16px;" class="fw400 text-left">
+                            {{no_of_edis}} মাস
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">6</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">কিস্তির বিবরণ (বিস্তারিত বিবরণের জন্য, অনুগ্রহ করে বিস্তারিত পরিশোধের সময়সূচি পড়ুন)</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6"></td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;">কিস্তির ধরণ</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;">কিস্তির সংখ্যা</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;">কিস্তির পরিমাণ (টাকা)*</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;">পরিশোধের সূচনা, অনুমোদনের পর</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center"></td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">সমান দৈনিক কিস্তি</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{edi_amount}}</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">*কিস্তি নিকটবর্তী টাকার মূল্যে পূর্ণ সংখ্যায় গুনিত করা অতিরিক্ত টাকা (যদি সংগ্রহ করা হয়) শেষ কিস্তির সাথে সমন্বয় করা হবে অথবা গ্রহীতাকে ফেরত দেয়া হবে (ঋণদাতার বিচক্ষণতা অনুযায়ী)</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">বিতরণের তারিখ থেকে অবিলম্বে পরের দিন</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">7</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">সুদের হার (%) এবং ধরন  </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">(ফিক্সড/ফ্লোটিং/হাইব্রিড)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} % প্রতি বছর</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">প্রকার - স্থির
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">8</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">ফ্লোটিং সুদের হারের ক্ষেত্রে অতিরিক্ত তথ্য</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="text-left bold">রেফারেন্স বেঞ্চমার্ক</p>
+                    </td>
+                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">বেঞ্চমার্ক রেট (%) (B)</p>
+                    </td>
+                    <td colspan="2" rowspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">স্প্রেড (%)
+                            (S)</p>
+                    </td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">চূড়ান্ত হার
+                            (%)
+                            R =
+                            (B)
+                            + (S)</p>
+                    </td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">পর্যায়ক্রমিকতা (মাস)</p>
+                    </td>
+                    <td colspan="3" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">প্রদত্ত মাত্রাসূচকে পরিবর্তনের প্রভাব (R'-এ 25 bps এর পরিবর্তনের জন্য, পরিবর্তন হয়:3)</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24"></td>
+
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">B</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">S</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">EPI</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">EPI-এর সংখ্যা</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">প্রযোজ্য নয়</td>
+
+                    <td colspan="2" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                    <td colspan="1" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td class="bold text-center width-6">9</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">পরিশোধের প্রণালী </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            দৈনিক নিষ্পত্তির পরিমাণ** থেকে ঋণ দলিল অনুসারে গ্রহীতার নির্দেশ অনুযায়ী কিস্তির পরিমাণ অথবা অন্য কোনো বকেয়া বাদ যাবে রেসিলিয়েন্ট ইনোভেশন প্রাইভেট লিমিটেডের তরফে (ঋণগ্রহীতার অফলাইন আদায় সমষ্টিকারী) (“<span class="bold">অফলাইন PA</span>”)
+                        </p>
+                        <p style="margin: 10px 16px;" class="fw400 text-center">এবং/অথবা</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">ঋণ গ্রহীতার ব্যাঙ্ক একাউন্ট থেকে ই-ম্যান্ডেটের মাধ্যমে যেমন UPI অটোপে/ NACH এরকম অন্য ইলেক্ট্রনিক প্রণালীতে ঋণ দলিল অনুসারে কিস্তির পরিমাণ বা অন্য কোনো বকেয়া কেটে নেওয়া</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">ঋণদাতার ঋণ দলিল অনুসারে উপর্যুক্ত যে কোনো প্রণালীতে অথবা একাধিক প্রণালীর সংযোগে কিস্তির পরিমাণ অথবা অন্য কোনো বকেয়া কেটে নেওয়ার যথাযথ নির্দেশ দেওয়ার অধিকার সংরক্ষিত থাকবে</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">*ঋণগ্রহীতা এতদ্বারা স্পষ্টভাবে, শর্তহীনভাবে এবং অপরিবর্তনীয়ভাবে অফলাইন PA কে কর্তৃত্ব দিচ্ছে ঋণ দলিল অনুযায়ী কিস্তির পরিমাণ এবং অন্য বকেয়া কেটে নিয়ে সরাসরি ঋণদাতাকে প্রদান করতে</p>
+                        <p style="margin: 10px 16px;" class="fw400 text-left">**নিস্পত্তির পরিমান-এর অর্থ ব্যাখ্যা করা থাকবে অনুমোদন পত্রে এবং ঋণ চুক্তিতে</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">10</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">ফী/চার্জ  </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6"></td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            চার্জ
+                        </p>
+                    </td>
+                    <td colspan="6" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ঋণদাতাকে প্রদেয় (A)</p>
+                    </td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ঋণদাতা দ্বারা এক তৃতীয় পক্ষকে প্রদেয় (B)
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6"></td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">একবার/পুনরাবৃত্ত</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">পরিমাণ (টাকা) অথবা শতাংশ % (প্রযোজ্য হিসেবে)
+                        </p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">একবার/পুনরাবৃত্ত</p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">পরিমাণ (টাকা) অথবা শতাংশ % (প্রযোজ্য হিসেবে)
+                        </p>
+                    </td>
+                </tr>
+
+
+                <tr class="width-100">
+                    <td class="text-center width-6">(i)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রক্রিয়াকরণ ফি</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">এক বার*</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রক্রিয়াকরণ ফীটা একবারের ফী এবং বিতরণের পরিমাণ থেকে কেটে নেওয়া হবে।</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            * কুলিং অফ পর্যায়ে যদি ঋণগ্রহীতা ঋণটি পূর্বেই বন্ধ করে দেন, প্রক্রিয়াকরণ ফী এর 3  ঋণগ্রহীতাকে ফিরিয়ে দেওয়া হবে
+                        </p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_without_gst}} + জিএসটি =
+                            {{processing_fee_includes_tax}}</p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(ii)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">বীমা </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">চার্জ/প্রিমিয়াম</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">এক বার*</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            বীমা প্রিমিয়ামের পরিমাণ যা বীমা প্রতিষ্ঠানকে দেওয়া হবে তা বিতরণের পরিমান থেকে কেটে নেওয়া হবে
+                        </p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">(iii)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">মূল্যায়ন ফী</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">(iv)</td>
+                    <td colspan="3" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">অন্য কোনো চার্জ (যদি থাকে)</p>
+                    </td>
+                    <td colspan="4" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="2" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                    <td colspan="1" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">11</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">বার্ষিক শতাংশের হার </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left">{{apr}} % প্রতি বর্ষ </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">12</td>
+                    <td colspan="12" class="bold text-left width-100">
+                        <p style="margin: 6px 16px;">আনুষঙ্গিক চার্জএর বিশদ (টাকায় বা %, যা প্রযোজ্য)</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="bold text-center width-6">(i)</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">শাস্তিমূলক চার্জ, যদি থাকে, দেরিতে দেওয়ার জন্য </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রতি বছর 24% প্লাস 24% থেকে প্রতি বছর 24% অর্থাত্ প্রতি মাসে 2% প্লাস ইএমআই অর্থ প্রদানের ক্ষেত্রে ডিফল্ট তারিখ থেকে</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(ii)</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">অন্য শাস্তিমূলক চার্জ, যদি থাকে</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iii)</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">পূর্বে বন্ধ/পূর্বে প্রদান চার্জ, যদি প্রযোজ্য হয়</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td class="text-center width-6">(iv)</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">আংশিক প্রদান চার্জ </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class=" text-center width-6">(v)</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left ">ই-আদেশ (যেমন NACH/UPI অটোপে/আদেশ বিফল হওয়ার চার্জ</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(vi)</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">অন্য কোনো চার্জ (অনুগ্রহ করে নির্দিষ্ট করুন)</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+
+                <!-- <tr class="width-100">
+                    <td class="text-center width-6 bold">14</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">वैधता अवधि</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">3 इस मुख्य तथ्य विवरण की तिथि का दिन</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6 bold">15</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">कूलिंग ऑफ/लुक-अप अवधि (ऋणदाता की बोर्ड द्वारा अधिकृत नीति के अनुसार) जिसके दौरान ऋण के फोरक्लोजर/पूर्व भुगतान के लिए ऋणी से कोई जुर्माना नहीं लिया जाएगा।</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">3 ऋण के वितरण से दिन</p>
+                        <br>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि कूलिंग ऑफ अवधि के दौरान आनुपातिक ब्याज और अन्य शुल्क (पूर्व-भुगतान/फोरक्लोज़र शुल्क के अलावा) लगाए जाएंगे।</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6 bold">16</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ऋण सेवा प्रदाता </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6 bold">17</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">रिकवरी एजेंट के रूप में कार्य करने वाले और ऋणी से संपर्क करने के लिए अधिकृत एलएसपी का विवरण</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">रेसिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड
+                        </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">*कृपया ध्यान दें कि ऋणदाता द्वारा रिकवरी एजेंट को पुनर्भुगतान में चूक के लिए संपर्क करने के लिए अधिकृत किया गया है। कृपया देय तिथि पर या उससे पहले भुगतान करें
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6 bold">18</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">डिजीटल ऋण आवेदन </p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">मोबाइल एप्लीकेशन “भारतपे फॉर बिजनेस”</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6 bold">19</td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">शासी कानून एवं मध्यस्थता का स्थान एवं स्थान</p>
+                    </td>
+                    <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left">मुम्बई</p>
+                    </td>
+                </tr> -->
+            </tbody>
+        </table>
+
+        <div class="mb20 bold text-center underline">অংশ-2 (অন্য গুনগত তথ্য)</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+                <tr class="width-100">
+                    <td class="text-center width-6">1</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> বৈধতার মেয়াদ </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">3 দিন মূল তথ্য বিবৃতির তারিখ থেকে
+                            "এই মূল তথ্য বিবৃতিটি ঋণ অনুমোদনের সময় ঋণগ্রহীতার নথি এবং বিবরণের ওপর ভিত্তি করে জারি করা হয়েছে প্রস্তাবে যদি কোনো বস্তুগত পরিবর্তন হয় যাহার জন্য ঋণ অনুমোদন করা হয়েছে অথবা; যদি কোনো ঘটনা ঘটে যা, ঋণদাতার মতে ঋণগ্রহীতার অর্থনৈতিক পরিস্থিতিকে অথবা তাহার/তাহার (স্ত্রী)/তাহাদের ঋণের ওপর কোনো দায় সামলাতে তাদের ক্ষমতাকে প্রভাবিত করবে অথবা; ঋণ আবেদনপত্রে অথবা উপস্থাপনায় কোনো বিবৃতি যদি ভুল বা অসত্য পাওয়া যায় অথবা কোনো বস্তুগত তথ্য গোপন করা এবং যদি কোনো বস্তুগত অসঙ্গতি অথবা ভুল উপস্থাপনা পাওয়া যায় পরে যে কোনো পর্যায়ে ঋণ প্রদানের আগে, ঋণদাতার অধিকার থাকবে এই মূল তথ্য বিবৃতিকে সংশোধন করবার অথবা রদ করবার।</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            উপরোক্ত শর্তাবলী আমাকে/আমাদিগকে বুঝাইয়া দেওয়া হয়েছে এবং আমি/আমরা বুঝিয়াছি ও স্বীকার করিয়া নিয়েছি।
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">2</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">পুনরুদ্ধার এজেন্টদের নিযুক্তি সংক্রান্ত ঋণ চুক্তিটির ধারা</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ঋণগ্রহীতা স্পষ্টভাবে স্বীকার করে এবং গ্রহণ করে যে ঋণদাতা তার অধিকারের প্রতি কোনো কুসংস্কার ছাড়াই এই ধরনের কার্যক্রম নিজে বা অফিসার বা কর্মচারীর মাধ্যমে সম্পাদন করতে পারবে, তার সম্পূর্ণ ভাবে অধিকার থাকবে এবং ঋণগ্রহীতার খরচে এই চুক্তি অনুসারে বকেয়া পরিমাণ উদ্ধার করবার জন্যে সহযোগিতা করতে ঋণগ্রহীতার পছন্দের একজন পুনরুদ্ধার এজেন্টকে নিয়োগ এবং নিযুক্ত করবার পূর্ণ ক্ষমতা এবং কর্তৃত্ব থাকবে, ঋণগ্রহীতার আবাস, কার্যালয় অথবা অন্য কোনো প্রাঙ্গনে পরিদর্শনে যাওয়ার, নিরাপত্তা যাচাই এবং পরিদর্শন করতে, ঋণদাতার পক্ষ থেকে সমস্ত বকেয়া পাওনা আদায় করবার জন্যে, নিরাপত্তা বলবৎ করার জন্য, ঋণগ্রহীতার/তাদের সম্পদের কোনো তথ্য আদায় বা যাচাই করতে এবং সমস্ত ধারা(গুলি), দলিল(গুলি), বিষয়(গুলি) এবং জিনিস(গুলি) এর সাথে যুক্ত বা ঘটনাগতভাবে সম্পাদন করা এবং চালানো, দাবীর বিজ্ঞপ্তি পাঠানোসহ, অথবা অন্যথায় ঋণগ্রহীতার সাথে সংযোগ স্থাপন করিবার হেতু, ঋণগ্রহীতার কাছ থেকে বকেয়া আদায় করিবার হেতু (নগদে/ব্যাঙ্ক ড্রাফ্ট/চেক মারফত), এবং সমস্ত ধারাগুলি, দলিলগুলি, বিষয়গুলি এবং জিনিসগুলি সঞ্চালন এবং কার্যকর করতে। এর সাথে সংযুক্ত বা আনুষঙ্গিক যা পুনরুদ্ধার এজেন্ট এই উদ্দেশ্যের জন্য উপযুক্ত বলে বিবেচনা করে।</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">3</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ঋণের ধারা যা অভিযোগ নিষ্পত্তি প্রক্রিয়ার বিবরণ দেয়</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">পিরামল ক্যাপিটাল হাউজিং অ্যান্ড ফাইন্যান্স লিমিটেডে সেরা গ্রাহক পরিষেবা প্রদান করার জন্য আমাদের প্রচেষ্টা সর্বাত্মক। আমাদের সমস্ত পণ্য, পরিষেবা এবং নীতি গ্রাহককেন্দ্রিকতার দিকে লক্ষ্য রেখে নির্মাণ হয়। এরকম দৃষ্টান্ত থাকতে পারে যেখানে গ্রাহকগণ প্রতিষ্ঠান কর্তৃক পরিষেবায় সন্তুষ্ট নয়। এই ধরনের দৃষ্টান্তগুলি দৃষ্টিগোচর করতে এবং একটি অভিযোগ নিবন্ধন করতে অনুগ্রহ করে নিম্নলিখিত প্রক্রিয়াটি অনুসরণ করুন:</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ক) ঋণগ্রহীতা www.piramalfinance.com-এ উল্লিখিত টোল ফ্রি নম্বর বা customercare@piramal.com-এ ইমেলের মাধ্যমে তার অভিযোগ জানাতে পারেন</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            খ) যদি গ্রাহক প্রদত্ত সমাধানের সাথে সন্তুষ্ট না হন, বা তার প্রশ্ন 15 দিনের মধ্যে সমাধান না করা হয়, তাহলে গ্রাহক আমাদের কাছে লিখতে পারেন: grievances@piramal.com
+                        </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            গ) যদি উদ্বেগটি 15 দিনের পরেও অমীমাংসিত থাকে, তবে ঋণগ্রহীতা বিষয়টি "নোডাল অফিসার" এর কাছে এগিয়ে নিতে পারেন যার বিবরণ নীচে উল্লেখ করা হয়েছে।
+                        </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                            ঘ) যদি ঋণগ্রহীতা এখনও প্রতিক্রিয়াতে সন্তুষ্ট না হন, তবে ঋণগ্রহীতা https://grids.nhbonline.org.in লিংকে অনলাইন মাধ্যমে তার অভিযোগ দায়ের করে ন্যাশনাল হাউজিং ব্যাঙ্কের অভিযোগ নিষ্পত্তি সেলের কাছে লিখতে পারেন বা ন্যাশনাল হাউসিং ব্যাঙ্ক, কমপ্লেইন্ট রিড্রেসল সেল, ডিপার্টমেন্ট অফ রেগুলেশন এন্ড সুপারভিশন, ন্যাশনাল হাউসিং ব্যাঙ্ক, 4থ ফ্লোর, কোর 5A, ইন্ডিয়া হ্যাবিট্যাট সেন্টার, লোধি রোড, নিউ দিল্লী-110003-এ যেতে পারেন
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">4</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">নোডাল অভিযোগ নিষ্পত্তি কর্মকর্তার ফোন নম্বর এবং ইমেল আইডি </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণদাতার জন্য</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">মিসেস হেতাল পরিহার</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">6ষ্ঠ তলা, অমিতি বিল্ডিং, অগস্ত্য কর্পোরেট পার্ক, কামানি জংশন,</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">সামনে ফায়ার স্টেশন, LBS মার্গ, কুর্লা (ডব্লিউ), মুম্বাই MH-400070</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ইমেইল: nodal.officer@piramal.com</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">যোগাযোগ নম্বর: 022- 69181439</p>
+
+
+                        <p style="margin: 20px 16px 6px 16px" class="fw400 text-left bold">LSP-এর জন্য</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">নাম: মিঃ পুষ্পেন্দ্র কুমার</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ইমেইল- nodalofficer@bharatpemoney.com </p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">যোগাযোগ নম্বর: {{lsp_contact_number}}</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">সোমবার থেকে শুক্রবার সকাল 10:00 টা থেকে সন্ধ্যা 7:00 টা পর্যন্ত</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ওয়েবসাইট: <a href="bharatpemoney.com" target="_blank">bharatpemoney.com</a></p>
+
+                        <p style="margin: 16px;" class="fw400 text-left">যদি অভিযোগ 30 দিনের জন্য অমীমাংসিত থেকে যায়, ঋণগ্রহীতা RBI অভিযোগ পোর্টালে যেতে পারেন <a
+                                href="https://cms.rbi.org.in/" target="_blank">https://cms.rbi.org.in/</a></p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">5</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> ভবিষ্যতে ঋণ অন্য নিয়ন্ত্রিত সত্তার কাছে স্থানান্তর বা সিকিউরিটাইজেশন সাপেক্ষে হতে পারে কিনা </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">হ্যাঁ</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">6</td>
+                    <td colspan="2" class="text-center">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ডিজিটাল ঋণের ক্ষেত্রে, নিম্নলিখিত নির্দিষ্ট আলোকপাতগুলি জমা করা যেতে পারে</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(i)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> কুলিং অফ/লুক-আপ পিরিয়ড (ঋণদাতার বোর্ড অনুমোদিত নীতি অনুযায়ী) যে সময়ে ঋণগ্রহীতাকে ঋণের ফোরক্লোজার/প্রিপেমেন্টে কোনো জরিমানা নেওয়া হবে না </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ঋণ বিতরণের থেকে 3 দিন </p>
+                        <p style="margin: 16px 16px 6px;" class="fw400 text-left">*অনুগ্রহ করে মনে রাখবেন আনুপাতিক সুদ এবং অন্যান্য চার্জ (প্রি-পেমেন্ট/ফোরক্লোজার চার্জ ব্যতীত) কুলিং অফ পিরিয়ডের সময় আরোপ করা হবে।</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td class="text-center width-6">(ii)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> ঋণ সেবা প্রদানকারী </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">রেসিলিয়েন্ট ডিজি সার্ভিসেস প্রাইভেট লিমিটেড</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iii)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> ডিজিটাল ঋণ আবেদন  </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">মোবাইল অ্যাপ্লিকেশন “<span
+                                class="bold">ভারত পে বিসনেস</span>”</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">(iv)</td>
+                    <td style="padding: 0px 5px;" class="width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> পুনরুদ্ধার এজেন্ট হিসাবে কর্মরত এবং ঋণগ্রহীতার কাছে যাওয়ার জন্য অনুমোদিত LSP-এর বিবরণ </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">*অনুগ্রহ করে মনে রাখবেন যে পুনরুদ্ধার এজেন্ট ঋণদাতা দ্বারা অনুমোদিত হয়েছে ঋণ পরিশোধে অক্ষমতার জন্য যোগাযোগ করার জন্য </p>
+                        <br>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">অনুগ্রহ করে নির্ধারিত তারিখে বা তার আগে অর্থপ্রদান করুন
+                        </p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin: 6px 16px" class="fw400 mb20"> *আরও বিশদ তথ্যের জন্য, অনুগ্রহ করে অনুমোদন পত্র এবং ঋণ সুবিধার জন্য ঋণ চুক্তি পড়ুন এই মূল তথ্য বিবৃতিটি অনুমোদনের চিঠি এবং ঋণ চুক্তির সাথে পড়তে হবে।</p>
+        <br />
+        <br />
+        <div class="mb20 bold text-center underline">খুচরা এবং MSME ঋণের জন্য APR গণনার নিদর্শন</div>
+
+        <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed;">
+            <tbody>
+                <tr class="width-100">
+                    <td class="text-center bold width-6">ক্র.সংখ্যা</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left"> স্থিতিমাপ(প্যারামিটার) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 bold text-left">বিস্তারিত</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">1</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> মঞ্জুরিকৃত ঋণের পরিমাণ (টাকায়) (KFS টেমপ্লেটের ক্র নং 3 - পার্ট 1)</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_in_figure}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">2</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> ঋণের মেয়াদ (বছর/মাস/দিনে) (KFS টেমপ্লেটের 5 নং - পার্ট 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}} দিনে</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">a)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> অসমান পর্যায়ক্রমিক ঋণের ক্ষেত্রে মূল অর্থ প্রদানের জন্য কিস্তির সংখ্যা</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">-</p>
+                    </td>
+                </tr>
+
+                <tr class="width-100">
+                    <td rowspan="3" class="text-center width-6">b)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">EPI-এর ধরন</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">দৈনিক</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> প্রত্যেক EPI এর পরিমাণ (টাকায়) এবং </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{edi_amount}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> EPIগুলির সংখ্যা (উদাহরণস্বরূপ মাসিক কিস্তির ক্ষেত্রে EMI-এর সংখ্যা)
+                            (KFS টেমপ্লেটের ক্র. সংখ্যা 6 - অংশ 1)
+                             </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{no_of_edis}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">c)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">মূলধনী সুদ প্রদানের জন্য কিস্তির সংখ্যা, যদি থাকে </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">প্রযোজ্য নয়</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">d)</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> পরিশোধের শুরু, অনুমোদনের পরে (KFS টেমপ্লেটের ক্র. সংখ্যা 6 - অংশ 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">1 দিন</p>
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">3</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> সুদের হারের ধরন (ফিক্সড অথবা ফ্লোটিং অথবা হাইব্রিড) (KFS টেমপ্লেটের ক্র. সংখ্যা 7 - অংশ 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">স্থির</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">4</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">সুদের হার (KFS টেমপ্লেটের ক্র. সংখ্যা 7 - অংশ 1)</p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{annual_roi}} %</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">5</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> অনুমোদনের তারিখে বিদ্যমান হার অনুসারে ঋণের পুরো মেয়াদে মোট সুদের পরিমাণ যা চার্জ করা হবে (টাকায়) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{interest_charged_to_borrower}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">6</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> প্রদেয় ফী/চার্জ (টাকায়) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{processing_fee_includes_tax}} +
+                            {{insurance_premium}} (A+B) </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">A</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> RE কে প্রদেয় (KFS টেমপ্লেটের ক্র. সংখ্যা 8A - অংশ 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">B</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">তৃতীয় পক্ষের জন্য প্রদেয় RE-এর মাধ্যমে যুক্ত (KFS টেমপ্লেটের ক্র. সংখ্যা 8বি - অংশ 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{insurance_premium}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">7</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">সমস্ত খরচ বাদ দিয়ে বিতরণ করা পরিমাণ (1-6) (টাকায়) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{loan_amount_disbursed}} </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">8</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> ঋণগ্রহীতা দ্বারা মোট প্রদেয় পরিমাণ (1 ও 5 এর সমষ্টি) (টাকায়) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">₹
+                            {{total_amount_including_interest_paid_by_borrower_entire_tenure}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">9</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> বার্ষিক শতাংশের হার - কার্যকর বার্ষিক সুদের হার (শতাংশে) 10 (KFS টেমপ্লেটের ক্র. সংখ্যা 11 - অংশ 1) </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">{{apr}} %</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">10</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">শর্তাবলী অনুযায়ী বিতরণের সময়সূচী </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">বিস্তারিত সময়সূচী প্রদান করা হবে</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td class="text-center width-6">11</td>
+                    <td style="padding: 0px 5px;" class="width-70">
+                        <p style="margin: 6px 16px;" class="fw400 text-left"> কিস্তি এবং সুদ পরিশোধের নির্ধারিত তারিখ </p>
+                    </td>
+                    <td style="padding: 0px 5px;" class="word-wrap width-24">
+                        <p style="margin: 6px 16px;" class="fw400 text-left">1st edi date</p>
+                    </td>
+                </tr>
+
+            </tbody>
+        </table>
+
+        <br />
+        <br />
+        <div style="page-break-inside: avoid !important">
+            <h3 class="text-center">
+                <span class="underline bold">বিস্তারিত পরিশোধের সময়সূচী</span>
+            </h3>
+            <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
+                <tbody>
+                    <tr class="width-100">
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>কিস্তি নম্বর</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>মূলের বকেয়া (টাকায়)</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>মূল (টাকায়)</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>সুদ (টাকায়)</strong>
+                            </p>
+                        </td>
+                        <td style="padding: 0px 5px" class="width-auto">
+                            <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                                <strong>কিস্তি (টাকায়)</strong>
+                            </p>
+                        </td>
+                    </tr>
+                    {{repayment_schedule}}
+                </tbody>
+            </table>
+        </div>
+        <br />
+        <br />
+        <br />
+
+        <table id="repayment" border="1" cellspacing="0" class="m-auto mb20"
+            style="page-break-inside: avoid !important">
+            <tbody>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left"> ঋণগ্রহীতার নাম</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{borrower_name}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">তারিখ</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left"> OTP এর জন্য মোবাইল নম্বর </p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{mobile_number_for_otp}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">প্ল্যাটফর্ম</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            BharatPe for Business
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">IP এড্রেস</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{ip_address}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">সময়ের স্ট্যাম্প</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{time_stamp}}
+                        </p>
+                    </td>
+                </tr>
+                <tr class="width-100">
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">লোন ID</p>
+                    </td>
+                    <td style="padding: 0px 5px" class="width-auto">
+                        <p style="margin: 6px 16px" class="fw400 text-left">
+                            {{loan_id}}
+                        </p>
+                    </td>
+                </tr>
             </tbody>
         </table>
     </div>

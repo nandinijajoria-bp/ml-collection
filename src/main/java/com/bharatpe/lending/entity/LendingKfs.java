@@ -109,7 +109,4 @@ public class LendingKfs extends BaseEntity {
     @Column(name = "application_form_doc_url")
     private String applicationFormDocUrl;
 
-    @Column(name = "doc_language")
-    private String docLanguage;
-
 }
