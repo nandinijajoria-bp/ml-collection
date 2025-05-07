@@ -335,11 +335,6 @@ public class SmfgBreService {
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.LIVELINESS_CHECK_FAILED.name());
             return true;
         }
-        if (ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer()) || cKycResponseDto.getBankBenePanNameMatchPer() < smfgConfig.getBenePanNameMatchPerThreshold()) {
-            log.info("bre check failed application id {}, bank and pan name match {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(), cKycResponseDto.getBankBenePanNameMatchPer(), smfgConfig.getBenePanNameMatchPerThreshold());
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_BANK_NAME_MISMATCH.name());
-            return true;
-        }
         if (!ObjectUtils.isEmpty(lendingShopDocuments)) {
             Double sid = uploadDocumentService.calculateShopInferredDistance(lendingShopDocuments.getLatitude(), lendingShopDocuments.getLongitude(), lenderAssociationDetailsRequest.getMerchantId());
             if (ObjectUtils.isEmpty(sid) || sid > smfgConfig.getShopInferredDistanceThreshold()) {
