@@ -210,7 +210,7 @@ public class SmfgBreService {
                             .livelinessscore(cKycResponseDto.getSelfieLivelinessScore())
                             .selfiematchscore(!ObjectUtils.isEmpty(cKycResponseDto.getSelfieAadhaarFaceMatchPer()) ? cKycResponseDto.getSelfieAadhaarFaceMatchPer() / 100 : null)
                             .pennydropnamematchper(cKycResponseDto.getBankBenePanNameMatchPer())
-                            .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).map(Double::intValue).orElse(null))
+                            .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).filter(nfiVal -> nfiVal > 0).map(Double::intValue).orElse(0))
                             .riskgroup(lendingRiskVariablesSnapshot.getRiskGroup())
                             .monthlyadjtpv(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? lendingRiskVariablesSnapshot.getMonthlyTpv().intValue() : null)
                             .appvintage(lendingRiskVariablesSnapshot.getVintage())
