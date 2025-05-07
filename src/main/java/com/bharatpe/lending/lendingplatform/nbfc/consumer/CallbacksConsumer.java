@@ -3,8 +3,11 @@ package com.bharatpe.lending.lendingplatform.nbfc.consumer;
 import com.bharatpe.lending.lendingplatform.nbfc.consumer.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -23,8 +26,10 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeBRECallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received BRE callback from Kafka: {}", message);
         breCallbackProcessingService.processBRECallback(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -33,8 +38,10 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeDisbursalCallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received Disbursal callback from Kafka: {}", message);
         disbursalCallbackProcessingService.processDisbursalCallback(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -43,8 +50,10 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeKYCCallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received KYC callback from Kafka: {}", message);
         kycCallbackProcessingService.processKYCCallback(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -53,8 +62,10 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeEKycCallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received EKYC callback from Kafka: {}", message);
         eKycCallbackProcessingService.processEKYCCallback(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -63,7 +74,9 @@ public class CallbacksConsumer {
             autoStartup = "${kafka.listener.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeCKycCallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received CKYC callback from Kafka: {}", message);
         cKycCallbackProcessingService.processCKYCCallback(message);
+        MDC.clear();
     }
 }

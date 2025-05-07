@@ -87,7 +87,7 @@ public class PaymentAsynchronousService {
             BankDetailsDto merchantBankDetail = loanDetailsService.getMerchantBankDetails(lendingApplication.getMerchantId());
             Long orderId = 0L;
             PaymentAsynchronousRequest paymentAsynchronousRequest = getPaymentAsynchronousRequest(
-                    lmsPaymentDetails.getAmount().doubleValue(), "SETTLEMENT", terminalOrderId, lendingApplication, merchantBankDetail, lald, lmsPaymentDetails.getTransferDate(), orderId , false);
+                    lmsPaymentDetails.getAmount().doubleValue(), lmsPaymentDetails.getAdjustmentMode(), terminalOrderId, lendingApplication, merchantBankDetail, lald, lmsPaymentDetails.getTransferDate(), orderId , false);
 
             if (!postPaymentToLMS(lmsPaymentDetails, paymentAsynchronousRequest)) {
                 log.error("Payment posting failed: Invalid response from lending platform for BP Loan ID: {}", lendingApplication.getExternalLoanId());

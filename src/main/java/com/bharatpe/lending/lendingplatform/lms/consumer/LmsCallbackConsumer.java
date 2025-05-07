@@ -6,10 +6,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -29,8 +31,10 @@ public class LmsCallbackConsumer {
             autoStartup = "${kafka.listener.1lms.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeLenderReceiptPostingStatus(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received Lender Receipt posting callback from Kafka: {}", message);
         lenderSidePaymentStatusCallback.updateLenderPostingStatus(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -39,8 +43,10 @@ public class LmsCallbackConsumer {
             autoStartup = "${kafka.listener.1lms.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeLmsPaymentPostingStatus(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received Lms payment posting callback from Kafka: {}", message);
         lmsSidePaymentStatusCallback.updateLmsPostingStatus(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -49,8 +55,10 @@ public class LmsCallbackConsumer {
             autoStartup = "${kafka.listener.1lms.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeCreateLoanRetryRequest(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received loan creation retry request from Kafka: {}", message);
         lmsCreateLoanRetryCallback.retryLoanCreationAtLms(message);
+        MDC.clear();
     }
 
     @KafkaListener(
@@ -59,6 +67,7 @@ public class LmsCallbackConsumer {
             autoStartup = "${kafka.listener.1lms.autoStartup:false}",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeLmsCreateLoanSuccessCallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received Lms create loan callback - {}", message);
 
         Optional<LmsLoanCreationCallback> callbackOpt = getLoanCreationStatus(message);
@@ -75,6 +84,7 @@ public class LmsCallbackConsumer {
             log.info("Received Lms create loan failure callback for bpLoanId: {}", callback.getBpLoanId());
             lmsCreateLoanFailureCallback.sendLoanToOldFlow(callback.getBpLoanId());
         }
+        MDC.clear();
     }
 
     private Optional<LmsLoanCreationCallback> getLoanCreationStatus(String message) {
