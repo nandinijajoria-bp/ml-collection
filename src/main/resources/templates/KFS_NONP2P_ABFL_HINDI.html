@@ -60,570 +60,6 @@
 <div style="padding: 20px 30px; margin-top: 50px">
     {{lender_logo}}
     <h2 class="text-center">
-        <span class="underline">महत्वपूर्ण तथ्य कथन</span>
-    </h2>
-    <p style="margin: 6px 16px" class="fw400">
-        यह महत्वपूर्ण तथ्य पत्रक (“KFS”) “BharatPe” ऐप के माध्यम से ऋणी द्वारा लागू की गई सावधि ऋण सुविधा पर लागू है:
-    </p>
-    <table border="1" cellspacing="0" class="width-100 mb20">
-    <tbody>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">ऋणी/ऋण लेने वाला </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{borrower_name}}
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{address_of_borrower}}
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>{{email_of_borrower}} {{phone_number_of_borrower}}</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">ऋणदाता</p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{name_of_lender_nbfc}}
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{register_address_of_nbfc}} {{lender_tag}}
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{name_of_colender}}
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{register_address_of_colender}}
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{colender_text}}
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">ऋण आईडी</p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{loan_id}}
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ऋण का उद्देश्य
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                व्यक्तिगत इस्तेमाल
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ऋण की प्रकृति
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">सावधि ऋण</p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>ऋण सेवा प्रदाता (एलएसपी)</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>रेजिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>डिजीटल ऋण आवेदन (डीएलए)</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>मोबाइल आधारित प्लेटफॉर्म “BharatPe” </span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ऋण की रकम
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                रु. {{loan_amount_in_figure}}/- (रुपए {{loan_amount_in_words}} केवल)
-            </p>
-        </td>
-    </tr>
-    <tr style="padding: 0px 5px" class="text-center width-100">
-        <td colspan="2" class="fw600 bold">अन्य अग्रिम शुल्क</td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                प्रोसेसिंग फीस
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{processing_percentage}} ऋण की रकम का % + लागू कर
-                <span class="bold">
-  (जैसे रु. रुपये {{processing_fee_includes_tax}}/- (Rupees
-  {{processing_fee_in_words_includes_tax}} केवल)</span
-                >
-                जिसे की जाने वाली संवितरण राशि से काटा जाएगा।
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                प्रोसेसिंग शुल्क एक बार लिया जाने वाला शुल्क है।
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                *उस स्थिति में जब ऋणी द्वारा कूलिंग ऑफ अवधि के दौरान ऋण को निर्धारित समय से पहले बंद कर दिया जाता है, तो प्रोसेसिंग शुल्क का 0% ऋणी को वापस कर दिया जाएगा
-            </p>
-        </td>
-    </tr>
-
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                बीमा शुल्क (यदि कोई हो)
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>NA</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                अन्य शुल्क (यदि कोई हो)
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>NA</span>
-            </p>
-        </td>
-    </tr>
-    <tr style="padding: 0px 5px" class="text-center width-100">
-        <td colspan="2" class="fw600 bold">
-            ऋण संबंधी अन्य जानकारी
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                शुद्ध संवितरित राशि
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                रु. {{loan_amount_disbursed}}/- (रुपये {{loan_amount_disbursed_in_words}} केवल)
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                *ब्याज ऋण राशि पर लागू होगा जैसा कि ऊपर बताया गया है
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ब्याज दर (%) (प्रतिवर्ष घटते शेष पर लागू किया जाता है)
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>{{annual_roi}}% प्रतिवर्ष</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                वार्षिक प्रतिशत दर
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>{{apr}}% वार्षिक</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ऋण अवधि के दौरान लगाया गया कुल ब्याज
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                रु. {{interest_charged_to_borrower}}/- (रुपये {{interest_charged_to_borrower_in_words}} केवल)
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                अवधि के दौरान ऋणी द्वारा भुगतान की जाने वाली कुल राशि (ब्याज और प्रोसेसिंग शुल्क के साथ)
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                रु. {{total_amount_including_interest_paid_by_borrower_entire_tenure}} /- (रुपये {{total_amount_including_interest_paid_by_borrower_entire_tenure_in_words}} केवल)
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                पुनर्भुगतान मोड
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ऋणी के निर्देशों के अनुसार रेजिलिएंट इनोवेशन प्राइवेट लिमिटेड (ऋणी के ऑफलाइन भुगतान एग्रीगेटर) ("ऑफलाइन पीए") के अनुसार दैनिक निपटान राशि** से ऋण दस्तावेजों के अनुसार राशि किस्त राशि या किसी अन्य देय राशि की कटौती।
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                *ऋणी इसके द्वारा स्पष्ट रूप से, बिना शर्त और अपरिवर्तनीय रूप से ऑफलाइन पीए को ऋण दस्तावेजों के अनुसार किस्त राशि और अन्य देय राशि में कटौती करने और सीधे ऋणदाता को भुगतान करने के लिए अधिकृत करता है।
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ** निपटान राशि का वही अर्थ होगा जो ऋण दस्तावेजों में दर्शाया गया है।
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                किस्त की राशि
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                रु.{{interest_equal_daily}}/- (रुपये {{interest_equal_daily_in_words}} केवल)
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                पुनर्भुगतान/किस्त की आवृत्ति
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">दैनिक</p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                किस्तों की संख्या
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{no_of_edis}} समान दैनिक किश्तें (कृपया संलग्न पुनर्भुगतान सूची देखें)
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">अवधि</p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{tenure_of_loan_in_months}}महीनें
-            </p>
-        </td>
-    </tr>
-    <tr style="padding: 0px 5px" class="text-center bold width-100">
-        <td colspan="2" class="fw600">आकस्मिक शुल्क का विवरण</td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">दंड शुल्क</span>
-            </p>
-        </td>
-<!--        PENAL CHARGES-->
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">NA</p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">वार्षिक दंड शुल्क की दर (यदि कोई हो)</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>NA</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">
-                  दंड शुल्क (यदि कोई हो);(विवरण प्रदान किया जाए)
-                </span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>NA</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>पूर्व-भुगतान/आंशिक-भुगतान/फोरक्लोजर</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>NA</span>
-            </p>
-        </td>
-
-    </tr>
-    <tr style="padding: 0px 5px" class="text-center bold width-100">
-        <td colspan="2" class="fw600">अन्य प्रकटीकरण</td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">शीतलन अवधि/कूलिंग ऑफ पीरियड</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                {{cooling_off_days}} दिन ऋण के संवितरण से
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left bold">
-                <span>*कृपया ध्यान रखें कि आनुपातिक ब्याज और प्रोसेसिंग शुल्क (पूर्व भुगतान/फोरक्लोजर शुल्क के अलावा) सहित अन्य लागत, कूलिंग ऑफ अवधि के दौरान लगाए जाएंगे।
-                </span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 8px" class="width-33"></td>
-        <td style="padding: 8px" class="width-66 word-wrap"></td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">रिकवरी एजेंट</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left bold">
-                <span>रेजिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड</span>
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left bold">
-                <span>*कृपया ध्यान रखें कि ऋणदाता ने पुनर्भुगतान चूक की स्थिति में संपर्क करने के लिए रिकवरी एजेंट (और/या उसके अधिकृत प्रतिनिधियों/संस्थाओं) को अधिकृत किया है। कृपया नियत तिथि पर या उससे पहले भुगतान करें।</span>
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">रिकवरी तंत्र</span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ऐसी स्थिति में जब ऋण दस्तावेजों की शर्तों के अनुसार ऋण की राशि, ब्याज और अन्य शुल्क का भुगतान नहीं किया जाता है, तो ऋणदाता या उसके अधिकृत सेवा प्रदाता भुगतान का अनुरोध करने के लिए ऋणी, सह-ऋणी और गारंटर से फोन, एसएमएस, ईमेल और व्यक्तिगत मुलाकात(तों) के माध्यम से बकाया राशि का भुगतान करने के लिए संपर्क कर सकते हैं। ऊपर जो भी कहा गया है, उसके बावजूद, यदि ऋण राशि और अतिरिक्त शुल्क प्राप्त नहीं होते हैं, तो ऋणदाता, ऋणी के खिलाफ कानूनी कार्रवाई कर सकता है।
-            </p>
-        </td>
-    </tr>
-    <tr class="width-100">
-        <td style="padding: 0px 5px" class="width-33">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold">शिकायत निवारण </span>
-            </p>
-        </td>
-        <td style="padding: 0px 5px" class="width-66 word-wrap">
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold underline">ऋणदाता के लिए</span>
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="">{{name_of_nodal_officer}}</span>
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span>
-                  <span class="">{{email_id}} ; {{conatct_no}} ; {{grievance_time}}</span>
-                </span>
-            </p>
-            <br>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                <span class="bold underline">एलएसपी के लिए</span>
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                नाम: मल्लिका जनार्दन
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                ईमेल: nodalofficer@bharatpemoney.com
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                कार्य घंटे: सोमवार से शुक्रवार प्रात: 10:00 बजे से शाम 7:00 बजे तक
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                वेबसाइट:
-                <a href="https://www.bharatpemoney.com/" target="_blank">
-                    <em>bharatpemoney.com</em>
-                </a>
-            </p>
-            <p style="margin: 6px 16px" class="fw400 text-left">
-                गोपनीयता नीति:
-                <a href="https://bharatpemoney.com/documents/BharatPe-_-Privacy-Policy-_-Lending-
-_-For-RTPL-1.docx-1.pdf" target="_blank">https://bharatpemoney.com/documents/BharatPe-_-Privacy-Policy-_-Lending-
-                    _-For-RTPL-1.docx-1.pdf</a>
-            </p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-    <p style="margin: 6px 16px" class="fw400 mb20">
-        *अतिरिक्त विवरण के लिए, कृपया ऋण सुविधा का स्वीकृति पत्र और ऋण समझौता देखें। इस मुख्य तथ्य विवरण को मंजूरी पत्र और ऋण समझौते के साथ पढ़ा जाना चाहिए।
-    </p>
-    <div style="page-break-inside: avoid !important">
-        <h3 class="text-center">
-            <span class="underline">पुनर्भुगतान सूची</span>
-        </h3>
-
-
-        <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
-            <tbody>
-            <tr class="width-100">
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>किस्त संख्या</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>बकाया मूलधन (रुपये में)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>मूलधन (रुपये में)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>ब्याज (रुपये में)</strong>
-                    </p>
-                </td>
-                <td style="padding: 0px 5px" class="width-auto">
-                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
-                        <strong>किस्त (रुपये में)</strong>
-                    </p>
-                </td>
-            </tr>
-            {{repayment_schedule}}
-            </tbody>
-        </table>
-    </div>
-    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20" style="page-break-inside: avoid !important">
-        <tbody>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    ऋणी का नाम
-                </p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{borrower_name}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">तिथि</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    ओटीपी के लिए मोबाइल नं.
-                </p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{mobile_number_for_otp}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">प्लेटफॉर्म</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{platform}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">आईपी पता</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{ip_address}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">समय मोहर</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{time_stamp}}
-                </p>
-            </td>
-        </tr>
-        <tr class="width-100">
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">ऋण आईडी</p>
-            </td>
-            <td style="padding: 0px 5px" class="width-auto">
-                <p style="margin: 6px 16px" class="fw400 text-left">
-                    {{loan_id}}
-                </p>
-            </td>
-        </tr>
-        </tbody>
-    </table>
-
-    <h2 class="text-center">
         <span class="underline">KEY FACTS STATEMENT</span>
     </h2>
     <p style="margin: 6px 16px" class="fw400">
@@ -1222,6 +658,570 @@ _-For-RTPL-1.docx-1.pdf" target="_blank">https://bharatpemoney.com/documents/Bha
         </tbody>
     </table>
 
+
+    <h2 class="text-center">
+        <span class="underline">महत्वपूर्ण तथ्य कथन</span>
+    </h2>
+    <p style="margin: 6px 16px" class="fw400">
+        यह महत्वपूर्ण तथ्य पत्रक (“KFS”) “BharatPe” ऐप के माध्यम से ऋणी द्वारा लागू की गई सावधि ऋण सुविधा पर लागू है:
+    </p>
+    <table border="1" cellspacing="0" class="width-100 mb20">
+    <tbody>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">ऋणी/ऋण लेने वाला </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{borrower_name}}
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{address_of_borrower}}
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>{{email_of_borrower}} {{phone_number_of_borrower}}</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">ऋणदाता</p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{name_of_lender_nbfc}}
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{register_address_of_nbfc}} {{lender_tag}}
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{name_of_colender}}
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{register_address_of_colender}}
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{colender_text}}
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">ऋण आईडी</p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{loan_id}}
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ऋण का उद्देश्य
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                व्यक्तिगत इस्तेमाल
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ऋण की प्रकृति
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">सावधि ऋण</p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>ऋण सेवा प्रदाता (एलएसपी)</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>रेजिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>डिजीटल ऋण आवेदन (डीएलए)</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>मोबाइल आधारित प्लेटफॉर्म “BharatPe” </span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ऋण की रकम
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                रु. {{loan_amount_in_figure}}/- (रुपए {{loan_amount_in_words}} केवल)
+            </p>
+        </td>
+    </tr>
+    <tr style="padding: 0px 5px" class="text-center width-100">
+        <td colspan="2" class="fw600 bold">अन्य अग्रिम शुल्क</td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                प्रोसेसिंग फीस
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{processing_percentage}} ऋण की रकम का % + लागू कर
+                <span class="bold">
+  (जैसे रु. रुपये {{processing_fee_includes_tax}}/- (Rupees
+  {{processing_fee_in_words_includes_tax}} केवल)</span
+                >
+                जिसे की जाने वाली संवितरण राशि से काटा जाएगा।
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                प्रोसेसिंग शुल्क एक बार लिया जाने वाला शुल्क है।
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                *उस स्थिति में जब ऋणी द्वारा कूलिंग ऑफ अवधि के दौरान ऋण को निर्धारित समय से पहले बंद कर दिया जाता है, तो प्रोसेसिंग शुल्क का 0% ऋणी को वापस कर दिया जाएगा
+            </p>
+        </td>
+    </tr>
+
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                बीमा शुल्क (यदि कोई हो)
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>NA</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                अन्य शुल्क (यदि कोई हो)
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>NA</span>
+            </p>
+        </td>
+    </tr>
+    <tr style="padding: 0px 5px" class="text-center width-100">
+        <td colspan="2" class="fw600 bold">
+            ऋण संबंधी अन्य जानकारी
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                शुद्ध संवितरित राशि
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                रु. {{loan_amount_disbursed}}/- (रुपये {{loan_amount_disbursed_in_words}} केवल)
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                *ब्याज ऋण राशि पर लागू होगा जैसा कि ऊपर बताया गया है
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ब्याज दर (%) (प्रतिवर्ष घटते शेष पर लागू किया जाता है)
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>{{annual_roi}}% प्रतिवर्ष</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                वार्षिक प्रतिशत दर
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>{{apr}}% वार्षिक</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ऋण अवधि के दौरान लगाया गया कुल ब्याज
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                रु. {{interest_charged_to_borrower}}/- (रुपये {{interest_charged_to_borrower_in_words}} केवल)
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                अवधि के दौरान ऋणी द्वारा भुगतान की जाने वाली कुल राशि (ब्याज और प्रोसेसिंग शुल्क के साथ)
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                रु. {{total_amount_including_interest_paid_by_borrower_entire_tenure}} /- (रुपये {{total_amount_including_interest_paid_by_borrower_entire_tenure_in_words}} केवल)
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                पुनर्भुगतान मोड
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ऋणी के निर्देशों के अनुसार रेजिलिएंट इनोवेशन प्राइवेट लिमिटेड (ऋणी के ऑफलाइन भुगतान एग्रीगेटर) ("ऑफलाइन पीए") के अनुसार दैनिक निपटान राशि** से ऋण दस्तावेजों के अनुसार राशि किस्त राशि या किसी अन्य देय राशि की कटौती।
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                *ऋणी इसके द्वारा स्पष्ट रूप से, बिना शर्त और अपरिवर्तनीय रूप से ऑफलाइन पीए को ऋण दस्तावेजों के अनुसार किस्त राशि और अन्य देय राशि में कटौती करने और सीधे ऋणदाता को भुगतान करने के लिए अधिकृत करता है।
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ** निपटान राशि का वही अर्थ होगा जो ऋण दस्तावेजों में दर्शाया गया है।
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                किस्त की राशि
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                रु.{{interest_equal_daily}}/- (रुपये {{interest_equal_daily_in_words}} केवल)
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                पुनर्भुगतान/किस्त की आवृत्ति
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">दैनिक</p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                किस्तों की संख्या
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{no_of_edis}} समान दैनिक किश्तें (कृपया संलग्न पुनर्भुगतान सूची देखें)
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">अवधि</p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{tenure_of_loan_in_months}}महीनें
+            </p>
+        </td>
+    </tr>
+    <tr style="padding: 0px 5px" class="text-center bold width-100">
+        <td colspan="2" class="fw600">आकस्मिक शुल्क का विवरण</td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">दंड शुल्क</span>
+            </p>
+        </td>
+<!--        PENAL CHARGES-->
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">NA</p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">वार्षिक दंड शुल्क की दर (यदि कोई हो)</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>NA</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">
+                  दंड शुल्क (यदि कोई हो);(विवरण प्रदान किया जाए)
+                </span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>NA</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>पूर्व-भुगतान/आंशिक-भुगतान/फोरक्लोजर</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>NA</span>
+            </p>
+        </td>
+
+    </tr>
+    <tr style="padding: 0px 5px" class="text-center bold width-100">
+        <td colspan="2" class="fw600">अन्य प्रकटीकरण</td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">शीतलन अवधि/कूलिंग ऑफ पीरियड</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                {{cooling_off_days}} दिन ऋण के संवितरण से
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left bold">
+                <span>*कृपया ध्यान रखें कि आनुपातिक ब्याज और प्रोसेसिंग शुल्क (पूर्व भुगतान/फोरक्लोजर शुल्क के अलावा) सहित अन्य लागत, कूलिंग ऑफ अवधि के दौरान लगाए जाएंगे।
+                </span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 8px" class="width-33"></td>
+        <td style="padding: 8px" class="width-66 word-wrap"></td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">रिकवरी एजेंट</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left bold">
+                <span>रेजिलिएंट डिजी सर्विसेज प्राइवेट लिमिटेड</span>
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left bold">
+                <span>*कृपया ध्यान रखें कि ऋणदाता ने पुनर्भुगतान चूक की स्थिति में संपर्क करने के लिए रिकवरी एजेंट (और/या उसके अधिकृत प्रतिनिधियों/संस्थाओं) को अधिकृत किया है। कृपया नियत तिथि पर या उससे पहले भुगतान करें।</span>
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">रिकवरी तंत्र</span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ऐसी स्थिति में जब ऋण दस्तावेजों की शर्तों के अनुसार ऋण की राशि, ब्याज और अन्य शुल्क का भुगतान नहीं किया जाता है, तो ऋणदाता या उसके अधिकृत सेवा प्रदाता भुगतान का अनुरोध करने के लिए ऋणी, सह-ऋणी और गारंटर से फोन, एसएमएस, ईमेल और व्यक्तिगत मुलाकात(तों) के माध्यम से बकाया राशि का भुगतान करने के लिए संपर्क कर सकते हैं। ऊपर जो भी कहा गया है, उसके बावजूद, यदि ऋण राशि और अतिरिक्त शुल्क प्राप्त नहीं होते हैं, तो ऋणदाता, ऋणी के खिलाफ कानूनी कार्रवाई कर सकता है।
+            </p>
+        </td>
+    </tr>
+    <tr class="width-100">
+        <td style="padding: 0px 5px" class="width-33">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold">शिकायत निवारण </span>
+            </p>
+        </td>
+        <td style="padding: 0px 5px" class="width-66 word-wrap">
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold underline">ऋणदाता के लिए</span>
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="">{{name_of_nodal_officer}}</span>
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span>
+                  <span class="">{{email_id}} ; {{conatct_no}} ; {{grievance_time}}</span>
+                </span>
+            </p>
+            <br>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                <span class="bold underline">एलएसपी के लिए</span>
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                नाम: मल्लिका जनार्दन
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                ईमेल: nodalofficer@bharatpemoney.com
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                कार्य घंटे: सोमवार से शुक्रवार प्रात: 10:00 बजे से शाम 7:00 बजे तक
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                वेबसाइट:
+                <a href="https://www.bharatpemoney.com/" target="_blank">
+                    <em>bharatpemoney.com</em>
+                </a>
+            </p>
+            <p style="margin: 6px 16px" class="fw400 text-left">
+                गोपनीयता नीति:
+                <a href="https://bharatpemoney.com/documents/BharatPe-_-Privacy-Policy-_-Lending-
+_-For-RTPL-1.docx-1.pdf" target="_blank">https://bharatpemoney.com/documents/BharatPe-_-Privacy-Policy-_-Lending-
+                    _-For-RTPL-1.docx-1.pdf</a>
+            </p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+    <p style="margin: 6px 16px" class="fw400 mb20">
+        *अतिरिक्त विवरण के लिए, कृपया ऋण सुविधा का स्वीकृति पत्र और ऋण समझौता देखें। इस मुख्य तथ्य विवरण को मंजूरी पत्र और ऋण समझौते के साथ पढ़ा जाना चाहिए।
+    </p>
+    <div style="page-break-inside: avoid !important">
+        <h3 class="text-center">
+            <span class="underline">पुनर्भुगतान सूची</span>
+        </h3>
+
+
+        <table border="1" cellspacing="0" class="width-100 m-auto mb20" style="table-layout: fixed">
+            <tbody>
+            <tr class="width-100">
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                        <strong>किस्त संख्या</strong>
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                        <strong>बकाया मूलधन (रुपये में)</strong>
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                        <strong>मूलधन (रुपये में)</strong>
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                        <strong>ब्याज (रुपये में)</strong>
+                    </p>
+                </td>
+                <td style="padding: 0px 5px" class="width-auto">
+                    <p style="margin: 0px; font-size: 12px" class="fw400 text-center word-wrap">
+                        <strong>किस्त (रुपये में)</strong>
+                    </p>
+                </td>
+            </tr>
+            {{repayment_schedule}}
+            </tbody>
+        </table>
+    </div>
+    <table id="repayment" border="1" cellspacing="0" class="m-auto mb20" style="page-break-inside: avoid !important">
+        <tbody>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    ऋणी का नाम
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{borrower_name}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">तिथि</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">{{date}}</p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    ओटीपी के लिए मोबाइल नं.
+                </p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{mobile_number_for_otp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">प्लेटफॉर्म</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{platform}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">आईपी पता</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{ip_address}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">समय मोहर</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{time_stamp}}
+                </p>
+            </td>
+        </tr>
+        <tr class="width-100">
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">ऋण आईडी</p>
+            </td>
+            <td style="padding: 0px 5px" class="width-auto">
+                <p style="margin: 6px 16px" class="fw400 text-left">
+                    {{loan_id}}
+                </p>
+            </td>
+        </tr>
+        </tbody>
+    </table>
 </div>
 
 
