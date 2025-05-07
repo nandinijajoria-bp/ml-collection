@@ -10,8 +10,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+
 
 import java.util.Map;
 
@@ -85,13 +87,9 @@ public class LendingPlatformHttpClient {
 
             ResponseEntity<ApiResponse<Object>> response = restTemplate.exchange(url, method, entity, new ParameterizedTypeReference<ApiResponse<Object>>() {
             });
-
-            if (response.getBody() == null) {
-                log.error("No response body received");
-                return ApiResponse.error(INTERNAL_SERVER_ERROR, null, null);
-            }
-
             return handleResponse(response, responseType);
+        } catch (HttpStatusCodeException httpStatusCodeException){
+            return handleErrorResponse(httpStatusCodeException);
         } catch (Exception e) {
             log.error("Unexpected error: {}", e.getMessage(), e);
             return ApiResponse.error(INTERNAL_SERVER_ERROR, "Unexpected error: "+ e.getMessage(), null);
@@ -99,17 +97,10 @@ public class LendingPlatformHttpClient {
     }
 
     private <T> ApiResponse<T> handleResponse(ResponseEntity<ApiResponse<Object>> response, Class<T> responseType) {
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            return handleErrorResponse(response);
-        }
 
         log.info("Request successful - response: {}", response.getBody());
         ApiResponse<Object> rawResponse = response.getBody();
 
-        if (rawResponse == null) {
-            log.error("No response body received");
-            return ApiResponse.error(INTERNAL_SERVER_ERROR, NO_RESPONSE_BODY, null);
-        }
 
         if (!rawResponse.isSuccess()) {
             return handleFailureResponse(rawResponse);
@@ -118,31 +109,23 @@ public class LendingPlatformHttpClient {
         return convertResponseData(rawResponse, responseType);
     }
 
-    private <T> ApiResponse<T> handleErrorResponse(ResponseEntity<ApiResponse<Object>> response) {
-        log.error("Request failed - HTTP Status: {}, response body: {}", response.getStatusCode(), response.getBody() != null ? response.getBody() : NO_RESPONSE_BODY);
+    private <T> ApiResponse<T> handleErrorResponse(HttpStatusCodeException httpStatusCodeException) {
+        log.error("Request failed - HTTP Status: {}, response body: {}", httpStatusCodeException.getStatusCode(), httpStatusCodeException.getMessage());
 
-        if (response.getStatusCode().is4xxClientError()) {
-            String errorMessage = (response.getBody() != null && response.getBody().getData() != null)
-                    ? "Client error code : " + response.getStatusCode() + " Error Message : " + response.getBody().getData()
-                    : "Client error code : " + response.getStatusCode() + " No error message available";
-            return ApiResponse.error(BAD_REQUEST, errorMessage, null);
-        } else if (response.getStatusCode().is5xxServerError()) {
-            String errorMessage = (response.getBody() != null && response.getBody().getData() != null)
-                    ? "Server error code : " + response.getStatusCode() + " Error Message : " + response.getBody().getData()
-                    : "Server error code : " + response.getStatusCode() + " No error message available";
-            return ApiResponse.error(INTERNAL_SERVER_ERROR, errorMessage, null);
+        if(httpStatusCodeException.getStatusCode().is4xxClientError()) {
+            return ApiResponse.error(BAD_REQUEST, httpStatusCodeException.getMessage(), null);
+        }
+        if(httpStatusCodeException.getStatusCode().is5xxServerError()) {
+            return ApiResponse.error(INTERNAL_SERVER_ERROR, httpStatusCodeException.getMessage(), null);
         }
 
         return ApiResponse.error(INTERNAL_SERVER_ERROR, "Unexpected error", null);
     }
 
-    private <T> ApiResponse<T> handleFailureResponse(ApiResponse<Object> rawResponse) {
-        log.error("Request failed - Error: {}", rawResponse.getError());
-        return ApiResponse.error(
-                rawResponse.getError() != null ? rawResponse.getError().getErrorStatusCode() : "Unknown",
-                rawResponse.getError() != null ? rawResponse.getError().getErrorMessage() + " data : " + rawResponse.getData() : "No error message available",
-                null
-        );
+    private <T> ApiResponse<T> handleFailureResponse(ApiResponse rawResponse) {
+        log.info("Request failed - Error: {}", rawResponse.getError());
+
+        return rawResponse;
     }
 
     private <T> ApiResponse<T> convertResponseData(ApiResponse<Object> rawResponse, Class<T> responseType) {

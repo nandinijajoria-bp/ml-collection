@@ -343,7 +343,12 @@ public class LoanService {
 
         //posting details to ONE-LMS
         logger.info("Posting loan details to lending connector for bpLoanId: {}", application.getExternalLoanId());
-        lmsLoanCreationService.processLoanRequest(application, newSchedule, disbursalResponseMap);
+        boolean loanCreationStatus = lmsLoanCreationService.processLoanRequest(application, newSchedule, disbursalResponseMap);
+        if(!loanCreationStatus){
+            response.setStatus("FAILED");
+            response.setMessage("Unable to create loan at 1LMS");
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
 
         logger.info("Received success response from connector for bpLoanId: {}", application.getExternalLoanId());
 

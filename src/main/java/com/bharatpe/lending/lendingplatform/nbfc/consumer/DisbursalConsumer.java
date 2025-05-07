@@ -10,11 +10,13 @@ import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -31,8 +33,10 @@ public class DisbursalConsumer {
             containerFactory = "ConfluentKafkaListenerContainer"
     )
     public void consumeDisbursalEvent(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Consumed message: {}", message);
         processMessage(message);
+        MDC.clear();
     }
 
     private void processMessage(String message) {

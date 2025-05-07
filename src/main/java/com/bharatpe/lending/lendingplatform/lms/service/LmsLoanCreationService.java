@@ -12,6 +12,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.lendingplatform.lms.client.LendingPlatformHttpClient;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.lendingplatform.lms.constant.ErrorResponseCodeGroupMappings;
+import com.bharatpe.lending.lendingplatform.lms.consumer.service.LmsCreateLoanFailureCallback;
 import com.bharatpe.lending.lendingplatform.lms.dto.request.CreateLoanRequest;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.ApiResponse;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.CreateLoanResponse;
@@ -20,10 +21,10 @@ import com.bharatpe.lending.service.APIGatewayService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
-import javax.transaction.Transactional;
 import java.io.FileNotFoundException;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -35,7 +36,13 @@ import java.util.*;
 
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ApiEndPointConstants.CREATE_LOAN;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.Consumer.CUSTOM_LMS_ERRORS;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.Consumer.LMS_ERRORS;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ErrorStatusCode.BAD_REQUEST;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ErrorStatusCode.INTERNAL_SERVER_ERROR;
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.PROCESSING_FEE;
+
+import org.springframework.transaction.annotation.Transactional;
+
 
 @Service
 @Slf4j
@@ -50,9 +57,6 @@ public class LmsLoanCreationService {
     @Autowired
     private LmsLoanDetailsService lmsLoandetailsservice;
 
-//    @Value("${new.flow.lms.pan.id.extra:JPLP0011R}")
-//    private String panExtra;
-
     @Autowired
     private S3BucketHandler s3BucketHandler;
 
@@ -62,8 +66,11 @@ public class LmsLoanCreationService {
     @Autowired
     private LmsLoanStatusDao lmsLoanStatusDao;
 
+    @Autowired
+    private LmsCreateLoanFailureCallback lmsCreateLoanFailureCallback;
 
-    public void processLoanRequest(LendingApplication lendingApplication,
+
+    public boolean processLoanRequest(LendingApplication lendingApplication,
                                    LendingPaymentSchedule lendingPaymentSchedule,
                                    Map<String, Object> disbursalResponseMap) {
         try {
@@ -73,50 +80,79 @@ public class LmsLoanCreationService {
 
             updateLmsLoanStatus(createLoanResponse, lendingApplication.getExternalLoanId(), disbursalResponseMap);
 
-            if (Objects.nonNull(createLoanResponse) && createLoanResponse.isSuccess()) {
+            if (Objects.nonNull(createLoanResponse) && (createLoanResponse.isSuccess() || ("1006").equalsIgnoreCase(createLoanResponse.getError().getErrorStatusCode()))) {
                 log.info("Loan posted successfully. BP Loan ID: {}", lendingApplication.getExternalLoanId());
-                return;
+                return true;
             }
 
-            log.info("Loan request failed: Empty or invalid response received for BP Loan ID: {}",
-                    lendingApplication.getExternalLoanId());
-            throw new RuntimeException("Loan initiation failed: Invalid response from lending platform.");
+            return handleFailureResponse(createLoanResponse, lendingApplication.getExternalLoanId());
         } catch (Exception e) {
             log.error("Exception occurred while processing loan request: {}", e.getMessage(), e);
             throw new RuntimeException("Error during loan request processing: " + e.getMessage(), e);
         }
     }
 
-    private boolean isLoanStatusUpdate(ApiResponse<CreateLoanResponse> createLoanResponse) {
-        if (ObjectUtils.isEmpty(createLoanResponse)) {
-            log.warn("Loan request failed: createLoanResponse is null or empty.");
+    private boolean handleFailureResponse(ApiResponse<CreateLoanResponse> createLoanResponse, String bpLoanId) {
+        if((BAD_REQUEST).equals(createLoanResponse.getError().getErrorStatusCode())){
+            log.info("Loan creation failed for bploanId:{}, sending loan to existing flow", bpLoanId);
+            lmsCreateLoanFailureCallback.sendLoanToOldFlow(bpLoanId);
             return false;
         }
-
-        if (createLoanResponse.isSuccess()) {
-            return true;
-        }
-
-        // Handle the case when isSuccess is false
-        if (ObjectUtils.isEmpty(createLoanResponse.getError())) {
-            log.warn("Loan request failed: Error object is null or empty in createLoanResponse.");
+        if((INTERNAL_SERVER_ERROR).equals(createLoanResponse.getError().getErrorStatusCode())){
+            log.info("Loan creation failed for bploanId:{}, received internal server error", bpLoanId);
             return false;
         }
 
         String errorCode = createLoanResponse.getError().getErrorStatusCode();
         String errorGroup = ErrorResponseCodeGroupMappings.findGroupForErrorCode(errorCode);
 
-        if (Objects.equals(errorGroup, CUSTOM_LMS_ERRORS)) {
-            return true;
+        if(!createLoanResponse.isSuccess() && !(CUSTOM_LMS_ERRORS).equalsIgnoreCase(errorGroup)){
+            log.info("Loan creation failed for bploanId:{}, sending loan to existing flow", bpLoanId);
+            lmsCreateLoanFailureCallback.sendLoanToOldFlow(bpLoanId);
+            return false;
+        }
+        return false;
+    }
+
+    private String isLoanStatusUpdate(ApiResponse<CreateLoanResponse> createLoanResponse, String bpLoanId) {
+        if (ObjectUtils.isEmpty(createLoanResponse)) {
+            log.warn("Loan request failed: createLoanResponse is null or empty.");
+            return "FAILED";
+        }
+
+        if (createLoanResponse.isSuccess()) {
+            return "SUCCESS";
+        }
+
+        String errorCode = createLoanResponse.getError().getErrorStatusCode();
+        String errorGroup = ErrorResponseCodeGroupMappings.findGroupForErrorCode(errorCode);
+
+        if ((CUSTOM_LMS_ERRORS).equalsIgnoreCase(errorGroup)) {
+            return "PENDING";
+        }
+
+        if ((INTERNAL_SERVER_ERROR).equalsIgnoreCase(createLoanResponse.getError().getErrorStatusCode())) {
+            log.info("Loan creation failed for bploanId:{}, received internal server error", bpLoanId);
+            return "INIT";
+        }
+
+        if ((LMS_ERRORS).equalsIgnoreCase(errorGroup)) {
+            return "FAILED";
+        }
+
+        // Handle the case when isSuccess is false
+        if ((BAD_REQUEST).equalsIgnoreCase(createLoanResponse.getError().getErrorStatusCode())) {
+            log.info("Loan request failed: Error object is null or empty in createLoanResponse.");
+            return "FAILED";
         }
 
         log.warn("Loan request failed: Error code '{}' does not belong to the CUSTOM_LMS_ERRORS group.", errorCode);
-        return false;
+        return "FAILED";
     }
-    @Transactional
+
     private void updateLmsLoanStatus(ApiResponse<CreateLoanResponse> createLoanResponse, String bpLoanId, Map<String, Object> disbursalResponseMap) {
         LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLatestByBpLoanId(bpLoanId);
-        lmsLoanStatus.setStatus(isLoanStatusUpdate(createLoanResponse) ? "PENDING" : "INIT");
+        lmsLoanStatus.setStatus(isLoanStatusUpdate(createLoanResponse,bpLoanId));
         lmsLoanStatus.setDisbursalResponse(disbursalResponseMap);
         lmsLoanStatus.setUpdatedAt(new java.util.Date());
         lmsLoanStatusDao.save(lmsLoanStatus);
@@ -202,8 +238,7 @@ public class LmsLoanCreationService {
         try {
             SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
             SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
-            formattedDob = outputFormat.format(inputFormat.parse(lendingApplicationKycDetails.getDob()));
-            //formattedDob = outputFormat.format(inputFormat.parse(cKycResponseDto.getDob()));
+            formattedDob = outputFormat.format(inputFormat.parse(cKycResponseDto.getDob()));
         } catch (ParseException e) {
             log.error("Error parsing date of birth: {}", e.getMessage(), e);
         }
