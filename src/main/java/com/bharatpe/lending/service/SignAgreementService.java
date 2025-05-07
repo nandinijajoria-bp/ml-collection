@@ -891,6 +891,8 @@ public class SignAgreementService {
 			lendingApplicationDetails.setApplicationId(finalNewApplication.getId());
 		}
 		lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
+		lendingApplicationDetails.setOfferId(eligibleLoan.getId());
+
 		lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
 		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));

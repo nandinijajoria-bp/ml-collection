@@ -106,7 +106,7 @@ public class RiskDecisionAsyncService {
                 double approvedLoanAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
 
                 // If approved loan amount is less than requested loan amount, proceed with downgrade checks
-                if (!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && approvedLoanAmount < requestedLoanAmount) {
+                if (approvedLoanAmount < requestedLoanAmount) {
                     LendingApplication newApplication = commonService.createDuplicateApplication(lendingApplication,lendingApplicationLenderDetails);
 
                     // Perform additional lender downgrade checks
