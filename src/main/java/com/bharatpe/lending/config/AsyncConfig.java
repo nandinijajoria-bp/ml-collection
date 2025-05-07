@@ -63,8 +63,7 @@ public class AsyncConfig implements AsyncConfigurer {
     public Executor getCommonAsyncTaskExecutor(){
         return new TaskExecutorBuilder()
                 .threadNamePrefix("common-async-task-executor-")
-                .corePoolSize(2)
-                .maxPoolSize(10)
+                .corePoolSize(3)
                 .build();
     }
 }
