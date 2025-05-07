@@ -413,6 +413,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             return false;
         }
 
+        if(loanUtil.isTodayIsLoanLastDay(loan)){
+            return false;
+        }
         // there will be some pending txn before release this description field wasn't populated
         // will enable this check later in some days
 //        if (!payment.isForeCloser()) {
