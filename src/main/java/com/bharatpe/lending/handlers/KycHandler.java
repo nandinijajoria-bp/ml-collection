@@ -17,6 +17,7 @@ import com.bharatpe.lending.enums.ShopPhotoProofType;
 import com.bharatpe.lending.loanV2.dto.InitiateKycDTO;
 import com.bharatpe.lending.loanV2.dto.KycDocResponse;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV3.revamp.dto.KYCStateDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -502,7 +502,7 @@ public class KycHandler {
         return responseObj;
     }
 
-    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate, Boolean onlySelfieLivelinessRequired, String convertedkycRanking) {
+    public Map<String,String> initiateKyc(Long merchantId, InitiateKycDTO initiateKycDTO, List<KycDocType> docTypes, Date validAfterDate, Boolean onlySelfieLivelinessRequired, String convertedkycRanking, KYCStateDTO kycStateDTO) {
         log.info("Initiate kyc for merchant:{}", merchantId);
         Map<String, String> responseObj = new HashMap<>();
         try {
@@ -527,13 +527,10 @@ public class KycHandler {
             requestParams.put("validAfter", finaValidAfter);
             requestParams.put("onlySelfieLivelinessRequired", onlySelfieLivelinessRequired);
 
-            if(easyLoanUtil.percentScaleUp(merchantId, skipScreenRolloutForMerchants)) {
-                log.info("convertedkycRanking for merchant_id : {} is : {}", merchantId, convertedkycRanking);
-                if(convertedkycRanking == null ||
-                        (convertedkycRanking.equalsIgnoreCase("P2MM") ||
-                                convertedkycRanking.equalsIgnoreCase("P2PM") ||
-                                convertedkycRanking.equalsIgnoreCase("P2MS")))
-                {
+            if(kycStateDTO!=null && easyLoanUtil.percentScaleUp(merchantId, skipScreenRolloutForMerchants)) {
+                log.info("kycRanking and status for merchnantId is {} : {} : {}", String.valueOf(kycStateDTO.getKycRanking()), kycStateDTO.getKycRankingStatus(), merchantId);
+                if(((StringUtils.isBlank(kycStateDTO.getKycRanking()) || "NULL".equalsIgnoreCase(kycStateDTO.getKycRanking())) && "NOT_ACTIVATED".equalsIgnoreCase(kycStateDTO.getKycRankingStatus()))
+                        || "P2PM".equalsIgnoreCase(kycStateDTO.getKycRanking()) || "P2MS".equalsIgnoreCase(kycStateDTO.getKycRanking()) || "P2MM".equalsIgnoreCase(kycStateDTO.getKycRanking()) ){
                     List<String> skipScreens = Collections.singletonList("aadhaar");
                     requestParams.put("skipScreens", skipScreens);
                 }
