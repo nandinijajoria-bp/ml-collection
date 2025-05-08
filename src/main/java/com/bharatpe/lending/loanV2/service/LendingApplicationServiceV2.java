@@ -491,9 +491,9 @@ public class LendingApplicationServiceV2 {
                         lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
                         lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
                         if(Objects.isNull(lendingApplicationKycDetails.getAadharApprovedAt()))lendingApplicationKycDetails.setAadharApprovedAt(new Date());
-                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
-                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
-                        }
+//                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+//                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+//                        }
                         String dob = KycUtils.getDOB(kycDoc);
                         log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchant.getId());
                         lendingApplicationKycDetails.setDob(dob);
@@ -817,17 +817,7 @@ public class LendingApplicationServiceV2 {
 
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            eligibleLoan.setRateOfInterest(maxPricingValuesDTO.getMaxInterestRate());
-            Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
-            Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
-            Double repayment = ediAmount * eligibleLoan.getEdiCount();
-            eligibleLoan.setProcessingFee(processingFee.intValue());
-            eligibleLoan.setRepayment(repayment.intValue());
-            eligibleLoan.setEdi(ediAmount.intValue());
-            eligibleLoan.setIrr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount(), eligibleLoan.getMerchantId(), null));
-            eligibleLoan.setApr(getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), eligibleLoan.getAmount() - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
-            log.info("eligibleLoan values -> {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest());
-            eligibleLoanDao.save(eligibleLoan);
+            loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount());
         }
 
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
@@ -3035,24 +3025,26 @@ public class LendingApplicationServiceV2 {
         * This method is to be used specifically for calculating APR for base checks only.
         * This caters the case of using lender pricing config for APR calculation
      */
-    public Double getAprForBaseChecks(LendingApplication lendingApplication, Double amountToCalculateAprOn, Integer ediModel, String lender, LendingLenderPricing lenderPricing){
+    public Double getAprForBaseChecks(LoanApplicationDetailsDto loanApplicationDetailsDto, Double amountToCalculateAprOn, Integer ediModel, String lender, LendingLenderPricing lenderPricing){
         try{
-            long applicationId = lendingApplication.getId();
-            long merchantId = lendingApplication.getMerchantId();
+            long applicationId = loanApplicationDetailsDto.getId();
 
             log.info("calculating APR using Lender Pricing for applicationId : {}", applicationId);
             Double guess = 0.01;
             ArrayList<Double> values = new ArrayList<>();
+            log.info("amountToCalculateAprOn: {}", amountToCalculateAprOn);
 
             //Get Lender pricing config for APR calculation
-            Double edi = lendingApplication.getEdi();
+            Double edi = loanApplicationDetailsDto.getEdi();
+            log.info("Edi of loan id : {} is {}", loanApplicationDetailsDto.getId(), edi);
             if (!ObjectUtils.isEmpty(lenderPricing)) {
-                Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                Double interestAmt = (lendingApplication.getLoanAmount() * (lenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+                Long payableDays = (long) OfferUtils.getEdiDays(loanApplicationDetailsDto.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
+                Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (lenderPricing.getInterestRate() * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
+                edi = Math.ceil((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
+                log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), lenderPricing.getInterestRate(), edi, lenderPricing.getInterestRate());
             }
 
-            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(merchantId, applicationId, edi, lendingApplication);
+            CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(applicationId, edi, loanApplicationDetailsDto);
             if(!response.isSuccess()){
                 log.info(response.getMessage());
                 log.info("Unable to fetch edi schedule for APR calculation for applicationId : {}", applicationId);
@@ -3080,6 +3072,7 @@ public class LendingApplicationServiceV2 {
             for(int i = 0;i < values.size();i++)valuesDouble[i] = values.get(i);
             log.info("valuesDouble Size : {}", valuesDouble.length);
             int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name()).contains(lender)) ? 360 : 365;
+            log.info("days in year : {} for application id : {}", daysInYear, loanApplicationDetailsDto.getId());
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
@@ -3089,7 +3082,7 @@ public class LendingApplicationServiceV2 {
             return apr * 100;
         }
         catch(Exception e){
-            log.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("Unable to calculate APR for applicationId : {} Exception : {}, stacktrace : {}", loanApplicationDetailsDto.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
