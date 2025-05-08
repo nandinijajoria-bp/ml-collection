@@ -1,14 +1,12 @@
 package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
@@ -28,7 +26,6 @@ import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -36,10 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -70,13 +64,6 @@ public class TLDocUploadService {
     @Autowired
     NbfcUtils nbfcUtils;
 
-    @Lazy
-    @Autowired
-    LoanUtil loanUtil;
-
-    @Autowired
-    TLConsentPostingService consentPostingService;
-
     @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
@@ -97,49 +84,43 @@ public class TLDocUploadService {
             lenderAssociationDetailsDto.setModifyLender(Boolean.TRUE);
             commonService.manageApplicationState(lenderAssociationDetailsDto);
 
-            boolean isEligibleForKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()));
-
+            boolean isEligibleForLenderKyc = kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), isTopup);
             if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getCKycResponseDto())) {
                 lenderAssociationDetailsDto.setCKycResponseDto(kycUtils.getKycData(lenderAssociationDetailsDto.getMerchantId()));
             }
 
-            if(isEligibleForKyc){
-                log.info("TrillionLoans docUpload validation skipped as digio xml not present: {}", lenderAssociationDetailsDto.getApplicationId());
-            } else if (payloadValidation.isInValidDocUploadPayload(lenderAssociationDetailsDto.getCKycResponseDto())) {
+            if (payloadValidation.isInValidDocUploadPayload(lenderAssociationDetailsDto.getCKycResponseDto(), isEligibleForLenderKyc)) {
                 log.info("invalid response from downstream api for TrillionLoans docUpload: {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "FAILED", isTopup).name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, getStatusforDocumentUpload(docName, "FAILED", isTopup));
                 return false;
             }
-            NBFCRequestDTO documentUploadRequest = getPayload(lenderAssociationDetailsDto, docName, isTopup);
+            NBFCRequestDTO<?> documentUploadRequest = getPayload(lenderAssociationDetailsDto, docName, isTopup);
             if (Objects.isNull(documentUploadRequest)) {
                 log.info("error in doc upload payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "FAILED", isTopup).name());
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, getStatusforDocumentUpload(docName, "FAILED", isTopup));
                 return false;
             }
-            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.valueOf(docType));
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.valueOf(docType));
             log.info("docUpload response of TrillionLoans from nbfc for docTYpe: {} {} with applicationId: {}", nbfcResponseDto, docName, lenderAssociationDetailsDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {
-                if(kycUtils.isELigibleForLenderKyc(Lender.TRILLIONLOANS.name(), lenderAssociationDetailsDto.getLendingApplication().getMerchantId(), LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsDto.getLendingApplication().getLoanType()))){
-                    List<String> stagesToBeInvokedInOrder = getStageToBeInvokedInOrder();
+                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "SUCCESS", isTopup).name());
+                commonService.manageApplicationState(lenderAssociationDetailsDto);
+                if (isEligibleForLenderKyc) {
+                    List<String> stagesToBeInvokedInOrder = Collections.singletonList(LenderAssociationStages.KYC.name());
                     Optional<String> failureStage = stagesToBeInvokedInOrder.stream().filter(stage -> !nbfcUtils.invokeSpecificStage(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto, stage)).findFirst();
                     if (failureStage.isPresent()) {
                         log.info("TL: lender association failed at {} stage for applicationId {}  with lender {}", failureStage.get(), lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto.getLendingApplication().getLender());
-                        MDC.clear();
+                        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
+                        commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.KYC_FAILED);
                         return false;
                     }
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CKYC_IN_PROGRESS.name());
-                } else {
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "SUCCESS", isTopup).name());
                 }
-                log.info("doc upload request of TrillionLoans success for {} {}", docName, lenderAssociationDetailsDto.getApplicationId());
-                commonService.manageApplicationState(lenderAssociationDetailsDto);
                 return true;
             }
         } catch (Exception e) {
-            log.error("exception occurred while invoking doc upload of TrillionLoans for {} {} {} {}", docType, lenderAssociationDetailsDto.getApplicationId(), e.getMessage(),
-                    Arrays.asList(e.getStackTrace()));
+            log.error("exception occurred while invoking doc upload of TrillionLoans for {} {} {} {}", docType, lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "FAILED", isTopup).name());
         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, getStatusforDocumentUpload(docName, "FAILED", isTopup));
@@ -305,9 +286,5 @@ public class TLDocUploadService {
             log.info("Exception while creating docUpload payload of TrillionLoans for applicationId: {}, {}", applicationId, Arrays.asList(e.getStackTrace()));
         }
         return null;
-    }
-
-    public List<String> getStageToBeInvokedInOrder() {
-        return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name());
     }
 }

@@ -304,6 +304,8 @@ public class NbfcUtils {
                 return  associationServiceUtil.invokeConsentPostingService(lender, lenderAssociationDetailsDto);
             case "GET_LEAD":
                 return  associationServiceUtil.invokeGetLeadService(lender, lenderAssociationDetailsDto);
+            case "KYC_STATUS_CHECK":
+                return  associationServiceUtil.invokeKycStatusCheck(lender, lenderAssociationDetailsDto);
             default:
                 return false;
         }

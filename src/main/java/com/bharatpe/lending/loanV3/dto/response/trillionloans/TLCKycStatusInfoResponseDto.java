@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class TLCKYCStatusInfoResponseDto {
+public class TLCKycStatusInfoResponseDto {
 
         private PersonalInfo personalInfo;
         private List<AddressInfo> addressInfo;
