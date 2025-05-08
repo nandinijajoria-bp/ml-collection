@@ -3,6 +3,8 @@ package com.bharatpe.lending.loanV2.dto;
 import lombok.Builder;
 import lombok.Data;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -62,4 +64,22 @@ public class KfsDto {
     private String parentLender;
     private Double parentLoanAmount;
     private String parentLenderCorporateName;
+    private LanguageData languageData;
+    private String selectedLanguage;
+    private Boolean showVernacKFSLanguage;
+    @Data
+    @Builder
+    public static class LanguageData {
+        private Map<String, List<DocumentLanguageInfo>> languageList;
+    }
+
+    @Data
+    @Builder
+    public static class DocumentLanguageInfo {
+        private String lender;
+        private String languageLabel;
+        private String languageValue;
+        private String vernacCode;
+    }
+
 }

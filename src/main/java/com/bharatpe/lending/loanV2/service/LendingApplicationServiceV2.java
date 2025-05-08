@@ -16,11 +16,9 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.LendingApplicationLenderDetailsDaoSlave;
-import com.bharatpe.lending.common.query.dao.LendingPincodesQueryDao;
 import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingApplicationLenderDetailsSlave;
-import com.bharatpe.lending.common.query.entity.LendingPincodesQuery;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.CallingLeadNimbusService;
 import com.bharatpe.lending.common.service.FunnelService;
@@ -51,7 +49,6 @@ import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
-import com.bharatpe.lending.loanV3.enums.piramal.DocumentLanguageMap;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
@@ -314,9 +311,6 @@ public class LendingApplicationServiceV2 {
     String offerDowngradeDisabledLenders;
 
     @Autowired
-    LendingPincodesQueryDao lendingPincodesQueryDao;
-
-    @Autowired
     KycUtils kycUtils;
     @Autowired
     ILenderAPIGateway lenderAPIGateway;
@@ -327,9 +321,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     ForeClosureConfigDao foreClosureConfigDao;
-
-    @Value("${vernacular.doc.lender.list}")
-    String  vernacularDocLanguageList;
 
     @Autowired
     CommonUtil commonUtil;
@@ -389,6 +380,12 @@ public class LendingApplicationServiceV2 {
 
     @Value("${piramal.foreclosure.cache.minutes:2}")
     int piramalForeclosureCacheMinutes;
+
+    @Autowired
+    LanguageService languageService;
+
+    @Value("${lender.vernac.lang.rollout.percent:1}")
+    Integer lenderVernacLangRolloutPercent;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -2446,7 +2443,7 @@ public class LendingApplicationServiceV2 {
         return currentData;
     }
 
-    public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType,String clientIp, String deviceId, String platform){
+    public ApiResponse<?> getApplicationDoc(Long applicationId, BasicDetailsDto merchant, String docType,String clientIp, String deviceId, String platform, String lang){
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId,
           merchant.getId());
         if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -2458,15 +2455,15 @@ public class LendingApplicationServiceV2 {
             Date date = new Date();
 
             if (docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS.toString())) {
-                return getKfsDetails(applicationId, lendingApplication, merchant);
+                return getKfsDetails(applicationId, lendingApplication, merchant, null, ApplicationDocType.KEY_FACTS_STATEMENT_DETAILS);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.KEY_FACTS_STATEMENT_DOC.toString())) {
-                return generateKfs(applicationId, lendingApplication, merchant, false, null);
+                return generateKfs(applicationId, lendingApplication, merchant, false, null, lang);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC.toString())) {
-                return generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, false, null);
+                return generateSanctionCumLoanAgreement(applicationId, lendingApplication, merchant, false, null, lang);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.DISBURSMENT_REQUEST_LETTER_DOC.toString())) {
                 return generateDisbursementRequestLetter(applicationId, lendingApplication, merchant, clientIp, deviceId, platform);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.AUTHORIZATION_LETTER_DOC.toString())) {
-                return generateAuthorizationLetter(applicationId, lendingApplication, merchant, false, null);
+                return generateAuthorizationLetter(applicationId, lendingApplication, merchant, false, null, lang);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.PAYU_MITC_DOC.toString())) {
                 return generateMITC(applicationId, lendingApplication, merchant, false, date);
             } else if (docType.equalsIgnoreCase(ApplicationDocType.PAYU_GTC_DOC.toString())) {
@@ -2485,7 +2482,7 @@ public class LendingApplicationServiceV2 {
         }
     }
 
-    public ApiResponse<?> getKfsDetails(Long applicationId, LendingApplication lendingApplication1, BasicDetailsDto merchant){
+    public ApiResponse<?> getKfsDetails(Long applicationId, LendingApplication lendingApplication1, BasicDetailsDto merchant, String lang, ApplicationDocType docType){
         try{
             LendingApplication lendingApplication;
             if(ObjectUtils.isEmpty(lendingApplication1)){
@@ -2498,9 +2495,28 @@ public class LendingApplicationServiceV2 {
             }
             else lendingApplication = lendingApplication1;
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdOrderByIdDesc(applicationId);
+
+            String language = "";
+            Boolean enableKFSVernacLang = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent);
+
             if(ObjectUtils.isEmpty(lendingKfs)){
                 log.info("KFS details not present for Id: {} for merchant : {}", applicationId, merchant.getId());
                 lendingKfs = saveKfsDetails(merchant.getId(), lendingApplication);
+            }
+            if(enableKFSVernacLang){
+                if(ObjectUtils.isEmpty(lang)){
+                    //this case will only get called when details api is first called
+                    language = languageService.getDocLanguage(lendingApplication.getMerchantId(), lendingApplication.getLender(), false);
+                } else {
+                    language =  languageService.getOrSetLanguageMappingByLenderAndLang(lendingApplication.getLender(), lendingApplication.getId(), lang);
+                }
+                String docLang = lendingKfs.getDocLanguage();
+                boolean isDocTypeSupported = Arrays.asList("KEY_FACTS_STATEMENT_DOC", "SANCTION_CUM_LOAN_AGREEMENT_DOC")
+                        .contains(docType.toString());
+                if (!ObjectUtils.isEmpty(language) && (ObjectUtils.isEmpty(docLang) || (isDocTypeSupported && !language.equalsIgnoreCase(docLang)))) {
+                    lendingKfs.setDocLanguage(language);
+                    lendingKfsDao.save(lendingKfs);
+                }
             }
             if(ObjectUtils.isEmpty(lendingKfs)){
                 return new ApiResponse<>(false, "Unable to create KFS details");
@@ -2727,6 +2743,9 @@ public class LendingApplicationServiceV2 {
                     .smbId(lendingApplicationLenderDetails.getSmbId())
                     .offerId(lendingApplicationLenderDetails.getOfferId())
                     .leadId(lendingApplicationLenderDetails.getLeadId())
+                    .languageData(enableKFSVernacLang ? languageService.getOrSetLanguageMapping(lendingApplication.getLender(), lendingApplication.getId()) : null)
+                    .showVernacKFSLanguage(enableKFSVernacLang)
+                    .selectedLanguage(language)
                     .build();
 
             if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
@@ -2846,7 +2865,7 @@ public class LendingApplicationServiceV2 {
             return;
         }
         String fileName = "";
-        ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime, lendingKfs.getDocLanguage());
         if (apiResponse.success) {
             String sanctionCumLoanAgreementHtml = (String) apiResponse.data;
 
@@ -2885,8 +2904,7 @@ public class LendingApplicationServiceV2 {
             PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
             PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
-                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(),
-                        Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
                     ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
                     ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
                             ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
@@ -2960,7 +2978,7 @@ public class LendingApplicationServiceV2 {
             InputStream inputStream = s3BucketHandler.getObject(fileName, s3Bucket);
             return inputStream;
         }
-        ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        ApiResponse<?> apiResponse = generateSanctionCumLoanAgreement(lendingApplication.getId(), lendingApplication, merchant, true, dateTime, null);
         if (apiResponse.success) {
             String sanctionCumLoanAgreementHtml = (String) apiResponse.data;
             return (InputStream) generateAndUploadSanctionLoanAgreementPdf(lendingApplication, sanctionCumLoanAgreementHtml, lender, true);
@@ -3131,7 +3149,7 @@ public class LendingApplicationServiceV2 {
         }
         String fileName = "";
         ApiResponse<?> apiResponse;
-        apiResponse = generateKfs(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        apiResponse = generateKfs(lendingApplication.getId(), lendingApplication, merchant, true, dateTime, lendingKfs.getDocLanguage());
         if (apiResponse.success) {
             String kfsHtml = (String) apiResponse.data;
 
@@ -3149,7 +3167,7 @@ public class LendingApplicationServiceV2 {
                 PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
                 PdfDocument pdfDocument = new PdfDocument(writer);
                 if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.LIQUILOANS_NBFC.name(), Lender.TRILLIONLOANS.name(), Lender.MUTHOOT.name()
+                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()
                             , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
                         ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC));
                         ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
@@ -3234,13 +3252,13 @@ public class LendingApplicationServiceV2 {
         return inStream;
     }
 
-    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+    public ApiResponse<?> generateKfs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime, String lang){
         boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
                 lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
         if (generateLenderDoc) {
             return generateLenderKfs(lendingApplication, true);
         }
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, lang, ApplicationDocType.KEY_FACTS_STATEMENT_DOC);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating KFS doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve KFS Details");
@@ -3262,13 +3280,17 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            boolean vernacularDocLanguageDisabled = false;
-            if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
-                vernacularDocLanguageDisabled = true;
-            }
 
-            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
-                language =  getDocLanguage(merchant.getId(),lender);
+            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
+                language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
+
+                log.info("language of selection: {}", language);
+
+                if ("_ENGLISH".equalsIgnoreCase(language)) {
+                    language = "";
+                }
+            } else {
+                language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
             }
 
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
@@ -3359,37 +3381,13 @@ public class LendingApplicationServiceV2 {
         return null;
     }
 
-    private String getDocLanguage(long merchantId,String lender)
-    {
-        String language="";
-        try {
-            Experian experian = experianDao.getByMerchantId(merchantId);
-            if (!ObjectUtils.isEmpty(experian)) {
-                LendingPincodesQuery lendingPincodes = lendingPincodesQueryDao.findByPincode(experian.getPincode());
-                if (!ObjectUtils.isEmpty(lendingPincodes)) {
-                    language=DocumentLanguageMap.getDocumentLanguage(lendingPincodes.getState()).name();
-                    language = LenderDocLanguageMap.fetchSupportedLanguageByLender(lender,language);
-                    if (!ObjectUtils.isEmpty(language)) {
-                        log.info("doc language for merchantId  {} with given pinCode  {} is : {}", merchantId, lendingPincodes.getPincode(), language);
-                        language = "_" + language;
-                    }
-                }
-
-            }
-        }
-        catch(Exception e)
-        {
-             log.error("Exception while fetching language for merchantId: {} ,{}",merchantId ,Arrays.asList(e.getStackTrace()));
-        }
-        return language;
-    }
-    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
+    public ApiResponse<?> generateSanctionCumLoanAgreement(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime, String lang){
         boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) ?
                 lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.getLender());
         if (generateLenderDoc) {
             return generateLenderSanctionCumLoanAgreement(lendingApplication, true);
         }
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, lang, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating Sanction Cum Loan Agreement doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve KFS Details");
@@ -3410,14 +3408,19 @@ public class LendingApplicationServiceV2 {
             String filePath = "";
             String language = "";
 
-            boolean vernacularDocLanguageDisabled = false;
-            if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                vernacularDocLanguageDisabled = true;
+
+            if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
+                language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
+
+                log.info("language of selection: {}", language);
+
+                if ("_ENGLISH".equalsIgnoreCase(language)) {
+                    language = "";
+                }
+            } else {
+                language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
             }
 
-            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
-              language =  getDocLanguage(merchant.getId(),lender);
-            }
 
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
@@ -3971,9 +3974,10 @@ public class LendingApplicationServiceV2 {
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/liquiloans_header-1709183554567.png";
         } else if((lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.name()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender))
                 && applicationDocType.equals(ApplicationDocType.LIQUILOANS_NBFC_FOOTER)) {
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trliions_Footer-1705915638774.png";
+//            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trliions_Footer-1705915638774.png";
+            logoUrl = "";
         } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_NBFC.toString()) || Lender.TRILLIONLOANS.toString().equalsIgnoreCase(lender)) {
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/easy_loans/Trillions_Header-1705913991462.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/3x-1744701539763.png";
         } else if (lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.ABFL_LETTERHEAD_FOOTER)) {
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-footer.png";
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-letterhead-with-padding_1.png";
@@ -4350,7 +4354,7 @@ public class LendingApplicationServiceV2 {
             log.info("no welcome format exists for the lender {} for app {}", lendingApplication.getLender(), lendingApplication.getId());
             return Boolean.FALSE;
         }
-        ApiResponse apiResponse = getKfsDetails(lendingApplication.getId(), lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(lendingApplication.getId(), lendingApplication, merchant, null, ApplicationDocType.WELCOME_LETTER_DOC);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating Sanction Cum Loan Agreement doc for applicationId: {}", lendingApplication.getId());
             return Boolean.FALSE;
@@ -4416,8 +4420,8 @@ public class LendingApplicationServiceV2 {
     }
 
 
-    public ApiResponse<?> generateAuthorizationLetter(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+    public ApiResponse<?> generateAuthorizationLetter(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime, String lang){
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, lang, ApplicationDocType.AUTHORIZATION_LETTER_DOC);
         if(!apiResponse.success){
             log.info("Unable to get KFS details while creating Authorization doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve KFS Details");
@@ -4438,15 +4442,10 @@ public class LendingApplicationServiceV2 {
 
             String language = "";
 
-            boolean vernacularDocLanguageDisabled = false;
-            if(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(lender) && LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
-                vernacularDocLanguageDisabled = true;
-            }
-            if(vernacularDocLanguageList.contains(lender) && !vernacularDocLanguageDisabled) {
-                language =  getDocLanguage(merchant.getId(),lender);
-            }
 
-           if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
+            language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
+
+            if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
                     && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
                 filePath = "/templates/" + "AUTHORIZATION_LETTER_P2P_PC" + ".html";
             } else if (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString())) {
@@ -4483,7 +4482,7 @@ public class LendingApplicationServiceV2 {
     public void generateAuthorizationLetterDoc(LendingApplication lendingApplication, BasicDetailsDto merchant, LendingKfs lendingKfs, Date dateTime) throws Exception {
         String fileName = "";
         ApiResponse<?> apiResponse;
-        apiResponse = generateAuthorizationLetter(lendingApplication.getId(), lendingApplication, merchant, true, dateTime);
+        apiResponse = generateAuthorizationLetter(lendingApplication.getId(), lendingApplication, merchant, true, dateTime, null);
         if (apiResponse.success) {
             String authorizationHtml = (String) apiResponse.data;
             fileName = AUTHORIZATION_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
@@ -4673,7 +4672,7 @@ public class LendingApplicationServiceV2 {
 
 
     public ApiResponse<?> generateMITC(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, null, ApplicationDocType.PAYU_MITC_DOC);
         if(!apiResponse.success){
             log.info("Unable to get MITC details while creating MITC doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve MITC Details");
@@ -4748,7 +4747,7 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> generateGTC(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
 
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, null, ApplicationDocType.PAYU_GTC_DOC);
         if(!apiResponse.success){
             log.info("Unable to get gtc details while creating GTC doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve GTC Details");
@@ -4838,7 +4837,7 @@ public class LendingApplicationServiceV2 {
             return generateAuditTrail(lendingApplication);
         }
 
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, null, ApplicationDocType.LOA_DOC);
         if(!apiResponse.success){
             log.info("Unable to get LOA details while creating LOA doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve LOA Details");
@@ -4931,7 +4930,7 @@ public class LendingApplicationServiceV2 {
 
     public ApiResponse<?> generateApplicationForm(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant, boolean timeStamp, Date dateTime){
 
-        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant);
+        ApiResponse apiResponse = getKfsDetails(applicationId, lendingApplication, merchant, null, ApplicationDocType.APPLICATION_FORM_DOC);
         if(!apiResponse.success){
             log.info("Unable to get application form details while creating application form doc for applicationId: {}", applicationId);
             return new ApiResponse<>(false,"Unable to retrieve application form Details");

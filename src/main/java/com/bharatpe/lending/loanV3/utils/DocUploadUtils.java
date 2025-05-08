@@ -5,9 +5,11 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.LendingEnum;
+import com.bharatpe.lending.dao.LanguageMappingDao;
+import com.bharatpe.lending.dao.LenderLanguageMappingDao;
 import com.bharatpe.lending.dao.LendingKfsDao;
+import com.bharatpe.lending.entity.LanguageMapping;
 import com.bharatpe.lending.entity.LendingKfs;
-import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
@@ -18,6 +20,8 @@ import com.bharatpe.lending.loanV3.dto.response.ugro.UgroUdyamRegistrationRespon
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.LanguageService;
+import com.bharatpe.lending.util.CommonUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.Document;
 import com.itextpdf.text.DocumentException;
@@ -38,7 +42,6 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -74,6 +77,12 @@ public class DocUploadUtils {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    LanguageMappingDao languageMappingDao;
+
+    @Autowired
+    LanguageService languageService;
 
     public void saveESignedDocs(Long applicationId, byte[] signedKFSBytes, byte[] signedSanctionBytes) {
         try {
