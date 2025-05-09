@@ -3833,7 +3833,7 @@
                 <p style="margin: 6px 16px;" class="bold text-left">TENURE</p>
             </td>
             <td style="padding: 0px 5px;">
-                <p style="margin: 6px 16px;" class="bold">{{tenure_of_loan_in_months}} months</p>
+                <p style="margin: 6px 16px;" class="bold">{{tenure_of_loan_in_days}} days</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -4758,7 +4758,7 @@
         </li>
         <li>
             <p style="margin: 6px" class="fw400 ml10">
-                If my/our application is accepted and/ or my/our loan/credit facility(ies) is/are sanctioned all
+                If my application is accepted and/ or my loan/credit facility(ies) is/are sanctioned all
                 and/or any disbursals may be made through a mode of Cheque/NFTS/RTGS and I/we shall provide all such
                 necessary information to facilitate the same.
             </p>
@@ -5395,10 +5395,10 @@
         </tr>
         <tr class="width-100">
             <td style="padding: 0px 5px" colspan="4">
-                <p style="margin: 6px 16px" class="fw400"><span class="bold">Loan Tenure</span> (in Months)</p>
+                <p style="margin: 6px 16px" class="fw400"><span class="bold">Loan Tenure</span> (in Days)</p>
             </td>
             <td style="padding: 0px 5px" colspan="19">
-                <p style="margin: 6px 16px" class="fw400">{{tenure_of_loan_in_months}} months, unless a Payment
+                <p style="margin: 6px 16px" class="fw400">{{tenure_of_loan_in_days}} days, unless a Payment
                     Holiday
                     facility
                     is
@@ -5436,7 +5436,9 @@
                 <p style="margin: 6px 16px" class="fw400">Processing Fees exclusive of GST</p>
             </td>
             <td style="padding: 0px 5px" colspan="7">
-                <p style="margin: 6px 16px" class="fw400">INR {{processing_fee_without_gst}}</p>
+                <p style="margin: 6px 16px" class="fw400">INR {{processing_fee_without_gst}} + </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{gst_amount_of_processing_fee}}</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">(GST)</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -5450,7 +5452,9 @@
                 <p style="margin: 6px 16px" class="fw400">Total Fee</p>
             </td>
             <td style="padding: 0px 5px" colspan="7">
-                <p style="margin: 6px 16px" class="fw400">INR {{processing_fee_includes_tax}}</p>
+                <p style="margin: 6px 16px" class="fw400">INR {{processing_fee_without_gst}} + </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{gst_amount_of_processing_fee}}</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">(GST)</p>
             </td>
         </tr>
         <tr class="width-100">

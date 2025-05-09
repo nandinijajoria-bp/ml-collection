@@ -166,7 +166,7 @@
             </td>
             <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
                 <p style="margin: 10px 16px;" class="fw400 text-left">
-                    {{tenure_of_loan_in_months}} months
+                    {{tenure_of_loan_in_days}} days
                 </p>
             </td>
         </tr>
@@ -719,7 +719,7 @@
                     1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">{{tenure_of_loan_in_months}} months</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">{{tenure_of_loan_in_days}} days</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -821,7 +821,9 @@
                 <p style="margin: 6px 16px;" class="fw400 text-left"> Fee/ Charges payable (in Rupees) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}} </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_without_gst}} + </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{gst_amount_of_processing_fee}}</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">(GST)</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -832,7 +834,10 @@
                     template-Part 1) </p>
             </td>
             <td style="padding: 0px 5px;" class="word-wrap width-24">
-                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_includes_tax}}</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">₹ {{processing_fee_without_gst}} + </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{gst_amount_of_processing_fee}}</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">(GST)</p>
+
             </td>
         </tr>
         <tr class="width-100">
@@ -1132,7 +1137,7 @@
                 <p style="margin: 6px 16px" class="fw400">Tenure of the Facility</p>
             </td>
             <td style="padding: 0px 5px" colspan="2">
-                <p style="margin: 6px 16px" class="fw400">{{tenure_of_loan_in_months}} months</p>
+                <p style="margin: 6px 16px" class="fw400">{{tenure_of_loan_in_days}} days</p>
             </td>
             <td style="padding: 0px 5px" colspan="2">
                 <p style="margin: 6px 16px" class="fw400">Frequency of repayment</p>
@@ -1200,7 +1205,7 @@
                 <p style="margin: 6px 16px" class="fw400">Tenor</p>
             </td>
             <td style="padding: 0px 5px" colspan="6">
-                <p style="margin: 6px 16px" class="fw400">{{tenure_of_loan_in_months}} months</p>
+                <p style="margin: 6px 16px" class="fw400">{{tenure_of_loan_in_days}} days</p>
             </td>
         </tr>
         <tr class="width-100">
@@ -1232,7 +1237,9 @@
                 <p style="margin: 6px 16px" class="bold">Processing fee, if any (in INR)</p>
             </td>
             <td style="padding: 0px 5px" colspan="3">
-                <p style="margin: 6px 16px" class="fw400">INR {{processing_fee_includes_tax}}</p>
+                <p style="margin: 6px 16px" class="fw400">INR {{processing_fee_without_gst}} + </p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{gst_amount_of_processing_fee}}</p>
+                <p style="margin: 6px 16px;" class="fw400 text-left">(GST)</p>
             </td>
         </tr>
         <tr class="width-100">

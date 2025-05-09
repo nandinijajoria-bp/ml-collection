@@ -3971,6 +3971,7 @@ public class LendingApplicationServiceV2 {
             data.put("apr_without_gst", aprWithoutGst);
             Double gstAmountOfProcessingFee = kfsDto.getProcessingFee() - kfsDto.getProcessingFeeWithoutGst();
             data.put("gst_amount_of_processing_fee", String.format("%.2f",gstAmountOfProcessingFee));
+            data.put("tenure_of_loan_in_days", kfsDto.getEdiCount());
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
                 PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
