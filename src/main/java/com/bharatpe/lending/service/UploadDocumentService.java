@@ -197,7 +197,6 @@ public class UploadDocumentService {
 			}
 		}
 		uploadDocumentResponse.setDocument(documentList);
-		loanUtil.publishDSData(lendingApplication);
 //		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
 		return uploadDocumentResponse;
 	}
