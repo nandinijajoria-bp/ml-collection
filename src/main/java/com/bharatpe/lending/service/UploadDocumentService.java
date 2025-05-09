@@ -197,6 +197,7 @@ public class UploadDocumentService {
 			}
 		}
 		uploadDocumentResponse.setDocument(documentList);
+		loanUtil.publishDSData(lendingApplication);
 //		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
 		return uploadDocumentResponse;
 	}
@@ -217,7 +218,7 @@ public class UploadDocumentService {
 			String proofType = document.getProofType();
 			int singlePageDocument = document.getSinglePageDocument() ? 1 : 0;
 
-			Map<String, String>	proofSides = processAndUploadProof(document.getProof(), merchantBasicDetails);
+				Map<String, String>	proofSides = processAndUploadProof(document.getProof(), merchantBasicDetails);
 
 			String frontSide = proofSides.get("frontSide");
 			String backSide = proofSides.get("backSide");

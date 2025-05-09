@@ -1716,6 +1716,7 @@ public class LoanUtil {
 			request.put("shop_number", lendingApplication.getShopNumber());
 			request.put("proof_front_side", proof_front_side);
 			request.put("proof_stock_side", proof_stock_side);
+			logger.info("Data published to DS :{}", request);
 			executorService.execute(() -> {
 				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
