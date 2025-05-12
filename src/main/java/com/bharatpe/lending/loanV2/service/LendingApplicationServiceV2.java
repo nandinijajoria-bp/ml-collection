@@ -2783,9 +2783,8 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setLender(lendingApplication.getLender());
         Double insurancePremium = getInsurancePremium(lendingApplication);
         Double processingFee = lendingApplication.getProcessingFee();
-        Double amountToCalculateAprOn;
 
-        amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium;
+        Double amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium;
         Double apr = getApr(merchantId, lendingApplication.getId(), amountToCalculateAprOn, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
