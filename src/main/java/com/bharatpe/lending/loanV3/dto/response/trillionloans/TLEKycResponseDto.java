@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class TLEKYCResponseDto {
+public class TLEKycResponseDto {
     public String url;
     public String customerName;
     public String kid;

@@ -13,7 +13,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class TLEkycCallbackResponseDto {
+public class TLEKycCallbackResponseDto {
 
         public List<String> entities;
         public String createdAt;

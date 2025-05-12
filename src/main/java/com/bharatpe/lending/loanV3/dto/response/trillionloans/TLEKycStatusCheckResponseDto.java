@@ -8,7 +8,7 @@ import java.util.List;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class TLEKYCStatusCheckResponseDto {
+public class TLEKycStatusCheckResponseDto {
     private String id;
     private String updatedAt;
     private String createdAt;

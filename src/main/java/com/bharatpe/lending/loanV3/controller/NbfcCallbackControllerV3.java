@@ -202,12 +202,4 @@ public class NbfcCallbackControllerV3 {
         pennyDropCallbackWrapperService.pennyDropCallback(nbfcResponseDTO);
         return ResponseEntity.ok(new ApiResponse<>(true,"pennyDrop async callback handled"));
     }
-
-    @PostMapping("cKyc-decision")
-    public ResponseEntity<ApiResponse<?>> ckycCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
-        log.info("ckyc callback received via controller {}", nbfcResponseDTO);
-        kycCallbackWrapperService.lenderCKycCallback(nbfcResponseDTO);
-        return ResponseEntity.ok(new ApiResponse<>(true,"pennyDrop async callback handled"));
-    }
-
 }

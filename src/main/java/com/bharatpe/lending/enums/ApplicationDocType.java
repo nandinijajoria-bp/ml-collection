@@ -20,7 +20,11 @@ public enum ApplicationDocType {
     PAYU_GTC_DOC,
     LOA_DOC,
     APPLICATION_FORM_DOC,
-    OXYZO_LETTERHEAD_FOOTER;
+    OXYZO_LETTERHEAD_FOOTER,
+    MITC_DOC,
+    GTC_DOC;
+
+
 
 
     public static ApplicationDocType getFooterMapping(Lender lender) {

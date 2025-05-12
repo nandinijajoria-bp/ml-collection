@@ -134,6 +134,30 @@ public class TLKycService {
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
         return false;
+    }
 
+    public Boolean kycStatusCheck(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        try {
+            if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplication()) || ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails())) {
+                log.info("LendingApplication / LendingApplicationLenderDetails is empty for request {} {} ", lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
+                return false;
+            }
+            NBFCRequestDTO<?> cKycInfoDto = NBFCRequestDTO.builder()
+                    .applicationId(lenderAssociationDetailsDto.getLendingApplication().getId())
+                    .productName("LENDING")
+                    .lender(LendingEnum.LENDER.TRILLIONLOANS.name())
+                    .payload(TLKycRequestDto.builder()
+                            .leadId(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
+                            .build())
+                    .build();
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(cKycInfoDto, LenderAssociationStages.KYC_STATUS_CHECK);
+            return processKycCallback(nbfcResponseDto);
+        } catch (Exception ex) {
+            log.error("exception occurred while processing kyc status check request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycRetryCount(ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getKycRetryCount()) ? 0 : lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getKycRetryCount());
+        commonService.manageApplicationState(lenderAssociationDetailsDto);
+        return false;
     }
 }
