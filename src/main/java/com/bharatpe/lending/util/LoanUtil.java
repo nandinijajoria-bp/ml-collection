@@ -2747,7 +2747,9 @@ public class LoanUtil {
 
 	public boolean isTodayIsLoanLastDay(LendingPaymentSchedule activeLoan) {
 		logger.info("Checking for last day of the loan: {} with EDI Remaining Count: {}", activeLoan.getId(), activeLoan.getEdiRemainingCount());
-		return activeLoan.getEdiRemainingCount() <= 0;
+		Date loanClosingDate = activeLoan.getTentativeClosingDate();
+		Date todayDate = new Date();
+		return (DateUtils.isSameDay(loanClosingDate, todayDate) || todayDate.after(loanClosingDate) || activeLoan.getEdiRemainingCount() <= 0);
 	}
 
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
