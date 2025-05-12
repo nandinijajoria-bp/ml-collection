@@ -3283,15 +3283,16 @@ public class LendingApplicationServiceV2 {
 
             if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), lenderVernacLangRolloutPercent)){
                 language = ObjectUtils.isEmpty(kfsDto.getSelectedLanguage()) ? languageService.getOrSetLanguageMappingByLenderAndLang(lender, lendingApplication.getId(), lang) : "_" + kfsDto.getSelectedLanguage();
-
                 log.info("language of selection: {}", language);
-
-                if ("_ENGLISH".equalsIgnoreCase(language)) {
-                    language = "";
-                }
             } else {
                 language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
             }
+
+            if (ObjectUtils.isEmpty(language) || "ENGLISH".contains(language.toUpperCase())) {
+                language = "";
+            }
+
+
 
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "KFS_P2P" + ".html";
@@ -3414,13 +3415,13 @@ public class LendingApplicationServiceV2 {
 
                 log.info("language of selection: {}", language);
 
-                if ("_ENGLISH".equalsIgnoreCase(language)) {
-                    language = "";
-                }
             } else {
                 language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
             }
 
+            if (ObjectUtils.isEmpty(language) || "ENGLISH".contains(language.toUpperCase())) {
+                language = "";
+            }
 
             if(lender.equalsIgnoreCase(Lender.LDC.toString())){
                 filePath = "/templates/" + "SANCTION_LOAN_AGREEMENT_P2P" + ".html";
@@ -4444,6 +4445,10 @@ public class LendingApplicationServiceV2 {
 
 
             language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
+
+            if (ObjectUtils.isEmpty(language) || "ENGLISH".contains(language.toUpperCase())) {
+                language = "";
+            }
 
             if (Objects.nonNull(lendingApplication.getAgreementAt()) && lendingApplication.getAgreementAt().before(penaltyDate)
                     && (lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P.toString()) || lender.equalsIgnoreCase(Lender.LIQUILOANS_P2P_OF.toString()))) {
