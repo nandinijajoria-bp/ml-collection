@@ -2782,7 +2782,10 @@ public class LendingApplicationServiceV2 {
         lendingKfs.setMerchantId(merchantId);
         lendingKfs.setLender(lendingApplication.getLender());
         Double insurancePremium = getInsurancePremium(lendingApplication);
-        Double apr = getApr(merchantId, lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee() - insurancePremium, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
+        Double processingFee = lendingApplication.getProcessingFee();
+
+        Double amountToCalculateAprOn = lendingApplication.getLoanAmount() - processingFee - insurancePremium;
+        Double apr = getApr(merchantId, lendingApplication.getId(), amountToCalculateAprOn, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
         if(ObjectUtils.isEmpty(apr)) return null;
         lendingKfs.setApr(Double.valueOf(String.format("%.2f", apr)));
         lendingKfsDao.save(lendingKfs);
@@ -3644,6 +3647,15 @@ public class LendingApplicationServiceV2 {
         if(Lender.TRILLIONLOANS.toString().equals(kfsDto.getLender())){
             version = 1;
         }
+        Double aprWithoutGst = null;
+        if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender()) && Objects.nonNull(kfsDto.getLoanAmount()) && Objects.nonNull(kfsDto.getProcessingFeeWithoutGst()) && kfsDto.getLoanAmount() != 0) {
+
+            Double amountToCalculateAprOn = kfsDto.getLoanAmount() - kfsDto.getProcessingFeeWithoutGst();;
+
+            aprWithoutGst = getApr(kfsDto.getMerchantId(), applicationId, amountToCalculateAprOn,
+                    EdiModel.SEVEN_DAY_MODEL.getNoOfEdiDaysInAWeek(), kfsDto.getLender());
+            aprWithoutGst = Double.valueOf(String.format("%.2f", aprWithoutGst));
+        }
 
         List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(version, true, kfsDto.getLender());
         final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
@@ -3693,6 +3705,7 @@ public class LendingApplicationServiceV2 {
         data.put("conatct_no_lsp", kfsDto.getLspContactNumber());
         data.put("timing_for_contact_lsp", "");
         data.put("facilitation_fee_in_figure", "0.00");
+        data.put("monthlyIncome", kfsDto.getMonthlyIncome());
         log.info("lender {} {}", kfsDto.getLender(), applicationDocType);
         data.put("processing_fee_statement", kfsDto.isTopUpLoan() && !Lender.TRILLIONLOANS.name().equalsIgnoreCase(kfsDto.getLender()) ? "" : kfsDto.getProcessingFeePercentageWithoutGst()+"% of the loan Amount " + (kfsDto.getProcessingFee()==0?"":("+ " + KfsConstants.GST_PERCENTAGE + "% GST on processing fees ")) + "i.e. ");
         String repaymentSchedule = "";
@@ -3958,6 +3971,10 @@ public class LendingApplicationServiceV2 {
             data.put("business_category", businessCategory);
             data.put("business_sub_category", businessSubCategory);
             data.put("udyam_number", null);
+            data.put("apr_without_gst", aprWithoutGst);
+            Double gstAmountOfProcessingFee = kfsDto.getProcessingFee() - kfsDto.getProcessingFeeWithoutGst();
+            data.put("gst_amount_of_processing_fee", String.format("%.2f",gstAmountOfProcessingFee));
+            data.put("tenure_of_loan_in_days", kfsDto.getEdiCount());
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
                 PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
