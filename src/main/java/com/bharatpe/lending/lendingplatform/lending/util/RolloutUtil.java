@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.entity.LmsLoanStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,7 +20,6 @@ import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Optional;
 
 
 @Component
@@ -62,6 +62,7 @@ public class RolloutUtil {
 
 	private final LendingApplicationLenderDetailsDao laldDao;
     private final LendingApplicationDao lendingApplicationDao;
+    private final KycUtils kycUtils;
 
     public boolean lendingPlatformUnderwritingFLowApplicable(Long merchantId) {
         //config for internal merchants
@@ -123,6 +124,12 @@ public class RolloutUtil {
 			log.info("New flow for Merchant:{} is not eligible due to rollout percent", merchantId);
 			return false;
 		}
+
+        if (Boolean.TRUE.equals(kycUtils.isELigibleForLenderKyc(
+                lendingApplication.getLender(), lendingApplication.getMerchantId(), false))) {
+            log.info("New flow for Merchant:{} is not eligible due to EKYC", merchantId);
+            return false;
+        }
 
 		if (lendingPlatformNbfcApplicationLimit != -1){
 			LocalDate localDate = LocalDate.parse("2025-04-23");
