@@ -343,9 +343,6 @@ public class PaymentService {
 
     @Autowired
     NachBounceChargesService nachBounceChargesService;
-  
-    @Autowired
-    LoanPaymentLedgerAdjustmentService loanPaymentLedgerAdjustmentService;
 
     @Autowired
     PaymentAsynchronousService paymentAsynchronousService;
