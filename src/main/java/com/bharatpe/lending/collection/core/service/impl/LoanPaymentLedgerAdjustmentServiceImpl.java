@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -84,6 +85,15 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     @Autowired
     private EasyLoanUtil easyLoanUtil;
 
+    @Value("${whitelisted.real.time.reciept.posting.lenders:TRILLIONLOANS}")
+    String realTimeRecieptPostingWhitelistedLenders;
+
+    @Value("#{'${whitelisted.real.time.reciept.posting.mode}'.split(',')}")
+    Set<String> realTimeRecieptPostingWhitelistedPgModes;
+
+    @Value("${whitelisted.real.time.reciept.percent.rollout:1}")
+    Integer realTimeRecieptPostingPercentScaleUp;
+
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
         log.info("adjustNachLedger: initiating nach : {} payment : {}", lendingCollectionExcess, paymentAdjusted);
@@ -114,19 +124,22 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         updateCollectionAuditAndOrder(lendingLedger, order);
         if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
             //push loanId to kafka
-            confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+            if(lendingLedger!= null) confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
         }
         try {
+            if(lendingLedger != null){
             log.info("inside sending upi-real-time-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId());
             LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId()).orElse(null);
-            if ("UPI".equalsIgnoreCase(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), 1)
-                    && "TRILLIONLOANS".equalsIgnoreCase(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
+
+            if (adjustmentMode != null && realTimeRecieptPostingWhitelistedPgModes.contains(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), realTimeRecieptPostingPercentScaleUp)
+                    && loan.getNbfc() != null   && realTimeRecieptPostingWhitelistedLenders.contains(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
                     && !"Y".equalsIgnoreCase(lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted())) {
                 log.info("Real time reciept posting for UPI {}", lendingLedger);
                 confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
             }
+            }
         }catch (Exception ex){
-            log.error("Error while sending autopayupi-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId(), ex);
+            log.error("Error while sending autopayupi-posting for loanId: {} and ledgerId: {}", loan, lendingLedger, ex);
         }
         return lendingLedger;
     }
