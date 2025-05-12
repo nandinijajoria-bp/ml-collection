@@ -3291,7 +3291,7 @@ public class LendingApplicationServiceV2 {
                 language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
             }
 
-            if (ObjectUtils.isEmpty(language) || "ENGLISH".contains(language.toUpperCase())) {
+            if (ObjectUtils.isEmpty(language) || language.toUpperCase().contains("ENGLISH")) {
                 language = "";
             }
 
@@ -3422,7 +3422,7 @@ public class LendingApplicationServiceV2 {
                 language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
             }
 
-            if (ObjectUtils.isEmpty(language) || "ENGLISH".contains(language.toUpperCase())) {
+            if (ObjectUtils.isEmpty(language) || language.toUpperCase().contains("ENGLISH")) {
                 language = "";
             }
 
@@ -4463,7 +4463,7 @@ public class LendingApplicationServiceV2 {
 
             language = languageService.getVernacLanguage(lendingApplication.getLender(), lendingApplication.getLoanType(), lendingApplication.getMerchantId());
 
-            if (ObjectUtils.isEmpty(language) || "ENGLISH".contains(language.toUpperCase())) {
+            if (ObjectUtils.isEmpty(language) || language.toUpperCase().contains("ENGLISH")) {
                 language = "";
             }
 
