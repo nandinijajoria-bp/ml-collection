@@ -39,6 +39,7 @@ import java.util.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
+import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.NACH_BOUNCE_CHARGES;
 
 @Service
@@ -328,19 +329,58 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                 LendingApplicationLenderDetails lendingApplicationLenderDetails =
                         lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
                 PenaltyFeeLedger nachBounceLedgerApplied = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(loan.getId());
-                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && paidNachBounce > 0 && nachBounceLedgerApplied != null && !nachBounceLedgerApplied.getIsPosted()) {
+                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && nachBounceAdjusted > 0 && nachBounceLedgerApplied != null && !nachBounceLedgerApplied.getIsPosted()) {
                     loanUtil.piramalPenaltyPosting(lendingApplicationLenderDetails, nachBounceLedgerApplied,nachBounceLedgerApplied.getAmount()*-1,NACH_BOUNCE_CHARGES.name());
                 }
             }
 
             if (Objects.nonNull(penalCharge.getDuePenalty())) {
                 double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
+
                 penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
                 penalCharge.setDuePenalty((double) Math.round(penalCharge.getDuePenalty() - netPenaltyAdjusted));
+                try {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                        lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+                PenaltyFeeLedger penaltyFeeLedgerApplied = penaltyFeeLedgerDao.findTop1PenaltyFeeOrderByIdDesc(loan.getId());
+                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && netPenaltyAdjusted > 0 && penaltyFeeLedgerApplied != null && !penaltyFeeLedgerApplied.getIsPosted()) {
+                    loanUtil.postPiramalPenalty(loan,lendingApplicationLenderDetails);
+                }}catch (Exception e){
+                    log.error("Lending : Error while posting piramal penalty for loanId: {} and error: {}", loan, Arrays.asList(e.getStackTrace()), e);
+                }
+
             }
             penalChargesDao.save(penalCharge);
         } catch (Exception e) {
             log.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
         }
+    }
+
+    @Override
+    public void creatingPenaltyInPenaltyLedger(LendingPaymentSchedule loan, double penaltyFee, String description, boolean isWaiveOff) {
+        PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), -penaltyFee, description, isWaiveOff, loan.getNbfc(),false);
+        penaltyFeeLedgerDao.save(penaltyFeeLedger);
+    }
+
+    @Override
+    public LendingLedger createPenaltyLedger(LendingPaymentSchedule loan, double penaltyFee, String penaltyDescription) {
+        if(ObjectUtils.isEmpty(penaltyFee)) {
+            return null;
+        }
+
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchantId(loan.getMerchantId());
+        if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
+        lendingLedger.setLendingPaymentSchedule(loan);
+        lendingLedger.setDate(DateTimeUtil.getCurrentDayStartTime());
+        lendingLedger.setTxnType("EDI");
+        lendingLedger.setAmount(-penaltyFee);
+        lendingLedger.setInterest(0d);
+        lendingLedger.setPrinciple(0d);
+        lendingLedger.setOtherCharges(0d);
+        lendingLedger.setPenalty(-penaltyFee);
+        lendingLedger.setDescription(penaltyDescription);
+        lendingLedgerDao.save(lendingLedger);
+        return lendingLedger;
     }
 }

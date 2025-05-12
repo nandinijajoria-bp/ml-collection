@@ -2,9 +2,10 @@ package com.bharatpe.lending.collection.core.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 
 public interface LoanClosurePostingService {
-    void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger);
+    void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO);
 
     void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId);
 
