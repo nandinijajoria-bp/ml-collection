@@ -575,10 +575,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             String requestId = UUID.randomUUID().toString().replaceAll("-", "");
             Boolean postChargesToLender = false;
 
-            if (LendingEnum.LENDER.PAYU.name().equals(loan.getNbfc()) && nachBounceChargesService.checkForNachBounce(loan)) {
+            if(pendingNachCharges != 0d){
                 log.info("Found Nach Bounce Charges for loan: {}, nbfc: {} ", loan.getId(), loan.getNbfc());
                 nachBounceChargesService.createCharges(loan, requestId);
-                paidPenalty += payUNachBounceCharge;
+                paidPenalty += pendingNachCharges;
                 postChargesToLender = true;
             }
 
@@ -667,6 +667,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     .foreClosure(true)
                     .postCharges(postChargesToLender)
                     .chargeId(requestId)
+                    .foreclosureCharges(foreclosureChargesAmount)
                     .build());
         }
     }

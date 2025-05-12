@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
@@ -29,7 +30,7 @@ import java.util.Optional;
 
 @Service
 @Slf4j
-public class TLForeclosureFetchService implements ILenderAssociationService<Double> {
+public class TLForeclosureFetchService implements ILenderAssociationService<LenderForeclosureDetailsDTO> {
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
@@ -56,17 +57,17 @@ public class TLForeclosureFetchService implements ILenderAssociationService<Doub
     NbfcLenderGateway nbfcLenderGateway;
 
     @Override
-    public Double invoke(Long applicationId, Map<String, Object> args) {
+    public LenderForeclosureDetailsDTO invoke(Long applicationId, Map<String, Object> args) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if (!lendingApplication.isPresent()) {
             log.info("no lending application record found for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails =
                 lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, Status.ACTIVE.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("no lender assc record found for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         Double amount = 0d;
         LendingLedger lendingLedger = lendingLedgerDao.findByMerchantIdOrderByIdDesc(lendingApplication.get().getMerchantId());
@@ -85,11 +86,13 @@ public class TLForeclosureFetchService implements ILenderAssociationService<Doub
 
         if (ObjectUtils.isEmpty(loanDetailsResponseDTO)) {
             log.info("error while processing foreclosure amount for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         amount = loanDetailsResponseDTO.getNetForeclosureAmount();
 
         log.info("Amount fetched for application id {} is {}",applicationId, amount);
-        return amount;
+        return LenderForeclosureDetailsDTO.builder()
+                .foreclosureAmount(amount)
+                .build();
     }
 }

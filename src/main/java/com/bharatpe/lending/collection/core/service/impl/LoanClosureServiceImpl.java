@@ -3,6 +3,7 @@ package com.bharatpe.lending.collection.core.service.impl;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.enums.Status;
+import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
@@ -48,12 +49,12 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     ForeClosureAmountInfoDao foreClosureAmountInfoDao;
 
     @Override
-    public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, Long orderId, Boolean postCharges, String requestId) {
-        log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),orderId);
+    public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
+        log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),loanClosureDTO.getOrderId());
         loan = closeLoanAndUpdateStatus(loan);
-        updateForeclosureAmountInfoLedgerId(lendingLedger, orderId,loan.getId());
+        updateForeclosureAmountInfoLedgerId(lendingLedger, loanClosureDTO.getOrderId(),loan.getId());
         log.info("posting closure status to lender for loanId {} and loan-details {}",loan.getId(),loan);
-        postClosureStatusToLender( loan,  lendingLedger,  orderId, postCharges, requestId);
+        postClosureStatusToLender( loan,  lendingLedger,  loanClosureDTO);
     }
 
     private void updateForeclosureAmountInfoLedgerId(LendingLedger lendingLedger, Long orderId, Long loanId) {
@@ -72,8 +73,8 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     }
 
 
-    private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, Long orderId, Boolean postCharges, String requestId) {
-
+    private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
+        Long orderId = loanClosureDTO.getOrderId();
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
             if ("LDC".equals(activeLoan.getNbfc())) {
                 nbfcService.pushCloseLoanEventToKafka(activeLoan.getApplicationId());
@@ -87,13 +88,13 @@ public class LoanClosureServiceImpl implements LoanClosureService {
         if (activeLoan.getNbfc().equalsIgnoreCase(Lender.ABFL.name())) {
             loanClosurePostingService.sendForeclosureEvent(activeLoan.getApplicationId(), activeLoan.getMobile(), lendingLedger, orderId);
         } else if (activeLoan.getNbfc().equalsIgnoreCase(Lender.PIRAMAL.name())) {
-            loanClosurePostingService.postForeclosureReceiptPiramal(activeLoan, lendingLedger);
+            loanClosurePostingService.postForeclosureReceiptPiramal(activeLoan, lendingLedger, loanClosureDTO);
         } else if (Arrays.asList("USFB", "CAPRI", "CREDITSAISON", "SMFG", Lender.UGRO.name()).contains(activeLoan.getNbfc())) {
             loanClosurePostingService.postForeclosureReceipt(activeLoan, lendingLedger);
         } else if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(activeLoan.getNbfc())) {
             loanClosurePostingService.sendForeclosureEventTrillionLoans(activeLoan.getApplicationId(), lendingLedger, orderId);
         } else if (Lender.PAYU.name().equalsIgnoreCase(activeLoan.getNbfc())) {
-            loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId, postCharges,requestId);
+            loanClosurePostingService.sendForeclosureEventPayu(activeLoan.getApplicationId(), lendingLedger, orderId, loanClosureDTO.isPostCharges(), loanClosureDTO.getChargeId());
         } else if(Lender.OXYZO.name().equalsIgnoreCase(activeLoan.getNbfc())){
             loanClosurePostingService.sendForeclosureEventToLender(activeLoan.getApplicationId(), lendingLedger, orderId, activeLoan.getNbfc());
         }

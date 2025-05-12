@@ -3,6 +3,7 @@ package com.bharatpe.lending.collection.core.service.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingCollectionAuditDao;
@@ -27,6 +28,7 @@ import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.piramal.LoanReceiptRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcRequestDto;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
+import com.bharatpe.lending.loanV3.dto.piramal.PiramalChargesRequestDto;
 import com.bharatpe.lending.loanV3.dto.trillions.TrillionForeclosureRequestDto;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentMode;
 import com.bharatpe.lending.loanV3.enums.piramal.PaymentRequestType;
@@ -54,12 +56,14 @@ import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
 @Slf4j
 public class LoanClosurePostingServiceImpl implements LoanClosurePostingService {
     Logger logger = LoggerFactory.getLogger(PaymentService.class);
+    public static final String RECEIVABLE = "RECEIVABLE";
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
     @Autowired
@@ -93,6 +97,9 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
     @Value("${payu.nach.bounce.charge:500}")
     Integer payUNachBounceCharge;
+
+    @Value("${piramal.nach.bounce.charge:500}")
+    Integer piramalNachBounceCharge;
 
     @Value("${nbfc.foreclosure.charge:api/v3/lender/post-charges}")
     String nbfcChargePosting;
@@ -232,8 +239,38 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
         return transferType;
     }
 
+    public void piramalPenaltyPosting(LendingApplicationLenderDetails lendingApplicationLenderDetails, PenaltyFeeLedger penaltyFeeLedger, double amount, String type) {
+        PiramalChargesRequestDto piramalChargesRequestDto = createPiramalPostChargesDto(lendingApplicationLenderDetails, penaltyFeeLedger,amount,type);
+        log.info("Piramal: posting penalty  to lender {}", piramalChargesRequestDto);
+        try {
+            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(piramalChargesRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcChargePosting);
+            log.info("Piramal: response penalty  posting request :{} and response : {}", objectMapper.writeValueAsString(piramalChargesRequestDto), nbfcResponseDto);
+            setPostingStatus(nbfcResponseDto, penaltyFeeLedger);
+        } catch (Exception e) {
+            log.error("Piramal penalty posting failed for request {} and error {}", piramalChargesRequestDto, e.getMessage());
+        }
+    }
+
+    private PiramalChargesRequestDto createPiramalPostChargesDto(LendingApplicationLenderDetails lendingApplicationLenderDetails, PenaltyFeeLedger penaltyFeeLedger, double amount, String type) {
+        return PiramalChargesRequestDto.builder()
+                .applicationId(lendingApplicationLenderDetails.getApplicationId())
+                .productName("LENDING")
+                .lender(Lender.PIRAMAL.name())
+                .payload(PiramalChargesRequestDto.Payload.builder()
+                        .productId("BRTPE")
+                        .uniqueReferenceId(String.valueOf(penaltyFeeLedger.getId()))
+                        .loanAccountNumber(lendingApplicationLenderDetails.getLan())
+                        .adviseType(RECEIVABLE)
+                        .adviseAmount(amount)
+                        .adviseDate(penaltyFeeLedger.getCreatedAt())
+                        .feeTypeCode(type)
+                        .isTopup(false)
+                        .build())
+                .build();
+    }
+
     @Override
-    public void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger) {
+    public void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
         try {
             logger.info("inside the post foreclosure");
 
@@ -241,7 +278,6 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
 
             LendingApplicationLenderDetails lendingApplicationLenderDetails =
                     lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(activeLoan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
-
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(activeLoan.getApplicationId());
             if(!lendingApplication.isPresent()) {
                 logger.error("no lending application record found for application id {}", activeLoan.getApplicationId());
@@ -274,6 +310,14 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             loanReceiptRequestDTO.setPaymentType(PaymentTypePiramal.FORECLOSURE_PAYMENT);
             loanReceiptRequestDTO.setPaymentRequestType(PaymentRequestType.POST);
             loanReceiptRequestDTO.setPaymentReceiptData(paymentReceiptData);
+            List<LoanReceiptRequestDTO.FeeList> fcFeeList = new ArrayList<>();
+            fcFeeList.add(LoanReceiptRequestDTO.FeeList.builder()
+                    .feeType("FORECLOSURE_FEES")
+                    .feeAmount(loanClosureDTO.getForeclosureCharges())
+                    .paidAmount(loanClosureDTO.getForeclosureCharges())
+                    .waiverAmount(0d)
+                    .build());
+            loanReceiptRequestDTO.setFeeList(fcFeeList);
 
             loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
             NbfcRequestDto<LoanReceiptRequestDTO> dtoNbfcRequestDto = new NbfcRequestDto<>();
@@ -284,14 +328,19 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             dtoNbfcRequestDto.setPayload(loanReceiptRequestDTO);
             logger.info("resquest dto {}",dtoNbfcRequestDto);
             LendingCollectionAudit lendingCollectionAudit = lendingCollectionAuditDao.findByLedgerID(lendingLedger.getId(),1);
-            lendingCollectionAudit.setStatus("SUCCESS");
-            lendingCollectionAuditDao.save(lendingCollectionAudit);
             try {
                 NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(dtoNbfcRequestDto), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI);
                 logger.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
+                if(nbfcResponseDto != null && nbfcResponseDto.getSuccess()){
+                    lendingCollectionAudit.setStatus("SUCCESS");
+                }else{
+                    lendingCollectionAudit.setStatus("FAILED");
+                }
             } catch (JsonProcessingException e) {
                 logger.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",dtoNbfcRequestDto, e);
+                lendingCollectionAudit.setStatus("FAILED");
             }
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e){
             logger.error("Exception {} while posting the foreclosure receipt for application id {}",e.getMessage(),activeLoan.getApplicationId());
         }
@@ -455,21 +504,25 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             log.info("PayU: response penalty charges posting request :{} and response : {}", objectMapper.writeValueAsString(payUChargesRequestDto), nbfcResponseDto);
             PenaltyFeeLedger penaltyFeeLedger = penaltyFeeLedgerDao.findNachBounceCharge(activeLoan.getId(),postChargesToLenderDTO.getChargeId());
 
-            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
-                log.info("PayU: penalty charges posted to lender: {}", nbfcResponseDto);
-                penaltyFeeLedger.setIsPosted(true);
-                penaltyFeeLedger.setPostingStatus("SUCCESS");
-                penaltyFeeLedgerDao.save(penaltyFeeLedger);
-            } else {
-                penaltyFeeLedger.setIsPosted(false);
-                penaltyFeeLedger.setPostingStatus("FAILED");
-                penaltyFeeLedgerDao.save(penaltyFeeLedger);
-                log.error("PayU: penalty charges posting failed to request {} response {}", payUChargesRequestDto, nbfcResponseDto);
-                throw new Exception("Penalty charges posting failed");
-            }
+            setPostingStatus(nbfcResponseDto, penaltyFeeLedger);
         }
         catch (Exception e){
             log.error("Error in Posting Penalty Charge to Lender for loan: {} and error: {}: {}", activeLoan.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    private void setPostingStatus(NbfcResponseDto nbfcResponseDto, PenaltyFeeLedger penaltyFeeLedger) throws Exception {
+        if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+            log.info("postPenaltyFeeChargeToLender: penalty charges posted to lender: {}", nbfcResponseDto);
+            penaltyFeeLedger.setIsPosted(true);
+            penaltyFeeLedger.setPostingStatus("SUCCESS");
+            penaltyFeeLedgerDao.save(penaltyFeeLedger);
+        } else {
+            penaltyFeeLedger.setIsPosted(false);
+            penaltyFeeLedger.setPostingStatus("FAILED");
+            penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            log.error("postPenaltyFeeChargeToLender: penalty charges posting failed, response : {}",  nbfcResponseDto);
+            throw new Exception("Penalty charges posting failed");
         }
     }
 

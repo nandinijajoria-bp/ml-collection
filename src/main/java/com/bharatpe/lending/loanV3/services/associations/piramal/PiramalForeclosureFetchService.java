@@ -1,5 +1,11 @@
 package com.bharatpe.lending.loanV3.services.associations.piramal;
 
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetForeclosureResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
@@ -13,16 +19,16 @@ import java.util.Map;
 
 @Component
 @Slf4j
-public class PiramalForeclosureFetchService implements ILenderAssociationService<Double> {
+public class PiramalForeclosureFetchService implements ILenderAssociationService<LenderForeclosureDetailsDTO> {
 
     @Autowired
     PiramalGetLoanDetails piramalGetLoanDetails;
 
-    public Double invoke(Long applicationId, Map<String, Object> args) {
+    public LenderForeclosureDetailsDTO invoke(Long applicationId, Map<String, Object> args) {
         PiramalGetLoanResponseDto piramalGetLoanResponseDto = piramalGetLoanDetails.getLoanDetails(applicationId);
         if (ObjectUtils.isEmpty(piramalGetLoanResponseDto)) {
             log.info("error while processing foreclosure amount for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         Double feeBalanceOfAllfee = 0d;
         if(!ObjectUtils.isEmpty(piramalGetLoanResponseDto.getFeeList())) {
@@ -33,8 +39,10 @@ public class PiramalForeclosureFetchService implements ILenderAssociationService
         Double amt = piramalGetLoanResponseDto.getTotalOutstandingPrincipal() + piramalGetLoanResponseDto.getAccruedInterest()
                 + feeBalanceOfAllfee - piramalGetLoanResponseDto.getAdvancePaymentAmount();
         log.info("Amount fetched for application id {} is {}", applicationId, amt);
-        return amt;
+        return LenderForeclosureDetailsDTO.builder()
+                .foreclosureAmount(amt)
+                .principalOutstanding(piramalGetLoanResponseDto.getTotalOutstandingPrincipal().doubleValue())
+                .build();
 
     }
-
 }

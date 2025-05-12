@@ -2,24 +2,29 @@ package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.PenalChargesDao;
 import com.bharatpe.lending.common.dao.PenaltyFeeLedgerDao;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
+import com.bharatpe.lending.common.query.entity.LendingPullPaymentSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
+import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+
+import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.NACH_BOUNCE_CHARGES;
 
 @Service
 @Slf4j
@@ -36,28 +41,81 @@ public class NachBounceChargesService {
     @Autowired
     LendingLedgerDao lendingLedgerDao;
 
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
+    @Autowired
+    LoanUtil loanUtil;
+
     @Value("${payu.nach.bounce.charge:500}")
     Integer payUNachBounceCharge;
 
+    @Value("${piramal.nach.bounce.charge:500}")
+    Integer piramalNachBounceCharge;
+
+    @Value("${lender.nach.bounce.check:PAYU,PIRAMAL}")
+    List<String> LENDER_NACH_BOUNCE_CHECK;
+
     public Double getNachCharges(LendingPaymentSchedule lendingPaymentSchedule) {
         Double nachCharges = 0d;
-        if (LendingEnum.LENDER.PAYU.name().equals(lendingPaymentSchedule.getNbfc()) && checkForNachBounce(lendingPaymentSchedule)) {
+        if (LENDER_NACH_BOUNCE_CHECK.contains(lendingPaymentSchedule.getNbfc()) && checkForNachBounce(lendingPaymentSchedule)) {
             log.info("Found Nach Bounce Charges for loan: {}, nbfc: {} ", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
-            nachCharges += payUNachBounceCharge;
+            nachCharges += getLenderNachCharges(lendingPaymentSchedule.getNbfc());
         }
         return nachCharges;
     }
 
+    private Integer getLenderNachCharges(String lender) {
+        switch (lender) {
+            case "PIRAMAL":
+                return piramalNachBounceCharge;
+            case "PAYU":
+                return payUNachBounceCharge;
+            default:
+                return null;
+        }
+    }
+
     public void createCharges(LendingPaymentSchedule loan, String requestId) {
-        savePenalCharges(loan, 0.0, payUNachBounceCharge);
-        creatingPenaltyInPenaltyLedger(loan, payUNachBounceCharge, "Nach Bounce", false, requestId);
-        createLendingLedgerForPenalty(loan, payUNachBounceCharge, "NACH BOUNCE PENALTY FEE");
+        double nachBounceCharge = getLenderNachCharges(loan.getNbfc());
+        checkIfPendingNachPenalty(loan, true);
+        savePenalCharges(loan, 0.0, nachBounceCharge);
+        creatingPenaltyInPenaltyLedger(loan, nachBounceCharge, "Nach Bounce", false, requestId);
+        createLendingLedgerForPenalty(loan, nachBounceCharge, "NACH BOUNCE PENALTY FEE");
+    }
+
+    public Integer checkIfPendingNachPenalty(LendingPaymentSchedule loan, Boolean postCharge) {
+        if(LendingEnum.LENDER.PIRAMAL.toString().equals(loan.getNbfc())){
+            log.info("Checking unpaid penalty for loanId {} ", loan.getId());
+            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+            PenaltyFeeLedger nachBounceLedgerApplied = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(loan.getId());
+            if(lendingApplicationLenderDetails != null && nachBounceLedgerApplied != null && (nachBounceLedgerApplied.getIsPosted() == null || !nachBounceLedgerApplied.getIsPosted())) {
+                log.info("Unpaid penalty exists for loanId {} ", loan.getId());
+                if(postCharge){
+                    loanUtil.piramalPenaltyPosting(lendingApplicationLenderDetails, nachBounceLedgerApplied,nachBounceLedgerApplied.getAmount()*-1,NACH_BOUNCE_CHARGES.name());
+                }
+                return getLenderNachCharges(loan.getNbfc());
+            }
+        }
+        return 0;
+    }
+
+    private boolean checkForNachBounceV2(LendingPaymentSchedule activeLoan) {
+        PenaltyFeeLedger penaltyFeeLedger = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(activeLoan.getId());
+
+        Date currentDateDate = new Date();
+        Date startDate = (penaltyFeeLedger != null && penaltyFeeLedger.getCreatedAt() != null) ? penaltyFeeLedger.getCreatedAt() : activeLoan.getStartDate();
+        LendingPullPaymentSlave lendingPullPaymentSlave = lendingPullPaymentDaoSlave.findByMerchantIdAndLoanIdAndModeAndDateBetweenAndStatus(activeLoan.getMerchantId(),
+                activeLoan.getId(), "NACH",
+                startDate, currentDateDate, "FAILED");
+        log.info("Failed Nach Pull in remaining days for loan: {}: {}", activeLoan.getId(), lendingPullPaymentSlave);
+        return !ObjectUtils.isEmpty(lendingPullPaymentSlave);
     }
 
     public boolean checkForNachBounce(LendingPaymentSchedule activeLoan) {
-        // remove this if condition when payu is live
-        if(LendingEnum.LENDER.PAYU.name().equals(activeLoan.getNbfc())){
-            return false;
+        if(LendingEnum.LENDER.PIRAMAL.toString().equals(activeLoan.getNbfc())){
+            return checkForNachBounceV2(activeLoan);
         }
         Date loanStartDate = activeLoan.getStartDate();
 
@@ -104,6 +162,7 @@ public class NachBounceChargesService {
                 .description(description)
                 .isWaveOff(isWaiveOff)
                 .lender(loan.getNbfc())
+                .isPosted(false)
                 .build();
         penaltyFeeLedgerDao.save(penaltyFeeLedger);
     }
