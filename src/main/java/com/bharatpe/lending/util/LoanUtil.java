@@ -1658,7 +1658,8 @@ public class LoanUtil {
 		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
 				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
 		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-			netForeclosureAtLender = (Double) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		}
 		return netForeclosureAtLender;
 	}
