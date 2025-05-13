@@ -1280,8 +1280,15 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
 			creditScoreResponseDto.setPinCode(experian.getPincode());
 			creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : merchantBasicDetails.getBeneficiaryName());
-			BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
-					bureauScorePullDays, "EASY_LOANS");
+			BureauResponseDTO bureauResponseDTO;
+			if (creditScoreRequestDto.isBureauPull()) {
+				logger.info("pulling fresh bureau for merchantId : {} mobile : {}",merchantBasicDetails.getId(),merchantBasicDetails.getMobile());
+				bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
+						bureauScorePullDays, LendingConstants.LENDING_SOURCE,true);
+			} else {
+				bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
+						bureauScorePullDays, LendingConstants.LENDING_SOURCE,false);
+			}
 			if (!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables().getBureauScore())) {
 				creditScoreResponseDto.setScore(bureauResponseDTO.getVariables().getBureauScore());
 			}

@@ -16,6 +16,7 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.util.*;
@@ -71,7 +72,7 @@ public class BureauHandler {
         return null;
     }
 
-    public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days, String source) {
+    public BureauResponseDTO getBureauData(String pancard, Long merchantId, String mobile, Long days, String source, boolean skipCache) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -87,7 +88,13 @@ public class BureauHandler {
             requestBody.put("source", source);
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             log.info("request for bureau data {} for merchant id {}", request, merchantId);
-            final String url = BUREAU_BASE_URL+ "/bureau/fetchBureau?days" + "=" + days;
+            String url;
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(BUREAU_BASE_URL + "/bureau/fetchBureau")
+                    .queryParam("days", days);
+            if (Boolean.TRUE.equals(skipCache)) {
+                builder.queryParam("skipCache", skipCache);
+            }
+            url = builder.toUriString();
             log.info("BureauHandler call for phone: {} and url is {}",mobile,url);
 
             ResponseEntity<ApiResponse> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, ApiResponse.class);
