@@ -90,6 +90,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), shopPhotoSyncRollout)){
                 kycHandler.syncShopPhoto(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
             }
+            LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
+            log.info("publishing data to ds in loanDetailV3 for application : {}", lendingApplication.getId());
+            loanUtil.publishDSData(lendingApplication);
 
         }
         if(!lendingStateDTO.getData().getResubmitState()){
@@ -141,8 +144,6 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
                 shopPicturesStateDTO.setResubmitState(true);
             }
-            log.info("publishing data to ds in loanDetailV3 for application : {}", lendingApplication.getId());
-            loanUtil.publishDSData(lendingApplication);
             log.info("last line print");
             return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.SHOP_PICTURES_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
         } catch (Exception e) {
