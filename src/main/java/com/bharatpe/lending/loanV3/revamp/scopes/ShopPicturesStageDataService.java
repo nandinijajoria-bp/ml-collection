@@ -141,7 +141,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(lendingResubmitTask != null && lendingResubmitTask.getResubmit() && !lendingResubmitTask.getResubmitDone()){
                 shopPicturesStateDTO.setResubmitState(true);
             }
-            log.info("publishing data to ds in loanDetailV3");
+            log.info("publishing data to ds in loanDetailV3 for application : {}", lendingApplication.getId());
             loanUtil.publishDSData(lendingApplication);
             log.info("last line print");
             return new LendingStateDTO<>(shopPicturesStateDTO , LendingViewStates.SHOP_PICTURES_PAGE, LendingViewStates.SHOP_PICTURES_PAGE);
