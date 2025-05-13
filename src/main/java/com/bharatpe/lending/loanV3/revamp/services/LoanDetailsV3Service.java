@@ -59,7 +59,7 @@ public class LoanDetailsV3Service {
                     loanDetailsV3Response.setKycAddress(lendingApplicationKycDetails.getAadharAddress());
                 }
             }
-            LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response);
+            LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response, merchant);
             log.info("LoanDetailsV3Response for {} : {} ", merchant.getId(), loanDetailsV3Response);
             return loanDetailsV3Response;
         }
@@ -91,7 +91,7 @@ public class LoanDetailsV3Service {
                 }
             }
             renderStateViaScope.fetchLendingStateData(scopeDataArgs);
-           return LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response);
+           return LoanDetailsV3Response.populateResponseForRequestWithScope(scopeDataArgs.getLendingStateDTOForCurrPage(), loanDetailsV3Response, merchant);
         }
     }
 

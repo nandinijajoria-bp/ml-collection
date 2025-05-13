@@ -2680,7 +2680,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    public ApiResponse<BureauConsentDTO.Data> getConsent(BasicDetailsDto merchant, String pancard) {
+    public ApiResponse<BureauConsentDTO.Data> getConsent(BasicDetailsDto merchant, String pancard, String source) {
         Experian experian = experianDao.getByMerchantId(merchant.getId());
         if (Objects.isNull(experian)) {
             log.info("no data found in experian table for: {}", merchant.getId());
@@ -2695,6 +2695,10 @@ public class LoanDetailsServiceV2 {
                 .build();
         BureauConsentDTO.Data consentResponse = apiGatewayService.getBureauConsent(bureauConsentDTO);
         if (Objects.nonNull(consentResponse)) {
+            if ("CREDITSCORE".equals(source)) {
+                consentResponse.setPincode(experian.getPincode());
+                consentResponse.setPan(experian.getPancardNumber());
+            }
             if(consentResponse.isConsent_expired()) {
                 consentResponse.setPincode(experian.getPincode());
                 consentResponse.setPan(experian.getPancardNumber());
