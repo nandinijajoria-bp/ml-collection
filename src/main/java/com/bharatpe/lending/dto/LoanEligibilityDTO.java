@@ -79,6 +79,10 @@ public class LoanEligibilityDTO {
 	@JsonProperty(value = "parent_loan_no")
 	private String parentLoanNo;
 
+	private String rejectionReason;
+
+	private Boolean isRejected;
+
 	public Integer getIoEdi() {
 		return ioEdi;
 	}

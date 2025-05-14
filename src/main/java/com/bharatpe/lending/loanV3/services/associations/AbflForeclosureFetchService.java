@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
 import com.bharatpe.lending.loanV3.dto.ForeClosureAmountResponse;
 import com.bharatpe.lending.loanV3.dto.ForeclosureAmountRequest;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
@@ -20,7 +21,7 @@ import java.util.Optional;
 
 @Service
 @Slf4j
-public class AbflForeclosureFetchService implements ILenderAssociationService<Double> {
+public class AbflForeclosureFetchService implements ILenderAssociationService<LenderForeclosureDetailsDTO> {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
@@ -32,17 +33,17 @@ public class AbflForeclosureFetchService implements ILenderAssociationService<Do
     LenderGatewayFactory lenderGatewayFactory;
 
     @Override
-    public Double invoke(Long applicationId, Map<String, Object> args) {
+    public LenderForeclosureDetailsDTO invoke(Long applicationId, Map<String, Object> args) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if (!lendingApplication.isPresent()) {
             log.info("no lending application record found for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails =
                 lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, Status.ACTIVE.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("no lender assc record found for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         ForeclosureAmountRequest foreclosureAmountRequest = ForeclosureAmountRequest.builder()
                 .applicationId(applicationId)
@@ -59,9 +60,13 @@ public class AbflForeclosureFetchService implements ILenderAssociationService<Do
         if (ObjectUtils.isEmpty(foreClosureAmountResponse) || !foreClosureAmountResponse.getSuccess() ||
             ObjectUtils.isEmpty(foreClosureAmountResponse.getData()) || ObjectUtils.isEmpty(foreClosureAmountResponse.getData().getData())) {
             log.info("error while processing foreclosure amount for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         Double amt = foreClosureAmountResponse.getData().getData().getNetReceivablePayable();
-        return ObjectUtils.isEmpty(amt) ? 0d : amt;
+
+        return  LenderForeclosureDetailsDTO.builder()
+                .foreclosureAmount(ObjectUtils.isEmpty(amt) ? 0d : amt)
+                .principalOutstanding(foreClosureAmountResponse.getData().getData().getBalancePrincipal())
+                .build();
     }
 }

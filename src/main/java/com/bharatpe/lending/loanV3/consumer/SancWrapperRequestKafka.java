@@ -2,7 +2,9 @@ package com.bharatpe.lending.loanV3.consumer;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.dao.LendingNbfcApiErrorRetryDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.entity.LendingNbfcApiErrorRetry;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.StatusCheckResponse;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -59,6 +61,9 @@ public class SancWrapperRequestKafka {
 
     @Autowired
     MerchantService merchantService;
+
+    @Autowired
+    LendingNbfcApiErrorRetryDao lendingNbfcApiErrorRetryDao;
 
     @KafkaListener(
             topics="${abfl.sanction.topic:invoke_sanction}",
@@ -139,10 +144,12 @@ public class SancWrapperRequestKafka {
     public void sanctionCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
         LendingApplicationLenderDetails existingLendingApplicationLenderDetails = null;
+        LendingNbfcApiErrorRetry lendingNbfcApiErrorRetry = null;
         try {
             MDC.put("requestId", UUID.randomUUID().toString());
             log.info("Received sanction callback request:{}", request);
             SanctionCallbackResponseDto sanctionCallbackResponseDto = configResolver.getConfig(request, SanctionCallbackResponseDto.class);
+            log.info("Received sanction sanctionCallbackResponseDto:{}", sanctionCallbackResponseDto);
             lendingApplication = lendingApplicationDao.findById(Long.valueOf(sanctionCallbackResponseDto.getApplicationId()));
             if (ObjectUtils.isEmpty(lendingApplication)) {
                 log.info("no application found for id {}", sanctionCallbackResponseDto.getApplicationId());
@@ -156,11 +163,16 @@ public class SancWrapperRequestKafka {
                 log.info("lender mismatch while callback ack / callback already received for sanction in application {}", lendingApplication.get().getId());
                 return;
             }
+
+            lendingNbfcApiErrorRetry = lendingNbfcApiErrorRetryDao.findTopByApplicationIdAndLenderAndApiName(lendingApplication.get().getId().toString(), lendingApplication.get().getLender(), "SANCTION");
+
             if (Boolean.FALSE.equals(sanctionCallbackResponseDto.getSuccess())) {
-                log.info("rejecting application as sanction callback resulted in failure for  {}", lendingApplication.get().getId());
-                rejectApplication(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.SANCTION_FAILED.name());
+
+                log.info("Recieved failure in sanction callback for applicationId - {}", lendingApplication.get().getId());
+                rejectApplicationIfApplicable(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.SANCTION_FAILED.name());
                 return;
             }
+
             SanctionCallbackResponseDto.Data data = sanctionCallbackResponseDto.getData().getData();
             LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(sanctionCallbackResponseDto.getLender()),LenderAssociationStages.SANCTION_WRAPPER);
             existingLendingApplicationLenderDetails.setStage(nextStage.name());
@@ -172,13 +184,21 @@ public class SancWrapperRequestKafka {
             existingLendingApplicationLenderDetails.setDealNo(data.getDealNo());
             existingLendingApplicationLenderDetails.setSanctionStatus(LenderAssociationStatus.SANCTION_COMPLETED.name());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+
+            if(!ObjectUtils.isEmpty(lendingNbfcApiErrorRetry)){
+                log.info("Marking sanction api retry entry as success for application id: {}", lendingApplication.get().getId());
+                lendingNbfcApiErrorRetry.setStatus("SUCCESS");
+                lendingNbfcApiErrorRetryDao.save(lendingNbfcApiErrorRetry);
+            }
+
             nbfcUtils.pushApplicationToNextStage(lendingApplication.get().getId(), lendingApplication.get().getLender(), LenderAssociationStages.SANCTION_WRAPPER.name(),
                     LenderAssociationStageFactory.autoInvokeNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.SANCTION_WRAPPER));
             log.info("successfully sanctioned loan for {}", request);
         } catch (Exception ex) {
             log.error("exception occurred while processing bre callback request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
 //            throw new RuntimeException("unable to ack kyc callback event" + request);
-            rejectApplication(lendingApplication.get(),existingLendingApplicationLenderDetails,LenderAssociationStatus.SANC_CALLBACK_CLIENT_FAILURE.name());
+            rejectApplicationIfApplicable(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.SANC_CALLBACK_CLIENT_FAILURE.name());
+
         }
     }
 
@@ -233,4 +253,23 @@ public class SancWrapperRequestKafka {
             lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         }
     }
+
+    private void rejectApplicationIfApplicable(LendingApplication lendingApplication,LendingApplicationLenderDetails lendingApplicationLenderDetails, String status ){
+
+        log.info("Checking if application is applicable for rejection for sanction API for id: {}", lendingApplication.getId());
+
+        new Thread(() -> {
+
+            LendingNbfcApiErrorRetry lendingNbfcApiErrorRetry;
+            lendingNbfcApiErrorRetry = lendingNbfcApiErrorRetryDao.findTopByApplicationIdAndLenderAndApiName(lendingApplication.getId().toString(), lendingApplication.getLender(), "SANCTION");
+
+            if(ObjectUtils.isEmpty(lendingNbfcApiErrorRetry) || ( !ObjectUtils.isEmpty(lendingNbfcApiErrorRetry.getStatus()) && lendingNbfcApiErrorRetry.getRetryCount() == 0)) {
+                log.info("rejecting application as sanction callback resulted in failure for  {}", lendingApplication.getId());
+                rejectApplication(lendingApplication, lendingApplicationLenderDetails, status);
+            }
+
+        }).start();
+    }
+
+
 }

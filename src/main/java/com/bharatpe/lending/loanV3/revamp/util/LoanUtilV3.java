@@ -18,6 +18,7 @@ import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.ResubmitDoneDTO;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -27,6 +28,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -76,6 +78,10 @@ public class LoanUtilV3 {
     LendingPancardDetailsDao lendingPancardDetailsDao;
 
     public static List<String> LIQUILOANS_BT_LENDERS = Arrays.asList(LendingEnum.LENDER.LIQUILOANS_P2P.name(),LendingEnum.LENDER.LIQUILOANS_P2P_OF.name());
+
+    @Autowired
+    @Lazy
+    private TrillionLoansConfig trillionLoansConfig;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -276,5 +282,26 @@ public class LoanUtilV3 {
                 && Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentLendingApplication.getLender())
                 && !ObjectUtils.isEmpty(previousLendingApplication)
                 && Lender.TRILLIONLOANS.name().equalsIgnoreCase(previousLendingApplication.getLender());
+    }
+
+    public boolean eKycPhaseRollout(String lender, Long merchantId) {
+        log.info("Checking eKyc phase rollout for : {} {}", lender, merchantId);
+        try {
+            if(lender.equalsIgnoreCase(LendingEnum.LENDER.TRILLIONLOANS.name())) {
+                LendingApplication lendingApplication = lendingApplicationDao.getLatestPendingApplication(merchantId);
+                if(!ObjectUtils.isEmpty(lendingApplication) && LendingEnum.LENDER.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())) {
+                    LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+                    if(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot) && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getLoanSegment()) && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getRiskSegment())
+                            && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getLoanType()) && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getPincodeColor()) && !ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getRiskGroup())) {
+                        return trillionLoansConfig.getLoanSegments().contains(lendingRiskVariablesSnapshot.getLoanSegment()) && trillionLoansConfig.getRiskSegments().contains(lendingRiskVariablesSnapshot.getRiskSegment().name())
+                                && trillionLoansConfig.getLoanTypes().contains(lendingRiskVariablesSnapshot.getLoanType()) && trillionLoansConfig.getPinCodeColors().contains(lendingRiskVariablesSnapshot.getPincodeColor().name())
+                                && trillionLoansConfig.getRiskGroups().contains(lendingRiskVariablesSnapshot.getRiskGroup()) && (lendingApplication.getLoanAmount() >= trillionLoansConfig.getMinAmount() && lendingApplication.getLoanAmount() <= trillionLoansConfig.getMaxAmount());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.error("Exception occurred while checking ekyc phase rollout for : {} {}", lender, merchantId);
+        }
+        return false;
     }
 }

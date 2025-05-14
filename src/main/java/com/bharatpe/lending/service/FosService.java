@@ -198,7 +198,7 @@ public class FosService {
             }
             LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
             LendingApplication lendingApplication = lendingApplicationDao.findBymerchantId(merchantId);
-            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+            LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
             logger.info("Payment Schedule:{}", lendingPaymentSchedule);
             if (lendingPaymentSchedule != null) {
                 data.put("message", "Merchant Has a Active Loan.");
@@ -888,21 +888,21 @@ public class FosService {
                 } else if (lendingApplication.getStatus().equalsIgnoreCase("pending_verification")) {
                     // pending nach
                     logger.info("merchant {} has a pending application", merchantId);
-                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 100 ) {
+                    if (Objects.nonNull(lendingApplication.getAgreementAt()) && !"APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus()) && lendingApplication.getLoanAmount() > 20000 ) {
                         if(easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), fosNachPercent)){
                             long dateDiffInDays = dateTimeUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date());
                             logger.info("Date difference between agreement date and current date {}", dateDiffInDays);
-                            if(Math.abs(dateDiffInDays) > 7){
+                            if(Math.abs(dateDiffInDays) <= 7){
                                 logger.info("under percentscale up method fos nach task pending for application:{}", lendingApplication.getId());
                                 return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                             }
                             else {
                                 logger.info("under percentscale up method merchant {} has a pending nach application", merchantId);
-                                return computeEligibilityParams("ineligible", "pending_nach", merchantId, "no nach application and loan within 7 days");
+                                return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                             }
                         } else {
                             logger.info("outside percentscale up method merchant {} has a pending nach application", merchantId);
-                            return computeEligibilityParams("ineligible", "pending_nach", merchantId, "no nach application");
+                            return computeEligibilityParams("ineligible", "pending_nach", merchantId, "pending nach application");
                         }
                     }
                     // pending applications
@@ -1108,7 +1108,7 @@ public class FosService {
                 if (!ObjectUtils.isEmpty(lendingApplication.getAgreementAt())) {
                     fosTaskStatusDto.setStatus("COMPLETE");
                     fosTaskStatusDto.setMessage("task completed");
-                    logger.info("agreement done for merchant {}", merchantId);
+                    logger.info("nach done for merchant {}", merchantId);
                 } else {
                     fosTaskStatusDto.setStatus("INCOMPLETE");
                     fosTaskStatusDto.setMessage("Nach pending for the application");

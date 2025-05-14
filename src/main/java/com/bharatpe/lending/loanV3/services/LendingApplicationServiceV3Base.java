@@ -1,41 +1,27 @@
 package com.bharatpe.lending.loanV3.services;
 
-import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
-import com.bharatpe.lending.common.dao.mongo.NBFCRetryRepository;
-import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingAuditTrial;
 import com.bharatpe.common.entities.LendingGstDetail;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationKycDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.entity.LendingLenderPricing;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.dao.mongo.NBFCRetryRepository;
+import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.mongo.NBFCRetry;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
-import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.enums.LenderOffDays;
-import com.bharatpe.lending.common.enums.NbfcRetryStatus;
-import com.bharatpe.lending.common.enums.Status;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
-import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dao.LendingAuditTrialDao;
-import com.bharatpe.lending.dao.LendingGstDao;
-import com.bharatpe.lending.dao.LendingOfferModificationSnapshotDao;
-import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
+import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
+import com.bharatpe.lending.lendingplatform.lending.util.StageUtil;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -125,6 +111,10 @@ public abstract class LendingApplicationServiceV3Base {
     LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
+    @Lazy
+    TrillionLoansConfig trillionLoansConfig;
+
+    @Autowired
     NBFCRetryRepository nbfcRetryRepository;
 
     @Value("#{${nbfc.ekyc-status.retry.timeout:{0:10, 1:300, 2:300}}}")
@@ -144,9 +134,17 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
+    @Autowired
+    private LoanCreationService loanCreationService;
+    @Autowired
+    private RolloutUtil rolloutUtil;
+    @Autowired
+    private StageUtil stageUtil;
+
+    @Value("${offer.modified.eligible.lender:}")
+    String offerModifiedEligibleLenders;
 
     public final Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.KYC_IN_PROGRESS.name()));
-
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -208,7 +206,19 @@ public abstract class LendingApplicationServiceV3Base {
                     .lender(currentDraftApplication.getLender())
                     .build());
 
-        } else {
+        }
+        else {
+            if (rolloutUtil.lendingPlatformNbfcFlowApplicable(merchantId)) {
+                log.info("Application rolled out to rearch v1 version: {}", lendingApplicationLenderDetails.getApplicationId());
+                loanCreationService.initiateLoanCreationWorkflow(lendingApplicationLenderDetails.getApplicationId());
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .status(stageUtil.getLenderAssociationStatus(lendingApplicationLenderDetails.getApplicationId(), lendingApplicationLenderDetails.getLender()))
+                        .stage(stageUtil.getLenderAssociationStages(lendingApplicationLenderDetails.getApplicationId(), lendingApplicationLenderDetails.getLender()))
+                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                        .lender(currentDraftApplication.getLender())
+                        .build());
+            }
+            Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
             if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
                 // check if interest rate is lower ??
                 if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
@@ -225,6 +235,19 @@ public abstract class LendingApplicationServiceV3Base {
                                 .build());
                     }
                 }
+                if(offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
+                        !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
+                    log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
+                    return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                            .isRoiDecreased(true)
+                            .lender(currentDraftApplication.getLender())
+                            .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                            .stage(LenderAssociationStages.COMPLETED)
+                            .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                            .lender(currentDraftApplication.getLender())
+                            .build());
+                }
+
                 log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .isRoiDecreased(false)
@@ -242,20 +265,29 @@ public abstract class LendingApplicationServiceV3Base {
                         .lender(currentDraftApplication.getLender())
                         .build());
             } else if (LenderAssociationStages.KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                if(Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentDraftApplication.getLender())
-                        && LenderAssociationStatus.SELFIE_UPLOAD_PENDING.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())){
-                    //INVOKING STAGE FOR LENDER PIPE
-                    invokeStageForLender(InvokeStageRequestDTO.builder()
-                            .applicationId(currentDraftApplication.getId())
-                            .lender(currentDraftApplication.getLender())
-                            .stage(LenderAssociationStages.SELFIE_UPLOAD.name())
-                            .build());
+                if (Lender.TRILLIONLOANS.name().equalsIgnoreCase(currentDraftApplication.getLender())) {
+                    if (LenderAssociationStatus.SELFIE_PENDING_FOR_LENDER_KYC.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
+                        //INVOKING STAGE FOR LENDER PIPE
+                        invokeStageForLender(InvokeStageRequestDTO.builder()
+                                .applicationId(currentDraftApplication.getId())
+                                .lender(currentDraftApplication.getLender())
+                                .stage(LenderAssociationStages.SELFIE_UPLOAD.name())
+                                .build());
+                    }
+
+                    if (!ObjectUtils.isEmpty(lenderKycStatus) && lenderKycStatus.equalsIgnoreCase(trillionLoansConfig.getEKycStatusCheck())) {
+                        invokeStageForLender(InvokeStageRequestDTO.builder()
+                                .applicationId(currentDraftApplication.getId())
+                                .lender(currentDraftApplication.getLender())
+                                .stage(LenderAssociationStages.KYC_STATUS_CHECK.name())
+                                .build());
+                    }
                 }
                 log.info("Lender assoc at KYC for applicationId {}", currentDraftApplication.getId());
 
                 String originalLaldKycStatus = lendingApplicationLenderDetails.getKycStatus();
                 String lenderKycRedirectionUrl = getLenderKycRedirectionUrl(currentDraftApplication, lendingApplicationLenderDetails, lenderKycStatus);
-                if(ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
+                if (ObjectUtils.isEmpty(lenderKycRedirectionUrl) && eKycStatusCheckEnabledLenders.contains(lendingApplicationLenderDetails.getLender())) {
                     lenderKycRedirectionUrl = updateEKycDetails(currentDraftApplication, lendingApplicationLenderDetails, lenderKycRedirectionUrl);
                 }
                 ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse = new ApiResponse<>(LenderAssociationStatusResponse.builder()
@@ -703,7 +735,6 @@ public abstract class LendingApplicationServiceV3Base {
 
     public ApiResponse<?> modifyOffer(Long applicationId, Long merchantId){
         try{
-            log.info("Modify offer api called for : {}", applicationId);
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (ObjectUtils.isEmpty(lendingApplication)){
                 return new ApiResponse<>(false, "Something went wrong");
@@ -795,7 +826,6 @@ public abstract class LendingApplicationServiceV3Base {
         }
 
         try{
-            log.info("Modified offer details api called for : {}", applicationId);
             ModifiedOfferResponseDto modifiedOfferResponseDto = new ModifiedOfferResponseDto();
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if(ObjectUtils.isEmpty(lendingApplication)){

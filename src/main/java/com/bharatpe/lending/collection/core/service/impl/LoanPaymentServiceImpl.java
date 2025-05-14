@@ -16,8 +16,10 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
+import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.enums.LoanPaymentMode;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
+import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -27,13 +29,16 @@ import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
+import com.bharatpe.lending.enums.LoanStatus;
 import com.bharatpe.lending.enums.WaiverType;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.NachBounceChargesService;
 import com.bharatpe.lending.service.SettlementService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -45,6 +50,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.common.enums.LoanPaymentMode.*;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
@@ -67,7 +73,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     HashSet<String> ALLOWED_POSTING_TRANSFER_BP_MODE = new HashSet<>(Arrays.asList("SETLLEMENT", "FP"));
 
-    public static final String LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH = "EXCESS_NACH";
+    public static final String LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH = "LOAN";
 
     public static final String EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX = "_adjust_";
 
@@ -134,6 +140,12 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     @Autowired
     SettlementService settlementService;
+
+    @Autowired
+    NachBounceChargesService nachBounceChargesService;
+
+    @Value("${payu.nach.bounce.charge:500}")
+    Integer payUNachBounceCharge;
 
     @Override
     @Transactional
@@ -231,7 +243,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             // LC-565
             // note - terminal payment also in that loan will be there in active state as loan is closed marked by the
             // edi scheduler (in non foreclosure cases) and there is separate job to create refund entry from active excess balance of closed loans
-            if ("ACTIVE".equalsIgnoreCase(loan.getStatus())) refund = false;
+            if ("ACTIVE".equalsIgnoreCase(loan.getStatus()) || LoanStatus.DECEASED.name().equalsIgnoreCase(loan.getStatus())) refund = false;
 
             if (refund) {
                 createLoanRefund(loan, balance, payment);
@@ -350,7 +362,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             if (Objects.isNull(lendingCollectionExcess.getTerminalOrderId())) continue;
 
             //Creating loan payment order for deduction from excess nach credit
-            String source = LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH + lendingCollectionExcess.getId();
+            String source = LOAN_PAYMENT_ORDER_SOURCE_EXCESS_NACH;
             String orderId = LOAN_PAYMENT_ORDER_ID_PREFIX + loan.getId() + System.currentTimeMillis();
             LoanPaymentOrder order = ledgerAdjustmentService.createLoanPaymentOrder(loan, deductionAmount, lendingCollectionExcess.getTerminalOrderId(), CreditConstants.PaymentStatus.PENDING.name(), source, orderId);
 
@@ -401,6 +413,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             return false;
         }
 
+        if(loanUtil.isTodayIsLoanLastDay(loan)){
+            return false;
+        }
         // there will be some pending txn before release this description field wasn't populated
         // will enable this check later in some days
 //        if (!payment.isForeCloser()) {
@@ -505,9 +520,28 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         }
     }
 
+    /**
+     *
+     * @param loan
+     * @param payment
+     * @param settlementMechanism
+     * @param principalDueAmount
+     * @param ediHolidayInterestAmount
+     *
+     *
+     * functional use case
+     *
+     * if lender is PAYU
+     *    check if any NACH bounce charges are Pending to be posted, If so add it to penalty and post it to lender
+     *
+     *
+     */
+
     private void foreCloseLoan(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism, Integer principalDueAmount, Integer ediHolidayInterestAmount) {
         double amount = payment.getOtherAmount();
-        if (principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {  //foreClosure
+
+       Integer pendingNachCharges = nachBounceChargesService.getNachCharges(loan).intValue();
+        if (principalDueAmount + ediHolidayInterestAmount + pendingNachCharges - amount <= 1D) {  //foreClosure
             // releaseing the short fall principal for fore closure in pdpd for all lenders  on 9/1/25
 //            if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
                 checkAndAdjustPdpdInterestIfRequired(loan);
@@ -536,6 +570,18 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             log.info("Received pre closure amount:{} for loan:{}", amount, loan.getId());
             double paidInterestAmount = (loan.getDueInterest() != null ? loan.getDueInterest() : 0);
             double paidPenalty = Objects.nonNull(loan.getDuePenalty()) ? loan.getDuePenalty() : 0;
+            // TODO PAYU add and post charges
+
+            String requestId = UUID.randomUUID().toString().replaceAll("-", "");
+            Boolean postChargesToLender = false;
+
+            if(pendingNachCharges != 0d){
+                log.info("Found Nach Bounce Charges for loan: {}, nbfc: {} ", loan.getId(), loan.getNbfc());
+                nachBounceChargesService.createCharges(loan, requestId);
+                paidPenalty += pendingNachCharges;
+                postChargesToLender = true;
+            }
+
             double paidPrincipalAmount = amount - paidInterestAmount + excessCollectionBalance - paidPenalty - foreclosureChargesAmount;
             double surplusAmount = (loan.getPaidPrinciple() + paidPrincipalAmount) - loan.getLoanAmount();
 //            amount -= surplusAmount;
@@ -619,6 +665,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     .lendingLedger(positiveEntry)
                     .orderId(payment.getOrderId())
                     .foreClosure(true)
+                    .postCharges(postChargesToLender)
+                    .chargeId(requestId)
+                    .foreclosureCharges(foreclosureChargesAmount)
                     .build());
         }
     }

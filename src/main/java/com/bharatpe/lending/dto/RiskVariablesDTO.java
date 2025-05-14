@@ -28,4 +28,5 @@ public class RiskVariablesDTO {
     private Map<String, LendingLenderPricing> lenderPricingMap = new HashMap<>();
     private double monthlyTpv;
     private double unsecuredPos;
+    private boolean isSTPFlag;
 }

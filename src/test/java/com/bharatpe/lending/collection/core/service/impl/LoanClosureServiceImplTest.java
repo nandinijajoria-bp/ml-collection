@@ -2,6 +2,7 @@ package com.bharatpe.lending.collection.core.service.impl;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 import com.bharatpe.lending.collection.core.service.LoanClosurePostingService;
 import com.bharatpe.lending.collection.core.service.LoanClosureService;
 import com.bharatpe.lending.common.dao.LoanForeClosureChargesDao;
@@ -54,7 +55,7 @@ class LoanClosureServiceImplTest {
 
 
         // Act
-        loanClosureService.closeLoanAndUpdateLender(loan, lendingLedger, 123L);
+        loanClosureService.closeLoanAndUpdateLender(loan, lendingLedger, LoanClosureDTO.builder().orderId(123L).build());
 
 
         verify(lendingPaymentScheduleDao, times(1)).save(loan);

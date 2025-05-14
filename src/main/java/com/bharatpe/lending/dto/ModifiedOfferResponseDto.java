@@ -11,7 +11,6 @@ public class ModifiedOfferResponseDto {
     private OfferDetails newOffer;
     private Boolean isOfferModified;
 
-
     @Data
     @AllArgsConstructor
     public static class OfferDetails {

@@ -113,6 +113,9 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${http.payu.read.timeout:20000}")
     int payuReadTimeout;
 
+    @Value("${nbfc.kyc.api:api/v3/lender/kyc-status-check}")
+    String kycStatusCheckUrl;
+
     @Autowired
     UgroConfig ugroConfig;
 
@@ -194,6 +197,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+preRpsUrl;
             case "UPDATE_LOAN":
                 return  nbfcBaseUrl+nbfcUpdateLoanUrl;
+            case "KYC_STATUS_CHECK":
+                return nbfcBaseUrl+kycStatusCheckUrl;
             default:
                 return null;
         }

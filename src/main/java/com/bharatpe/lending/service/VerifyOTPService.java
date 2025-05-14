@@ -9,6 +9,8 @@ import com.bharatpe.common.enums.Status;
 import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.collection.core.dto.internal.LoanPaymentDetailDTO;
+import com.bharatpe.lending.collection.core.service.impl.LoanPaymentServiceImpl;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
@@ -39,7 +41,10 @@ import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.lendingplatform.lending.service.VerifyOTPServiceV2;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
+import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
@@ -240,6 +245,16 @@ public class VerifyOTPService {
     @Autowired
     PaymentService paymentService;
 
+    @Autowired
+    VerifyOTPServiceV2 verifyOTPServiceV2;
+
+    @Autowired
+    RolloutUtil rolloutUtil;
+
+    @Lazy
+    @Autowired
+    LoanPaymentServiceImpl loanPaymentService;
+
     List<Long> exemptMerchant = Arrays.asList(2411647L, 1210933L, 4340760L, 2097359L, 7090157L, 6518986L, 1141505L, 3L, 3543643L, 9319451L, 8891247L, 2078363L);
 
     public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
@@ -253,6 +268,10 @@ public class VerifyOTPService {
             lendingCache.delete(loanDashboardCacheKey);
         } else {
             logger.info("merchant id not found in verifyOtp flow");
+        }
+
+        if (rolloutUtil.lendingPlatformNbfcFlowApplicable(merchant.getId())) {
+            return verifyOTPServiceV2.verifyOTP(merchant, commonAPIRequest);
         }
 
         Map<String, Object> finalResponse = new LinkedHashMap<>();
@@ -756,7 +775,7 @@ public class VerifyOTPService {
 
     private Boolean topUpLoans(LendingApplication lendingApplication) {
         try {
-            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+            LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Collections.singletonList("ACTIVE"));
             LendingRiskVariablesSnapshot lendingRiskVariables = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
             if (Objects.isNull(activeLoan) || (Objects.nonNull(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()<lendingApplication.getLoanAmount())) {
                 logger.info("Rejection in topup flow due to offer value mismatch for application: {}",lendingApplication.getId());
@@ -817,7 +836,7 @@ public class VerifyOTPService {
             double processingFee = Math.ceil(finalDisbursalAmountWithoutProcessingFee * processingFeeRate);
 
             // skipping updating pf for trillion as the details is already sent to them
-            if(!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender())) lendingApplication.setProcessingFee(processingFee);
+            if(!Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) lendingApplication.setProcessingFee(processingFee);
             lendingApplication.setDisbursalAmount(finalDisbursalAmountWithoutProcessingFee - processingFee);
 
             lendingApplicationDao.save(lendingApplication);
@@ -831,6 +850,17 @@ public class VerifyOTPService {
     }
 
     public void ledgerAdjustmentForTopup(LendingPaymentSchedule previousLoan, LendingApplication lendingApplication, double previousAmount) {
+
+        if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(previousLoan.getNbfc())) {
+            logger.info("NewSettlement# started the settlement of order : {} loanId :{}", "EXCESS", previousLoan.getId());
+            loanPaymentService.adjustMoney(previousLoan, LoanPaymentDetailDTO.builder()
+                    .adjustExcessNach(true)
+                    .otherAmount(0)
+                    .source("EXCESS_NACH_ADJUSTED")
+                    .transferType(CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name())
+                    .build());
+            logger.info("NewSettlement# completed the settlement of order : {} loanId :{}", "NACH", previousLoan.getId());
+        }
 
         double duePenalty = Objects.nonNull(previousLoan.getDuePenalty()) ? previousLoan.getDuePenalty() : 0;
         LendingLedger lendingLedger = new LendingLedger();
@@ -882,7 +912,9 @@ public class VerifyOTPService {
             if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
                 nbfcService.pushCloseLoanEventToKafka(previousLoan.getApplicationId());
             }
-            putCollectionExcessAmountInRefund(previousLoan);
+            if(!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingApplication.getLender())) {
+                putCollectionExcessAmountInRefund(previousLoan);
+            }
         }
 
         lendingCollectionAuditService.sendCollectionAudit(lendingLedger, previousLoan);
@@ -1192,7 +1224,7 @@ public class VerifyOTPService {
     }
 
     public void markParentLoanInActiveTopup(LendingApplication lendingApplication) {
-        LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), "ACTIVE");
+        LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE"));
         if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(activeLoan.getNbfc())) {
              logger.info("marking parent loan {} with lender {} status INACTIVE_TOPUP for applicationId {} ", activeLoan.getId(), activeLoan.getNbfc(), lendingApplication.getId());
              activeLoan.setStatus("INACTIVE_TOPUP");

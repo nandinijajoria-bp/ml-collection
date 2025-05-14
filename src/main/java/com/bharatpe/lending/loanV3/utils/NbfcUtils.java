@@ -23,6 +23,8 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.lending.service.LoanCreationService;
+import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -32,6 +34,7 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssignment;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
@@ -45,7 +48,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
+
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_PERCENTAGE;
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_DOWNGRADE_THRESHOLD;
 
 @Component
 @Slf4j
@@ -98,6 +106,15 @@ public class NbfcUtils {
 
     @Autowired
     LendingLenderPricingDao lendingLenderPricingDao;
+    @Autowired
+    CommonService commonService;
+
+    @Autowired
+    private RolloutUtil rolloutUtil;
+
+    @Autowired
+    @Lazy
+    private LoanCreationService loanCreationService;
 
     @Async
     public void modifyLender(LendingApplication lendingApplication, LendingApplicationLenderDetails existingLendingApplicationLenderDetails, LenderAssociationStatus lenderAssociationStatus) {
@@ -191,6 +208,14 @@ public class NbfcUtils {
             lendingApplicationDetails.setApplicationId(applicationId);
             lendingApplicationDetails.setEdiModel(EdiModel.SEVEN_DAY_MODEL.name());
         }
+        //sending the application through new rearch flow
+        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(lendingApplicationDetails.getApplicationId());
+        if (lendingApplication.isPresent() && rolloutUtil.lendingPlatformNbfcFlowApplicable(lendingApplication.get().getMerchantId())) {
+            log.info("Application rolled out to rearch v1 version from NbfcUtils for applicationId: {} {}", lendingApplication.get().getId(), lendingApplication.get().getLender());
+            loanCreationService.initiateLoanCreationWorkflow(lendingApplicationDetails.getApplicationId());
+            return ;
+        }
+
         LenderAssociationStages nextStage = nextStage(Lender.valueOf(lender), LenderAssociationStages.valueOf(lenderAssociationStage));
         lendingApplicationDetails.setStage(nextStage.name());
         lendingApplicationDetails.setLenderAssc(Boolean.TRUE);
@@ -279,6 +304,8 @@ public class NbfcUtils {
                 return  associationServiceUtil.invokeConsentPostingService(lender, lenderAssociationDetailsDto);
             case "GET_LEAD":
                 return  associationServiceUtil.invokeGetLeadService(lender, lenderAssociationDetailsDto);
+            case "KYC_STATUS_CHECK":
+                return  associationServiceUtil.invokeKycStatusCheck(lender, lenderAssociationDetailsDto);
             case "UPDATE_LOAN":
                 return associationServiceUtil.invokeUpdateLoan(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
@@ -337,6 +364,39 @@ public class NbfcUtils {
                 lendingApplication.getId(), lendingApplication.getLender(), result);
 
         return result;
+    }
+
+    public boolean offerDowngradeThresholdChecksFailed(double offerDowngradeThreshold, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        double requestedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplication().getLoanAmount();
+        double approvedLoanAmount = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt();
+        // Convert to BigDecimal
+        BigDecimal requestedAmount = BigDecimal.valueOf(requestedLoanAmount);
+        BigDecimal approvedAmount = BigDecimal.valueOf(approvedLoanAmount);
+        BigDecimal downgradeThreshold = BigDecimal.valueOf(offerDowngradeThreshold);
+
+        // Perform downgrade calculation without rounding up
+        BigDecimal one = BigDecimal.valueOf(1);
+        BigDecimal downgradePercentage = one.subtract(approvedAmount.divide(requestedAmount, 10, RoundingMode.DOWN)) // Trim in division
+                .multiply(BigDecimal.valueOf(100)) // Convert to percentage
+                .setScale(2, RoundingMode.DOWN); // Trim final result to 2 decimal places
+
+        LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
+
+        // If downgrade percentage exceeds the threshold, modify the lender
+        if (downgradePercentage.compareTo(downgradeThreshold) > 0 && !ObjectUtils.isEmpty(fallbackLender.getLender())) {
+            log.info("downgrade percentage {} exceeds the threshold {} for lender {}, modifying lender",
+                    downgradePercentage, downgradeThreshold, lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
+            lenderAssociationDetailsRequestDto.setModifyLender(true);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.OFFER_DOWNGRADE_THRESHOLD_BREACHED.name());
+            Map<String, Object> metaData = new HashMap<>();
+            metaData.put(OFFER_DOWNGRADE_PERCENTAGE, downgradePercentage);
+            metaData.put(OFFER_DOWNGRADE_THRESHOLD, downgradeThreshold);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setMetaData(metaData);
+            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+            return true ;
+        }
+
+        return false;
     }
 
 }

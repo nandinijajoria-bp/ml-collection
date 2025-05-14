@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dao.LoanPaymentOrderDao;
 import com.bharatpe.lending.entity.LoanPaymentOrder;
@@ -27,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -37,6 +39,7 @@ import java.util.*;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
+import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.NACH_BOUNCE_CHARGES;
 
 @Service
@@ -80,6 +83,17 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     LoanUtil loanUtil;
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+    @Autowired
+    private EasyLoanUtil easyLoanUtil;
+
+    @Value("${whitelisted.real.time.reciept.posting.lenders:TRILLIONLOANS}")
+    String realTimeRecieptPostingWhitelistedLenders;
+
+    @Value("#{'${whitelisted.real.time.reciept.posting.mode}'.split(',')}")
+    Set<String> realTimeRecieptPostingWhitelistedPgModes;
+
+    @Value("${whitelisted.real.time.reciept.percent.rollout:1}")
+    Integer realTimeRecieptPostingPercentScaleUp;
 
     @Override
     public LendingCollectionExcess adjustNachLedger(LendingCollectionExcess lendingCollectionExcess, PaymentCalculation paymentAdjusted) {
@@ -111,7 +125,22 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         updateCollectionAuditAndOrder(lendingLedger, order);
         if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
             //push loanId to kafka
-            confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+            if(lendingLedger!= null) confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+        }
+        try {
+            if(lendingLedger != null){
+            log.info("inside sending upi-real-time-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId());
+            LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId()).orElse(null);
+
+            if (adjustmentMode != null && realTimeRecieptPostingWhitelistedPgModes.contains(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), realTimeRecieptPostingPercentScaleUp)
+                    && loan.getNbfc() != null   && realTimeRecieptPostingWhitelistedLenders.contains(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
+                    && !"Y".equalsIgnoreCase(lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted())) {
+                log.info("Real time reciept posting for UPI {}", lendingLedger);
+                confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
+            }
+            }
+        }catch (Exception ex){
+            log.error("Error while sending autopayupi-posting for loanId: {} and ledgerId: {}", loan, lendingLedger, ex);
         }
         return lendingLedger;
     }
@@ -295,24 +324,63 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
                 nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
                 netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
                 double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
-                penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-                penalCharge.setPaidNachBounce(paidNachBounce);
+                penalCharge.setDueNachBounce((double) Math.round(penalCharge.getDueNachBounce() - nachBounceAdjusted));
+                penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
                 LendingApplicationLenderDetails lendingApplicationLenderDetails =
                         lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
                 PenaltyFeeLedger nachBounceLedgerApplied = penaltyFeeLedgerDao.findTop1NachBounceOrderByIdDesc(loan.getId());
-                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && paidNachBounce > 0 && nachBounceLedgerApplied != null && !nachBounceLedgerApplied.getIsPosted()) {
+                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && nachBounceAdjusted > 0 && nachBounceLedgerApplied != null && !nachBounceLedgerApplied.getIsPosted()) {
                     loanUtil.piramalPenaltyPosting(lendingApplicationLenderDetails, nachBounceLedgerApplied,nachBounceLedgerApplied.getAmount()*-1,NACH_BOUNCE_CHARGES.name());
                 }
             }
 
             if (Objects.nonNull(penalCharge.getDuePenalty())) {
                 double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
-                penalCharge.setPaidPenalty(paidPenalty);
-                penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+
+                penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+                penalCharge.setDuePenalty((double) Math.round(penalCharge.getDuePenalty() - netPenaltyAdjusted));
+                try {
+                LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                        lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(loan.getApplicationId(), com.bharatpe.lending.common.enums.Status.ACTIVE.name());
+                PenaltyFeeLedger penaltyFeeLedgerApplied = penaltyFeeLedgerDao.findTop1PenaltyFeeOrderByIdDesc(loan.getId());
+                if(lendingApplicationLenderDetails != null && Lender.PIRAMAL.name().equalsIgnoreCase(loan.getNbfc()) && netPenaltyAdjusted > 0 && penaltyFeeLedgerApplied != null && !penaltyFeeLedgerApplied.getIsPosted()) {
+                    loanUtil.postPiramalPenalty(loan,lendingApplicationLenderDetails);
+                }}catch (Exception e){
+                    log.error("Lending : Error while posting piramal penalty for loanId: {} and error: {}", loan, Arrays.asList(e.getStackTrace()), e);
+                }
+
             }
             penalChargesDao.save(penalCharge);
         } catch (Exception e) {
             log.error("Exception occured while saving penal charge for loan: {} {} {}", loan.getId(), Arrays.asList(e.getStackTrace()), e);
         }
+    }
+
+    @Override
+    public void creatingPenaltyInPenaltyLedger(LendingPaymentSchedule loan, double penaltyFee, String description, boolean isWaiveOff) {
+        PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), -penaltyFee, description, isWaiveOff, loan.getNbfc(),false);
+        penaltyFeeLedgerDao.save(penaltyFeeLedger);
+    }
+
+    @Override
+    public LendingLedger createPenaltyLedger(LendingPaymentSchedule loan, double penaltyFee, String penaltyDescription) {
+        if(ObjectUtils.isEmpty(penaltyFee)) {
+            return null;
+        }
+
+        LendingLedger lendingLedger = new LendingLedger();
+        lendingLedger.setMerchantId(loan.getMerchantId());
+        if(loan.getMerchantStoreId() != null && loan.getMerchantStoreId() > 0) lendingLedger.setMerchantStoreId(loan.getMerchantStoreId());
+        lendingLedger.setLendingPaymentSchedule(loan);
+        lendingLedger.setDate(DateTimeUtil.getCurrentDayStartTime());
+        lendingLedger.setTxnType("EDI");
+        lendingLedger.setAmount(-penaltyFee);
+        lendingLedger.setInterest(0d);
+        lendingLedger.setPrinciple(0d);
+        lendingLedger.setOtherCharges(0d);
+        lendingLedger.setPenalty(-penaltyFee);
+        lendingLedger.setDescription(penaltyDescription);
+        lendingLedgerDao.save(lendingLedger);
+        return lendingLedger;
     }
 }

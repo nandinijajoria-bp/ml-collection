@@ -110,7 +110,7 @@ public class MileStoneHelperService {
 
     public BureauResponseDTO calculateBureauScore(String panNumber, BasicDetailsDto merchant) {
         return bureauHandler.getBureauData(panNumber, merchant.getId(), merchant.getMobile(),
-                bureauScorePullDays, "RTE");
+                bureauScorePullDays, "RTE",false);
     }
 
 

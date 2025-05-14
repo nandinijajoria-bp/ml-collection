@@ -10,13 +10,12 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
+import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.oxyzo.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
-import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
-import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.TLEKYCService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
@@ -222,7 +221,7 @@ public class AssociationServiceUtil {
     SmfgForeclosureService smfgForeclosureService;
 
     @Autowired
-    TLEKYCService tlEkycService;
+    TLEKycService tlEkycService;
 
     @Autowired
     UgroLeadService ugroLeadService;
@@ -309,6 +308,8 @@ public class AssociationServiceUtil {
                 return creditSaisonKYCService.invokeKyc(lenderAssociationDetailsRequest);
             case "OXYZO":
                 return oxyzoKycService.invokeKyc(lenderAssociationDetailsRequest);
+            case "TRILLIONLOANS":
+                return tlKycService.invokeKyc(lenderAssociationDetailsRequest);
             default:
                 return false;
         }
@@ -633,16 +634,7 @@ public class AssociationServiceUtil {
             case "PIRAMAL":
                 return eKycService.processEKycCallback(nbfcResponseDTO);
             case "TRILLIONLOANS":
-                return tlEkycService.processKycCallback(nbfcResponseDTO, Boolean.TRUE, Boolean.FALSE);
-            default:
-                return false;
-        }
-    }
-
-    public Boolean handleCKycCallback(String lender, NBFCResponseDTO nbfcResponseDTO) {
-        switch (lender) {
-            case "TRILLIONLOANS":
-                return tlEkycService.processKycCallback(nbfcResponseDTO, Boolean.FALSE, Boolean.FALSE);
+                return tlEkycService.processEKycCallback(nbfcResponseDTO);
             default:
                 return false;
         }
@@ -729,6 +721,15 @@ public class AssociationServiceUtil {
         switch (lender) {
             case "UGRO":
                 return ugroGetLeadService.invokeUdyamStatusCheck(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public Boolean invokeKycStatusCheck(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlKycService.kycStatusCheck(lenderAssociationDetailsDto);
             default:
                 return false;
         }

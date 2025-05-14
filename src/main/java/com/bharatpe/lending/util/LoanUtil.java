@@ -15,9 +15,11 @@ import com.bharatpe.lending.common.dto.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
+import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.MongoLogPublisher;
 import com.bharatpe.lending.common.service.PennyDropService;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -45,6 +47,7 @@ import com.bharatpe.lending.handlers.MerchantScoreHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -52,13 +55,15 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
+import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.NachBounceChargesService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVReader;
-import lombok.Setter;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.BooleanUtils;
 import org.slf4j.Logger;
@@ -80,7 +85,10 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -90,6 +98,7 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.*;
+import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
 
@@ -100,6 +109,9 @@ public class LoanUtil {
 	public static final int COOL_OFF_PERIOD_DAYS = 3;
 	public static final String CLOSURE = "ANY";
 	private static final String RECEIVABLE = "RECEIVABLE";
+	private static final Set<String> FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name(), Lender.ABFL.name(), PIRAMAL.name()));
+	private static final Set<String> FORECLOSURE_CHARGES_SUPPORTED_LENDER = new HashSet<>(Arrays.asList(Lender.ABFL.name(), PIRAMAL.name()));
+	public static final Set<String> LENDER_FORECLOSURE_DATE_CHECK = new HashSet<>(Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name()));
 
 	@Autowired
 	MongoLogPublisher mongoLogPublisher;
@@ -246,6 +258,9 @@ public class LoanUtil {
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	@Autowired
+	LendingApplicationServiceV2 lendingApplicationServiceV2;
+
+	@Autowired
 	private LoanDashboardService loanDashboardService;
 
 	@Autowired
@@ -294,7 +309,6 @@ public class LoanUtil {
 	List<Long> updateLeadLenderClientIdsList = new ArrayList();
 
 
-
 	@Autowired
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
@@ -302,10 +316,19 @@ public class LoanUtil {
 	LenderAssociationStageFactory lenderAssociationStageFactory;
 
 	@Autowired
+	AbflForeclosureFetchService abflForeclosureFetchService;
+
+	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
 
 	@Autowired
 	EasyLoanUtil easyLoanUtil;
+
+	@Autowired
+	NachBounceChargesService nachBounceChargesService;
+
+	@Value("${payu.nach.bounce.charge:500}")
+	Integer payUNachBounceCharge;
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
@@ -341,6 +364,10 @@ public class LoanUtil {
 
 	@Value("${penalty.charges.rollout.date.PIRAMAL:2025-03-25 00:00}")
 	String piramalPenaltyChargesRolloutDate;
+
+    @Value("${fore.closure.charges.rollout.date.ABFL:2025-02-20 00:00}")
+	String abflForeClosureChargesRolloutDate;
+
 	@Value("${autopay.upi.lenders:}")
 	String autoPayUpiLenders;
 
@@ -357,15 +384,14 @@ public class LoanUtil {
 	@Value("${lender.aggregation.screens:}")
 	String lenderAggregationScreens;
 
-	@Value("${api.token:}")
-	String apiToken;
+	@Value("#{'${api.token:}'.split(',')}")
+	List<String> apiTokens;
 
 	@Autowired
 	LendingLenderPricingDao lendingLenderPricingDao;
 
 	@Value("#{'${lender.pricing.eligible.merchants.percent}'.split(',')}")
 	private List<Integer> lenderPricingEligibleMerchantsPercent;
-
 
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
@@ -378,10 +404,12 @@ public class LoanUtil {
 	String nbfcChargePosting;
 	@Value("${nbfc.baseurl.v3.api:https://api-nbfc-uat.bharatpe.in/}")
 	String nbfcBaseUrl;
-	@Value("${fore.closure.charges.rollout.date.PIRAMAL:-}")
+	@Value("${fore.closure.charges.rollout.date.PIRAMAL:2025-02-20 00:00}")
 	String piramalForeClosureChargesRolloutDate;
 	@Autowired
 	PenaltyFeeLedgerDao penaltyFeeLedgerDao;
+	@Autowired
+	PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
 	@PostConstruct
 	public void init(){
@@ -1052,7 +1080,7 @@ public class LoanUtil {
 	}
 
 	public boolean hasActiveLoan(BasicDetailsDto merchant) {
-		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), "ACTIVE");
+		LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Collections.singletonList("ACTIVE"));
 		return activeLoan != null;
 	}
 
@@ -1630,7 +1658,8 @@ public class LoanUtil {
 		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
 				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
 		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-			netForeclosureAtLender = (Double) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		}
 		return netForeclosureAtLender;
 	}
@@ -1688,6 +1717,7 @@ public class LoanUtil {
 			request.put("shop_number", lendingApplication.getShopNumber());
 			request.put("proof_front_side", proof_front_side);
 			request.put("proof_stock_side", proof_stock_side);
+			logger.info("Data published to DS for application Id : {} {}", request, lendingApplication.getId());
 			executorService.execute(() -> {
 				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});
@@ -2421,14 +2451,14 @@ public class LoanUtil {
 				nachBounceAdjusted = penalCharge.getDueNachBounce() < penaltyAdjusted ? penalCharge.getDueNachBounce() : penaltyAdjusted;
 				netPenaltyAdjusted = penaltyAdjusted - nachBounceAdjusted;
 				double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
-				penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() - nachBounceAdjusted);
-				penalCharge.setPaidNachBounce(paidNachBounce);
+				penalCharge.setDueNachBounce((double) Math.round(penalCharge.getDueNachBounce() - nachBounceAdjusted));
+				penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
 			}
 
 			if (Objects.nonNull(penalCharge.getDuePenalty())) {
 				double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
-				penalCharge.setPaidPenalty(paidPenalty);
-				penalCharge.setDuePenalty(penalCharge.getDuePenalty() - netPenaltyAdjusted);
+				penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+				penalCharge.setDuePenalty((double) Math.round(penalCharge.getDuePenalty() - netPenaltyAdjusted));
 			}
 			penalChargesDao.save(penalCharge);
 		} catch (Exception e) {
@@ -2488,6 +2518,12 @@ public class LoanUtil {
 				case "OXYZO":
 					date = oxyzoForeClosureChargesRolloutDate;
 					break;
+				case "PIRAMAL":
+					date = piramalForeClosureChargesRolloutDate;
+					break;
+				case "ABFL":
+					date = abflForeClosureChargesRolloutDate;
+					break;
 				default:
 					break;
 			}
@@ -2521,25 +2557,44 @@ public class LoanUtil {
 		return false;
 	}
 
-	public ForeClosureDetailDTO calculateForeClosureCharges(LendingPaymentSchedule activeLoan, PaymentDetailsResponseDTO.Data data) {
+	public ForeClosureDetailDTO calculateForeClosureCharges(LendingPaymentSchedule activeLoan, PaymentDetailsResponseDTO.Data data, Double outstandingPrincipal) {
 		ForeClosureDetailDTO foreClosureDetailDTO = new ForeClosureDetailDTO();
 		logger.info("going to hit foreclosure config db with lender {} and tenure {}",activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
 		List<ForeClosureConfig> foreClosureConfigList = foreClosureDao.findByLenderAndTenure(activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
         double duration = calculateDurationInMonths(activeLoan.getStartDate());
+		double foreclosureAmount = data.getPrincipalDueAmount();
+		double principleOutstanding = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() - activeLoan.getDuePrinciple());
 
-		if(Arrays.asList(Lender.PAYU.name(), Lender.OXYZO.name()).contains(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
+		double advancePerpetualDuePrinciple = fetchExtraEdiPrincipleCollectionForPerpetualDpdLoan(activeLoan.getId());
+		logger.info("Advance perpetual due principle {} for loanId {}", advancePerpetualDuePrinciple, activeLoan.getId());
+
+		if(advancePerpetualDuePrinciple > 0) {
+			logger.info("Adding advance perpetual due principle {} to principle outstanding for loanId {}", advancePerpetualDuePrinciple, activeLoan.getId());
+			principleOutstanding += advancePerpetualDuePrinciple;
+		}
+
+		if(FORECLOSURE_COOLING_OFF_SUPPORTED_LENDER.contains(activeLoan.getNbfc()) && checkLoanCoolOffPeriod(activeLoan.getCreatedAt())){
 			return null;
+		}
+
+		if(LENDER_FORECLOSURE_DATE_CHECK.contains(activeLoan.getNbfc())){
+			if(isTodayIsLoanLastDay(activeLoan)) return null;
+
+			if (outstandingPrincipal != null && outstandingPrincipal != 0d){
+				logger.info("Using principle outstanding {} for loan: {}",outstandingPrincipal, activeLoan.getId());
+				principleOutstanding = outstandingPrincipal;
+			}
 		}
 
 		if(!CollectionUtils.isEmpty(foreClosureConfigList)) {
 			ForeClosureConfig foreClosureConfig = getApplicableForeclosureConfig(foreClosureConfigList, duration);
 			if(foreClosureConfig != null) {
                 foreClosureDetailDTO.setId(foreClosureConfig.getId());
-				foreClosureDetailDTO.setPrincipalOutstanding(data.getPrincipalDueAmount());
+				foreClosureDetailDTO.setPrincipalOutstanding(foreclosureAmount);
 				Double minAmount = foreClosureConfig.getMinAmount();
 				if(minAmount == null) minAmount = 0.0;
-				logger.info("loan is {} and min amount is {} and foreclosure config rate  is {}  ",activeLoan,minAmount, foreClosureConfig.getRate());
-				foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() - activeLoan.getDuePrinciple()) * foreClosureConfig.getRate())/100.0) , minAmount));
+                logger.info("loan is {} and min amount is {} and foreclosure config rate  is {}  ",activeLoan,minAmount, foreClosureConfig.getRate());
+                foreClosureDetailDTO.setForeclosureCharges(Math.max(Math.ceil(( principleOutstanding * foreClosureConfig.getRate())/100.0) , minAmount));
 				foreClosureDetailDTO.setGst(Math.ceil((foreClosureDetailDTO.getForeclosureCharges() * foreClosureConfig.getGst())/100.0));
 				logger.info("going to return fore closure charges {} ",foreClosureDetailDTO);
 				return foreClosureDetailDTO;
@@ -2662,6 +2717,14 @@ public class LoanUtil {
 		return 0d;
 	}
 
+	public double fetchExtraEdiPrincipleCollectionForPerpetualDpdLoan(Long lpsId){
+		LendingLedger lendingLedger = fetchAdvanceEdi(lpsId);
+		if(!ObjectUtils.isEmpty(lendingLedger)){
+			return Math.abs(lendingLedger.getPrinciple());
+		}
+		return 0d;
+	}
+
 	public LendingLedger fetchAdvanceEdi(Long lpsId) {
 		Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lpsId);
 		if(lendingPaymentScheduleLendingCommon.isPresent() && Y.name().equalsIgnoreCase(lendingPaymentScheduleLendingCommon.get().getPerpetualDpdAdjusted())) {
@@ -2675,6 +2738,13 @@ public class LoanUtil {
 		double	durationInDays = calculateDurationInDays(createdAt);
 		if(durationInDays < COOL_OFF_PERIOD_DAYS) return true;
 		return false;
+	}
+
+	public boolean isTodayIsLoanLastDay(LendingPaymentSchedule activeLoan) {
+		logger.info("Checking for last day of the loan: {} with EDI Remaining Count: {}", activeLoan.getId(), activeLoan.getEdiRemainingCount());
+		Date loanClosingDate = activeLoan.getTentativeClosingDate();
+		Date todayDate = new Date();
+		return (DateUtils.isSameDay(loanClosingDate, todayDate) || todayDate.after(loanClosingDate) || activeLoan.getEdiRemainingCount() <= 0);
 	}
 
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
@@ -2721,10 +2791,10 @@ public class LoanUtil {
         logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
 	}
-	public Boolean validateToken(String token){
-		return apiToken.equals(token);
-	}
 
+	public Boolean validateToken(String token) {
+		return apiTokens.contains(token);
+	}
 
 	public boolean isLenderPricingApplicableMerchant(Long merchantId){
 		return LoanUtil.isRolledOutByPercentage(String.valueOf(merchantId), (lenderPricingEligibleMerchantsPercent));
@@ -2784,6 +2854,20 @@ public class LoanUtil {
 			return (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
 		}
 		return 0D;
+	}
+
+	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount){
+		eligibleLoan.setRateOfInterest(interestRate);
+		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
+		Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		Double repayment = ediAmount * eligibleLoan.getEdiCount();
+		eligibleLoan.setProcessingFee(processingFee.intValue());
+		eligibleLoan.setRepayment(repayment.intValue());
+		eligibleLoan.setEdi(ediAmount.intValue());
+		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
+		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
+		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
+		eligibleLoanDao.save(eligibleLoan);
 	}
 
 
@@ -2890,6 +2974,93 @@ public class LoanUtil {
 		}
 		return prevApplication;
 
+	}
+
+	public Double calculatePiramalPenalty(LendingPaymentSchedule activeLoan) {
+		try {
+			List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaveList = penaltyFeeConfigDaoSlave.findByVersionAndStatusAndLenderOrderByMinAmountAsc(2, true, activeLoan.getNbfc());
+			if (penaltyFeeConfigSlaveList.isEmpty()) {
+				logger.info("No penalty fee config found for loan: {} with lender: {}", activeLoan.getId(), activeLoan.getNbfc());
+				return 0d;
+			}
+			double rate = penaltyFeeConfigSlaveList.get(0).getPenalty();
+			double penalty = (activeLoan.getOverdueAmount() * rate) / 100;
+			// AS per lender confirmation we are removing gst from penalty
+//         += penalty * 0.18;
+			penalty = Math.ceil(penalty);
+			return penalty;
+		}catch (Exception e){
+			logger.error("Exception occurred while calculating piramal penalty for loan: {} exception: {} , {}", activeLoan, Arrays.asList(e.getStackTrace()), e.getMessage());
+		}
+		return 0d;
+	}
+	public Date getLastPenaltyDate(LocalDate currentDate) {
+		LocalDate lastMonthEndDate;
+		if (currentDate.getMonthValue() == 3) {
+			// If current month is March, we need February's end date (28th)
+			lastMonthEndDate = currentDate.minusMonths(1).withDayOfMonth(28);
+		} else {
+			// For all other months, we need previous month's 30th
+			lastMonthEndDate = currentDate.minusMonths(1).withDayOfMonth(30);
+		}
+
+		try {
+			SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+			String formattedDate = dateFormat.format(Date.from(lastMonthEndDate.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+			return dateFormat.parse(formattedDate);
+		} catch (ParseException e) {
+			logger.error("Error parsing date: {}", e.getMessage(), e);
+			return null;// or handle the exception as needed
+		}
+	}
+
+	public void postPiramalPenalty(LendingPaymentSchedule activeLoan, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
+		try {
+			LocalDate currentDate = LocalDate.now();
+			Date lastPenaltyDate = getLastPenaltyDate(currentDate);
+			PenaltyFeeLedger penaltyFeeLedgerApplied = penaltyFeeLedgerDao.findTop1PenaltyFeeOrderByIdDesc(activeLoan.getId());
+			// NEED TO GET THE LIST AS AT THE TIME OF CLOSURE WE CAN HAVE MUTIPLE UNPOSTED PENALTIES
+			List<PenaltyFeeLedger> penaltyFeeLedgerList = new ArrayList<>();
+			if (lastPenaltyDate != null) {
+				penaltyFeeLedgerList = penaltyFeeLedgerDao.findPenaltyFeeByCreatedAtAfterOrderByIdDesc(
+						activeLoan.getId(), lastPenaltyDate);
+			}
+			if (penaltyFeeLedgerList == null && penaltyFeeLedgerApplied != null)
+				penaltyFeeLedgerList.add(penaltyFeeLedgerApplied);
+			logger.info("penalty to be posted is  {}", penaltyFeeLedgerList);
+			if (penaltyFeeLedgerList != null && !penaltyFeeLedgerList.isEmpty()) {
+				for (PenaltyFeeLedger penalty : penaltyFeeLedgerList) {
+					if (penalty == null || penalty.getIsPosted()) {
+						logger.info("No unpaid penalty exist for loanId {} ", activeLoan.getId());
+						return;
+					}
+					if (penalty != null && penalty.getAmount() != null && !penalty.getIsPosted()) {
+						piramalPenaltyPosting(lendingApplicationLenderDetails, penalty, penalty.getAmount() * -1, LPC_WO_GST.name());
+					}
+				}
+			}
+		}catch (Exception e){
+			logger.error("Piramal : Error in posting penalty to lender {} {}",Arrays.asList(e.getStackTrace()),e.getMessage());
+		}
+	}
+
+	public void savePenalCharges(LendingPaymentSchedule lendingPaymentSchedule, boolean isNachBounce, double penaltyFee, double nachBounceCharge) {
+		try {
+			logger.info("Saving Penal Charges for loan: {} with penaltyFee: {}, is nach bounce: {}", lendingPaymentSchedule.getId(), penaltyFee, isNachBounce);
+			PenalCharges penalCharge = penalChargesDao.findByLoanId(lendingPaymentSchedule.getId());
+			double nachCharge = isNachBounce ? nachBounceCharge : 0;
+			if (Objects.isNull(penalCharge)) {
+				penalCharge = new PenalCharges(lendingPaymentSchedule.getId(), lendingPaymentSchedule.getMerchantId(),
+						lendingPaymentSchedule.getNbfc(), penaltyFee, 0, nachCharge, 0);
+			} else {
+                penalCharge.setDuePenalty(penalCharge.getDuePenalty() + penaltyFee);
+				penalCharge.setDueNachBounce(penalCharge.getDueNachBounce() + nachCharge);
+			}
+
+			penalChargesDao.save(penalCharge);
+		} catch (Exception e) {
+			logger.info("Exception occurred while saving penal charges for loan: {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), e);
+		}
 	}
 }
 

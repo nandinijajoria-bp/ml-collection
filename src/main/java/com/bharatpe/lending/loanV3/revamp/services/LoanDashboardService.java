@@ -31,6 +31,8 @@ import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
+import com.bharatpe.lending.dto.InsuranceEligibilityRequestDTO;
+import com.bharatpe.lending.dto.InsuranceEligibilityResponseDTO;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -38,6 +40,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
@@ -248,8 +251,16 @@ public class LoanDashboardService {
     @Autowired
     private EmiDashboardService emiDashboardService;
 
+    @Autowired
+    InsuranceService insuranceService;
+
+    @Autowired
+    private LendingRiskVariablesDao lendingRiskVariablesDao;
+
     private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
+    @Value("${emi.default.loan.amount:1500000}")
+    private double emiDefaultLoanAmount;
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
     currently we are deciding this feature on the basis of internal/external merchant only
@@ -333,7 +344,7 @@ public class LoanDashboardService {
         //set dummy merchant
         loanDashboardResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchantDetails.getId()));
         //if user has inactive loan, return
-        LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), "INACTIVE");
+        LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), Collections.singletonList("INACTIVE"));
         if (!ObjectUtils.isEmpty(lendingPaymentSchedule1) && "INACTIVE".equalsIgnoreCase(lendingPaymentSchedule1.getStatus()) &&
             !lendingPaymentSchedule1.getCreditLoan()
         ) {
@@ -347,7 +358,7 @@ public class LoanDashboardService {
         // to check if user have repeat loan
         loanDashboardResponse.setRepeatLoan(lendingPaymentSchedule.isPresent());
 
-        if (hasActiveLoan(merchantDetails.getId())) {
+        if (hasActiveLoan(merchantDetails.getId(), loanDashboardResponse)) {
             log.info("active loan merchant:{}", merchantDetails.getId());
             funnelService.submitEvent(merchantDetails.getId(), null, null,
                     FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.ACTIVE_LOAN, LocalDateTime.now().toString());
@@ -374,8 +385,10 @@ public class LoanDashboardService {
         if (!ObjectUtils.isEmpty(openApplication)) {
             //kyc checks can be removed from here...
             LoanApplicationDetailsV3 loanApplicationDetailsV3 = setApplicationDetails(openApplication, merchantDetails);
-            loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
-            loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(openApplication));
+            if (!ObjectUtils.isEmpty(loanApplicationDetailsV3)){
+                loanDashboardResponse.setLoanApplication(loanApplicationDetailsV3);
+                loanDashboardResponse.getLoanApplication().setAnnualRoi(getAnnualROI(openApplication));
+            }
             if (loanDashboardResponse.getLoanApplication() != null && StringUtils.isEmpty(loanDashboardResponse.getLoanApplication().getReapply())) {
                 //if no reapply then dont check eligibility
                 cacheLoanDetailsData(loanDashboardResponse);
@@ -389,6 +402,11 @@ public class LoanDashboardService {
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantDetails.getId());
+        if(emiUtils.isEligible(emiDashboardData, lendingRiskVariables) && loanDashboardResponse.getEligibility()!=null){
+            log.info("eligible for loan merchant:{}", merchantDetails.getId());
+            loanDashboardResponse.getEligibility().setEmiLoanAmount(emiDefaultLoanAmount);
+        }
         if(Objects.nonNull(loanDashboardResponse.getIneligible())){
             loanDashboardResponse.setLoanApplication(null);
             funnelService.submitEvent(merchantDetails.getId(), null, null,
@@ -407,8 +425,11 @@ public class LoanDashboardService {
         return getLoanDashboardResponse(emiDashboardDate, merchantDetails);
     }
 
-    public boolean hasActiveLoan(Long merchantId) {
-        LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, "ACTIVE");
+    public boolean hasActiveLoan(Long merchantId, LoanDashboardResponse loanDashboardResponse) {
+        LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
+        if(!ObjectUtils.isEmpty(activeLoan)) {
+            loanDashboardResponse.setInsuranceEligibility(insuranceService.checkInsuranceEligibility(activeLoan));
+        }
         return activeLoan != null;
     }
 
@@ -598,7 +619,7 @@ public class LoanDashboardService {
             }
             return applicationDetails;
         } catch (Exception e) {
-            log.error("Exception in setApplicationDetails for merchant:{}", openApplication.getMerchantId(), e);
+            log.error("Exception in setApplicationDetails for merchant:{}, {}", openApplication.getMerchantId(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }
@@ -711,7 +732,9 @@ public class LoanDashboardService {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getPhysicalReason(), RejectionStage.QC, lendingApplication.getMerchantId());
             } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && RejectionStage.BRE.name().equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
                 reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.BRE, lendingApplication.getMerchantId());
-            }else {
+            } else if (!ObjectUtils.isEmpty(lendingApplication.getRejectionStage()) && "PNC".equalsIgnoreCase(lendingApplication.getRejectionStage().name())) {
+                reapplyDayDiff = easyLoanUtil.getReapplyTime(lendingApplication.getRejectionReason(), RejectionStage.PNC, lendingApplication.getMerchantId());
+            } else {
                 reapplyDayDiff = 0;
             }
             if (Objects.nonNull(reapplyDayDiff)) {

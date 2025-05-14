@@ -177,7 +177,7 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
                 return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name(),
                         LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.SHOP_PHOTO_UPLOAD.name());
             case TRILLIONLOANS:
-                return Stream.concat(Arrays.asList(LenderAssociationStages.CREATE_CLIENT.name()).stream(),
+                return Stream.concat(Stream.of(LenderAssociationStages.CREATE_CLIENT.name(), LenderAssociationStages.CREATE_LEAD.name()),
                                 getStagesForIneligibleKYCLenderPipe(lender, merchantId, isTopUp).stream())
                     .collect(Collectors.toList());
             case MUTHOOT:
@@ -203,10 +203,15 @@ public class InvokeCreateLeadAndDocUploadWrapperService {
     }
 
     private List<String> getStagesForIneligibleKYCLenderPipe(String lender, Long merchantId, boolean isTopup) {
-        if(!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
+        if (!kycUtils.isELigibleForLenderKyc(lender, merchantId, isTopup)) {
             switch (Lender.valueOf(lender)) {
-                case TRILLIONLOANS:
-                    return Arrays.asList(LenderAssociationStages.CREATE_LEAD.name(), LenderAssociationStages.SELFIE_UPLOAD.name(),LenderAssociationStages.AADHAR_UPLOAD.name());
+                case TRILLIONLOANS: {
+                    List<String> stages = new ArrayList<>(Arrays.asList(LenderAssociationStages.SELFIE_UPLOAD.name(), LenderAssociationStages.AADHAR_UPLOAD.name()));
+                    if (!isTopup) {
+                        stages.add(LenderAssociationStages.KYC.name());
+                    }
+                    return stages;
+                }
             }
         }
         return Collections.emptyList();

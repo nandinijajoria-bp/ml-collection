@@ -2,11 +2,12 @@ package com.bharatpe.lending.collection.core.service;
 
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
+import com.bharatpe.lending.collection.core.dto.internal.LoanClosureDTO;
 
 public interface LoanClosurePostingService {
-    void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger);
+    void postForeclosureReceiptPiramal(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO);
 
-    void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger);
+    void sendForeclosureEvent(Long applicationId, String mobile, LendingLedger lendingLedger, Long orderId);
 
     void postForeclosureReceipt(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger);
 
@@ -15,7 +16,7 @@ public interface LoanClosurePostingService {
 
     void sendForeclosureChargesEventLiquiLoans(long applicationId, long loanId, long lendingLedgerId, String lender, long orderId);
 
-    void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId);
+    void sendForeclosureEventPayu(Long applicationId, LendingLedger lendingLedger, Long orderId, Boolean postCharges, String requestId);
 
     void sendForeclosureEventToLender(Long applicationId, LendingLedger lendingLedger, Long orderId, String lender);
 

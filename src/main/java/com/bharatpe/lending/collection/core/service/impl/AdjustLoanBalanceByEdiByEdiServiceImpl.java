@@ -48,7 +48,7 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
 
         PaymentCalculation settleLoanPaymentDTO = settleEDIPrincipleAndInterest(loan, amount, adjustPrincipleFirst);
 
-        PaymentCalculation penalty = adjustPenalty(loan, settleLoanPaymentDTO.getBalance());
+        PaymentCalculation penalty = adjustPenalty(loan, settleLoanPaymentDTO.getBalance()); // TODO check this
         settleLoanPaymentDTO.setBalance(settleLoanPaymentDTO.getBalance() - penalty.getUsed());
 
         PaymentCalculation charges = adjustOtherCharges(loan, settleLoanPaymentDTO.getBalance());

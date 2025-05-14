@@ -11,25 +11,36 @@ import org.springframework.util.ObjectUtils;
 @Slf4j
 @Component
 public class TLPayloadValidation {
-    public boolean isInValidCreateClientPayload(CKycResponseDto cKycResponseDto) {
-        return (ObjectUtils.isEmpty(cKycResponseDto)
-                || ObjectUtils.isEmpty(cKycResponseDto.getDob())
-                || ObjectUtils.isEmpty(cKycResponseDto.getName())
-                || ObjectUtils.isEmpty(cKycResponseDto.getMobile())
-                || ObjectUtils.isEmpty(cKycResponseDto.getAadharNumber())
-                || ObjectUtils.isEmpty(cKycResponseDto.getPanNumber())
-                || ObjectUtils.isEmpty(cKycResponseDto.getAddress())
-                || ObjectUtils.isEmpty(cKycResponseDto.getPincode())
-                || ObjectUtils.isEmpty(cKycResponseDto.getGender())
-        );
+    public boolean isInValidCreateClientPayload(CKycResponseDto cKycResponseDto, boolean isEligibleForLenderKyc) {
+        return isEligibleForLenderKyc ? (ObjectUtils.isEmpty(cKycResponseDto) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getPanNumber()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getGender())
+                )
+                :
+                (ObjectUtils.isEmpty(cKycResponseDto)
+                        || ObjectUtils.isEmpty(cKycResponseDto.getDob())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getName())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getMobile())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getAadharNumber())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getPanNumber())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getAddress())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getPincode())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getGender())
+                );
     }
 
     public boolean isInvalidCreateLeadPayload() {
         return false;
     }
 
-    public boolean isInValidDocUploadPayload(CKycResponseDto cKycResponseDto) {
-        return (ObjectUtils.isEmpty(cKycResponseDto)
+    public boolean isInValidDocUploadPayload(CKycResponseDto cKycResponseDto, boolean isEligibleForLenderKyc) {
+        return isEligibleForLenderKyc ? (ObjectUtils.isEmpty(cKycResponseDto)
+                || ObjectUtils.isEmpty(cKycResponseDto.getSelfieString()))
+                :
+                (ObjectUtils.isEmpty(cKycResponseDto)
                 || ObjectUtils.isEmpty(cKycResponseDto.getSelfieString())
                 || ObjectUtils.isEmpty(cKycResponseDto.getPoaString())
         );

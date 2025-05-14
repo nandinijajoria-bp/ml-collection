@@ -42,6 +42,8 @@ public class LoanReceiptRequestDTO {
 
     private List<AllocationDetail> allocationDetails;
 
+    private List<FeeList> feeList;
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor
@@ -54,6 +56,23 @@ public class LoanReceiptRequestDTO {
         private String receivedDate;
 
         private String remarks;
+
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class FeeList {
+
+        private String feeType;
+
+        private Double feeAmount;
+
+        private Double paidAmount;
+
+        private Double waiverAmount;
 
     }
 
