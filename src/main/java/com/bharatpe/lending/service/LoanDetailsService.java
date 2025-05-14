@@ -1688,7 +1688,7 @@ public class LoanDetailsService {
 		LendingApplicationDetailsSlave lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		String viewState = ObjectUtils.isEmpty(lendingApplicationDetails)?null:lendingApplicationDetails.getApplicationViewState();
 		if(lendingRiskVariables.getUpdatedAt().after(lendingApplication.getUpdatedAt())){
-			logger.info("Checks based on lrv:{}, la:{}", lendingRiskVariables,lendingApplication);
+			logger.info("Checks based for merchantId :{},lrv:{}, la:{}", merchantId, lendingRiskVariables, lendingApplication);
 			return ApplicationDataResponseDTO.builder()
 					.merchantId(merchantId)
 					.applicationId(lendingApplication.getId())
@@ -1700,7 +1700,7 @@ public class LoanDetailsService {
 					.build();
 		}
 		LendingRiskVariablesSnapshotSlave lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-		logger.info("Checks based on lrv:{}, la:{}", lendingRiskVariables,lendingApplication);
+		logger.info("Checks based for merchantId :{},lrv:{}, la:{}", merchantId, lendingRiskVariables, lendingApplication);
 		return ApplicationDataResponseDTO.builder()
 				.applicationId(lendingApplication.getId())
 				.merchantId(merchantId)
