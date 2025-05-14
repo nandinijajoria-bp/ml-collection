@@ -175,19 +175,15 @@ public class TLBreService {
                         log.info("offer downgraded for application:{}", lendingApplication.getId());
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setNbfcApprovedLoanOfferAmt(Double.parseDouble(breCallbackResponseDto.getLimit()));
                         LendingApplication lendingApplication1 = commonService.createDuplicateApplication(lendingApplication, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
+                        // APR & IRR Checks
                         boolean shouldLenderNotBeConsidered = commonService.additionalLenderDowngradeChecksFailed(lendingApplication1, "TRILLIONLOANS");
                         if(shouldLenderNotBeConsidered){
                             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
                             commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.RISK_FAILED);
                             return false;
-                        } else {
-                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_PENDING.name());
-                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setStage(LenderAssociationStages.COMPLETED.name());
-                            commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                            return true;
                         }
                     }
-                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_PENDING.name());
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                     log.info("LALD DAO - {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
                     return true;

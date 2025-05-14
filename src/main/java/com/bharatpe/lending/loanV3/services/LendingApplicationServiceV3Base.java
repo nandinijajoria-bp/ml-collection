@@ -755,6 +755,15 @@ public abstract class LendingApplicationServiceV3Base {
                 return new ApiResponse<>(true, "Offer already modified");
             }
 
+            // calling update loan for Trillions
+            if(Lender.TRILLIONLOANS.name().equals(lendingApplication.getLender())){
+                ApiResponse<?> response = invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
+                if(ObjectUtils.isEmpty(response) || !response.success){
+                    log.error("Update Lead failed for application:{}", lendingApplication.getId());
+                    return new ApiResponse<>(false, "Try again");
+                }
+            }
+
             LendingOfferModificationSnapshot lendingOfferModificationSnapshot = new LendingOfferModificationSnapshot();
             lendingOfferModificationSnapshot.setApplicationId(lendingApplication.getId());
             lendingOfferModificationSnapshot.setPayableDays(lendingApplication.getPayableDays());
@@ -792,13 +801,7 @@ public abstract class LendingApplicationServiceV3Base {
             lendingApplication.setEdi(ediAmount);
 
             lendingApplicationDao.save(lendingApplication);
-            // calling update loan for Trillions
-            if(Lender.TRILLIONLOANS.name().equals(lendingApplication.getLender())){
-                ApiResponse<?> response =invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
-                if(!response.success){
-                    log.error("Update Lead failed for application:{}", lendingApplication.getId());
-                }
-            }
+
 
             LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
             lendingAuditTrial.setLoanId(Objects.nonNull(lendingApplication.getExternalLoanId())?lendingApplication.getExternalLoanId():"");

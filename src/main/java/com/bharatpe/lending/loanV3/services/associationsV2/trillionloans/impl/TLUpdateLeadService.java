@@ -36,6 +36,8 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.*;
 
+import static com.bharatpe.lending.constant.LendingConstants.OFFER_MODIFICATION_STATUS;
+
 @Slf4j
 @Service
 public class TLUpdateLeadService {
@@ -143,26 +145,33 @@ public class TLUpdateLeadService {
     public boolean invokeUpdateLoan(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto){
         log.info("calling update loan for application:{}", lenderAssociationDetailsRequestDto.getApplicationId());
         LendingApplication lendingApplication = lenderAssociationDetailsRequestDto.getLendingApplication();
-        try{
-            if(!LenderAssociationStatus.OFFER_MODIFICATION_PENDING.name().equals(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getDrawDownStatus())){
-                log.info("offer modification is not in pending state for application:{}", lenderAssociationDetailsRequestDto.getApplicationId());
+
+       try{
+            Map<String, Object> metaData = lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getMetaData();
+            if (Objects.nonNull(metaData)) {
+                Object offerModificationStatus = metaData.get("OFFER_MODIFICATION_STATUS");
+                if ("COMPLETED".equalsIgnoreCase(String.valueOf(offerModificationStatus))) {
+                    log.info("Offer modification already completed for application: {}", lenderAssociationDetailsRequestDto.getApplicationId());
+                    return true;
+                }
             }
+
             NBFCRequestDTO updateLoanRequestDTO = getPayloadForUpdateLoan(lenderAssociationDetailsRequestDto);
             if (Objects.isNull(updateLoanRequestDTO)){
                 log.info("error in update lead payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_FAILED.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.OFFER_MODIFICATION_FAILED);
+                setOfferModificationStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), "FAILED");
+                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return false;
             }
             NBFCResponseDTO updateLoanResponseDTO = lenderAPIGateway.invokeStage(updateLoanRequestDTO, LenderAssociationStages.UPDATE_LOAN);
             log.info("update loan response of TrillionLoans from nbfc: {} with applicationId: {}", updateLoanResponseDTO, lenderAssociationDetailsRequestDto.getApplicationId());
             if(Objects.nonNull(updateLoanResponseDTO) && updateLoanResponseDTO.getSuccess() && Objects.nonNull(updateLoanResponseDTO.getData())){
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_COMPLETED.name());
-                commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequestDto);
+                setOfferModificationStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), "COMPLETED");
+                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return true;
             } else {
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setDrawDownStatus(LenderAssociationStatus.OFFER_MODIFICATION_FAILED.name());
-                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.OFFER_MODIFICATION_FAILED);
+                setOfferModificationStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), "FAILED");
+                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return false;
             }
         } catch(Exception ex){
@@ -171,6 +180,13 @@ public class TLUpdateLeadService {
         }
         return false;
     }
+
+    private void setOfferModificationStatus(LendingApplicationLenderDetails lendingApplicationLenderDetails, String status) {
+        Map<String, Object> metaData = Optional.ofNullable(lendingApplicationLenderDetails.getMetaData()).orElse(new HashMap<>());
+        metaData.put(OFFER_MODIFICATION_STATUS, status);
+        lendingApplicationLenderDetails.setMetaData(metaData);
+    }
+
 
     private NBFCRequestDTO getPayloadForUpdateLoan(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
