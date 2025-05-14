@@ -1658,7 +1658,8 @@ public class LoanUtil {
 		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
 				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
 		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-			netForeclosureAtLender = (Double) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
+			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		}
 		return netForeclosureAtLender;
 	}
@@ -1716,6 +1717,7 @@ public class LoanUtil {
 			request.put("shop_number", lendingApplication.getShopNumber());
 			request.put("proof_front_side", proof_front_side);
 			request.put("proof_stock_side", proof_stock_side);
+			logger.info("Data published to DS for application Id : {} {}", request, lendingApplication.getId());
 			executorService.execute(() -> {
 				confluentKafkaTemplate.send(LendingConstants.APPLICATION_DS_EVENT_TOPIC, lendingApplication.getId().toString(), request);
 			});

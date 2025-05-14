@@ -284,6 +284,7 @@ public class LoanDisplayService {
             responseDTOFromOneLms.updateFromLoanSummaryOneLms(loan, lmsLoanDetails, matchedLoan);
 
             matchedLoan.setDueAmount((double) lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount());
+            matchedLoan.setDuePenalty((double) lmsLoanDetails.getLoanSummary().getOverdueOtherCharges());
             lendingPaymentScheduleDao.save(matchedLoan);
 
 
@@ -300,7 +301,7 @@ public class LoanDisplayService {
                 }
                 Double excessCollectionBalance = (double) lmsLoanDetails.getLoanSummary().getExcessPayable();
 
-                loan.setTotalDue(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount());
+                loan.setTotalDue(lmsLoanDetails.getLoanSummary().getOverdueInstalmentAmount() + lmsLoanDetails.getLoanSummary().getOverdueOtherCharges());
                 loan.setTotalExcessBalance(excessCollectionBalance);
                 loan.setNetPayable(Math.max(loan.getTotalDue() - loan.getTotalExcessBalance(), 0));
 
@@ -320,7 +321,7 @@ public class LoanDisplayService {
             // EDI 7 Days model always as rediscussed with product
             loan.setEdiDays(7);
 
-            loan.setDuePenalty(lmsLoanDetails.getLoanSummary().getPaidPenalCharges());
+            loan.setDuePenalty(lmsLoanDetails.getLoanSummary().getOverdueOtherCharges());
 
             // TODO : Need to discuss from NACH Service :
             loan.setNachBounceAmount(0);

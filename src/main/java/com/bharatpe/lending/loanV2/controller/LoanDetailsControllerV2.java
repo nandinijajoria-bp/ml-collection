@@ -210,12 +210,13 @@ public class LoanDetailsControllerV2 {
 
     @GetMapping(value = "/getConsent")
     public ResponseEntity<ApiResponse<?>> getConsent(@RequestAttribute BasicDetailsDto merchant,
-                                                     @RequestParam(required = false) String pancard) {
+                                                     @RequestParam(required = false) String pancard,
+                                                     @RequestParam(required = false) String source) {
         if (Objects.isNull(merchant)) {
             log.info("no merchant found");
             return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
         }
-        return ResponseEntity.ok(loanDetailsServiceV2.getConsent(merchant, pancard));
+        return ResponseEntity.ok(loanDetailsServiceV2.getConsent(merchant, pancard, source));
     }
 
     @PostMapping(value = "/updateConsent")
