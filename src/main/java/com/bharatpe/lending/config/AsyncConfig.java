@@ -53,9 +53,9 @@ public class AsyncConfig implements AsyncConfigurer {
     public Executor getEmiDashboardTaskExecutor(){
         return new TaskExecutorBuilder()
                 .threadNamePrefix("emi-dashboard-task-executor-")
-                .corePoolSize(15)
-                .maxPoolSize(30)
-                .queueCapacity(50)
+                .corePoolSize(25)
+                .maxPoolSize(50)
+                .queueCapacity(250)
                 .build();
     }
 
