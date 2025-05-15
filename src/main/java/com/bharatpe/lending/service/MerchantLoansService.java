@@ -1277,6 +1277,8 @@ public class MerchantLoansService {
                     loanEligibilityDTO.setLoanType("TOPUP");
                     loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
                     loanEligibilityDTO.setId(eligibleLoan.getId());
+                    loanEligibilityDTO.setApr(Double.valueOf(df.format(eligibleLoan.getApr())));
+                    loanEligibilityDTO.setIrr(Double.valueOf(df.format(eligibleLoan.getIrr())));
                     eligiblity.add(loanEligibilityDTO);
                 }
 
@@ -1510,6 +1512,8 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
                 loanEligibilityDTO.setId(eligibleLoan.getId());
+                loanEligibilityDTO.setApr(Double.valueOf(df.format(eligibleLoan.getApr())));
+                loanEligibilityDTO.setIrr(Double.valueOf(df.format(eligibleLoan.getIrr())));
                 eligiblity.add(loanEligibilityDTO);
             }
 
@@ -1701,6 +1705,8 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setParentLan(lendingApplication.getNbfcId());
                 loanEligibilityDTO.setParentLoanNo(lendingApplication.getExternalLoanId());
                 eligiblity.add(loanEligibilityDTO);
+                loanEligibilityDTO.setApr(Double.valueOf(df.format(eligibleLoan.getApr())));
+                loanEligibilityDTO.setIrr(Double.valueOf(df.format(eligibleLoan.getIrr())));
             }
 
         } catch (Exception e) {
@@ -1965,6 +1971,8 @@ public class MerchantLoansService {
                 loanEligibilityDTO.setLoanType("TOPUP");
                 loanEligibilityDTO.setEdiCount(eligibleLoan.getEdiCount());
                 loanEligibilityDTO.setId(eligibleLoan.getId());
+                loanEligibilityDTO.setApr(Double.valueOf(df.format(eligibleLoan.getApr())));
+                loanEligibilityDTO.setIrr(Double.valueOf(df.format(eligibleLoan.getIrr())));
                 eligiblity.add(loanEligibilityDTO);
             }
 
