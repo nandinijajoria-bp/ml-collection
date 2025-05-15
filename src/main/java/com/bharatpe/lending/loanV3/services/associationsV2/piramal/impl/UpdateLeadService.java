@@ -37,6 +37,7 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -295,7 +296,8 @@ public class UpdateLeadService {
 
     public CreateLeadRequestDTO.ApplicantsDetail.Applicant.Address getKycAddress(LendingApplicationKycDetails lendingApplicationKycDetails, String addressType) {
         if(!ObjectUtils.isEmpty(lendingApplicationKycDetails)) {
-            String address = converterUtils.parseData(lendingApplicationKycDetails.getAadharAddress());
+            String[] addressFields = lendingApplicationKycDetails.getAadharAddress().split(";");
+            String address = Arrays.stream(addressFields).limit(3).collect(Collectors.joining(" "));
             int addressSize = address.length();
             String address1 = "", address2 = "", address3 = "";
             if (addressSize <= 40) {
@@ -315,7 +317,7 @@ public class UpdateLeadService {
                     .addressLine2(address2)
                     .addressLine3(address3)
                     .city(lendingApplicationKycDetails.getAadharCity())
-                    .street(".")
+                    .street(addressFields[3])
                     .buildingNumber(".")
                     .stateCode(Objects.nonNull(StateMapping.getStateEnum(lendingApplicationKycDetails.getAadharState())) ? StateMapping.getStateEnum(lendingApplicationKycDetails.getAadharState()).name() : null)
                     .country("INDIA")
@@ -325,5 +327,4 @@ public class UpdateLeadService {
         }
         return null;
     }
-
 }
