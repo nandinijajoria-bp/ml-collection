@@ -193,7 +193,7 @@ public class TLUpdateLeadService {
         try {
             TLUpdateLoanRequestDto tlUpdateLoanRequestDto = null;
             tlUpdateLoanRequestDto =  TLUpdateLoanRequestDto.builder()
-                    .tenure(lendingApplication.getTenureInMonths())
+                    .tenure(lendingApplication.getTenureInMonths() * 30)
                     .leadId(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadId())
                     .loanAmountRequested(String.valueOf(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getNbfcApprovedLoanOfferAmt()))
                     .lender(lendingApplication.getLender())
