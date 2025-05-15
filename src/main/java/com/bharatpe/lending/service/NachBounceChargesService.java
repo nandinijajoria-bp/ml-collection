@@ -1,5 +1,6 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -12,6 +13,7 @@ import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.query.dao.LendingPullPaymentDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPullPaymentSlave;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.util.LoanUtil;
@@ -45,6 +47,9 @@ public class NachBounceChargesService {
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
 
     @Autowired
+    LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
     LoanUtil loanUtil;
 
     @Value("${payu.nach.bounce.charge:500}")
@@ -56,13 +61,58 @@ public class NachBounceChargesService {
     @Value("${lender.nach.bounce.check:PAYU,PIRAMAL}")
     List<String> LENDER_NACH_BOUNCE_CHECK;
 
+    @Value("${flat.overdue.penalty.piramal.rollout.date:-}")
+    String faltOverDuePenaltyRolloutDate;
+
+    @Value("${dpd.penalty.payu.rollout.date:-}")
+    String dpdPenaltyPayURolloutDate;
+
     public Double getNachCharges(LendingPaymentSchedule lendingPaymentSchedule) {
         Double nachCharges = 0d;
-        if (LENDER_NACH_BOUNCE_CHECK.contains(lendingPaymentSchedule.getNbfc()) && checkForNachBounce(lendingPaymentSchedule)) {
+        boolean isNachBounceApplicable = checkNachBounceCharges(lendingPaymentSchedule);
+        if (LENDER_NACH_BOUNCE_CHECK.contains(lendingPaymentSchedule.getNbfc()) && checkForNachBounce(lendingPaymentSchedule) && isNachBounceApplicable) {
             log.info("Found Nach Bounce Charges for loan: {}, nbfc: {} ", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
             nachCharges += getLenderNachCharges(lendingPaymentSchedule.getNbfc());
         }
         return nachCharges;
+    }
+
+    private boolean checkNachBounceCharges(LendingPaymentSchedule lendingPaymentSchedule) {
+        try {
+            log.info("Checking Nach Bounce Charges for loan: {}, nbfc: {} ", lendingPaymentSchedule.getId(), lendingPaymentSchedule.getNbfc());
+            if (lendingPaymentSchedule != null && lendingPaymentSchedule.getApplicationId() != null) {
+                Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(lendingPaymentSchedule.getApplicationId());
+                log.info("Checking Nach Bounce Charges for loan: {}, lendingApplication: {} ", lendingPaymentSchedule.getId(), lendingApplicationOptional);
+                if (lendingApplicationOptional == null) return false;
+                LendingApplication lendingApplication = lendingApplicationOptional.get();
+                Date thresholdDate = getPenaltyActivationDateFromProperty(lendingPaymentSchedule.getNbfc());
+                if (thresholdDate != null && lendingApplication.getAgreementAt().after(thresholdDate)) return true;
+            }
+            return false;
+        }catch (Exception e){
+            log.error("Getting error while real time nach bounce charges for loan: {}, nbfc: {} error {} , {}", lendingPaymentSchedule, lendingPaymentSchedule, e.getMessage(),Arrays.asList(e.getStackTrace()));
+            return false;
+        }
+    }
+
+    private Date getPenaltyActivationDateFromProperty(String lender) {
+        String rolloutDate = getLenderNachBounceRollOutDate(lender);
+        log.info("Rollout date for lender {} is {}", lender, rolloutDate);
+        if(rolloutDate == null) return null;
+        return DateTimeUtil.parseDate(getLenderNachBounceRollOutDate(lender), "yyyy-MM-dd hh:mm:ss");
+    }
+
+    public String getLenderNachBounceRollOutDate(String lender) {
+        switch (lender) {
+            case "PIRAMAL":
+                return faltOverDuePenaltyRolloutDate;
+
+            case "PAYU":
+                return dpdPenaltyPayURolloutDate;
+
+            default:
+              return null;
+        }
     }
 
     private Integer getLenderNachCharges(String lender) {
