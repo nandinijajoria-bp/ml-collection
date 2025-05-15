@@ -55,6 +55,7 @@ public class CommonService {
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
+
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
             log.info("setting stage manageApplicationState {}", lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getStage());

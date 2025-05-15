@@ -463,6 +463,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLoanOffer(modifiedOfferStateDTO.getLoanOffer());
         loanDetailsV3Response.setApplicationId(modifiedOfferStateDTO.getApplicationId());
         loanDetailsV3Response.setMerchantId(modifiedOfferStateDTO.getMerchantId());
+        loanDetailsV3Response.setLender(modifiedOfferStateDTO.getLender());
+
     }
 
     private static void setLenderAggregationResponse(LenderAggregationResponseDto lenderAggregationResponseDto, LoanDetailsV3Response loanDetailsV3Response){

@@ -129,6 +129,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Value("${ekyc.status-poll.rollout.percentage:5}")
     private int ekycStatusPollRolloutPercentage;
 
+    @Value("${offer.modified.eligible.lender:}")
+    String offerModifiedEligibleLenders;
+
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
     @Autowired
@@ -752,6 +755,15 @@ public abstract class LendingApplicationServiceV3Base {
                 return new ApiResponse<>(true, "Offer already modified");
             }
 
+            // calling update loan for Trillions
+            if(Lender.TRILLIONLOANS.name().equals(lendingApplication.getLender())){
+                ApiResponse<?> response = invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
+                if(ObjectUtils.isEmpty(response) || !response.success){
+                    log.error("Update Lead failed for application:{}", lendingApplication.getId());
+                    return new ApiResponse<>(false, "Try again");
+                }
+            }
+
             LendingOfferModificationSnapshot lendingOfferModificationSnapshot = new LendingOfferModificationSnapshot();
             lendingOfferModificationSnapshot.setApplicationId(lendingApplication.getId());
             lendingOfferModificationSnapshot.setPayableDays(lendingApplication.getPayableDays());
@@ -805,7 +817,7 @@ public abstract class LendingApplicationServiceV3Base {
 
             return new ApiResponse<>(true, "Offer successfully modified");
         } catch (Exception ex){
-            log.info("Exception occurred while modifying offer for application:{}", applicationId);
+            log.info("Exception occurred while modifying offer for application:{}, {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new ApiResponse<>(false, "something went wrong");
     }
@@ -904,13 +916,13 @@ public abstract class LendingApplicationServiceV3Base {
                     modifiedOfferResponseDto.setNewOffer(newOfferDetails);
                     return modifiedOfferResponseDto;
                 }
-        }
-        return null;
-    } catch (Exception ex){
+            }
+            return null;
+        } catch (Exception ex){
             log.error("Exception occurred:{}, {} for application:{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()), applicationId);
         }
-            return null;
-        }
+        return null;
+    }
 
     public NBFCResponseDTO<?> getStageDetails(InvokeStageRequestDTO invokeStageRequest) {
         try {
