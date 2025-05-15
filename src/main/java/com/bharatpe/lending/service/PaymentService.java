@@ -454,7 +454,7 @@ public class PaymentService {
                     }
                     retry++;
                 }
-                if("PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) ){
+                if(netForeclosureAtLender != null && netForeclosureAtLender > 0 && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) ){
                     logger.info("Checking for unposted piramal penalty for loanId:{}", activeLoan.getId());
                     double unpostedPiramalPenalty = checkUnpostedPiramalPenalty(activeLoan.getId());
                     unpostedPiramalPenalty = unpostedPiramalPenalty * -1;
