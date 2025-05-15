@@ -129,9 +129,6 @@ public abstract class LendingApplicationServiceV3Base {
     @Value("${ekyc.status-poll.rollout.percentage:5}")
     private int ekycStatusPollRolloutPercentage;
 
-    @Value("${offer.modified.eligible.lender:}")
-    String offerModifiedEligibleLenders;
-
     @Autowired
     private NbfcRequestRetryService nbfcRequestRetryService;
     @Autowired
