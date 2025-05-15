@@ -734,4 +734,12 @@ public class AssociationServiceUtil {
                 return false;
         }
     }
+
+    public boolean invokeUpdateLoan(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto){
+        switch (lender){
+            case "TRILLIONLOANS":
+                return tlUpdateLeadService.invokeUpdateLoan(lenderAssociationDetailsRequestDto);
+            default:return false;
+        }
+    }
 }

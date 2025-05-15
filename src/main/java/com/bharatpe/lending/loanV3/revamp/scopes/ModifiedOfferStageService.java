@@ -72,6 +72,7 @@ public class ModifiedOfferStageService implements IStageDataService<ModifiedOffe
                    .ediAmount(ediAmount.intValue())
                    .arrangerFee((int)processingFee)
                    .applicationId(lendingApplication1.getId())
+                   .lender(lendingApplication1.getLender())
                    .merchantId(scopeDataArgs.getMerchant().getId())
                    .build();
            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication1.getId(), LendingViewStates.MODIFIED_OFFER);

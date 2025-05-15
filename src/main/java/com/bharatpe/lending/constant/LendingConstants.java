@@ -143,6 +143,7 @@ public interface LendingConstants {
 	String CALL_MASKED_MOBILE_FLOW="CALL_MASKED_MOBILE_FLOW";
 	String OFFER_DOWNGRADE_PERCENTAGE = "offer_downgrade_percentage";
 	String OFFER_DOWNGRADE_THRESHOLD = "offer_downgrade_threshold";
+	String OFFER_MODIFICATION_STATUS = "offer_modification_status";
 
 	String HEADER_X_API_KEY = "X-API-KEY";
 	String INSURANCE_ELIGIBILITY_API =  "/api/eligibility";
