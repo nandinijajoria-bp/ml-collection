@@ -803,7 +803,7 @@ public class LoanDashboardService {
             }
 
             Experian experian = experianDao.getByMerchantId(merchant.getId());
-            if(ObjectUtils.isEmpty(experian)){
+            if(ObjectUtils.isEmpty(experian) || Objects.isNull(experian.getPincode())){
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
