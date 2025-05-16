@@ -813,12 +813,12 @@ public abstract class LendingApplicationServiceV3Base {
             lendingAuditTrialDao.save(lendingAuditTrial);
 
 
+            return new ApiResponse<>(true, createResponse("true", "Offer successfully modified"), "Offer successfully modified");
 
-            return new ApiResponse<>(true, "Offer successfully modified");
         } catch (Exception ex){
             log.info("Exception occurred while modifying offer for application:{}, {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
-        return new ApiResponse<>(false, "something went wrong");
+        return new ApiResponse<>(false, createResponse("false", "something went wrong"), "something went wrong");
     }
 
     private Map<String, Object> createResponse(String success, String message){
