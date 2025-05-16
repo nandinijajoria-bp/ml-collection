@@ -216,8 +216,14 @@ public class BreRequestKafka {
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
             if(!offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
                     && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
-                log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
                 existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.LENDER_BRE_OFFER_DOWNGRADE.name());
+                existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                    lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                    log.info("rejecting Topup application as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
+                    return;
+                }
+                log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
                 nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
                 return;
             }
