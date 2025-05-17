@@ -509,7 +509,8 @@ public class KycUtils {
         List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, false, "BUSINESSDOCS");
         for (KycDoc doc : kycDocs) {
             if (ObjectUtils.isEmpty(docs) || docs.contains(doc.getSubDocType().name())) {
-                businessDocs.add(new BusinessDocsDTO(doc.getSubDocType(), doc.getDocPdfUrl(), BusinessDocsDTO.getDocPriorityForLender(doc.getSubDocType(), lender), doc.getDocIdentifier()));
+                String url = !ObjectUtils.isEmpty(doc.getDocPdfUrl()) ? doc.getDocPdfUrl() : doc.getDocFrontImageUrl();
+                businessDocs.add(new BusinessDocsDTO(doc.getSubDocType(), url, BusinessDocsDTO.getDocPriorityForLender(doc.getSubDocType(), lender), doc.getDocIdentifier()));
             }
         }
         return businessDocs;
