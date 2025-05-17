@@ -734,22 +734,24 @@ public abstract class LendingApplicationServiceV3Base {
         try{
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (ObjectUtils.isEmpty(lendingApplication)){
-                return new ApiResponse<>(false, "Something went wrong");
+                return new ApiResponse<>(false, createResponse("false", "Something went wrong"), "Something went wrong");
             }
 
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
 
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
-                return new ApiResponse<>(false, "Something went wrong");
+                return new ApiResponse<>(false, createResponse("false", "Something went wrong"), "Something went wrong");
+
             }
 
             if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()<=0){
-                return new ApiResponse<>(false, "Revised offer amount is less than 0");
+                return new ApiResponse<>(false, createResponse("false", "Revised offer amount is less than 0"), "Revised offer amount is less than 0");
+
             }
 
             if(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() >= lendingApplication.getLoanAmount()) {
                 log.info("nbfcApprovedLoanOfferAmt is equal to loan amount for applicationId {}", lendingApplication.getId());
-                return new ApiResponse<>(true, "Offer already modified");
+                return new ApiResponse<>(true, createResponse("true", "Offer already modified"), "Offer already modified");
             }
 
             // calling update loan for Trillions
@@ -757,7 +759,7 @@ public abstract class LendingApplicationServiceV3Base {
                 ApiResponse<?> response = invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
                 if(ObjectUtils.isEmpty(response) || !response.success){
                     log.error("Update Lead failed for application:{}", lendingApplication.getId());
-                    return new ApiResponse<>(false, "Try again");
+                    return new ApiResponse<>(false, createResponse("false", "Please try again later"), "Please try again later");
                 }
             }
 
@@ -811,12 +813,19 @@ public abstract class LendingApplicationServiceV3Base {
             lendingAuditTrialDao.save(lendingAuditTrial);
 
 
+            return new ApiResponse<>(true, createResponse("true", "Offer successfully modified"), "Offer successfully modified");
 
-            return new ApiResponse<>(true, "Offer successfully modified");
         } catch (Exception ex){
             log.info("Exception occurred while modifying offer for application:{}, {}, {}", applicationId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
-        return new ApiResponse<>(false, "something went wrong");
+        return new ApiResponse<>(false, createResponse("false", "something went wrong"), "something went wrong");
+    }
+
+    private Map<String, Object> createResponse(String success, String message){
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", success);
+        response.put("message", message);
+        return response;
     }
 
     public ModifiedOfferResponseDto modifiedOfferDetails(Long applicationId, Long merchantId){
