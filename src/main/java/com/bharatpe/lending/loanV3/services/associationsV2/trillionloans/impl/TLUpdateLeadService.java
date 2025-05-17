@@ -133,7 +133,7 @@ public class TLUpdateLeadService {
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
-                    .payload(updateLeadDetails)
+                    .payload(updateLeadDetails).topup("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
                     .build();
         } catch (Exception e) {
             log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -208,7 +208,7 @@ public class TLUpdateLeadService {
                     .applicationId(lendingApplication.getId())
                     .lender(lendingApplication.getLender())
                     .productName("LENDING")
-                    .payload(tlUpdateLoanRequestDto)
+                    .payload(tlUpdateLoanRequestDto).topup("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()))
                     .build();
         } catch (Exception ex){
             log.info("Exception in creating payload of Update Lead of TrillionLoans for {} {} {}", lendingApplication.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
