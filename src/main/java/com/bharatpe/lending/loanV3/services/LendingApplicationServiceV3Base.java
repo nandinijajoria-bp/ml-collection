@@ -591,7 +591,6 @@ public abstract class LendingApplicationServiceV3Base {
             invokeLenderAssociationRequest.setForceEnable(false);
             initLenderAssociation(invokeLenderAssociationRequest);
         }
-        Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
 
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("lead creation triggered ! Please retry for status in few minutes");
@@ -615,6 +614,7 @@ public abstract class LendingApplicationServiceV3Base {
                             .build());
                 }
             }
+            Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
             if(offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
                     !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
                 log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
