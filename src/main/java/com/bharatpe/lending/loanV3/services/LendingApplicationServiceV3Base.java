@@ -146,10 +146,10 @@ public abstract class LendingApplicationServiceV3Base {
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
     public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
-        LendingApplication currentDraftApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
+        LendingApplication currentDraftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "draft");
         if (ObjectUtils.isEmpty(currentDraftApplication)) {
-            LendingApplication currentRejectApplication =  lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
-            if(!ObjectUtils.isEmpty(currentRejectApplication)) {
+            LendingApplication currentRejectApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, "rejected");
+            if (!ObjectUtils.isEmpty(currentRejectApplication)) {
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                         .status(LenderAssociationStatus.LENDER_ASSOCIATION_FAILED)
                         .stage(LenderAssociationStages.FAILED)
@@ -157,15 +157,15 @@ public abstract class LendingApplicationServiceV3Base {
                         .lender(currentRejectApplication.getLender())
                         .build());
             }
-            return new ApiResponse<>(false,"open draft lending application not found");
+            return new ApiResponse<>(false, "open draft lending application not found");
         }
-        if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
+        if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(currentDraftApplication.getLender()) && LoanType.TOPUP.name().equalsIgnoreCase(currentDraftApplication.getLoanType())) {
             return fetchTopupApplicationStatus(currentDraftApplication, lenderKycStatus, userReturnedFromLenderKyc);
         }
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(currentDraftApplication.getId());
         if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
-            return new ApiResponse<>(false,"lending application details not found");
+            return new ApiResponse<>(false, "lending application details not found");
         }
         if (LenderAssociationStages.LENDER_CHANGE.name().equalsIgnoreCase(lendingApplicationDetails.getStage())) {
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
@@ -203,8 +203,7 @@ public abstract class LendingApplicationServiceV3Base {
                     .lender(currentDraftApplication.getLender())
                     .build());
 
-        }
-        else {
+        } else {
             if (rolloutUtil.lendingPlatformNbfcFlowApplicable(merchantId)) {
                 log.info("Application rolled out to rearch v1 version: {}", lendingApplicationLenderDetails.getApplicationId());
                 loanCreationService.initiateLoanCreationWorkflow(lendingApplicationLenderDetails.getApplicationId());
@@ -218,9 +217,9 @@ public abstract class LendingApplicationServiceV3Base {
             Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
             if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
                 // check if interest rate is lower ??
-                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)){
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
                     Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
-                    if(eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()){
+                    if (eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()) {
                         log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());
                         return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                                 .isRoiDecreased(true)
@@ -232,7 +231,7 @@ public abstract class LendingApplicationServiceV3Base {
                                 .build());
                     }
                 }
-                if(offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
+                if (offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
                         !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
                     log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
                     return new ApiResponse<>(LenderAssociationStatusResponse.builder()
@@ -306,9 +305,9 @@ public abstract class LendingApplicationServiceV3Base {
                 return lenderAssociationStatusResponse;
             }
         }
-        return new ApiResponse<>(false,"something went wrong");
+        return new ApiResponse<>(false, "something went wrong");
     }
-
+    
     private void checkEkycStatusRetry(LendingApplication currentDraftApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails,
                                       ApiResponse<LenderAssociationStatusResponse> lenderAssociationStatusResponse, boolean userReturnedFromLenderKyc, String originalLaldKycStatus) {
         if (ObjectUtils.isEmpty(currentDraftApplication) || ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -592,6 +591,8 @@ public abstract class LendingApplicationServiceV3Base {
             invokeLenderAssociationRequest.setForceEnable(false);
             initLenderAssociation(invokeLenderAssociationRequest);
         }
+        Double approvedLoanOfferAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
+
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("lead creation triggered ! Please retry for status in few minutes");
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
@@ -601,6 +602,30 @@ public abstract class LendingApplicationServiceV3Base {
                     .lender(currentDraftApplication.getLender())
                     .build());
         } else if (LenderAssociationStages.COMPLETED.name().equalsIgnoreCase(getWrapperStage(lendingApplicationLenderDetails.getStage()))) {
+            if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(currentDraftApplication.getMerchantId())){
+                Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+                if(eligibleLoan.isPresent() && currentDraftApplication.getEdi().intValue() < eligibleLoan.get().getEdi()){
+                    log.info("EDI decreased for applicationId {}", currentDraftApplication.getId());
+                    return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                            .isRoiDecreased(true)
+                            .lender(currentDraftApplication.getLender())
+                            .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                            .stage(LenderAssociationStages.COMPLETED)
+                            .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                            .build());
+                }
+            }
+            if(offerModifiedEligibleLenders.contains(currentDraftApplication.getLender()) &&
+                    !ObjectUtils.isEmpty(approvedLoanOfferAmount) && currentDraftApplication.getLoanAmount() > approvedLoanOfferAmount) {
+                log.info("offer downgraded for applicationId {}", currentDraftApplication.getId());
+                return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                        .isRoiDecreased(true)
+                        .lender(currentDraftApplication.getLender())
+                        .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                        .stage(LenderAssociationStages.COMPLETED)
+                        .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                        .build());
+            }
             return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                     .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                     .stage(LenderAssociationStages.COMPLETED)
