@@ -11,6 +11,7 @@ import lombok.*;
 @NoArgsConstructor
 public class Eligibility {
     private Double loanAmount;
+    private Double emiLoanAmount;
     private Integer arrangerFee;
     private Double interestRate;
     private Double initialRoi;

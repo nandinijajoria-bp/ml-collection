@@ -21,10 +21,12 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.BureauDataResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.BusinessDocsDTO;
 import com.bharatpe.lending.loanV3.dto.NameAndDobDetailsDto;
 import com.bharatpe.lending.loanV3.dto.PoaXmlDTO;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
@@ -32,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -87,9 +90,6 @@ public class KycUtils {
     @Value("${piramal.lender.kyc.rollout.percent:1}")
     Integer piramalLenderKycRolloutPercent;
 
-    @Value("${trillion.lender.kyc.rollout.percent:1}")
-    Integer trillionLenderKycRolloutPercent;
-
     @Autowired
     EasyLoanUtil easyLoanUtil;
 
@@ -107,6 +107,14 @@ public class KycUtils {
 
     @Autowired
     BureauHandler bureauHandler;
+
+    @Autowired
+    @Lazy
+    TrillionLoansConfig trillionLoansConfig;
+
+    @Autowired
+    @Lazy
+    LoanUtilV3 loanUtilV3;
 
     public CKycResponseDto getKycData(Long merchantId) {
         CKycResponseDto cKycResponseDto = new CKycResponseDto();
@@ -416,7 +424,7 @@ public class KycUtils {
             lendingApplicationKycDetails.setFatherName(getFatherName(cKycResponseDto.getCareOf() + ","));
             lendingApplicationKycDetails.setDob(cKycResponseDto.getDob());
             lendingApplicationKycDetails.setAadharIdentifier(cKycResponseDto.getAadharNumber());
-            lendingApplicationKycDetails.setAadharXml(cKycResponseDto.getPoaString());
+//            lendingApplicationKycDetails.setAadharXml(cKycResponseDto.getPoaString());
             lendingApplicationKycDetails.setGender(cKycResponseDto.getGender());
             lendingApplicationKycDetails.setAadharState(cKycResponseDto.getState());
             lendingApplicationKycDetails.setAadharCity(cKycResponseDto.getCity());
@@ -433,7 +441,7 @@ public class KycUtils {
                 case "PIRAMAL":
                     return easyLoanUtil.percentScaleUp(merchantId, piramalLenderKycRolloutPercent);
                 case "TRILLIONLOANS":
-                    return !isTopup && easyLoanUtil.percentScaleUp(merchantId, trillionLenderKycRolloutPercent);
+                    return !isTopup && (!trillionLoansConfig.getTrillionEkycPhaseRollout() || loanUtilV3.eKycPhaseRollout(lender, merchantId));
                 default:
                     return false;
             }
@@ -501,7 +509,8 @@ public class KycUtils {
         List<KycDoc> kycDocs = kycHandler.getKycDoc(merchantId, false, false, "BUSINESSDOCS");
         for (KycDoc doc : kycDocs) {
             if (ObjectUtils.isEmpty(docs) || docs.contains(doc.getSubDocType().name())) {
-                businessDocs.add(new BusinessDocsDTO(doc.getSubDocType(), doc.getDocPdfUrl(), BusinessDocsDTO.getDocPriorityForLender(doc.getSubDocType(), lender), doc.getDocIdentifier()));
+                String url = !ObjectUtils.isEmpty(doc.getDocPdfUrl()) ? doc.getDocPdfUrl() : doc.getDocFrontImageUrl();
+                businessDocs.add(new BusinessDocsDTO(doc.getSubDocType(), url, BusinessDocsDTO.getDocPriorityForLender(doc.getSubDocType(), lender), doc.getDocIdentifier()));
             }
         }
         return businessDocs;

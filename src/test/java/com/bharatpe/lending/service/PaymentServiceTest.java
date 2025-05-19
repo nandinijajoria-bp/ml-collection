@@ -5,6 +5,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
 import com.bharatpe.lending.dto.ForeClosureDetailDTO;
+import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
 import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
@@ -87,7 +88,7 @@ public class PaymentServiceTest {
         when(lenderAssociationStageFactory.getStageAssociatedLenderService(anyString())).thenReturn(foreClosureAmtStageSvcFactory);
         when(foreClosureAmtStageSvcFactory.getLenderAssociationService(anyString())).thenReturn(null);
         when(loanUtil.checkIfForeClosureChargesApplicable(any(), anyString())).thenReturn(true);
-        when(loanUtil.calculateForeClosureCharges(any(), any())).thenReturn(foreClosureDetailDTO);
+        when(loanUtil.calculateForeClosureCharges(any(), any(), any())).thenReturn(foreClosureDetailDTO);
 
         PaymentDetailsResponseDTO response = paymentService.getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);
         assertNotNull(response);
@@ -130,7 +131,7 @@ public class PaymentServiceTest {
         when(loanUtil.getForeclosureAmount(any(), any())).thenReturn(1000);
         when(lenderAssociationStageFactory.getStageAssociatedLenderService(anyString())).thenReturn(foreClosureAmtStageSvcFactory);
         when(foreClosureAmtStageSvcFactory.getLenderAssociationService(anyString())).thenReturn(abflForeclosureFetchService);
-        when(abflForeclosureFetchService.invoke(anyLong(), any())).thenReturn(1200D);
+        when(abflForeclosureFetchService.invoke(anyLong(), any())).thenReturn(LenderForeclosureDetailsDTO.builder().foreclosureAmount(1200D).build());
         when(loanUtil.checkIfForeClosureChargesApplicable(any(), anyString())).thenReturn(false);
 
         PaymentDetailsResponseDTO response = paymentService.getPaymentDetailsForActiveLoan(activeLoan, showForeClosureDetails);

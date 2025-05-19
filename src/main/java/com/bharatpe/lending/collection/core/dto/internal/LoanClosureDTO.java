@@ -14,4 +14,7 @@ public class LoanClosureDTO {
     private Long orderId;
     private String paymentType;
     private boolean foreClosure;
+    private boolean postCharges;
+    private String chargeId;
+    private Double foreclosureCharges;
 }

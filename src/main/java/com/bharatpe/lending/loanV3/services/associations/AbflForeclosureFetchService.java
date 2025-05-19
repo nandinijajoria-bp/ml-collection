@@ -5,6 +5,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.ForeClosureAmountResponse;
 import com.bharatpe.lending.loanV3.dto.ForeclosureAmountRequest;
@@ -21,7 +22,7 @@ import java.util.Optional;
 
 @Service
 @Slf4j
-public class AbflForeclosureFetchService implements ILenderAssociationService<Double> {
+public class AbflForeclosureFetchService implements ILenderAssociationService<LenderForeclosureDetailsDTO> {
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
@@ -33,70 +34,41 @@ public class AbflForeclosureFetchService implements ILenderAssociationService<Do
     LenderGatewayFactory lenderGatewayFactory;
 
     @Override
-    public Double invoke(Long applicationId, Map<String, Object> args) {
+    public LenderForeclosureDetailsDTO invoke(Long applicationId, Map<String, Object> args) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
         if (!lendingApplication.isPresent()) {
             log.info("no lending application record found for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         LendingApplicationLenderDetails lendingApplicationLenderDetails =
                 lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, Status.ACTIVE.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             log.info("no lender assc record found for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         ForeclosureAmountRequest foreclosureAmountRequest = ForeclosureAmountRequest.builder()
                 .applicationId(applicationId)
                 .lender(lendingApplicationLenderDetails.getLender())
                 .productName("LENDING")
+                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                 .payload(ForeclosureAmountRequest.Payload.builder()
                         .accountId(lendingApplication.get().getExternalLoanId())
                         .loanNo(lendingApplicationLenderDetails.getLan())
                         .dealNo(lendingApplicationLenderDetails.getDealNo())
                         .build())
-                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                 .build();
         INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(lendingApplicationLenderDetails.getLender());
         ForeClosureAmountResponse foreClosureAmountResponse = apiGatewayV3.fetchDueForeclosureAmount(foreclosureAmountRequest);
         if (ObjectUtils.isEmpty(foreClosureAmountResponse) || !foreClosureAmountResponse.getSuccess() ||
             ObjectUtils.isEmpty(foreClosureAmountResponse.getData()) || ObjectUtils.isEmpty(foreClosureAmountResponse.getData().getData())) {
             log.info("error while processing foreclosure amount for {}", applicationId);
-            return 0d;
+            return LenderForeclosureDetailsDTO.buildEmptyResponse();
         }
         Double amt = foreClosureAmountResponse.getData().getData().getNetReceivablePayable();
-        return ObjectUtils.isEmpty(amt) ? 0d : amt;
-    }
 
-    public Double fetchPrincipleOutstanding(Long applicationId, Map<String, Object> args) {
-        Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
-        if (!lendingApplication.isPresent()) {
-            log.info("no lending application record found for {}", applicationId);
-            return 0d;
-        }
-        LendingApplicationLenderDetails lendingApplicationLenderDetails =
-                lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, Status.ACTIVE.name());
-        if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-            log.info("no lender assc record found for {}", applicationId);
-            return 0d;
-        }
-        ForeclosureAmountRequest foreclosureAmountRequest = ForeclosureAmountRequest.builder()
-                .applicationId(applicationId)
-                .lender(lendingApplicationLenderDetails.getLender())
-                .productName("LENDING")
-                .payload(ForeclosureAmountRequest.Payload.builder()
-                                 .accountId(lendingApplication.get().getExternalLoanId())
-                                 .loanNo(lendingApplicationLenderDetails.getLan())
-                                 .dealNo(lendingApplicationLenderDetails.getDealNo())
-                                 .build())
+        return  LenderForeclosureDetailsDTO.builder()
+                .foreclosureAmount(ObjectUtils.isEmpty(amt) ? 0d : amt)
+                .principalOutstanding(foreClosureAmountResponse.getData().getData().getBalancePrincipal())
                 .build();
-        INbfcLenderGateway apiGatewayV3 = lenderGatewayFactory.getLenderApiGateway(lendingApplicationLenderDetails.getLender());
-        ForeClosureAmountResponse foreClosureAmountResponse = apiGatewayV3.fetchDueForeclosureAmount(foreclosureAmountRequest);
-        if (ObjectUtils.isEmpty(foreClosureAmountResponse) || !foreClosureAmountResponse.getSuccess() ||
-                ObjectUtils.isEmpty(foreClosureAmountResponse.getData()) || ObjectUtils.isEmpty(foreClosureAmountResponse.getData().getData())) {
-            log.info("error while fetching Principle Outstanding amount for {}", applicationId);
-            return null;
-        }
-        Double amt = foreClosureAmountResponse.getData().getData().getBalancePrincipal();
-        return amt;
     }
 }

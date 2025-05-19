@@ -15,6 +15,7 @@ import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
+import com.bharatpe.lending.dto.LoanApplicationDetailsDto;
 import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
 import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.entity.*;
@@ -1339,7 +1340,14 @@ public class LenderAssignService implements ILenderAssignService {
                 interestRate = lendingLenderPricing.getInterestRate();
             }
         }
+
         log.info("Approved loan amount - TBD : {}", lendingApplication.getLoanAmount());
+        LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(lendingApplication.getId()).
+                edi(lendingApplication.getEdi()).tenureInMonths(lendingApplication.getTenureInMonths()).
+                loanAmount(lendingApplication.getLoanAmount()).payableDays(lendingApplication.getPayableDays()).
+                lender(lendingApplication.getLender()).build();
+        log.info("Processing fee {}, loan amount : {}, edi model : {} of loan id : {}", processingFee, lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lendingApplication.getId());
+
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate);
         log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, lendingApplication.getId());
 
@@ -1364,11 +1372,57 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
 
+        LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(lendingApplication.getId()).
+                edi(lendingApplication.getEdi()).tenureInMonths(lendingApplication.getTenureInMonths()).
+                loanAmount(lendingApplication.getLoanAmount()).payableDays(lendingApplication.getPayableDays()).
+                lender(lendingApplication.getLender()).build();
+        log.info("loan amount : {}, edi model : {} of loan id : {}", lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lendingApplication.getId());
         Double apr = lendingApplicationServiceV2.getAprForBaseChecks(lendingApplication, lendingApplication.getLoanAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, interestRate);
 
         log.info("Calculated IRR : {}, IRR in DB : {}, application id : {}", apr, maxIrr, lendingApplication.getId());
         return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxIrr.setScale(2, RoundingMode.DOWN)) > 0;
     }
+
+    public boolean maxAprCheckFailedV2(LendingEligibleLoan eligibleLoan, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+        BigDecimal maxApr = BigDecimal.ZERO;
+        double processingFee = eligibleLoan.getProcessingFee();
+        LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
+        log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+
+        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+            maxApr = BigDecimal.valueOf(lendingLenderPricing.getApr());
+            processingFee = eligibleLoan.getAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+        }
+
+        LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(eligibleLoan.getId()).
+                edi(Double.valueOf(eligibleLoan.getEdi())).tenureInMonths(eligibleLoan.getTenureInMonths()).
+                loanAmount(eligibleLoan.getAmount()).payableDays(Long.valueOf(eligibleLoan.getEdiCount())).
+                lender(lender).build();
+        log.info("Processing fee {}, loan amount : {}, edi model : {} of loan id : {}", processingFee, eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), eligibleLoan.getId());
+        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, eligibleLoan.getAmount() - processingFee, ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
+        log.info("Calculated APR : {}, APR in DB : {}, application id : {}", apr, maxApr, eligibleLoan.getId());
+        return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxApr.setScale(2, RoundingMode.DOWN)) > 0;
+    }
+
+    public boolean maxIrrCheckFailedV2(LendingEligibleLoan eligibleLoan, EdiModel ediModel, String lender, RiskVariablesDTO riskVariables) {
+        BigDecimal maxIrr = BigDecimal.ZERO;
+        LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
+        log.info("Lending Lender pricing fetched : {}", lendingLenderPricing);
+        if (!ObjectUtils.isEmpty(lendingLenderPricing)) {
+            maxIrr = BigDecimal.valueOf(lendingLenderPricing.getIrr());
+        }
+
+        LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(eligibleLoan.getId()).
+                edi(Double.valueOf(eligibleLoan.getEdi())).tenureInMonths(eligibleLoan.getTenureInMonths()).
+                loanAmount(eligibleLoan.getAmount()).payableDays(Long.valueOf(eligibleLoan.getEdiCount())).
+                lender(lender).build();
+        log.info("loan amount : {}, edi model : {} of loan id : {}", eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), eligibleLoan.getId());
+        Double apr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, eligibleLoan.getAmount(), ediModel.getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
+
+        log.info("Calculated IRR : {}, IRR in DB : {}, application id : {}", apr, maxIrr, eligibleLoan.getId());
+        return BigDecimal.valueOf(apr).setScale(2, RoundingMode.DOWN).compareTo(maxIrr.setScale(2, RoundingMode.DOWN)) > 0;
+    }
+
 
     private boolean maxPfCheckFailedV2(LendingApplication lendingApplication, String lender, RiskVariablesDTO riskVariables) {
         Double processingFee =  lendingApplication.getProcessingFee();

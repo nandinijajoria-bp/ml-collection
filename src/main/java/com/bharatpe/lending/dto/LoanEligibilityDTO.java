@@ -42,6 +42,8 @@ public class LoanEligibilityDTO {
 	@JsonIgnore
 	private Integer principleEdiTenure;
 	private Integer tenureInMonths;
+	private Double apr;
+	private Double irr;
 
 	public Long getId() {
 		return id;
@@ -78,6 +80,10 @@ public class LoanEligibilityDTO {
 
 	@JsonProperty(value = "parent_loan_no")
 	private String parentLoanNo;
+
+	private String rejectionReason;
+
+	private Boolean isRejected;
 
 	public Integer getIoEdi() {
 		return ioEdi;

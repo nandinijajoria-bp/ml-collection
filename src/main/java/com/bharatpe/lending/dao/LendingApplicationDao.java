@@ -134,4 +134,10 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 	@Query(value = "select count(id) from lending_application where lender = :lender and merchant_id = :merchantId and loan_type = :loanType and status = 'approved' and disburse_timestamp is not null ", nativeQuery = true)
 	Integer findDisbursedApplicationCountForMerchantIdAndLenderAndLoan(String lender, Long merchantId, String loanType);
 
+	@Query(nativeQuery = true, value = "select external_loan_id from lending_application where id = :id")
+	String getExternalLoanIdById(Long id);
+
+	@Query(nativeQuery = true, value = "select external_loan_id from lending_application WHERE id = :id order by id desc")
+	String getExternalLoanIdByIdOrderByDesc(Long id);
+
 }

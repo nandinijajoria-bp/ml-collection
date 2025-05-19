@@ -248,6 +248,9 @@ public class LoanDetailsService {
 	BureauHandler bureauHandler;
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+	@Autowired
+	LmsPaymentDetailsDao lmsPaymentDetailsDao;
+
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
 												   String token) {
 		LoanDetailsResponseDTO response = new LoanDetailsResponseDTO();
@@ -1277,8 +1280,15 @@ public class LoanDetailsService {
 			creditScoreResponseDto.setPanNumber(experian.getPancardNumber());
 			creditScoreResponseDto.setPinCode(experian.getPincode());
 			creditScoreResponseDto.setPanName(lendingPancard != null ? lendingPancard.getName() : merchantBasicDetails.getBeneficiaryName());
-			BureauResponseDTO bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
-					bureauScorePullDays, "EASY_LOANS");
+			BureauResponseDTO bureauResponseDTO;
+			if (creditScoreRequestDto.isBureauPull()) {
+				logger.info("pulling fresh bureau for merchantId : {} mobile : {}",merchantBasicDetails.getId(),merchantBasicDetails.getMobile());
+				bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
+						bureauScorePullDays, LendingConstants.LENDING_SOURCE,true);
+			} else {
+				bureauResponseDTO = bureauHandler.getBureauData(experian.getPancardNumber(), merchantBasicDetails.getId(), merchantBasicDetails.getMobile(),
+						bureauScorePullDays, LendingConstants.LENDING_SOURCE,false);
+			}
 			if (!ObjectUtils.isEmpty(bureauResponseDTO.getVariables()) && !ObjectUtils.isEmpty(bureauResponseDTO.getVariables().getBureauScore())) {
 				creditScoreResponseDto.setScore(bureauResponseDTO.getVariables().getBureauScore());
 			}
@@ -1396,30 +1406,67 @@ public class LoanDetailsService {
 
 	public CommonResponse getRepaymentHistory(BasicDetailsDto merchant, String lendingPaymentScheduleId) {
 
-
+		LendingPaymentSchedule lendingPaymentSchedule = lendingPaymentScheduleDao.findByIdAndMerchantId(Long.valueOf(lendingPaymentScheduleId), merchant.getId());
+		if (ObjectUtils.isEmpty(lendingPaymentSchedule)) {
+			logger.error("No repayment history found for given lendingPaymentScheduleId:{} and merchantId:{}", Long.valueOf(lendingPaymentScheduleId), merchant.getId());
+			return new CommonResponse(false, "No repayment history found");
+		}
 		try {
 			RepaymentHistoryDTO repaymentHistoryDTO = new RepaymentHistoryDTO();
+			List<Map<String, Object>> repaymentHistoryList = new ArrayList<>();
 			List<LoanPaymentOrderSlave> loanPaymentOrders = loanPaymentOrderSlaveDao.findByOwnerIdAndMerchantId(lendingPaymentScheduleId, merchant.getId());
-			if(Objects.nonNull(loanPaymentOrders)){
-				List<Map<String, Object>> repaymentHistoryList = new ArrayList<>();
-				for(LoanPaymentOrderSlave loanPaymentOrder: loanPaymentOrders){
-					Map<String, Object> repaymentHistory = new HashMap<>();
-					repaymentHistory.put("amount",loanPaymentOrder.getAmount());
-					repaymentHistory.put("mode",LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"));
-					repaymentHistory.put("order_id",loanPaymentOrder.getOrderId());
-					repaymentHistory.put("date",loanPaymentOrder.getCreatedAt());
-					repaymentHistory.put("status",loanPaymentOrder.getStatus());
+			if (ObjectUtils.isEmpty(lendingPaymentSchedule.getLmsSource())) {
+				if (Objects.nonNull(loanPaymentOrders)) {
+					for (LoanPaymentOrderSlave loanPaymentOrder : loanPaymentOrders) {
+						Map<String, Object> repaymentHistory = new HashMap<>();
+						repaymentHistory.put("amount", loanPaymentOrder.getAmount());
+						repaymentHistory.put("mode", LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"));
+						repaymentHistory.put("order_id", loanPaymentOrder.getOrderId());
+						repaymentHistory.put("date", loanPaymentOrder.getCreatedAt());
+						repaymentHistory.put("status", loanPaymentOrder.getStatus());
 
-					repaymentHistoryList.add(repaymentHistory);
+						repaymentHistoryList.add(repaymentHistory);
+					}
 				}
-				repaymentHistoryDTO.setRepaymentHistory(repaymentHistoryList);
-				excessNachService.setExcessCollectionDetails(merchant.getId(), repaymentHistoryDTO, Long.valueOf(lendingPaymentScheduleId));
-				return new CommonResponse(true, "Repayment History", repaymentHistoryDTO);
+			} else {
+				String externalLoanId = lendingApplicationDao.getExternalLoanIdByIdOrderByDesc(lendingPaymentSchedule.getApplicationId());
+				if (ObjectUtils.isEmpty(externalLoanId)) {
+					logger.error("No external loan id found for lendingPaymentScheduleId: {}", lendingPaymentScheduleId);
+				} else {
+					logger.info("Fetching repayment history for 1LMS external loan id: {}", externalLoanId);
+					List<LmsPaymentDetails> lmsPaymentDetailsList = lmsPaymentDetailsDao.findTransactionsBpLoanIdOrderByIdDesc(externalLoanId);
+					if (!ObjectUtils.isEmpty(lmsPaymentDetailsList)) {
+						for (LmsPaymentDetails lmsPaymentDetail : lmsPaymentDetailsList) {
+							repaymentHistoryList.add(createLmsRepaymentHistoryMap(lmsPaymentDetail));
+						}
+					}
+				}
 			}
+
+			if (repaymentHistoryList.isEmpty()) {
+				logger.info("No repayment history found for lendingPaymentScheduleId: {} and merchantId: {}", lendingPaymentScheduleId, merchant.getId());
+				return new CommonResponse(false, "No repayment history found for given data");
+			}
+
+			repaymentHistoryDTO.setRepaymentHistory(repaymentHistoryList);
+			excessNachService.setExcessCollectionDetails(merchant.getId(), repaymentHistoryDTO, Long.valueOf(lendingPaymentScheduleId));
+			return new CommonResponse(true, "Repayment History", repaymentHistoryDTO);
 		} catch (Exception ex) {
-			logger.error("Exception while repayment history for ApplicationId {} Error: {}", lendingPaymentScheduleId, ex);
+			logger.error("Exception Error occurred while fetching repayment history for lendingPaymentScheduleId: {} and merchantId: {}", lendingPaymentScheduleId, merchant.getId(), ex);
+			return new CommonResponse(false, "Error fetching repayment history : Something went wrong", null);
 		}
-		return new CommonResponse(false, "SomeThing Went Wrong", null);
+	}
+
+	private Map<String, Object> createLmsRepaymentHistoryMap(LmsPaymentDetails lmsPaymentDetail) {
+		Map<String, Object> repaymentHistory = new HashMap<>();
+		repaymentHistory.put("amount", lmsPaymentDetail.getAmount());
+		repaymentHistory.put("mode", LoanUtil.settlementMode.getOrDefault(lmsPaymentDetail.getAdjustmentMode(), "UPI"));
+		repaymentHistory.put("order_id", lmsPaymentDetail.getTerminalOrderId());
+		repaymentHistory.put("date", lmsPaymentDetail.getCreatedAt());
+		repaymentHistory.put("status", lmsPaymentDetail.getSentToLms().name());
+		logger.info("Repayment history for LMS: amount: {}, mode: {}, order_id: {}, date: {}, status: {}",
+				lmsPaymentDetail.getAmount(), lmsPaymentDetail.getAdjustmentMode(), lmsPaymentDetail.getTerminalOrderId(), lmsPaymentDetail.getCreatedAt(), lmsPaymentDetail.getSentToLms().name());
+		return repaymentHistory;
 	}
 
 //	public void notifyNTBSMS(Merchant merchant) {
@@ -1641,17 +1688,19 @@ public class LoanDetailsService {
 		LendingApplicationDetailsSlave lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 		String viewState = ObjectUtils.isEmpty(lendingApplicationDetails)?null:lendingApplicationDetails.getApplicationViewState();
 		if(lendingRiskVariables.getUpdatedAt().after(lendingApplication.getUpdatedAt())){
+			logger.info("Checks based for merchantId :{},lrv:{}, la:{}", merchantId, lendingRiskVariables, lendingApplication);
 			return ApplicationDataResponseDTO.builder()
 					.merchantId(merchantId)
 					.applicationId(lendingApplication.getId())
 					.loanSegment(lendingRiskVariables.getLoanSegment())
-					.callRequired(!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()>10000D)
+					.callRequired(!ObjectUtils.isEmpty(lendingRiskVariables.getFinalOffer()) && lendingRiskVariables.getFinalOffer()>=10000D)
 					.loanEligibility(loanEligibility)
 					.applicationViewState(viewState)
 					.applicationStatus(lendingApplication.getStatus())
 					.build();
 		}
 		LendingRiskVariablesSnapshotSlave lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		logger.info("Checks based for merchantId :{},lrv:{}, la:{}", merchantId, lendingRiskVariables, lendingApplication);
 		return ApplicationDataResponseDTO.builder()
 				.applicationId(lendingApplication.getId())
 				.merchantId(merchantId)

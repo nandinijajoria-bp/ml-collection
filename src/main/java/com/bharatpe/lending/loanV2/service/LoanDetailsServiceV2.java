@@ -590,9 +590,9 @@ public class LoanDetailsServiceV2 {
                         lendingApplicationKycDetails.setAadharIdentifier(kycDoc.getDocIdentifier());
                         lendingApplicationKycDetails.setAadharAddress(kycDoc.getAddress());
                         if(Objects.isNull(lendingApplicationKycDetails.getAadharApprovedAt()))lendingApplicationKycDetails.setAadharApprovedAt(new Date());
-                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
-                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
-                        }
+//                        if (!ObjectUtils.isEmpty(kycDoc.getDigioXml())) {
+//                            lendingApplicationKycDetails.setAadharXml(kycDoc.getDigioXml());
+//                        }
                         String dob = KycUtils.getDOB(kycDoc);
                         log.info("dob from POA kyc doc for merchant: {}, {}",dob,merchant.getId());
                         lendingApplicationKycDetails.setDob(dob);
@@ -2680,7 +2680,7 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    public ApiResponse<BureauConsentDTO.Data> getConsent(BasicDetailsDto merchant, String pancard) {
+    public ApiResponse<BureauConsentDTO.Data> getConsent(BasicDetailsDto merchant, String pancard, String source) {
         Experian experian = experianDao.getByMerchantId(merchant.getId());
         if (Objects.isNull(experian)) {
             log.info("no data found in experian table for: {}", merchant.getId());
@@ -2695,6 +2695,10 @@ public class LoanDetailsServiceV2 {
                 .build();
         BureauConsentDTO.Data consentResponse = apiGatewayService.getBureauConsent(bureauConsentDTO);
         if (Objects.nonNull(consentResponse)) {
+            if ("CREDITSCORE".equals(source)) {
+                consentResponse.setPincode(experian.getPincode());
+                consentResponse.setPan(experian.getPancardNumber());
+            }
             if(consentResponse.isConsent_expired()) {
                 consentResponse.setPincode(experian.getPincode());
                 consentResponse.setPan(experian.getPancardNumber());
@@ -3236,7 +3240,10 @@ public class LoanDetailsServiceV2 {
             //case:16
             LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
             if(!ObjectUtils.isEmpty(lendingPaymentSchedule1)){
-                List<LoanEligibilityDTO> topUpcheck = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule1, false);
+                List<LoanEligibilityDTO> topUpcheck = loans.stream()
+                        .filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+                        .collect(Collectors.toList());
                 if(!ObjectUtils.isEmpty(topUpcheck)){
                     responseDTO.setState(HomePageCardsState.CARD_TOPUP_LOAN_OFFER_AMOUNT);
                     populateHomePageIframeResponseData(responseDTO, !ObjectUtils.isEmpty(lendingApplication.getLoanAmount()) ? lendingApplication.getLoanAmount() : null, null, null);

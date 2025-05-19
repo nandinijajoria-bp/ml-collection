@@ -42,12 +42,12 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
-
-import static com.bharatpe.lending.common.enums.TlBreExceptionEnum.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import static com.bharatpe.lending.common.enums.TlBreExceptionEnum.*;
 
 @Slf4j
 @Service
@@ -107,7 +107,15 @@ public class TLBreService {
             }
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-            NBFCRequestDTO breRequest = getPayload(lenderAssociationDetailsRequestDto);
+            NBFCRequestDTO<?> breRequest = getPayload(lenderAssociationDetailsRequestDto);
+            if (ObjectUtils.isEmpty(breRequest)) {
+                log.info("error in bre payload of TrillionLoans for applicationId: {}", lenderAssociationDetailsRequestDto.getLendingApplication().getId());
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreRejectionReason(INTERNAL_ERROR.name());
+                commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
+                return false;
+            }
+
             if (LoanType.TOPUP.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplication().getLoanType())) {
                 LendingApplication parentApplication = loanUtil.fetchParentApplication(lenderAssociationDetailsRequestDto.getLendingApplication().getId());
                 lenderAssociationDetailsRequestDto.setTopupParentLender(parentApplication.getLender());
@@ -163,6 +171,18 @@ public class TLBreService {
                 breCallbackResponseDto = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), TLBreCallbackResponseDto.class);
                 log.info("BRE callback Response of TrillionLoans for {} {}", nbfcResponseDTO.getApplicationId(), breCallbackResponseDto);
                 if (!ObjectUtils.isEmpty(breCallbackResponseDto) && breCallbackResponseDto.getSuccess() && breCallbackResponseDto.getAction().equalsIgnoreCase("Eligible")) {
+                    if(!ObjectUtils.isEmpty(breCallbackResponseDto.getLimit()) && Double.parseDouble(breCallbackResponseDto.getLimit()) < lendingApplication.getLoanAmount()){
+                        log.info("offer downgraded for application:{}", lendingApplication.getId());
+                        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setNbfcApprovedLoanOfferAmt(Double.parseDouble(breCallbackResponseDto.getLimit()));
+                        LendingApplication lendingApplication1 = commonService.createDuplicateApplication(lendingApplication, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());
+                        // APR & IRR Checks
+                        boolean shouldLenderNotBeConsidered = commonService.additionalLenderDowngradeChecksFailed(lendingApplication1, "TRILLIONLOANS");
+                        if(shouldLenderNotBeConsidered){
+                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_FAILED.name());
+                            commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.RISK_FAILED);
+                            return false;
+                        }
+                    }
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
                     commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
                     log.info("LALD DAO - {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails());

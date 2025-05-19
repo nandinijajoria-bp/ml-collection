@@ -90,6 +90,9 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
             if(easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), shopPhotoSyncRollout)){
                 kycHandler.syncShopPhoto(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
             }
+            LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
+            log.info("publishing data to ds in loanDetailV3 for application : {}", lendingApplication.getId());
+            loanUtil.publishDSData(lendingApplication);
 
         }
         if(!lendingStateDTO.getData().getResubmitState()){

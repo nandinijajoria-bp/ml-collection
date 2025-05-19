@@ -210,7 +210,7 @@ public class SmfgBreService {
                             .livelinessscore(cKycResponseDto.getSelfieLivelinessScore())
                             .selfiematchscore(!ObjectUtils.isEmpty(cKycResponseDto.getSelfieAadhaarFaceMatchPer()) ? cKycResponseDto.getSelfieAadhaarFaceMatchPer() / 100 : null)
                             .pennydropnamematchper(cKycResponseDto.getBankBenePanNameMatchPer())
-                            .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).map(Double::intValue).orElse(null))
+                            .nfi(Optional.ofNullable(lendingRiskVariablesSnapshot.getMonthlyNfi()).filter(nfiVal -> nfiVal > 0).map(Double::intValue).orElse(0))
                             .riskgroup(lendingRiskVariablesSnapshot.getRiskGroup())
                             .monthlyadjtpv(!ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? lendingRiskVariablesSnapshot.getMonthlyTpv().intValue() : null)
                             .appvintage(lendingRiskVariablesSnapshot.getVintage())
@@ -333,11 +333,6 @@ public class SmfgBreService {
         if (ObjectUtils.isEmpty(cKycResponseDto.getSelfieLivelinessScore()) || cKycResponseDto.getSelfieLivelinessScore() < smfgConfig.getFaceLivelinessPerThreshold()) {
             log.info("bre check failed application id {}, selfie liveliness {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(), cKycResponseDto.getSelfieLivelinessScore(), smfgConfig.getFaceLivelinessPerThreshold());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.LIVELINESS_CHECK_FAILED.name());
-            return true;
-        }
-        if (ObjectUtils.isEmpty(cKycResponseDto.getBankBenePanNameMatchPer()) || cKycResponseDto.getBankBenePanNameMatchPer() < smfgConfig.getBenePanNameMatchPerThreshold()) {
-            log.info("bre check failed application id {}, bank and pan name match {} is empty or less than threshold {}", lenderAssociationDetailsRequest.getApplicationId(), cKycResponseDto.getBankBenePanNameMatchPer(), smfgConfig.getBenePanNameMatchPerThreshold());
-            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.ValidationStatus.PAN_BANK_NAME_MISMATCH.name());
             return true;
         }
         if (!ObjectUtils.isEmpty(lendingShopDocuments)) {

@@ -27,6 +27,7 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
@@ -54,6 +55,8 @@ public class TLKycService {
     @Autowired
     private KycUtils kycUtils;
 
+    private final List<String> kycCallbackValidStatus = Arrays.asList(LenderAssociationStatus.KYC_IN_PROGRESS.name(), LenderAssociationStatus.AADHAR_UPLOAD_IN_PROGRESS.name());
+
     public Boolean processKycCallback(NBFCResponseDTO nbfcResponseDTO) {
         try {
             LendingApplication lendingApplication = lendingApplicationDao.findById(Long.valueOf(nbfcResponseDTO.getApplicationId())).orElse(null);
@@ -64,6 +67,10 @@ public class TLKycService {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails) || !nbfcResponseDTO.getLender().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
                 log.info("No LendingApplicationLenderDetails found with lender {} for applicationId {}", lendingApplication.getLender(), lendingApplication.getId());
+                return false;
+            }
+            if(!kycCallbackValidStatus.contains(lendingApplicationLenderDetails.getKycStatus())) {
+                log.info("Kyc status {} not correct for kyc callback for applicationId {}", lendingApplicationLenderDetails.getKycStatus(), lendingApplication.getId());
                 return false;
             }
             LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest = LenderAssociationDetailsRequestDto.builder()
@@ -127,6 +134,30 @@ public class TLKycService {
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_FAILED.name());
         commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequest, LenderAssociationStatus.KYC_FAILED);
         return false;
+    }
 
+    public Boolean kycStatusCheck(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        try {
+            if (ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplication()) || ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails())) {
+                log.info("LendingApplication / LendingApplicationLenderDetails is empty for request {} {} ", lenderAssociationDetailsDto.getApplicationId(), lenderAssociationDetailsDto);
+                return false;
+            }
+            NBFCRequestDTO<?> cKycInfoDto = NBFCRequestDTO.builder()
+                    .applicationId(lenderAssociationDetailsDto.getLendingApplication().getId())
+                    .productName("LENDING")
+                    .lender(LendingEnum.LENDER.TRILLIONLOANS.name())
+                    .payload(TLKycRequestDto.builder()
+                            .leadId(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLeadId())
+                            .build())
+                    .build();
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(cKycInfoDto, LenderAssociationStages.KYC_STATUS_CHECK);
+            return processKycCallback(nbfcResponseDto);
+        } catch (Exception ex) {
+            log.error("exception occurred while processing kyc status check request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.EKYC_PENDING.name());
+        lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycRetryCount(ObjectUtils.isEmpty(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getKycRetryCount()) ? 0 : lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getKycRetryCount());
+        commonService.manageApplicationState(lenderAssociationDetailsDto);
+        return false;
     }
 }

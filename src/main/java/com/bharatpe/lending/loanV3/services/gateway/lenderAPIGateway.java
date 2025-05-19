@@ -107,8 +107,14 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.pre.rps.api.url:api/v3/lender/pre-repayment-schedule}")
     String preRpsUrl;
 
+    @Value("${nbfc.update.loan:api/v3/lender/update-loan}")
+    String nbfcUpdateLoanUrl;
+
     @Value("${http.payu.read.timeout:20000}")
     int payuReadTimeout;
+
+    @Value("${nbfc.kyc.api:api/v3/lender/kyc-status-check}")
+    String kycStatusCheckUrl;
 
     @Autowired
     UgroConfig ugroConfig;
@@ -189,6 +195,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+generateDocumentUrl;
             case "PRE_RPS":
                 return nbfcBaseUrl+preRpsUrl;
+            case "UPDATE_LOAN":
+                return  nbfcBaseUrl+nbfcUpdateLoanUrl;
+            case "KYC_STATUS_CHECK":
+                return nbfcBaseUrl+kycStatusCheckUrl;
             default:
                 return null;
         }

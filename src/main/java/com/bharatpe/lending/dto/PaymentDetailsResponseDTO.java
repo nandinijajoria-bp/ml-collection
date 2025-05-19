@@ -89,6 +89,7 @@ public class PaymentDetailsResponseDTO {
 		private Double foreClosureAmountAtLender;
 		private Double foreClosureAmountAtBp;
 		private Double excessBalance;
+		private Double foreclosurePenaltyFee;
 		private double totalDue;
 		private double totalExcessBalance;
 		private double netPayable;

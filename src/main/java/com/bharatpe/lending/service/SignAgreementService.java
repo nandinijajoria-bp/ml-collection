@@ -650,15 +650,15 @@ public class SignAgreementService {
 	public Map<String, Object> createNewApplicationAndSendOTPForTopup(BasicDetailsDto merchant, CreateApplicationRequestForTopupDTO requestDTO) {
 		Map<String, Object> response = new LinkedHashMap<>();
 		response.put("success", false);
-
-		if(ObjectUtils.isEmpty(requestDTO) || ObjectUtils.isEmpty(requestDTO.getEligibleLoanId())){
-			logger.info("Loan ID not found.");
-			response.put("message", "Eligible loan id is null");
-			return response;
-		}
-		List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
-				LoanType.IO_TOPUP.name());
-		List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
+		try {
+			if (ObjectUtils.isEmpty(requestDTO) || ObjectUtils.isEmpty(requestDTO.getEligibleLoanId())) {
+				logger.info("Loan ID not found.");
+				response.put("message", "Eligible loan id is null");
+				return response;
+			}
+			List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
+					LoanType.IO_TOPUP.name());
+			List<String> ioHalfTopupLoans = Arrays.asList(LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 //		String selectedCategory = requestDTO.getPayload().getCategory();
 //		Integer selectedTenure = requestDTO.getPayload().getTenureInMonths();
 
@@ -673,235 +673,241 @@ public class SignAgreementService {
 
 //		MerchantSummary merchantSummary = merchantSummaryDao.findByMerchantId(merchant.getId());
 
-		LendingApplication previousDraftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
-		if(Objects.nonNull(previousDraftApplication) && "TOPUP".equals(previousDraftApplication.getLoanType())){
-			response.put("message", "Open topup application already exists.");
-			response.put("application_id", previousDraftApplication.getId());
-			response.put("success", true);
-			return response;
-		}
+			LendingApplication previousDraftApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchant.getId(), "draft");
+			if (Objects.nonNull(previousDraftApplication) && "TOPUP".equals(previousDraftApplication.getLoanType())) {
+				response.put("message", "Open topup application already exists.");
+				response.put("application_id", previousDraftApplication.getId());
+				response.put("success", true);
+				return response;
+			}
 
-		MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
-		if(merchantResponseDTO == null) {
-			logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
-			return response;
-		}
+			MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
+			if (merchantResponseDTO == null) {
+				logger.error("Merchant summary is empty for merchant with id {}", merchant.getId());
+				return response;
+			}
 
-		LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(merchant.getId());
-		if (checkDupe != null) {
-			logger.error("Merchant Has Already Active Application for merchantId: {} And ApplicationId:{}",
-					merchant.getId(), checkDupe.getId());
-			response.put("message", "Merchant Has Already Active Application");
-			return response;
-		}
+			LendingApplication checkDupe = lendingApplicationDao.findOpenApplication(merchant.getId());
+			if (checkDupe != null) {
+				logger.error("Merchant Has Already Active Application for merchantId: {} And ApplicationId:{}",
+						merchant.getId(), checkDupe.getId());
+				response.put("message", "Merchant Has Already Active Application");
+				return response;
+			}
 
-		LendingPaymentSchedule prevLendingSchedule =
-				lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Arrays.asList("ACTIVE"));
-		LendingApplication prevApplication =
-				lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
-						, "APPROVED");
-		if(Math.abs(LoanUtil.getDateDiffInHour(prevLendingSchedule.getLoanApplication().getDisburseTimestamp(), new Date())) < 24){
-			logger.error("Regular loan is not older than 24 hours for merchant:{}", merchant.getId());
-			response.put("message", "User not eligible, regular loan is not older than 24 hours");
-			return response;
-		}
-		if (prevLendingSchedule == null || prevApplication == null) {
-			logger.error("User not eligible, last loan not found or last application is not disbursed/found");
-			response.put("message", "User not eligible, last loan not found or last application is not disbursed/found");
-			return response;
-		}
-		if (topupLoans.contains(prevApplication.getLoanType()) && "ACTIVE".equalsIgnoreCase(prevLendingSchedule.getStatus()) && (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
-			logger.error("Topup loan already created for merchant:{}", merchant.getId());
-			response.put("message", "Topup loan already created for merchant");
-			return response;
-		}
+			LendingPaymentSchedule prevLendingSchedule =
+					lendingPaymentScheduleDao.findByMerchantIdAndStatus(merchant.getId(), Arrays.asList("ACTIVE"));
+			LendingApplication prevApplication =
+					lendingApplicationDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(merchant.getId()
+							, "APPROVED");
+			if (Math.abs(LoanUtil.getDateDiffInHour(prevLendingSchedule.getLoanApplication().getDisburseTimestamp(), new Date())) < 24) {
+				logger.error("Regular loan is not older than 24 hours for merchant:{}", merchant.getId());
+				response.put("message", "User not eligible, regular loan is not older than 24 hours");
+				return response;
+			}
+			if (prevLendingSchedule == null || prevApplication == null) {
+				logger.error("User not eligible, last loan not found or last application is not disbursed/found");
+				response.put("message", "User not eligible, last loan not found or last application is not disbursed/found");
+				return response;
+			}
+			if (topupLoans.contains(prevApplication.getLoanType()) && "ACTIVE".equalsIgnoreCase(prevLendingSchedule.getStatus()) && (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus()))) {
+				logger.error("Topup loan already created for merchant:{}", merchant.getId());
+				response.put("message", "Topup loan already created for merchant");
+				return response;
+			}
 //		LendingCategories selectedCategoriesData = lendingCategoryDao.getByCategory(selectedCategory);
-		Optional<LendingEligibleLoan> optionalEligibleLoan = eligibleLoanDao.findById(requestDTO.getEligibleLoanId());
-		if(!optionalEligibleLoan.isPresent()) {
-			logger.error("No available loan found with merchant id {}", merchant.getId());
-			response.put("message", "No available loan found with merchant");
-			return response;
-		}
-		LendingEligibleLoan eligibleLoan = optionalEligibleLoan.get();
-		if(!topupLoans.contains(eligibleLoan.getLoanType()) || (dateTimeUtil.getDateDiffInHours(eligibleLoan.getCreatedAt(), new Date()) >= 1)){
-			logger.error("No available loan found for last 1 hr with merchant id {}", merchant.getId());
-			response.put("message", "Loan offer expired");
-			return response;
-		}
-
-		if(!isToupEligibilityValid(merchant.getId(), optionalEligibleLoan.get())) {
-			logger.error("current eligibility not matching with offer shown for {}", merchant.getId());
-			response.put("message", "Loan offer changed");
-			return response;
-		}
-
-
-		// pin code check for loan eligibility(removing this check for topup loan)
-		try {
-			logger.info("Starting pin code check for loan eligibilty ");
-			response.put("code",LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
-			response.put("message",LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
-			if(prevApplication.getPincode() != null && !topupLoans.contains(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int)(long)prevApplication.getPincode())){
-				logger.info("Pincode {} not eligible for the loan",(int)(long)prevApplication.getPincode());
-				response.put("code",LendingConstants.LOAN_APPLICATION_OGL_CODE);
-				response.put("message",LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
+			Optional<LendingEligibleLoan> optionalEligibleLoan = eligibleLoanDao.findById(requestDTO.getEligibleLoanId());
+			if (!optionalEligibleLoan.isPresent()) {
+				logger.error("No available loan found with merchant id {}", merchant.getId());
+				response.put("message", "No available loan found with merchant");
 				return response;
 			}
-		}
-		catch(Exception e) {
-			logger.error("Error ocuured while checking loan eligibilty for pin code", e);
-		}
-
-		LendingApplication newApplication = new LendingApplication();
-		newApplication.setMerchantName(merchant.getBeneficiaryName());
-
-		if(!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
-			logger.info("Last loan not closed for merchant ID {}", merchant.getId());
-			response.put("message","Last loan not closed for merchant {}");
-			return response;
-		}
-		BigDecimal processingFee;
-
-		double previousAmount = 0;
-
-		if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
-			previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
-		} else if(Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(prevLendingSchedule.getNbfc())) {
-			previousAmount = loanUtil.getForeClosureAmountForLender(prevLendingSchedule);
-			if(previousAmount <= 0){
-				logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
-				response.put("message","Invalid loan application");
+			LendingEligibleLoan eligibleLoan = optionalEligibleLoan.get();
+			if (!topupLoans.contains(eligibleLoan.getLoanType()) || (dateTimeUtil.getDateDiffInHours(eligibleLoan.getCreatedAt(), new Date()) >= 1)) {
+				logger.error("No available loan found for last 1 hr with merchant id {}", merchant.getId());
+				response.put("message", "Loan offer expired");
 				return response;
 			}
-		} else previousAmount = loanUtil.getForeclosureAmount(prevLendingSchedule);
 
-		Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())
-		? eligibleLoan.getAmount() - previousAmount : eligibleLoan.getAmount();
-
-		if (disbursalAmount <= 0) {
-			logger.error("Disbursal amount less than <= 0 for merchantId {}", merchant.getId());
-			response.put("message","Invalid loan application");
-			return response;
-		}
-
-		if(apiGatewayService.eligibleForProcessingFee(merchant.getId())){
-			processingFee = BigDecimal.ZERO;
-		}else {
-			if(disbursalAmount != null && eligibleLoan.getProcessingFeeRate() != null){
-				processingFee = BigDecimal.valueOf(disbursalAmount).multiply(BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate()));
-			}else{
-				throw new NullPointerException("Either disbursal amount or processing fee rate is null");
+			if (!isToupEligibilityValid(merchant.getId(), optionalEligibleLoan.get())) {
+				logger.error("current eligibility not matching with offer shown for {}", merchant.getId());
+				response.put("message", "Loan offer changed");
+				return response;
 			}
 
-		}
-		if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
-			processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
-		}
-		newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
-		newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
-		newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
+
+			// pin code check for loan eligibility(removing this check for topup loan)
+			try {
+				logger.info("Starting pin code check for loan eligibilty ");
+				response.put("code", LendingConstants.LOAN_APPLICATION_SUCCESS_CODE);
+				response.put("message", LendingConstants.LOAN_APPLICATION_SUCCESS_MESSAGE);
+				if (prevApplication.getPincode() != null && !topupLoans.contains(eligibleLoan.getLoanType()) && !lendingApplicationService.checkLoanRequestPinCodeForLoanEligibilty((int) (long) prevApplication.getPincode())) {
+					logger.info("Pincode {} not eligible for the loan", (int) (long) prevApplication.getPincode());
+					response.put("code", LendingConstants.LOAN_APPLICATION_OGL_CODE);
+					response.put("message", LendingConstants.LOAN_APPLICATION_OGL_MESSAGE);
+					return response;
+				}
+			} catch (Exception e) {
+				logger.error("Error ocuured while checking loan eligibilty for pin code", e);
+			}
+
+			LendingApplication newApplication = new LendingApplication();
+			newApplication.setMerchantName(merchant.getBeneficiaryName());
+
+			if (!topupLoans.contains(eligibleLoan.getLoanType()) && (!prevLendingSchedule.getStatus().equals("CLOSED") || (!"deleted".equalsIgnoreCase(prevApplication.getStatus()) && !"DISBURSED".equalsIgnoreCase(prevApplication.getLoanDisbursalStatus())))) {
+				logger.info("Last loan not closed for merchant ID {}", merchant.getId());
+				response.put("message", "Last loan not closed for merchant {}");
+				return response;
+			}
+			BigDecimal processingFee;
+
+			double previousAmount = 0;
+
+			if ("LDC".equalsIgnoreCase(prevLendingSchedule.getNbfc())) {
+				previousAmount = loanUtil.getForeclosureAmountForLdc(prevLendingSchedule);
+			} else if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(prevLendingSchedule.getNbfc())) {
+				previousAmount = loanUtil.getForeClosureAmountForLender(prevLendingSchedule);
+				if (previousAmount <= 0) {
+					logger.error("previousAmount <= 0 for merchantId {}", merchant.getId());
+					response.put("message", "Invalid loan application");
+					return response;
+				}
+			} else previousAmount = loanUtil.getForeclosureAmount(prevLendingSchedule);
+
+			Double disbursalAmount = "TOPUP".equals(eligibleLoan.getLoanType())
+					? eligibleLoan.getAmount() - previousAmount : eligibleLoan.getAmount();
+
+			if (disbursalAmount <= 0) {
+				logger.error("Disbursal amount less than <= 0 for merchantId {}", merchant.getId());
+				response.put("message", "Invalid loan application");
+				return response;
+			}
+
+			if (apiGatewayService.eligibleForProcessingFee(merchant.getId())) {
+				processingFee = BigDecimal.ZERO;
+			} else {
+				if (disbursalAmount != null && eligibleLoan.getProcessingFeeRate() != null) {
+					processingFee = BigDecimal.valueOf(disbursalAmount).multiply(BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate()));
+				} else {
+					throw new NullPointerException("Either disbursal amount or processing fee rate is null");
+				}
+
+			}
+			if (ioHalfTopupLoans.contains(eligibleLoan.getLoanType())) {
+				processingFee = loanUtil.getIoHalfPFBD(prevLendingSchedule);
+			}
+			newApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
+			newApplication.setIoEdi(Double.valueOf(eligibleLoan.getIoEdi()));
+			newApplication.setRepayment(Double.valueOf(eligibleLoan.getRepayment()));
 //        if ("TOPUP".equalsIgnoreCase(eligibleLoan.getLoanType())) {
 //            newApplication.setInterestRate(1.75D);
 //        } else {
 //            newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
 //        }
-		newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
-		newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
-		newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee.doubleValue()));
-		newApplication.setProcessingFee(processingFee.setScale(0, RoundingMode.CEILING).doubleValue());
-		newApplication.setMerchantId(merchant.getId());
-		newApplication.setShopNumber(prevApplication.getShopNumber());
-		newApplication.setStreetAddress(prevApplication.getStreetAddress());
-		newApplication.setArea(prevApplication.getArea());
-		newApplication.setLandmark(prevApplication.getLandmark());
-		newApplication.setPincode(prevApplication.getPincode());
-		newApplication.setCity(prevApplication.getCity());
-		newApplication.setState(prevApplication.getState());
-		newApplication.setBusinessName(prevApplication.getBusinessName());
-		newApplication.setStatus("draft");
-		newApplication.setMode("AUTO");
-		newApplication.setCategory(eligibleLoan.getCategory());
-		newApplication.setTenure(eligibleLoan.getTenure());
-		newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
-		newApplication.setPayableDays((long) eligibleLoan.getEdiCount());
-		newApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
-		newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
-		newApplication.setLoanAmount(eligibleLoan.getAmount());
-		newApplication.setLoanType(eligibleLoan.getLoanType());
+			newApplication.setInterestRate(eligibleLoan.getRateOfInterest());
+			newApplication.setLoanConstruct(eligibleLoan.getLoanConstruct());
+			newApplication.setDisbursalAmount(Math.floor(disbursalAmount - processingFee.doubleValue()));
+			newApplication.setProcessingFee(processingFee.setScale(0, RoundingMode.CEILING).doubleValue());
+			newApplication.setMerchantId(merchant.getId());
+			newApplication.setShopNumber(prevApplication.getShopNumber());
+			newApplication.setStreetAddress(prevApplication.getStreetAddress());
+			newApplication.setArea(prevApplication.getArea());
+			newApplication.setLandmark(prevApplication.getLandmark());
+			newApplication.setPincode(prevApplication.getPincode());
+			newApplication.setCity(prevApplication.getCity());
+			newApplication.setState(prevApplication.getState());
+			newApplication.setBusinessName(prevApplication.getBusinessName());
+			newApplication.setStatus("draft");
+			newApplication.setMode("AUTO");
+			newApplication.setCategory(eligibleLoan.getCategory());
+			newApplication.setTenure(eligibleLoan.getTenure());
+			newApplication.setTenureInMonths(eligibleLoan.getTenureInMonths());
+			newApplication.setPayableDays((long) eligibleLoan.getEdiCount());
+			newApplication.setEdiFreeDays(eligibleLoan.getEdiFreeDays());
+			newApplication.setIoPayableDays(eligibleLoan.getIoEdiDays());
+			newApplication.setLoanAmount(eligibleLoan.getAmount());
+			newApplication.setLoanType(eligibleLoan.getLoanType());
 
-		if("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
-			newApplication.setCkycId(String.valueOf(merchant.getId()));
-		}
-		if(!StringUtils.isEmpty(requestDTO.getLatitude()) && !requestDTO.getLatitude().trim().equalsIgnoreCase("undefined"))
-			newApplication.setLatitude(requestDTO.getLatitude());
-		if(!StringUtils.isEmpty(requestDTO.getLongitude()) && !requestDTO.getLongitude().trim().equalsIgnoreCase("undefined"))
-			newApplication.setLongitude(requestDTO.getLongitude());
-		logger.info("ip from meta before setting to application : {} meta : {}",requestDTO.getIp(), requestDTO);
-		newApplication.setIp(requestDTO.getIp());
-		newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
-		newApplication = lendingApplicationDao.save(newApplication);
-		funnelService.submitEventV3((merchant.getId()), null, newApplication.getId(), newApplication.getLoanType(), FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG );
-		loanUtil.publishApplicationEvent(newApplication);
+			if ("BHARATPE_ACCOUNT".equalsIgnoreCase(merchant.getSettlementType())) {
+				newApplication.setCkycId(String.valueOf(merchant.getId()));
+			}
+			if (!StringUtils.isEmpty(requestDTO.getLatitude()) && !requestDTO.getLatitude().trim().equalsIgnoreCase("undefined"))
+				newApplication.setLatitude(requestDTO.getLatitude());
+			if (!StringUtils.isEmpty(requestDTO.getLongitude()) && !requestDTO.getLongitude().trim().equalsIgnoreCase("undefined"))
+				newApplication.setLongitude(requestDTO.getLongitude());
+			logger.info("ip from meta before setting to application : {} meta : {}", requestDTO.getIp(), requestDTO);
+			newApplication.setIp(requestDTO.getIp());
+			newApplication.setTotalLoansCount(merchantResponseDTO.getTotalLoansCount() == null ? 0 : merchantResponseDTO.getTotalLoansCount());
+			newApplication = lendingApplicationDao.save(newApplication);
+			funnelService.submitEventV3((merchant.getId()), null, newApplication.getId(), newApplication.getLoanType(), FunnelEnums.StageId.APPLICATION, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+			loanUtil.publishApplicationEvent(newApplication);
 
-		lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant, Boolean.FALSE);
+			lenderAssignService.assignLender(newApplication, EdiModel.SIX_DAY_MODEL, merchant, Boolean.FALSE);
 //		lenderMappingService.lenderMapping(newApplication);
 
-		if(newApplication.getId() != null) {
-			LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
-			lendingAuditTrial.setMerchantId(merchant.getId());
-			lendingAuditTrial.setApplicationId(newApplication.getId());
-			lendingAuditTrial.setLoanId("");
-			lendingAuditTrial.setUserId(Long.parseLong("0"));
-			lendingAuditTrial.setNewStatus("draft");
-			lendingAuditTrial.setType("APP_STATUS");
-			lendingAuditTrialDao.save(lendingAuditTrial);
+			if (newApplication.getId() != null) {
+				LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
+				lendingAuditTrial.setMerchantId(merchant.getId());
+				lendingAuditTrial.setApplicationId(newApplication.getId());
+				lendingAuditTrial.setLoanId("");
+				lendingAuditTrial.setUserId(Long.parseLong("0"));
+				lendingAuditTrial.setNewStatus("draft");
+				lendingAuditTrial.setType("APP_STATUS");
+				lendingAuditTrialDao.save(lendingAuditTrial);
 
-			if("AUTO".equalsIgnoreCase(prevApplication.getMode())) {
-				MetaDTO metaDTO = new MetaDTO();
-				metaDTO.setIp(requestDTO.getIp());
-				metaDTO.setLongitude(requestDTO.getLongitude());
-				metaDTO.setLattitude(requestDTO.getLatitude());
-				replicateDocumentsForNewApplication(prevApplication, newApplication, merchant, metaDTO);
-			} else {
-				logger.info("Application mode is {}, not replicating documents for new application id {} and merchant id {}", newApplication.getId(), merchant.getId());
-			}
+				if ("AUTO".equalsIgnoreCase(prevApplication.getMode())) {
+					MetaDTO metaDTO = new MetaDTO();
+					metaDTO.setIp(requestDTO.getIp());
+					metaDTO.setLongitude(requestDTO.getLongitude());
+					metaDTO.setLattitude(requestDTO.getLatitude());
+					replicateDocumentsForNewApplication(prevApplication, newApplication, merchant, metaDTO);
+				} else {
+					logger.info("Application mode is {}, not replicating documents for new application id {} and merchant id {}", newApplication.getId(), merchant.getId());
+				}
 
 //			Instant start = Instant.now();
 //			response = sendOTP(merchant, requestDTO.getPayload().getAppSign());
 //			Instant end = Instant.now();
 //			logger.info("Time Taken by GUPSHUP Send OTP API : {} miliseconds", Duration.between(start, end).toMillis());
 
-			response.put("application_id", newApplication.getId());
-			if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(newApplication.getLender())) {
-				String loanId = "BPL" +  new SimpleDateFormat("ddMMyy").format(new Date()) + newApplication.getId();
-				newApplication.setExternalLoanId(loanId);
-				lendingApplicationDao.save(newApplication);
+				response.put("application_id", newApplication.getId());
+				if (Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.ABFL.name(), Lender.PIRAMAL.name()).contains(newApplication.getLender())) {
+					String loanId = "BPL" + new SimpleDateFormat("ddMMyy").format(new Date()) + newApplication.getId();
+					newApplication.setExternalLoanId(loanId);
+					lendingApplicationDao.save(newApplication);
+				}
+
+				loanUtil.createApplicationSnapshot(newApplication, merchant);
 			}
+			LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
+			LendingApplication finalNewApplication = newApplication;
 
-			loanUtil.createApplicationSnapshot(newApplication, merchant);
+			executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
+			LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(finalNewApplication.getId());
+
+			if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+				lendingApplicationDetails = new LendingApplicationDetails();
+				lendingApplicationDetails.setApplicationId(finalNewApplication.getId());
+			}
+			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
+			lendingApplicationDetails.setOfferId(eligibleLoan.getId());
+
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+
+			loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
+
+			loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
+			if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender()) && cloneContactReferenceForTopupEnabled) {
+				logger.info("fetch and save contact reference from parent applicationId {} for topup application {} ", prevApplication.getId(), newApplication.getId());
+				saveContactReferenceFromParentApplication(newApplication, prevApplication.getId());
+			}
+			response.put("success", true);
+			response.put("message", "Application created Successfully");
+			return response;
+		} catch (Exception e) {
+			logger.info("Exception in topup application creation API for merchantId {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
+			response.put("message", "Something went wrong");
 		}
-		LendingLedgerSlave lendingLedger = lendingLedgerSlaveDao.findLastPaymentEntryByMerchantAndLoan(prevLendingSchedule.getMerchantId(), prevLendingSchedule.getId());
-		LendingApplication finalNewApplication = newApplication;
-
-		executorService.execute(() -> loanUtil.publishDSData(finalNewApplication));
-		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(finalNewApplication.getId());
-
-		if(ObjectUtils.isEmpty(lendingApplicationDetails)){
-			lendingApplicationDetails = new LendingApplicationDetails();
-			lendingApplicationDetails.setApplicationId(finalNewApplication.getId());
-		}
-		lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
-		lendingApplicationDetailsDao.save(lendingApplicationDetails);
-
-		loanDetailsV3Service.saveApplicationViewState(lendingApplicationDetails, finalNewApplication.getId(), getTopupViewState(Lender.valueOf(newApplication.getLender())));
-
-		loanUtil.checkPennyDropV2(merchant.getId(), lendingApplicationDetails.getApplicationId());
-		if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender()) && cloneContactReferenceForTopupEnabled) {
-			logger.info("fetch and save contact reference from parent applicationId {} for topup application {} ", prevApplication.getId(), newApplication.getId());
-			saveContactReferenceFromParentApplication(newApplication, prevApplication.getId());
-		}
-		response.put("success", true);
-		response.put("message","Application created Successfully");
 		return response;
 	}
 
@@ -945,12 +951,15 @@ public class SignAgreementService {
 	private boolean isToupEligibilityValid(Long merchantId, LendingEligibleLoan eligibleLoan){
 		LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Collections.singletonList("ACTIVE"));
 		List<LoanEligibilityDTO> loans = merchantLoansService.topupLoan(lendingPaymentSchedule, true);
-		logger.info("latest eligibility for {} : {}", merchantId, loans);
-		if(loans.isEmpty()){
+		List<LoanEligibilityDTO> loans1 = loans.stream()
+				.filter(dto -> dto.getIsRejected() == null || !dto.getIsRejected()) // Keep objects where isRejected is false
+				.collect(Collectors.toList());
+		logger.info("latest eligibility for {} : {}", merchantId, loans1);
+		if(loans1.isEmpty()){
 			logger.info("no eligible loan offer available at topup application creation for {}", merchantId);
 			return false;
 		}
-		LoanEligibilityDTO loanEligibilityDTO = loans.get(0);
+		LoanEligibilityDTO loanEligibilityDTO = loans1.get(0);
 		if(ObjectUtils.isEmpty(loanEligibilityDTO) || ObjectUtils.isEmpty(loanEligibilityDTO.getId())){
 			logger.info("no eligible loan entry found at topup application creation for {}", merchantId);
 			return false;

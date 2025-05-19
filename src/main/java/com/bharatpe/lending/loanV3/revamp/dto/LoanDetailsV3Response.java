@@ -1,5 +1,6 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
@@ -126,7 +127,7 @@ public class LoanDetailsV3Response {
         private Double total;
     }
 
-    public static LoanDetailsV3Response populateResponseForRequestWithScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response) {
+    public static LoanDetailsV3Response populateResponseForRequestWithScope(LendingStateDTO<?> lendingStateDTO, LoanDetailsV3Response loanDetailsV3Response, BasicDetailsDto merchant) {
         if(lendingStateDTO.getLendingViewStates()==null){
             loanDetailsV3Response.setInvalidState(true);
             return loanDetailsV3Response;
@@ -146,7 +147,7 @@ public class LoanDetailsV3Response {
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case MASKED_MOBILE:
-                    setMaskedMobile((MaskedMobileDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    setMaskedMobile((MaskedMobileDTO) lendingStateDTO.getData(), loanDetailsV3Response, merchant);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case AGREEMENT_PAGE:
@@ -236,9 +237,11 @@ public class LoanDetailsV3Response {
         }
     }
 
-    private static void setMaskedMobile(MaskedMobileDTO maskedMobileDTO, LoanDetailsV3Response loanDetailsV3Response) {
+    private static void setMaskedMobile(MaskedMobileDTO maskedMobileDTO, LoanDetailsV3Response loanDetailsV3Response, BasicDetailsDto merchant) {
         loanDetailsV3Response.setMaskedMobileList(maskedMobileDTO.getMaskedMobileList());
         loanDetailsV3Response.setRetryLimitExhausted(maskedMobileDTO.isRetryLimitExhausted());
+        loanDetailsV3Response.setMerchantId(merchant.getId());
+        loanDetailsV3Response.setMobile(merchant.getMobile());
     }
 
     private static void setKfsResponse(KFSStateDTO kfsStateDTO, LoanDetailsV3Response loanDetailsV3Response){
@@ -460,6 +463,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setLoanOffer(modifiedOfferStateDTO.getLoanOffer());
         loanDetailsV3Response.setApplicationId(modifiedOfferStateDTO.getApplicationId());
         loanDetailsV3Response.setMerchantId(modifiedOfferStateDTO.getMerchantId());
+        loanDetailsV3Response.setLender(modifiedOfferStateDTO.getLender());
+
     }
 
     private static void setLenderAggregationResponse(LenderAggregationResponseDto lenderAggregationResponseDto, LoanDetailsV3Response loanDetailsV3Response){

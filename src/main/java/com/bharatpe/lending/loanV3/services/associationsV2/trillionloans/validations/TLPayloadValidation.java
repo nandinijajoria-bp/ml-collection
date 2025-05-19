@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.valida
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLNachMandateRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLeadRequestV2Dto;
+import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLoanRequestDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -10,25 +11,36 @@ import org.springframework.util.ObjectUtils;
 @Slf4j
 @Component
 public class TLPayloadValidation {
-    public boolean isInValidCreateClientPayload(CKycResponseDto cKycResponseDto) {
-        return (ObjectUtils.isEmpty(cKycResponseDto)
-                || ObjectUtils.isEmpty(cKycResponseDto.getDob())
-                || ObjectUtils.isEmpty(cKycResponseDto.getName())
-                || ObjectUtils.isEmpty(cKycResponseDto.getMobile())
-                || ObjectUtils.isEmpty(cKycResponseDto.getAadharNumber())
-                || ObjectUtils.isEmpty(cKycResponseDto.getPanNumber())
-                || ObjectUtils.isEmpty(cKycResponseDto.getAddress())
-                || ObjectUtils.isEmpty(cKycResponseDto.getPincode())
-                || ObjectUtils.isEmpty(cKycResponseDto.getGender())
-        );
+    public boolean isInValidCreateClientPayload(CKycResponseDto cKycResponseDto, boolean isEligibleForLenderKyc) {
+        return isEligibleForLenderKyc ? (ObjectUtils.isEmpty(cKycResponseDto) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getPanName()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getMobile()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getPanDob()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getPanNumber()) ||
+                    ObjectUtils.isEmpty(cKycResponseDto.getGender())
+                )
+                :
+                (ObjectUtils.isEmpty(cKycResponseDto)
+                        || ObjectUtils.isEmpty(cKycResponseDto.getDob())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getName())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getMobile())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getAadharNumber())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getPanNumber())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getAddress())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getPincode())
+                        || ObjectUtils.isEmpty(cKycResponseDto.getGender())
+                );
     }
 
     public boolean isInvalidCreateLeadPayload() {
         return false;
     }
 
-    public boolean isInValidDocUploadPayload(CKycResponseDto cKycResponseDto) {
-        return (ObjectUtils.isEmpty(cKycResponseDto)
+    public boolean isInValidDocUploadPayload(CKycResponseDto cKycResponseDto, boolean isEligibleForLenderKyc) {
+        return isEligibleForLenderKyc ? (ObjectUtils.isEmpty(cKycResponseDto)
+                || ObjectUtils.isEmpty(cKycResponseDto.getSelfieString()))
+                :
+                (ObjectUtils.isEmpty(cKycResponseDto)
                 || ObjectUtils.isEmpty(cKycResponseDto.getSelfieString())
                 || ObjectUtils.isEmpty(cKycResponseDto.getPoaString())
         );
@@ -52,6 +64,16 @@ public class TLPayloadValidation {
                 || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getAccountNumber()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getIfscCode())
                 || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getAccountHolderName()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getBankName())
                 || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getBankAccountType()) || ObjectUtils.isEmpty(tlUpdateLeadRequestV2Dto.getBeneficiaryType())
+        );
+    }
+
+    public boolean isInvalidUpdateLoanPayload(TLUpdateLoanRequestDto tlUpdateLoanRequestDto){
+        return ObjectUtils.isEmpty(tlUpdateLoanRequestDto)
+                || ObjectUtils.isEmpty(tlUpdateLoanRequestDto.getLoanAmountRequested())
+                || ObjectUtils.isEmpty(tlUpdateLoanRequestDto.getLeadId())
+                || ObjectUtils.isEmpty(tlUpdateLoanRequestDto.getLender())
+                || ObjectUtils.isEmpty(tlUpdateLoanRequestDto.getRateOfInterest())
+                || ObjectUtils.isEmpty(tlUpdateLoanRequestDto.getTenure()) || ObjectUtils.isEmpty(tlUpdateLoanRequestDto.getLoanAmountRequested()
         );
     }
 }

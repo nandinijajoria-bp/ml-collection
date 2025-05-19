@@ -254,8 +254,13 @@ public class LoanDashboardService {
     @Autowired
     InsuranceService insuranceService;
 
+    @Autowired
+    private LendingRiskVariablesDao lendingRiskVariablesDao;
+
     private final String YYYY_MM_DD_HH_MM_SS = "yyyy-MM-dd HH:mm:ss";
 
+    @Value("${emi.default.loan.amount:1500000}")
+    private double emiDefaultLoanAmount;
     /*
     This method gives the api version to frontend,so that FE can decide which flow to trigger for loan application corresponding to merchant
     currently we are deciding this feature on the basis of internal/external merchant only
@@ -397,6 +402,11 @@ public class LoanDashboardService {
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantDetails.getId());
+        if(emiUtils.isEligible(emiDashboardData, lendingRiskVariables) && loanDashboardResponse.getEligibility()!=null){
+            log.info("eligible for loan merchant:{}", merchantDetails.getId());
+            loanDashboardResponse.getEligibility().setEmiLoanAmount(emiDefaultLoanAmount);
+        }
         if(Objects.nonNull(loanDashboardResponse.getIneligible())){
             loanDashboardResponse.setLoanApplication(null);
             funnelService.submitEvent(merchantDetails.getId(), null, null,
@@ -793,7 +803,7 @@ public class LoanDashboardService {
             }
 
             Experian experian = experianDao.getByMerchantId(merchant.getId());
-            if(ObjectUtils.isEmpty(experian)){
+            if(ObjectUtils.isEmpty(experian) || Objects.isNull(experian.getPincode())){
                 log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
                 return;
             }
