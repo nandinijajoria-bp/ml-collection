@@ -3055,10 +3055,10 @@ public class LendingApplicationServiceV2 {
             Double edi = loanApplicationDetailsDto.getEdi();
             log.info("Edi of loan id : {} is {}", loanApplicationDetailsDto.getId(), edi);
 
-            Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-            Double interestAmt = loanApplicationDetailsDto.getLoanAmount() * (interestRate * lendingApplication.getTenureInMonths()) / 100) ;
-            edi = Math.ceil(loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
-            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), lenderPricing.getInterestRate(), edi, interestRate);
+            Long payableDays = (long) OfferUtils.getEdiDays(loanApplicationDetailsDto.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
+            Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (interestRate * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
+            edi = Math.ceil((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
+            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), interestRate, edi, interestRate);
 
 
             CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(applicationId, edi, loanApplicationDetailsDto);

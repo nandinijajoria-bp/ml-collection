@@ -131,22 +131,9 @@ public class CommonService {
         LendingApplication newApplication = new LendingApplication();
         BeanUtils.copyProperties(lendingApplication, newApplication);
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-        PricingExperiment pricingExperiment = null;
-
-        if(pricingExpEnabled) {
-            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                    lendingRiskVariablesSnapshot.getRiskGroup(),
-                    (int) (lendingApplication.getMerchantId()%10),
-                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
-                    lendingApplication.getCreatedAt()
-            );
-        }
-
-        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                lendingRiskVariablesSnapshot.getRiskSegment().name(),
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
                 lendingRiskVariablesSnapshot.getRiskGroup(),
-                lendingApplication.getTenureInMonths(),
-                lendingApplication.getLender(),
+                (int) (lendingApplication.getMerchantId()%10),
                 lendingRiskVariablesSnapshot.getPincodeColor().name(),
                 lendingApplication.getCreatedAt()
         );
@@ -157,15 +144,25 @@ public class CommonService {
         Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
 
         Double pfRate;
-        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("experiment available for {}", pricingExperiment);
             pfRate = pricingExperiment.getProcessingFeeRate();
-        }
-        else if(ObjectUtils.isEmpty(lendingLenderPricing)){
-            log.info("Lending lender pricing not available, using eligible loan values");
-            pfRate = eligibleLoan.get().getProcessingFeeRate();
-        } else {
-            pfRate = lendingLenderPricing.getProcessingFeeRate();
+        }else {
+            LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                    lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingApplication.getTenureInMonths(),
+                    lendingApplication.getLender(),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+
+            if(ObjectUtils.isEmpty(lendingLenderPricing)){
+                log.info("Lending lender pricing not available, using eligible loan values");
+                pfRate = eligibleLoan.get().getProcessingFeeRate();
+            } else {
+                pfRate = lendingLenderPricing.getProcessingFeeRate();
+            }
         }
 
         Double processingFee = Math.ceil((pfRate * loanAmount) / 100);

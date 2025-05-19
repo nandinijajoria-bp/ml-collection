@@ -45,6 +45,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -314,6 +315,12 @@ public class MerchantLoansService {
 
     @Value("${show.pan.pin.page.enabled:true}")
     private boolean showPanPinPage;
+
+    @Value("${pricing.experiment.enable:false}")
+    boolean pricingExpEnabled;
+
+    @Autowired
+    PricingExperimentDao pricingExperimentDao;
 
     @Autowired
     LoanDisplayService loanDisplayService;
@@ -1228,10 +1235,23 @@ public class MerchantLoansService {
                     logger.info("eligible loan fetched: {}", eligibleLoan);
 
                     LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
+                    PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                            eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+
                     LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                             eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
-                    if(!ObjectUtils.isEmpty(lenderPricing)){
+                    if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+                        logger.info("pricing experiment fetched for {}: {}", lendingPaymentSchedule.getMerchantId(), pricingExperiment);
+                        BigDecimal processingFeeRateBD = BigDecimal.valueOf(pricingExperiment.getProcessingFeeRate());
+                        BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                        processingFee = processingFeeRateBD.multiply(amountBD.subtract(prevLoanUnpaidAmountBD))
+                                .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
+                        BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
+                        eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
+                        loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingFee, eligibleLoan.getAmount());
+                    }
+                    else if(!ObjectUtils.isEmpty(lenderPricing)){
                         logger.info("LendingLenderPricing : {}", lenderPricing);
                         BigDecimal processingFeeRateBD = BigDecimal.valueOf(lenderPricing.getProcessingFeeRate());
                         BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
@@ -1458,10 +1478,24 @@ public class MerchantLoansService {
                 logger.info("eligible loan fetched: {}", eligibleLoan);
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
+
+                PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                        eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+
                 LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                         eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
-                if(!ObjectUtils.isEmpty(lenderPricing)){
+                if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+                    logger.info("pricing experiment fetched for {}: {}", lendingPaymentSchedule.getMerchantId(), pricingExperiment);
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(pricingExperiment.getProcessingFeeRate());
+                    BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                    processingfee = processingFeeRateBD.multiply(amountBD.subtract(prevLoanUnpaidAmountBD))
+                            .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
+                    BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
+                    eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
+                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingfee, eligibleLoan.getAmount());
+                }
+                else if(!ObjectUtils.isEmpty(lenderPricing)){
                     logger.info("LendingLenderPricing : {}", lenderPricing);
                     BigDecimal processingFeeRateBD = BigDecimal.valueOf(lenderPricing.getProcessingFeeRate());
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
@@ -1647,10 +1681,23 @@ public class MerchantLoansService {
                 logger.info("eligible loan fetched: {}", eligibleLoan);
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
+                PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                        eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+
                 LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                         eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
-                if(!ObjectUtils.isEmpty(lenderPricing)){
+                if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+                    logger.info("pricing experiment fetched for {}: {}", lendingPaymentSchedule.getMerchantId(), pricingExperiment);
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(pricingExperiment.getProcessingFeeRate());
+                    BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                    processingfee = processingFeeRateBD.multiply(amountBD.subtract(prevLoanUnpaidAmountBD))
+                            .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
+                    BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
+                    eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
+                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingfee, eligibleLoan.getAmount());
+                }
+                else if(!ObjectUtils.isEmpty(lenderPricing)){
                     logger.info("LendingLenderPricing : {}", lenderPricing);
                     BigDecimal processingFeeRateBD = BigDecimal.valueOf(lenderPricing.getProcessingFeeRate());
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
@@ -1919,10 +1966,23 @@ public class MerchantLoansService {
                 logger.info("eligible loan fetched: {}", eligibleLoan);
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
+                PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                        eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+
                 LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                         eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
-                if(!ObjectUtils.isEmpty(lenderPricing)){
+                if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+                    logger.info("pricing experiment fetched for {}: {}", lendingPaymentSchedule.getMerchantId(), pricingExperiment);
+                    BigDecimal processingFeeRateBD = BigDecimal.valueOf(pricingExperiment.getProcessingFeeRate());
+                    BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
+                    processingFee = processingFeeRateBD.multiply(amountBD.subtract(prevLoanUnpaidAmountBD))
+                            .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
+                    BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
+                    eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
+                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingFee, eligibleLoan.getAmount());
+                }
+                else if(!ObjectUtils.isEmpty(lenderPricing)){
                     logger.info("LendingLenderPricing : {}", lenderPricing);
                     BigDecimal processingFeeRateBD = BigDecimal.valueOf(lenderPricing.getProcessingFeeRate());
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
@@ -2048,9 +2108,16 @@ public class MerchantLoansService {
         int currentDPD = LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount());
 
         RiskVariablesDTO riskVariables = new RiskVariablesDTO();
-        LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
-        riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricing));
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+
+        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+            riskVariables.setPricingExperimentMap(Collections.singletonMap(lendingApplication.getMerchantId(), pricingExperiment));
+        }else{
+            LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                    eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+            riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricing));
+        }
 
         if (lenderAssignService.maxIrrCheckFailedV2(eligibleLoan, LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), lendingApplication.getLender(), riskVariables)) {
             logger.info("max irr check failed for merchant id {}, lender {}", lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getNbfc());
