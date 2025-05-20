@@ -182,7 +182,7 @@ public class AutoPayUPIService {
             Date createdMandateDate = mandateApplication.getCreatedAt();
             long diffMinutes = calculateTimeDiff(createdMandateDate);
             log.info("diffMinutes is {}", diffMinutes);
-            if (diffMinutes >= 30L) {
+            if (diffMinutes >= 5L) {
                 mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
                 mandateApplication.setErrorCode("TAT_EXCEEDED");
                 log.info("marking status for mandate register as failed due to tat for merchant id {} application id {}",
