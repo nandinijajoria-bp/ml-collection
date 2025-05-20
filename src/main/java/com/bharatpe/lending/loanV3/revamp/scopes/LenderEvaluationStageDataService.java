@@ -15,7 +15,6 @@ import com.bharatpe.lending.loanV3.revamp.dto.ScopeDataArgs;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
-import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +24,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Set;
 
 @Component
 @Slf4j
@@ -40,9 +37,6 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
-
-    @Autowired
-    LendingApplicationServiceV3 lendingApplicationServiceV3;
 
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;

@@ -192,7 +192,7 @@ public class TLCreateClientService {
                 .addressType(Collections.singletonList("PERMANENT")) //setting PERMANENT as default value
                 .addressLineOne(address1)
                 .addressLineTwo(address2)
-                .postalCode(ObjectUtils.isEmpty(lendingApplication.getPincode()) ? cKycResponseDto.getPincode() : lendingApplication.getPincode().toString())
+                .postalCode(ObjectUtils.isEmpty(cKycResponseDto.getPincode()) ? lendingApplication.getPincode().toString() : cKycResponseDto.getPincode())
                 .build();
         addressDataList.add(currentAddress);
         return addressDataList;

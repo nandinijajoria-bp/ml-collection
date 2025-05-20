@@ -171,7 +171,7 @@ public class EKycService {
                 log.info("eKyc callback Response of Piramal for {} {}", nbfcResponseDTO.getApplicationId(), eKycCallbackResponse);
                 if(!ObjectUtils.isEmpty(eKycCallbackResponse) && "SOURCE_VERIFIED".equalsIgnoreCase(eKycCallbackResponse.getKycStatus())) {
                     CKycResponseDto cKycResponseDto = new CKycResponseDto();
-                    cKycResponseDto.setAddress(eKycCallbackResponse.getAadharDetail().getCompleteAddress());
+                    cKycResponseDto.setAddress(getCompleteKycAddress(eKycCallbackResponse.getAadharDetail().getAddress()));
                     cKycResponseDto.setDob(eKycCallbackResponse.getAadharDetail().getDob());
                     cKycResponseDto.setCity(eKycCallbackResponse.getAadharDetail().getAddress().getCity());
                     cKycResponseDto.setName(eKycCallbackResponse.getAadharDetail().getName());
@@ -269,5 +269,14 @@ public class EKycService {
             log.error("exception occurred while processing eKyc status check request {} {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return false;
+    }
+
+    private String getCompleteKycAddress(PEKycCallbackResponseDTO.Address ekycAddress){
+        String careOf = ekycAddress.getCareOf();
+        String address1 = ekycAddress.getAddressLine1();
+        String address2 = ekycAddress.getAddressLine2();
+        String location = ekycAddress.getLocation();
+
+        return careOf + ";" + address1 + ";" + address2 + ";" + location;
     }
 }

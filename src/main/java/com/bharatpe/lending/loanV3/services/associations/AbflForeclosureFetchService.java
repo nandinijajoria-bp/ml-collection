@@ -6,6 +6,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.dto.ForeClosureAmountResponse;
 import com.bharatpe.lending.loanV3.dto.ForeclosureAmountRequest;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
@@ -49,6 +50,7 @@ public class AbflForeclosureFetchService implements ILenderAssociationService<Le
                 .applicationId(applicationId)
                 .lender(lendingApplicationLenderDetails.getLender())
                 .productName("LENDING")
+                .topup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType()))
                 .payload(ForeclosureAmountRequest.Payload.builder()
                         .accountId(lendingApplication.get().getExternalLoanId())
                         .loanNo(lendingApplicationLenderDetails.getLan())

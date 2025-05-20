@@ -42,6 +42,8 @@ public class LoanEligibilityDTO {
 	@JsonIgnore
 	private Integer principleEdiTenure;
 	private Integer tenureInMonths;
+	private Double apr;
+	private Double irr;
 
 	public Long getId() {
 		return id;
