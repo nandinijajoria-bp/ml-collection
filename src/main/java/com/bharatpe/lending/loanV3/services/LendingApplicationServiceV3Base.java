@@ -899,8 +899,8 @@ public abstract class LendingApplicationServiceV3Base {
 
                     if(offerModifiedEligibleLenders.contains(lendingApplication.getLender()) &&
                             !ObjectUtils.isEmpty(approvedLoanOfferAmount) && lendingApplication.getLoanAmount() > approvedLoanOfferAmount) {
-                        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(), lendingRiskVariablesSnapshot.getRiskGroup(),
-                                (int)(lendingRiskVariablesSnapshot.getMerchantId()/10), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(), lendingRiskVariablesSnapshot.getRiskGroup(),
+                                lendingRiskVariablesSnapshot.getTenure(), (int)(lendingRiskVariablesSnapshot.getMerchantId()/10), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
 
                         Double pfRate;
                         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {

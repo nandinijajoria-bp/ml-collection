@@ -343,9 +343,10 @@ public class NbfcUtils {
     public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         RiskVariablesDTO riskVariables = new RiskVariablesDTO();
-        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
                 lendingRiskVariablesSnapshot.getRiskSegment().name(),
                 lendingRiskVariablesSnapshot.getRiskGroup(),
+                lendingRiskVariablesSnapshot.getTenure(),
                 (int) (lendingApplication.getMerchantId()%10),
                 lendingRiskVariablesSnapshot.getPincodeColor().name(),
                 lendingApplication.getCreatedAt()

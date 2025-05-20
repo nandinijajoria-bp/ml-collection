@@ -131,8 +131,9 @@ public class CommonService {
         LendingApplication newApplication = new LendingApplication();
         BeanUtils.copyProperties(lendingApplication, newApplication);
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
                 lendingRiskVariablesSnapshot.getRiskGroup(),
+                lendingRiskVariablesSnapshot.getTenure(),
                 (int) (lendingApplication.getMerchantId()%10),
                 lendingRiskVariablesSnapshot.getPincodeColor().name(),
                 lendingApplication.getCreatedAt()
