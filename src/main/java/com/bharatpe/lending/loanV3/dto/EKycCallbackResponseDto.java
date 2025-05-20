@@ -1,11 +1,9 @@
 package com.bharatpe.lending.loanV3.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -13,35 +11,53 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class EKycCallbackResponseDto {
-    Boolean success;
-    String applicationId;
-    String productName;
-    String lender;
-    Response data;
-    private int statusCode;
+    private Boolean success;
+    private String applicationId;
+    private String productName;
+    private String lender;
+    private Response data;
 
-    @Data
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    @NoArgsConstructor
-    @AllArgsConstructor
+    @Getter
+    @Setter
+    @ToString
     @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Response {
-        String responseStatus;
-        Long status;
-        String accountId;
-        @JsonProperty("partner_request_id")
-        String partnerRequestId;
-        ResponseData data;
-
+        private String responseStatus;
+        private ResponseData data;
+        private Error error;
     }
 
-    @Data
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    @NoArgsConstructor
+    @Getter
+    @Setter
+    @ToString
+    @Builder
     @AllArgsConstructor
-    public static class ResponseData {
-        @JsonProperty("profile_id")
-        String profileId;
-        String digixmlaadhaar;
+    @NoArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Error {
+        private String code;
+        private String description;
+        private String errorType;
+    }
+
+    @Getter
+    @Setter
+    @ToString
+    @NoArgsConstructor
+    @Builder
+    @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ResponseData{
+        private String status;
+        private String message;
+        private String aadhaarXml;
+        @JsonProperty("account_id")
+        private String accountId;
     }
 }
