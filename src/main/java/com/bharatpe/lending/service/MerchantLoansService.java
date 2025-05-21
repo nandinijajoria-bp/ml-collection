@@ -266,9 +266,6 @@ public class MerchantLoansService {
     @Value(("${topup.pilot.run.enabled.lenders:ABFL}"))
     String topupPilotRunEnabledLenders;
 
-    @Value("${deprecated.merchant.references:true}")
-    private boolean hasDeprecatedMerchantReferences;
-
     @Autowired
     ExcessNachService excessNachService;
 
@@ -916,6 +913,8 @@ public class MerchantLoansService {
         return false;
     }
 
+    //Not using this method because phonebook handler api id deprecated
+    @Deprecated
     private Boolean isContactSyncRequired(LendingPaymentScheduleSlave lendingPaymentSchedule) {
         try {
             LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findTop1ByMerchantId(lendingPaymentSchedule.getMerchantId());
@@ -927,12 +926,10 @@ public class MerchantLoansService {
                 return false;
             }
 
-           if(!hasDeprecatedMerchantReferences){
-               List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(lendingPaymentSchedule.getMerchantId());
-               if (phonebook.isEmpty()) {
-                   return true;
-               }
-           }
+            List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(lendingPaymentSchedule.getMerchantId());
+            if (phonebook.isEmpty()) {
+                return true;
+            }
 //            if (LoanUtil.getDateDiffInDays(phonebook.get().getUpdatedAt(), new Date()) > 60) {
 //                return true;
 //            }
@@ -974,21 +971,21 @@ public class MerchantLoansService {
 //                    readLine = bufferedReader.readLine();
 //                }
 
-//                for (PhonebookDTO phonebookDTO : phonebook) {
-//                    totalEntries++;
-//                    if (!StringUtils.isEmpty(phonebookDTO.getName())) {
-//                        nameEntries++;
-//                    }
-//                    if (!StringUtils.isEmpty(phonebookDTO.getPhoneNumber())) {
-//                        mobileEntries++;
-//                    }
-//                }
-//
-//
-//                lendingContactSyncAudit.setMobileEntries(mobileEntries);
-//                lendingContactSyncAudit.setNameEntries(nameEntries);
-//                lendingContactSyncAudit.setTotalEntries(totalEntries);
-//                lendingContactSyncAuditDao.save(lendingContactSyncAudit);
+                for (PhonebookDTO phonebookDTO : phonebook) {
+                    totalEntries++;
+                    if (!StringUtils.isEmpty(phonebookDTO.getName())) {
+                        nameEntries++;
+                    }
+                    if (!StringUtils.isEmpty(phonebookDTO.getPhoneNumber())) {
+                        mobileEntries++;
+                    }
+                }
+
+
+                lendingContactSyncAudit.setMobileEntries(mobileEntries);
+                lendingContactSyncAudit.setNameEntries(nameEntries);
+                lendingContactSyncAudit.setTotalEntries(totalEntries);
+                lendingContactSyncAuditDao.save(lendingContactSyncAudit);
             } catch (Exception ex) {
                 logger.error("Error Occured while auditing contact data for loan id : {} {}", lendingPaymentSchedule.getId(), ex);
             }

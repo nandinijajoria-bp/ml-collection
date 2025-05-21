@@ -562,9 +562,8 @@ public class LoanDetailsService {
 
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchantBasicDetailsDto.getId());
-
+				boolean syncContacts = false;
 				if(!hasDeprecatedMerchantReferences){
-					boolean syncContacts = false;
 					List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
 					if (phonebook.isEmpty()) {
 						logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
@@ -572,7 +571,9 @@ public class LoanDetailsService {
 					}
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				//loanDetailsDTO.setSyncContacts(syncContacts);
+				if(!hasDeprecatedMerchantReferences){
+					loanDetailsDTO.setSyncContacts(syncContacts);
+				}
 				loanDetailsDTO.setHistory(orignalHistoryDTOs);
 				loanDetailsDTO.setEligible(true);
 				loanDetailsDTO.setRejected(rejected);
@@ -601,8 +602,8 @@ public class LoanDetailsService {
 			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
 //			boolean retry = shouldRetry(lendingApplication);
 			if(lendingApplication != null && !eligibleFlag) {
+				boolean syncContacts = false;
 				if(!hasDeprecatedMerchantReferences){
-					boolean syncContacts = false;
 					List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
 					if (phonebook.isEmpty()) {
 						logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
@@ -610,7 +611,9 @@ public class LoanDetailsService {
 					}
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				//loanDetailsDTO.setSyncContacts(syncContacts);
+				if(!hasDeprecatedMerchantReferences){
+					loanDetailsDTO.setSyncContacts(syncContacts);
+				}
 				loanDetailsDTO.setHistory(loanHistoryDTOs);
 				loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 				loanDetailsDTO.setEligible(true);
