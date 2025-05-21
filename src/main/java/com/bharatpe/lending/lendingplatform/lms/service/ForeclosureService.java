@@ -128,7 +128,8 @@ public class ForeclosureService {
             ApiResponse<ForeclosureDetailsResponse> foreclosureResponse = lendingPlatformHttpClient.sendGetRequestWithParams(GET_FORECLOSURE_AMOUNT,
                     requestParams,
                     ForeclosureDetailsResponse.class);
-            if (foreclosureResponse != null && !ObjectUtils.isEmpty(foreclosureResponse.getData().getForeclosureAmount())) {
+            if (!ObjectUtils.isEmpty(foreclosureResponse) && foreclosureResponse.isSuccess() && !ObjectUtils.isEmpty(foreclosureResponse.getData())
+                    && !ObjectUtils.isEmpty(foreclosureResponse.getData().getForeclosureAmount())) {
                 log.info("Foreclosure Amount fetched successfully. Merchant ID: {}", activeLoan.getMerchantId());
                 return (int) Math.ceil(foreclosureResponse.getData().getForeclosureAmount().doubleValue());
             }
@@ -147,7 +148,10 @@ public class ForeclosureService {
         LenderForeclosureDetailsRequest lenderForeclosureRequest = createLenderForeclosureRequest(activeLoan);
         ApiResponse<LenderForeclosureDetailsResponse> lenderForeclosureResponse = lendingPlatformHttpClient.sendPostRequest(FETCH_LENDER_FORECLOSURE, lenderForeclosureRequest, LenderForeclosureDetailsResponse
                 .class);
-        netForeclosureAtLender = lenderForeclosureResponse.getData().getForeclosureAmount();
+        if(!ObjectUtils.isEmpty(lenderForeclosureResponse) && lenderForeclosureResponse.isSuccess()
+                && !ObjectUtils.isEmpty(lenderForeclosureResponse.getData())){
+            netForeclosureAtLender = lenderForeclosureResponse.getData().getForeclosureAmount();
+        }
 
         log.info("Foreclosure amount at lender side for applicationId:{} is {}",activeLoan.getApplicationId(), netForeclosureAtLender);
         return netForeclosureAtLender;
