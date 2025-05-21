@@ -396,8 +396,8 @@ public class LoanUtil {
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
 
-	@Value("${deprecated.merchant.references:false}")
-	private boolean deprecatedMerchantReferences;
+	@Value("${deprecated.merchant.references:true}")
+    private boolean hasDeprecatedMerchantReferences;
 	@Autowired
 	ObjectMapper objectMapper;
 	@Autowired
@@ -418,7 +418,6 @@ public class LoanUtil {
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
 	}
-
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1842,7 +1841,7 @@ public class LoanUtil {
 			Long referencesLimit = loanDetailsServiceV2.getReferenceLimit(lendingApplication);
 			Integer toBeShown = loanDetailsServiceV2.getToBeShownReferences(referencesLimit);
 			logger.info("async threadpool flow executed for getMerchantReferences.");
-			if (!deprecatedMerchantReferences) {
+			if (!hasDeprecatedMerchantReferences) {
 				dsHandler.getMerchantReferences(merchantId, minScore, toBeShown, lendingApplication.getId());
 			}
 			String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchantId;

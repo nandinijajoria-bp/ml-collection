@@ -188,8 +188,8 @@ public class LoanDetailsServiceV2 {
     @Value("${gst3b.ineligible.source:LOW_TRANSACTION}")
     List<String> gst3bIneligibleSourceList;
 
-    @Value("${deprecated.merchant.references:false}")
-    private boolean deprecatedMerchantReferences;
+    @Value("${deprecated.merchant.references:true}")
+    private boolean hasDeprecatedMerchantReferences;
 
 
     @Value("${loan.details.refresh.window:15}")
@@ -1590,7 +1590,7 @@ public class LoanDetailsServiceV2 {
             /**
              * Below code is commented because old flow is not using now, only new flow is using.
              * */
-           if(!deprecatedMerchantReferences) {
+           if(!hasDeprecatedMerchantReferences) {
                Integer toBeShown = getToBeShownReferences(referencesLimit);
                MerchantReferencesResponseDto responseDto;
                DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());

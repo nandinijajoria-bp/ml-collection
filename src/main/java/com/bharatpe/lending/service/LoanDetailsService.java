@@ -244,6 +244,10 @@ public class LoanDetailsService {
 	LendingRiskVariablesSnapshotSlaveDao lendingRiskVariablesSnapshotDao;
 	@Value("${bureau.credit.score.pull.days:45}")
 	private Long bureauScorePullDays;
+
+	@Value("${deprecated.merchant.references:true}")
+	private boolean hasDeprecatedMerchantReferences;
+
 	@Autowired
 	BureauHandler bureauHandler;
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -558,14 +562,17 @@ public class LoanDetailsService {
 
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchantBasicDetailsDto.getId());
-				boolean syncContacts = false;
-				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
-				if (phonebook.isEmpty()) {
-					logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
-					syncContacts = true;
+
+				if(!hasDeprecatedMerchantReferences){
+					boolean syncContacts = false;
+					List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
+					if (phonebook.isEmpty()) {
+						logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
+						syncContacts = true;
+					}
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setSyncContacts(syncContacts);
+				//loanDetailsDTO.setSyncContacts(syncContacts);
 				loanDetailsDTO.setHistory(orignalHistoryDTOs);
 				loanDetailsDTO.setEligible(true);
 				loanDetailsDTO.setRejected(rejected);
@@ -594,14 +601,16 @@ public class LoanDetailsService {
 			boolean covidCities = experian != null && loanUtil.isCovidCities(experian.getPincode());
 //			boolean retry = shouldRetry(lendingApplication);
 			if(lendingApplication != null && !eligibleFlag) {
-				boolean syncContacts = false;
-				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
-				if (phonebook.isEmpty()) {
-					logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
-					syncContacts = true;
+				if(!hasDeprecatedMerchantReferences){
+					boolean syncContacts = false;
+					List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
+					if (phonebook.isEmpty()) {
+						logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
+						syncContacts = true;
+					}
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setSyncContacts(syncContacts);
+				//loanDetailsDTO.setSyncContacts(syncContacts);
 				loanDetailsDTO.setHistory(loanHistoryDTOs);
 				loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 				loanDetailsDTO.setEligible(true);
