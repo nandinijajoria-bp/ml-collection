@@ -1587,64 +1587,62 @@ public class LoanDetailsServiceV2 {
             }
 
             log.info("references limit for merchantId:{} {}", merchant.getId(), referencesLimit);
-            /**
-             * Below code is commented because old flow is not using now, only new flow is using.
-             * */
-           if(!hasDeprecatedMerchantReferences) {
-               Integer toBeShown = getToBeShownReferences(referencesLimit);
-               MerchantReferencesResponseDto responseDto;
-               DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
-               if(Objects.isNull(deResponse)) {
-                   rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
-                   log.info("Successfully rejected applicationId: {} because of no response from DE api of merchantId: {}", lendingApplication.getId(), merchantId);
-                   responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
-                   return new ApiResponse<>(responseDto);
-               }
+            if(hasDeprecatedMerchantReferences){
+                return new ApiResponse<>(false, "Merchant score api is deprecated");
+            }
+            Integer toBeShown = getToBeShownReferences(referencesLimit);
+            MerchantReferencesResponseDto responseDto;
+            DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
+            if(Objects.isNull(deResponse)) {
+                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
+                log.info("Successfully rejected applicationId: {} because of no response from DE api of merchantId: {}", lendingApplication.getId(), merchantId);
+                responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
+                return new ApiResponse<>(responseDto);
+            }
 
-               Integer totalContacts = deResponse.getTotalContacts();
-               List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
+            Integer totalContacts = deResponse.getTotalContacts();
+            List<MerchantReference> deReferenceList = deResponse.getData().getOutput();
 
-               LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-               log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
-               if (Objects.isNull(lendingApplicationDetails)) {
-                   lendingApplicationDetails = new LendingApplicationDetails();
-                   lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-               }
-               lendingApplicationDetails.setTotalReferences(totalContacts);
-               if (Objects.nonNull(deReferenceList))
-                   lendingApplicationDetails.setReferencesFromDe(deReferenceList.size());
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            log.info("lendingApplicationDetails of applicationId: {}, {}", lendingApplication.getId(), lendingApplicationDetails);
+            if (Objects.isNull(lendingApplicationDetails)) {
+                lendingApplicationDetails = new LendingApplicationDetails();
+                lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+            }
+            lendingApplicationDetails.setTotalReferences(totalContacts);
+            if (Objects.nonNull(deReferenceList))
+                lendingApplicationDetails.setReferencesFromDe(deReferenceList.size());
 
-               lendingApplicationDetailsDao.save(lendingApplicationDetails);
+            lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
-               if (totalContacts < LendingConstants.MINIMUM_CONTACTS_NEEDED) {
+            if (totalContacts < LendingConstants.MINIMUM_CONTACTS_NEEDED) {
 
-                   rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
-                   log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", lendingApplication.getId(), merchantId);
-                   responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(true).build();
+                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
+                log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", lendingApplication.getId(), merchantId);
+                responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(true).build();
 
-               } else {
+            } else {
 
-                   int scoreGreaterThan100 = 0, scoreGreaterThan80 = 0;
+                int scoreGreaterThan100 = 0, scoreGreaterThan80 = 0;
 
-                   if (referencesLimit == 10L) {
-                       for (MerchantReference merchantReference : deReferenceList) {
-                           if (merchantReference.getScore() >= 100) scoreGreaterThan100++;
-                           if (merchantReference.getScore() >= 80) scoreGreaterThan80++;
-                       }
-                       if (scoreGreaterThan100 >= 2) {
-                           deReferenceList.subList(Math.min(13,deReferenceList.size()), deReferenceList.size()).clear();
-                       } else if (scoreGreaterThan80 < 4) {
-                           deReferenceList.subList(Math.min(10,deReferenceList.size()), deReferenceList.size()).clear();
-                       }
-                   }
-                   log.info("Successfully fetched references of merchantId: {}", merchantId);
-                   responseDto = MerchantReferencesResponseDto.builder().
-                           references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
+                if (referencesLimit == 10L) {
+                    for (MerchantReference merchantReference : deReferenceList) {
+                        if (merchantReference.getScore() >= 100) scoreGreaterThan100++;
+                        if (merchantReference.getScore() >= 80) scoreGreaterThan80++;
+                    }
+                    if (scoreGreaterThan100 >= 2) {
+                        deReferenceList.subList(Math.min(13,deReferenceList.size()), deReferenceList.size()).clear();
+                    } else if (scoreGreaterThan80 < 4) {
+                        deReferenceList.subList(Math.min(10,deReferenceList.size()), deReferenceList.size()).clear();
+                    }
+                }
+                log.info("Successfully fetched references of merchantId: {}", merchantId);
+                responseDto = MerchantReferencesResponseDto.builder().
+                        references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(false).build();
 
-               }
-               submitFunnelEvent(merchantId, lendingApplication, FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED);
-               return new ApiResponse<>(responseDto);
-           }
+            }
+            submitFunnelEvent(merchantId, lendingApplication, FunnelEnums.StageId.REFERENCE_PAGE, FunnelEnums.StageEvent.INITIATED);
+            return new ApiResponse<>(responseDto);
         } catch (Exception e) {
             log.error("Error occurred while fetching merchant references of merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
         }
