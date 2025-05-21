@@ -257,6 +257,10 @@ public class LmsLoanCreationService {
         }
 
         String customerName = cKycResponseDto.getName().replaceAll("[^a-zA-Z0-9 ]", "");
+
+        String gender = (!ObjectUtils.isEmpty(cKycResponseDto.getGender()) && cKycResponseDto.getGender().toUpperCase().startsWith("M")) ? "M" :
+                        (!ObjectUtils.isEmpty(cKycResponseDto.getGender()) && cKycResponseDto.getGender().toUpperCase().startsWith("F")) ? "F" : "O";
+
         return CreateLoanRequest.CustomerDetails.builder()
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))
                 .customerAddress(cKycResponseDto.getAddress())
@@ -265,7 +269,7 @@ public class LmsLoanCreationService {
                 .customerPinCode(Long.parseLong(cKycResponseDto.getPincode()))
                 .customerAadharNo(cKycResponseDto.getAadharNumber())
                 .customerDOB(formattedDob)
-                .customerGender(cKycResponseDto.getGender())
+                .customerGender(gender)
                 .customerBankAccNo(merchantBankDetail.getAccountNumber())
                 .customerBankBranch(merchantBankDetail.getBankName())
                 .customerBankIFSC(merchantBankDetail.getIfsc())
