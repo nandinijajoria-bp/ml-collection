@@ -19,7 +19,6 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class LoanReceiptRequestDTO {
 
     private String productId;
@@ -63,7 +62,7 @@ public class LoanReceiptRequestDTO {
     @AllArgsConstructor
     @NoArgsConstructor
     @Builder
-    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonInclude(JsonInclude.Include.ALWAYS)
     public static class FeeList {
 
         private String feeType;

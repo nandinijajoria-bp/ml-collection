@@ -243,7 +243,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             // LC-565
             // note - terminal payment also in that loan will be there in active state as loan is closed marked by the
             // edi scheduler (in non foreclosure cases) and there is separate job to create refund entry from active excess balance of closed loans
-            if ("ACTIVE".equalsIgnoreCase(loan.getStatus()) || LoanStatus.DECEASED.name().equalsIgnoreCase(loan.getStatus())) refund = false;
+            if ("ACTIVE".equalsIgnoreCase(loan.getStatus()) || LoanStatus.DECEASED.name().equalsIgnoreCase(loan.getStatus()) || LoanStatus.INACTIVE_TOPUP.name().equalsIgnoreCase(loan.getStatus())) refund = false;
 
             if (refund) {
                 createLoanRefund(loan, balance, payment);
@@ -298,7 +298,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                 .bpLoanId(lendingPaymentSchedule.getLoanApplication().getExternalLoanId())
                 .nbfcId(lendingPaymentSchedule.getLoanApplication().getNbfcId())
                 .txnType(String.format("EXCESS_%s_CREDIT", StringUtils.hasLength(source) ? source : ""))
-                .transferType(DIRECT_TRANSFER_LENDER.name())
+                .transferType(transferType == null ? CollectionTransferTypeEnum.DIRECT_TRANSFER_LENDER.name() : transferType)
                 .status("PENDING")
                 .amount(amount)
                 .otherCharges(0D)
