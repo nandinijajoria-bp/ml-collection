@@ -4002,7 +4002,7 @@ public class LendingApplicationServiceV2 {
         }
         else if(lender.equalsIgnoreCase(Lender.PIRAMAL.toString()) && applicationDocType.equals(ApplicationDocType.PIRAMAL_LETTERHEAD_FOOTER)){
 //            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/pirmal/piramal_letter_footer.jpg";
-            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/piramal_footer-1727528554654.png";
+            logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/hubble/easy_loans/pirmal-foot-1747895919163.png";
         }
         else if(lender.equalsIgnoreCase(Lender.ABFL.toString()) && applicationDocType.equals(ApplicationDocType.WELCOME_LETTER_DOC)){
             logoUrl = "https://d30gqtvesfc1d5.cloudfront.net/abfl-welcome.png";
