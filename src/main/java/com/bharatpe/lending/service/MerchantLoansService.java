@@ -1236,7 +1236,7 @@ public class MerchantLoansService {
 
                     LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
                     PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                            lendingRiskVariables.getTenure(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+                            eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
                     LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                             eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
@@ -1480,7 +1480,7 @@ public class MerchantLoansService {
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
 
                 PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                        lendingRiskVariables.getTenure(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+                        eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
                 LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                         eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
@@ -1682,7 +1682,7 @@ public class MerchantLoansService {
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
                 PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                        lendingRiskVariables.getTenure(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+                        eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
                 LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                         eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
@@ -1967,7 +1967,7 @@ public class MerchantLoansService {
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingPaymentSchedule.getMerchantId());
                 PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                        lendingRiskVariables.getTenure(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
+                        eligibleLoan.getTenureInMonths(), (int) (lendingPaymentSchedule.getMerchantId()/10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
                 LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                         eligibleLoan.getTenureInMonths(), lendingApplication.getLender(), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
@@ -2108,10 +2108,11 @@ public class MerchantLoansService {
         int currentDPD = LoanUtil.calculateDPD(lendingPaymentSchedule.getEdiAmount(), lendingPaymentSchedule.getDueAmount());
 
         RiskVariablesDTO riskVariables = new RiskVariablesDTO();
-        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingRiskVariables.getTenure(),
-                (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                eligibleLoan.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), "ACTIVE");
 
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+            logger.info("experiment fetched for {}: {}", lendingPaymentSchedule.getMerchantId(), pricingExperiment);
             riskVariables.setPricingExperimentMap(Collections.singletonMap(lendingApplication.getMerchantId(), pricingExperiment));
         }else{
             LendingLenderPricing lenderPricing = lendingLenderPricingDao.findTop1BySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColorAndStatus(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),

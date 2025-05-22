@@ -1501,7 +1501,7 @@ public class LenderAssignService implements ILenderAssignService {
                 PricingExperiment pricingExperiment = null;
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                            lendingRiskVariables.getTenure(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                            lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
 
                     lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
                             lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
@@ -1725,7 +1725,7 @@ public class LenderAssignService implements ILenderAssignService {
         PricingExperiment pricingExperiment = null;
         if(pricingExpEnabled) {
             pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
-                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingRiskVariables.getTenure(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
+                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
         }
 
         if(!ObjectUtils.isEmpty(pricingExperiment)) {
@@ -1774,7 +1774,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         log.info("riskVariables in lender assignment v2 {}", riskVariables);
         PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(),
-                lendingRiskVariables.getRiskGroup(), lendingRiskVariables.getTenure(), (int) (application.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
+                lendingRiskVariables.getRiskGroup(), application.getTenureInMonths(), (int) (application.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), application.getCreatedAt());
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("experiment available for {}: {}", application.getMerchantId(), pricingExperiment);
             riskVariables.setPricingExperimentMap(Collections.singletonMap(application.getMerchantId(), pricingExperiment));
