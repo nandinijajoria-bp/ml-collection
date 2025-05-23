@@ -1,6 +1,7 @@
 package com.bharatpe.lending.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,6 +14,7 @@ import java.util.Date;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DSMileStoneAchievementResponse {
 
     public Total total;
@@ -21,6 +23,7 @@ public class DSMileStoneAchievementResponse {
 
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Achievement {
         public int milestone_no;
         public ArrayList<Object> active_days_daily;
@@ -35,6 +38,7 @@ public class DSMileStoneAchievementResponse {
 
 
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Total {
         public int tpv;
         public int txn_cnt;

@@ -14,6 +14,8 @@ import java.util.ArrayList;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class DSMileStoneResponse {
+    //for old flow merchants - whose data is already present on our end
+    public int cashback;
 
     public String program_type;
 
@@ -33,6 +35,7 @@ public class DSMileStoneResponse {
         public int no_txn;
         public int unq_payer;
         public int active_days;
+        //for new flow merchants
         public int cashback;
     }
 }
