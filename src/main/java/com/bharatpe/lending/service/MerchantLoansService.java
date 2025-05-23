@@ -913,6 +913,8 @@ public class MerchantLoansService {
         return false;
     }
 
+    //Not using this method because phonebook handler api id deprecated
+    @Deprecated
     private Boolean isContactSyncRequired(LendingPaymentScheduleSlave lendingPaymentSchedule) {
         try {
             LendingContactSyncAudit lendingContactSyncAudit = lendingContactSyncAuditDao.findTop1ByMerchantId(lendingPaymentSchedule.getMerchantId());
