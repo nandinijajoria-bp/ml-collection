@@ -24,6 +24,5 @@ public class MileStoneDashboardData {
     private Date milestone_end_time;
     private List<Object> unq_payer_daily;
     private List<Object> active_days_daily;
-    private int cashback;
 
 }

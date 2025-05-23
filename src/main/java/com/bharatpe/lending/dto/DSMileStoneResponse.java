@@ -16,7 +16,6 @@ import java.util.ArrayList;
 public class DSMileStoneResponse {
     //for old flow merchants - whose data is already present on our end
     public int cashback;
-
     public String program_type;
 
     public int target_duration_days;

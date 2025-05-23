@@ -27,10 +27,7 @@ public class MileStoneEligibilityResponseDto {
     private String experianRejectionReason;
     private int targetDurationDays;
     private Long merchantId;
-    private int cashback;
-    private String sessionStatus;
-    private Boolean showSummaryPage;
-    private Boolean isCashbackEarned;
+
     @Data
     public static class ProgramActiveData {
         private String stripHeading;
