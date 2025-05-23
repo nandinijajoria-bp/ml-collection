@@ -108,6 +108,9 @@ public class ImageURLService {
 	@Value("${sid.rollout.percent}")
 	Integer sidRolloutPercent;
 
+	@Value("${deprecated.merchant.references:true}")
+	private boolean hasDeprecatedMerchantReferences;
+
 	public Map<String, Object> fetchAndWrapResult(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 		Map<String, Object> result = new HashMap<String, Object>();
 		Map<String, String> panNameCheck = new HashMap<>();
@@ -152,17 +155,19 @@ public class ImageURLService {
 				return result;
 			}
 		}
-
 		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
-		if (finalCall) {
-			List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchant.getId());
-			if (phonebook.isEmpty()) {
-				logger.info("Contacts not synced for merchant:{}", merchant.getId());
-				result.put("success", false);
-				result.put("message", "CONTACTS_NOT_SYNCED");
-				return result;
+		if(!hasDeprecatedMerchantReferences){
+			if (finalCall) {
+				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchant.getId());
+				if (phonebook.isEmpty()) {
+					logger.info("Contacts not synced for merchant:{}", merchant.getId());
+					result.put("success", false);
+					result.put("message", "CONTACTS_NOT_SYNCED");
+					return result;
+				}
 			}
 		}
+
 		result.put("isEKYC",ekycDone);
 		result.put("allow_route", allowRoute(lendingApplication, merchant, ekycDone));
 		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
