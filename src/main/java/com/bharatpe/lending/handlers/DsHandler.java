@@ -202,7 +202,7 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deMileStoneBaseUrl + "/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
+            String url = deMileStoneBaseUrl + "/rte/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
 
             log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
 
