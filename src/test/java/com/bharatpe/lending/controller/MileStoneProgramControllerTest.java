@@ -150,7 +150,7 @@ class MileStoneProgramControllerTest {
         total_target.setUnq_payer(1);
 
         DSMileStoneResponse dsMileStoneResponse = new DSMileStoneResponse();
-//        dsMileStoneResponse.setCashback(1);
+        dsMileStoneResponse.setCashback(1);
         dsMileStoneResponse.setTarget(new ArrayList<>());
         dsMileStoneResponse.setTarget_duration_days(1);
         dsMileStoneResponse.setTotal_target(total_target);
