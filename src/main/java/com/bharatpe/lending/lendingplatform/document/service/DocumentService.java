@@ -9,12 +9,12 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class DocumentService {
-    @Value("${com.bharatpe.platform.baseUrl:-}")
-    private String lendingBaseUrl;
+    @Value("${com.bharatpe.platform.public.baseUrl:-}")
+    private String lendingPlatformBaseUrl;
     @Value("${lending.platform.doc.endpoint:-}")
     private String lendingPlatformDocEndpoint;
 
     public String generateDocUrl(String objectKey) {
-        return lendingBaseUrl + lendingPlatformDocEndpoint + objectKey;
+        return lendingPlatformBaseUrl + lendingPlatformDocEndpoint + objectKey;
     }
 }
