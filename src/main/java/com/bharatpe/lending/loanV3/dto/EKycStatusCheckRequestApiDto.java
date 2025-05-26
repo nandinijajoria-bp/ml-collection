@@ -14,21 +14,18 @@ import java.util.LinkedHashMap;
 @AllArgsConstructor
 @Builder
 public class EKycStatusCheckRequestApiDto {
-    String lender;
-    Long applicationId;
-    String productName;
-    Payload payload;
-    Boolean topup;
-    LinkedHashMap<String, Object> identifier;
-    private boolean skipTermination;
+    private String lender;
+    private Long applicationId;
+    private String productName;
+    private Payload payload;
+    private Boolean topup;
+    private LinkedHashMap<String, Object> identifier;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
     public static class Payload {
-        String accountId;
-        String profileId;
-        String journeyType;
+        private String accountId;
     }
 }
