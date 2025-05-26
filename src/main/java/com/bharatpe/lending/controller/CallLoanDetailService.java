@@ -5,9 +5,9 @@ import com.bharatpe.common.entities.*;
 import com.bharatpe.common.handlers.PushNotificationHandler;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.slave.dao.EcollectTransactionDaoSlave;
+//import com.bharatpe.lending.common.slave.dao.EcollectTransactionDaoSlave;
 import com.bharatpe.lending.common.query.dao.InternalClientDaoSlave;
-import com.bharatpe.lending.common.slave.entity.EcollectTransactionSlave;
+//import com.bharatpe.lending.common.slave.entity.EcollectTransactionSlave;
 import com.bharatpe.lending.common.query.entity.InternalClientSlave;
 import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
@@ -90,8 +90,8 @@ public class CallLoanDetailService {
     @Autowired
     RestTemplate restTemplate;
 
-    @Autowired
-    EcollectTransactionDaoSlave ecollectTransactionDaoSlave;
+//    @Autowired
+//    EcollectTransactionDaoSlave ecollectTransactionDaoSlave;
 
     @Autowired
     Environment env;
@@ -127,13 +127,13 @@ public class CallLoanDetailService {
         try {
 //			List<EcollectTransaction> ecollectTransactions = ecollectTransactionDao.getMissedDisbursal();
 //			List<LendingApplication> lendingApplicationList = lendingApplicationDao.getApplications();
-            EcollectTransactionSlave ecollectTransaction = ecollectTransactionDaoSlave.findById(ecollectTxnId).get();
+//            EcollectTransactionSlave ecollectTransaction = ecollectTransactionDaoSlave.findById(ecollectTxnId).get();
 //			for (EcollectTransaction ecollectTransaction : ecollectTransactions) {
 //				if (internalMerchants.contains(merchantId.longValue())) {
 //					continue;
 //				}
 //				sendPush(ecollectTransaction);
-            pushToKafka(ecollectTransaction);
+//            pushToKafka(ecollectTransaction);
 //				publishForDisbursal(lendingApplication.getId());
 //			}
         } catch (Exception e) {
@@ -154,16 +154,16 @@ public class CallLoanDetailService {
         }
     }
 
-    private void pushToKafka(EcollectTransactionSlave ecollectTransaction) {
-        logger.info("Sending ecollect to account:{} and amount:{}", ecollectTransaction.getVirtualAccountNumber(), ecollectTransaction.getAmount());
-        Map<String, String> data = new HashMap<>();
-        data.put("transaction_id", ecollectTransaction.getId().toString());
-        data.put("bank_reference_no", ecollectTransaction.getBankReferenceNo());
-        data.put("account_number", ecollectTransaction.getVirtualAccountNumber());
-        data.put("amount", String.valueOf(Math.ceil(ecollectTransaction.getAmount() / 1000.0) * 1000));
-        logger.info("DEPRECATED Kafka producer fot topic: ecollect.loan.disbursal");
-//        kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchantId().toString(), data);
-    }
+//    private void pushToKafka(EcollectTransactionSlave ecollectTransaction) {
+//        logger.info("Sending ecollect to account:{} and amount:{}", ecollectTransaction.getVirtualAccountNumber(), ecollectTransaction.getAmount());
+//        Map<String, String> data = new HashMap<>();
+//        data.put("transaction_id", ecollectTransaction.getId().toString());
+//        data.put("bank_reference_no", ecollectTransaction.getBankReferenceNo());
+//        data.put("account_number", ecollectTransaction.getVirtualAccountNumber());
+//        data.put("amount", String.valueOf(Math.ceil(ecollectTransaction.getAmount() / 1000.0) * 1000));
+//        logger.info("DEPRECATED Kafka producer fot topic: ecollect.loan.disbursal");
+////        kafkaTemplate.send("ecollect.loan.disbursal", ecollectTransaction.getMerchantId().toString(), data);
+//    }
 
 //    private void sendPush(Experian experian) {
 ////		Optional<Merchant> merchantOptional = merchantDao.findById(experian.getMerchantId());
