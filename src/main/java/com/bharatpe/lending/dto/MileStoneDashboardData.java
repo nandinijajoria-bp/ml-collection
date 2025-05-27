@@ -19,10 +19,13 @@ public class MileStoneDashboardData {
 
     private int AchieveMileStoneUniquePayer;
     private int TargetUniquePayer;
+    public int NoOftxn;
+    public int PerTxnValue;
 
     private Date milestone_start_time;
     private Date milestone_end_time;
     private List<Object> unq_payer_daily;
     private List<Object> active_days_daily;
+    private int cashback;
 
 }
