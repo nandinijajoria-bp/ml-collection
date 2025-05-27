@@ -99,6 +99,22 @@ public class SmfgBreService {
     @Autowired
     LenderAssignService lenderAssignService;
 
+    private static final Map<String, String> allowedRegexMap;
+
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("ACCOUNT_HOLDER_NAME", "a-zA-Z0-9 \\-\\.\\#/,");
+        map.put("OFFICE_ADDRESS_ADDRESS1", "a-zA-Z0-9 \\-\\.\\#/,:()&’");
+        map.put("LAST_NAME", "a-zA-Z .");
+        map.put("COMPANY", "a-zA-Z0-9 \\-\\.\\#/,");
+        map.put("CURRENT_ADDRESS_ADDRESS1", "a-zA-Z0-9 \\-\\.\\#/,:()&’");
+        map.put("FIRST_NAME", "a-zA-Z ");
+        map.put("CURRENT_ADDRESS_ADDRESS2", "a-zA-Z0-9 \\-\\.\\#/,:()&’");
+        map.put("MIDDLE_NAME", "a-zA-Z ");
+        map.put("ACCOUNT_NO", "0-9");
+        allowedRegexMap = Collections.unmodifiableMap(map);
+    }
+
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
@@ -151,7 +167,7 @@ public class SmfgBreService {
             throw new RuntimeException("bank details not found for SMFG application merchant id:" + lenderAssociationDetailsRequest.getMerchantId());
         }
         BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.get();
-        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropAccountNumber(merchantBankDetail.getAccountNumber()); // to later check if account is changed
+        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropAccountNumber(converterUtils.sanitizeByRegex(merchantBankDetail.getAccountNumber(), allowedRegexMap.getOrDefault("ACCOUNT_NO", null))); // to later check if account is changed
         if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
             log.info("lending risk variable snapshot not found for applicationId : {}", lendingApplication.getId());
             throw new RuntimeException("lending risk variable snapshot not found for SMFG application " + lendingApplication.getId());
@@ -165,9 +181,9 @@ public class SmfgBreService {
                     .programtype(smfgConfig.getProgramType())
                     .apiaction(smfgConfig.getAppPushApiAction())
                     .leaddetails(SmfgAppPushRequest.LeadDetails.builder()
-                            .firstname(nameAndDobDetailsDto.getFirstName())
-                            .middlename(nameAndDobDetailsDto.getMiddleName())
-                            .lastname(nameAndDobDetailsDto.getLastName())
+                            .firstname(converterUtils.sanitizeByRegex(nameAndDobDetailsDto.getFirstName(), allowedRegexMap.getOrDefault("FIRST_NAME", null)))
+                            .middlename(converterUtils.sanitizeByRegex(nameAndDobDetailsDto.getMiddleName(), allowedRegexMap.getOrDefault("MIDDLE_NAME", null)))
+                            .lastname(converterUtils.sanitizeByRegex(nameAndDobDetailsDto.getLastName(), allowedRegexMap.getOrDefault("LAST_NAME", null)))
                             .mobilenumber(mobile)
                             .producttype(smfgConfig.getProductType())
                             .currentpincode(lendingApplication.getPincode())
@@ -193,8 +209,8 @@ public class SmfgBreService {
                             .partnerscorecardscore(lendingRiskVariablesSnapshot.getRiskGroup())
                             .stampdutywithgst(smfgConfig.getStampDutyWithGst()).build())
                     .repaymentdisbbankdetails(SmfgAppPushRequest.RepaymentDisbBankDetails.builder()
-                            .accountholdername(merchantBankDetail.getBeneficiaryName())
-                            .accountno(merchantBankDetail.getAccountNumber())
+                            .accountholdername(converterUtils.sanitizeByRegex(merchantBankDetail.getBeneficiaryName(), allowedRegexMap.getOrDefault("ACCOUNT_HOLDER_NAME", null)))
+                            .accountno(converterUtils.sanitizeByRegex(merchantBankDetail.getAccountNumber(), allowedRegexMap.getOrDefault("ACCOUNT_NO", null)))
                             .accounttype("CURRENT".equalsIgnoreCase(merchantBankDetail.getAccountType()) ? smfgConfig.getCurrentAccountType() : smfgConfig.getSavingAccountType())
                             .bankname(merchantBankDetail.getBankName())
                             .ifsccode(merchantBankDetail.getIfsc()).build())
@@ -368,8 +384,8 @@ public class SmfgBreService {
         String kycAddress = converterUtils.parseData(cKycResponseDto.getAddress());
         List<String> addresses = getAddresses(kycAddress);
         SmfgAppPushRequest.AddressDetails address = SmfgAppPushRequest.AddressDetails.builder()
-                .address1(addresses.get(0))
-                .address2(addresses.get(1))
+                .address1(converterUtils.sanitizeByRegex(addresses.get(0), allowedRegexMap.getOrDefault("CURRENT_ADDRESS_ADDRESS1", null)))
+                .address2(converterUtils.sanitizeByRegex(addresses.get(1), allowedRegexMap.getOrDefault("CURRENT_ADDRESS_ADDRESS2", null)))
                 .address3(addresses.get(2))
                 .addresstype(addressType)
                 .pincode(cKycResponseDto.getPincode()).build();
@@ -383,10 +399,10 @@ public class SmfgBreService {
         String shopAddress = lendingApplicationServiceV2.constructShopAddress(lendingApplication);
         List<String> addresses = getAddresses(shopAddress);
         return SmfgAppPushRequest.WorkDetails.builder()
-                .officeaddress1(addresses.get(0))
+                .officeaddress1(converterUtils.sanitizeByRegex(addresses.get(0), allowedRegexMap.getOrDefault("OFFICE_ADDRESS_ADDRESS1", null)))
                 .officeaddress2(addresses.get(1))
                 .officeaddress3(addresses.get(2))
-                .company(lendingApplication.getBusinessName())
+                .company(converterUtils.sanitizeByRegex(lendingApplication.getBusinessName(), allowedRegexMap.getOrDefault("COMPANY", null)))
                 .officepincode(lendingApplication.getPincode()).build();
     }
 
