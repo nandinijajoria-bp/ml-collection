@@ -81,6 +81,12 @@ public class MileStoneProgramController {
         return mileStoneProgramService.checkRteEligibility(merchantId);
     }
 
+    @GetMapping(value = "/update-cashback-data")
+    public ApiResponse<?> updatePageView(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) String cashBackEarned) {
+        log.info("Updating pageViewed data for {}", merchant.getId());
+        return mileStoneProgramService.updatePageViewData(merchant.getId(), cashBackEarned);
+    }
+
 
     @GetMapping(value = "/evictCache")
     public void evictCache(@RequestParam Long merchantId)

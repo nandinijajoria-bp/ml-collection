@@ -33,6 +33,7 @@ import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.dto.InsuranceEligibilityRequestDTO;
 import com.bharatpe.lending.dto.InsuranceEligibilityResponseDTO;
+import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -335,14 +336,23 @@ public class LoanDashboardService {
             loanDashboardResponse.setSource("CACHE");
             return loanDashboardResponse;
         }
-        CompletableFuture<EmiDashboardResponse> emiDataCompletableFuture = CompletableFuture.completedFuture(null);
-        if(emiUtils.isEmiFlowEnabled()){
-            emiDataCompletableFuture = emiDashboardService.getEmiDashboardResponse(merchantDetails.getId(), token);
-        }
         LoanDashboardResponse loanDashboardResponse = new LoanDashboardResponse();
         loanDashboardResponse.setMerchantId(merchantDetails.getId());
         //set dummy merchant
         loanDashboardResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchantDetails.getId()));
+
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantId(merchantDetails.getId());
+        if(isEligibleForRTE(entity)) {
+            //add one condition on pageviewed as false
+            log.info("returning rte cashback flow from loan dashboard page for {}", merchantDetails.getId());
+            loanDashboardResponse.setShowRTEPage(true);
+            return loanDashboardResponse;
+        }
+        CompletableFuture<EmiDashboardResponse> emiDataCompletableFuture = CompletableFuture.completedFuture(null);
+        if(emiUtils.isEmiFlowEnabled()){
+            emiDataCompletableFuture = emiDashboardService.getEmiDashboardResponse(merchantDetails.getId(), token);
+        }
+
         //if user has inactive loan, return
         LendingPaymentScheduleSlave lendingPaymentSchedule1 = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantDetails.getId(), Collections.singletonList("INACTIVE"));
         if (!ObjectUtils.isEmpty(lendingPaymentSchedule1) && "INACTIVE".equalsIgnoreCase(lendingPaymentSchedule1.getStatus()) &&
@@ -419,6 +429,12 @@ public class LoanDashboardService {
         log.info("returning response from database");
         log.info("loan dashboard response : {} for merchantId : {}",loanDashboardResponse,merchantDetails.getId());
         return loanDashboardResponse;
+    }
+
+    private boolean isEligibleForRTE(MileStoneEntity entity) {
+        return !ObjectUtils.isEmpty(entity)
+                && !ObjectUtils.isEmpty(mileStoneHelperService.fetchTarget(entity))
+                && RTEProgramType.CASHBACK.name().equals(mileStoneHelperService.fetchTarget(entity).getProgram_type()) && Boolean.TRUE.equals(entity.getShowSummaryPage());
     }
 
     private LoanDashboardResponse handleEmiLoanDashboard(BasicDetailsDto merchantDetails, EmiDashboardResponse.Data emiDashboardDate) {
