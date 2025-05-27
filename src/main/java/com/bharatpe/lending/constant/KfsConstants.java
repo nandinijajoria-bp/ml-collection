@@ -30,9 +30,9 @@ public interface KfsConstants {
     String LENDER_GRIEVANCE_TIME_LDC = "10-6pm, Monday to Saturday (* only on odd Saturdays)";
     String LENDER_CORPORATE_NAME_LL_NBFC = "Trillionloans Fintech Private Limited";
     String LENDER_BUSINESS_ADDRESS_LL_NBFC = "Unit No. DPT-324, 3rd Floor, DLF Prime Towers, Plot No. F-79-80, Okhla Industrial Area, Phase -I, New Delhi - 110020, India";
-    String LENDER_CONTACT_NAME_LL_NBFC = "Urvashi Nayyar";
-    String LENDER_CONTACT_EMAIL_LL_NBFC = "nodalofficer@trillionloans.com";
-    String LENDER_CONTACT_NUMBER_LL_NBFC = "+91-9871662582";
+    String LENDER_CONTACT_NAME_LL_NBFC = "Ms. Punam Priyadarsini Das";
+    String LENDER_CONTACT_EMAIL_LL_NBFC = "grievances@trillionloans.com";
+    String LENDER_CONTACT_NUMBER_LL_NBFC = "+91-8851682895";
     String LENDER_GRIEVANCE_TIME_LL_NBFC = "9:30am-6pm, Monday to Friday";
     String LENDER_GRIEVANCE_REDRESSAL_POLICY_LL_NBFC = "https://www.trillionloans.com/policies-codes.html";
 
@@ -56,8 +56,8 @@ public interface KfsConstants {
     String LSP_CONTACT_EMAIL = "nodalofficer@bharatpemoney.com";
     String LSP_CONTACT_NUMBER = "+91-9899355922";
     String LSP_CONTACT_NUMBER_FORMATTED = "+91 9899355922";
-    String NODAL_OFFICER_NAME = "Urvashi Nayyar";
-    String NODAL_OFFICER_CONTACT_NUMBER = "9871662582";
+    String NODAL_OFFICER_NAME = "Ms. Punam Priyadarsini Das";
+    String NODAL_OFFICER_CONTACT_NUMBER = "8851682895";
 
     Double PROCESSING_FEE_PERCENTAGE = 2.0;
 
