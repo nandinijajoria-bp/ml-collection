@@ -48,10 +48,6 @@ public class MileStoneEntity extends BaseEntity {
     @Column(name="comment")
     private String comment;
 
-    @Column(name = "showSummaryPage")
-    private Boolean showSummaryPage;
 
-    @Column(name = "earnedCashback")
-    private Integer earnedCashback;
 
 }

@@ -2,7 +2,6 @@ package com.bharatpe.lending.loanV3.revamp.constants;
 
 public class RTEConstants {
     public static final String RTE_V3_AMOUNT = "RTE_V3_AMOUNT_";
-    public static final String CASHBACK_ACTIVEDAYS_EVENT = "RTE_CASHBACK_ACTIVE_%dDAYS";
     public static String RTE_PROGRAM_DETAILS_CACHE = "RTE_DETAILS_";
 
     public static String RTE_MILESTONE_OFFER_KEY = "RTE_MILESTONE_OFFER_";
