@@ -18,5 +18,5 @@ public class MileStoneDashboardDetails {
     private int targetActiveDays;
     private boolean isWeeklyFlowUser;
     private Long merchantId;
-
+    private long daysAfterEnroll;
 }
