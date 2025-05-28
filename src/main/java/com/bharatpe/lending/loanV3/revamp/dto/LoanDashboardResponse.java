@@ -55,6 +55,8 @@ public class LoanDashboardResponse {
     //only if the merchant is in masked mobile flow
     private Boolean isMaskedMobileCase;
     private InsuranceEligibilityResponseDTO.InsuranceEligibilityData insuranceEligibility;
+    private boolean showRTEPage;
+
 
 }
 
