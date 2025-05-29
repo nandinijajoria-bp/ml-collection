@@ -243,6 +243,21 @@ public abstract class LendingApplicationServiceV3Base {
                             .lender(currentDraftApplication.getLender())
                             .build());
                 }
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
+                    Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+                    if (eligibleLoan.isPresent() && (currentDraftApplication.getProcessingFee().intValue() < eligibleLoan.get().getProcessingFee() ||
+                            currentDraftApplication.getProcessingFee().intValue() > eligibleLoan.get().getProcessingFee())) {
+                        log.info("Processing fee changed for applicationId {}", currentDraftApplication.getId());
+                        return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                                .isRoiDecreased(true)
+                                .lender(currentDraftApplication.getLender())
+                                .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                                .stage(LenderAssociationStages.COMPLETED)
+                                .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                                .lender(currentDraftApplication.getLender())
+                                .build());
+                    }
+                }
 
                 log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
                 return new ApiResponse<>(LenderAssociationStatusResponse.builder()
