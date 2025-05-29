@@ -794,7 +794,7 @@ public abstract class LendingApplicationServiceV3Base {
             if(Lender.TRILLIONLOANS.name().equals(lendingApplication.getLender())){
                 ApiResponse<?> response = invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
                 if(ObjectUtils.isEmpty(response) || !response.success){
-                    log.error("Update Lead failed for application:{}", lendingApplication.getId());
+                    log.error("Update Loan failed for application:{}", lendingApplication.getId());
                     return new ApiResponse<>(false, createResponse("false", "Please try again later"), "Please try again later");
                 }
             }
