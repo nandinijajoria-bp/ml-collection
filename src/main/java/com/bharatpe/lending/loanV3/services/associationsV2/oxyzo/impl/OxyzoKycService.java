@@ -126,7 +126,7 @@ public class OxyzoKycService {
             DocType docName = DocType.DIGILOCKER_AADHAAR_XML;
             byte[] aadharXml = lenderAssociationDetailsRequestDto.getCKycResponseDto().getPoaString().getBytes(StandardCharsets.UTF_8);
             InputStream aadharXmlStream = new ByteArrayInputStream(aadharXml);
-            String fileName = docName.name() + docName.getFileExtension();
+            String fileName = docName.name() + "_" + lenderAssociationDetailsRequestDto.getLendingApplication().getId() + docName.getFileExtension();
             if (!ObjectUtils.isEmpty(aadharXmlStream)) {
                 s3BucketHandler.uploadFileToS3WithTtl(aadharXmlStream,bucket, fileName, 7);
                 return s3BucketHandler.getPreSignedPublicURL(fileName, bucket);
