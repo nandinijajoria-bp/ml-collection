@@ -87,12 +87,22 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
         }
         else{
             lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-            if(easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), shopPhotoSyncRollout)){
-                kycHandler.syncShopPhoto(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
+            if(Objects.nonNull(scopeDataArgs.getLoanDetailsV3Request())){
+                log.info("loanDetails v3 request : {}", scopeDataArgs.getLoanDetailsV3Request());
+                if(scopeDataArgs.getLoanDetailsV3Request().isShopPhotoStepCompleted() && easyLoanUtil.percentScaleUp(scopeDataArgs.getMerchant().getId(), shopPhotoSyncRollout ) ){
+                    kycHandler.syncShopPhoto(scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
+                }
+                if (scopeDataArgs.getLoanDetailsV3Request().isShopPhotoStepCompleted()) {
+                    LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
+                    log.info("publishing data to ds in loanDetailV3 for application : {}", lendingApplication.getId());
+                    loanUtil.publishDSData(lendingApplication);
+                }
             }
-            LendingApplication lendingApplication = lendingApplicationServiceV3.getLendingApplication(scopeDataArgs.getApplicationId(), scopeDataArgs.getMerchant().getId());
-            log.info("publishing data to ds in loanDetailV3 for application : {}", lendingApplication.getId());
-            loanUtil.publishDSData(lendingApplication);
+            else{
+                log.info("loanDetails v3 request is null");
+            }
+
+
 
         }
         if(!lendingStateDTO.getData().getResubmitState()){
