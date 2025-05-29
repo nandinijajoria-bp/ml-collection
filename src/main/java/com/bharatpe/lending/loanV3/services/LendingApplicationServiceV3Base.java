@@ -245,8 +245,7 @@ public abstract class LendingApplicationServiceV3Base {
                 }
                 if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
                     Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
-                    if (eligibleLoan.isPresent() && (currentDraftApplication.getProcessingFee().intValue() < eligibleLoan.get().getProcessingFee() ||
-                            currentDraftApplication.getProcessingFee().intValue() > eligibleLoan.get().getProcessingFee())) {
+                    if (eligibleLoan.isPresent() && currentDraftApplication.getProcessingFee().intValue() != eligibleLoan.get().getProcessingFee()) {
                         log.info("Processing fee changed for applicationId {}", currentDraftApplication.getId());
                         return new ApiResponse<>(LenderAssociationStatusResponse.builder()
                                 .isRoiDecreased(true)
