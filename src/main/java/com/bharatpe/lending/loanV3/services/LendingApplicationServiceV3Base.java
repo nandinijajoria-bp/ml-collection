@@ -227,7 +227,6 @@ public abstract class LendingApplicationServiceV3Base {
                                 .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                                 .stage(LenderAssociationStages.COMPLETED)
                                 .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                                .lender(currentDraftApplication.getLender())
                                 .build());
                     }
                 }
@@ -240,7 +239,6 @@ public abstract class LendingApplicationServiceV3Base {
                             .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                             .stage(LenderAssociationStages.COMPLETED)
                             .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                            .lender(currentDraftApplication.getLender())
                             .build());
                 }
                 if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
