@@ -251,7 +251,6 @@ public abstract class LendingApplicationServiceV3Base {
                                 .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                                 .stage(LenderAssociationStages.COMPLETED)
                                 .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                                .lender(currentDraftApplication.getLender())
                                 .build());
                     }
                 }
