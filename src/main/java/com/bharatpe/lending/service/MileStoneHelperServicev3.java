@@ -615,6 +615,7 @@ public class MileStoneHelperServicev3 {
             responseDto.setPanCard(kycPancard);
             responseDto.setCashback(mileStoneResponse.getTotal_target().getCashback());
             responseDto.setShowSummaryPage(entity.getShowSummaryPage());
+            responseDto.setSessionStatus(!ObjectUtils.isEmpty(entity) ? entity.getSessionStatus() : null);
             log.info("setting program type during expiry management for merchantId: {} {}", merchant.getId(), responseDto);
             responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
             responseDto.setMaxLimit(ObjectUtils.isEmpty(mileStoneResponse.getMax_limit()) ? null : mileStoneResponse.getMax_limit());
@@ -649,7 +650,6 @@ public class MileStoneHelperServicev3 {
         responseDto.setIsEligibleForReapply(true);
         responseDto.setDeepLinkUrl(deepLink);
         responseDto.setCashback(responseDto.getCashback());
-        responseDto.setSessionStatus(!ObjectUtils.isEmpty(entity) ? entity.getSessionStatus() : null);
         responseDto.setShowSummaryPage(true);
         String days = ObjectUtils.isEmpty(entity) ? String.valueOf(responseDto.getTargetDurationDays()) : String.valueOf(entity.getProgramDuration());
 

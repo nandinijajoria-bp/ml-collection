@@ -341,7 +341,7 @@ public class LoanDashboardService {
         //set dummy merchant
         loanDashboardResponse.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchantDetails.getId()));
 
-        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantId(merchantDetails.getId());
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
         if(isEligibleForRTE(entity)) {
             //add one condition on pageviewed as false
             log.info("returning rte cashback flow from loan dashboard page for {}", merchantDetails.getId());
