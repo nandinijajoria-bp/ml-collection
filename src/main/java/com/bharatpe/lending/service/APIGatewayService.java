@@ -3344,7 +3344,7 @@ public class APIGatewayService {
         return null;
     }
 
-    public InsuranceEligibilityResponseDTO.InsuranceEligibilityData fetchInsuranceEligibility(InsuranceEligibilityRequestDTO insuranceEligibilityRequest) {
+    public InsuranceEligibilityResponseDTO.ResponseData fetchInsuranceEligibility(InsuranceEligibilityRequestDTO insuranceEligibilityRequest) {
         try {
             logger.info("get insurance eligibility for loan with amount {} and tenure {} for merchantId :{}", insuranceEligibilityRequest.getAmount(), insuranceEligibilityRequest.getTenure(), insuranceEligibilityRequest.getCustomerId());
             Map<String, Object> request = configResolver.getConfig(objectMapper.writeValueAsString(insuranceEligibilityRequest), new TypeReference<Map<String, Object>>() {});
@@ -3377,6 +3377,37 @@ public class APIGatewayService {
             }
         } catch (Exception ex) {
             logger.error("Exception occurred while calling insurance eligibility API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
+
+    public InsuranceActiveApplicationResponseDTO getActiveInsuranceApplications(InsuranceActiveApplicationRequestDTO insuranceActiveApplicationRequest) {
+        try {
+            logger.info("get active insurance for merchantId :{}", insuranceActiveApplicationRequest.getCustomerId());
+            Map<String, Object> request = configResolver.getConfig(objectMapper.writeValueAsString(insuranceActiveApplicationRequest), new TypeReference<Map<String, Object>>() {});
+
+            MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
+            request.forEach((key, value) -> queryParams.add(key, String.valueOf(value)));
+
+            String url = UriComponentsBuilder
+                    .fromHttpUrl(insuranceServiceBaseurl + LendingConstants.INSURANCE_ACTIVE_APPLICATION_API)
+                    .queryParams(queryParams)
+                    .build()
+                    .toUriString();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("Client-Name", CLIENT);
+            headers.set("hash", getHmacBase64(request));
+
+            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
+
+            logger.info("request entity for insurance active applications API:{} and url:{}", requestEntity, url);
+            ResponseEntity<InsuranceActiveApplicationResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, InsuranceActiveApplicationResponseDTO.class);
+            logger.info("response entity for insurance active applications API:{} and url:{}", responseEntity, url);
+            return responseEntity.getBody();
+        } catch (Exception ex) {
+            logger.error("Exception occurred while calling insurance active applications API:{}, {}", ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return null;
     }

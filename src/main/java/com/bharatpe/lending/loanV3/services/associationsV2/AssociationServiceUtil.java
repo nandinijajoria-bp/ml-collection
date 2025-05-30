@@ -2,6 +2,7 @@ package com.bharatpe.lending.loanV3.services.associationsV2;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.DisbursalCallbackCommonDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
@@ -15,6 +16,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.oxyzo.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalInsuranceService;
 import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl.*;
@@ -22,6 +24,8 @@ import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class AssociationServiceUtil {
@@ -276,6 +280,9 @@ public class AssociationServiceUtil {
 
     @Autowired
     OxyzoForeclosureService oxyzoForeclosureService;
+
+    @Autowired
+    PiramalInsuranceService piramalInsuranceService;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -740,6 +747,15 @@ public class AssociationServiceUtil {
             case "TRILLIONLOANS":
                 return tlUpdateLeadService.invokeUpdateLoan(lenderAssociationDetailsRequestDto);
             default:return false;
+        }
+    }
+
+    public LoanInsuranceDTO fetchInsurancePremiums(LendingApplication lendingApplication) {
+        switch (lendingApplication.getLender()) {
+            case "PIRAMAL" :
+                return piramalInsuranceService.getInsurancePremiums(lendingApplication);
+            default:
+                return null;
         }
     }
 }

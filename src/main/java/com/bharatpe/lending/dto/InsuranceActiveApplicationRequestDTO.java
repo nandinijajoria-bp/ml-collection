@@ -1,5 +1,6 @@
 package com.bharatpe.lending.dto;
 
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,12 +12,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class InsuranceEligibilityRequestDTO {
+public class InsuranceActiveApplicationRequestDTO {
     private Long customerId;
-    private Double amount;
-    private Integer tenure;
-    private Long pinCode;
-    private String businessCategory;
-    private String businessSubCategory;
-    private String client;
 }

@@ -119,6 +119,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
@@ -386,6 +387,9 @@ public class LendingApplicationServiceV2 {
 
     @Value("${lender.vernac.lang.rollout.percent:1}")
     Integer lenderVernacLangRolloutPercent;
+
+    @Autowired
+    InsuranceService insuranceService;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -2793,14 +2797,8 @@ public class LendingApplicationServiceV2 {
     }
 
     public Double getInsurancePremium(LendingApplication lendingApplication) {
-        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
-                lendingApplication.getId(),
-                lendingApplication.getLender(),
-                "SELECTED");
-        if (Objects.nonNull(lendingLoanInsurance))
-            return lendingLoanInsurance.getInsurancePremium();
-        else
-            return 0D;
+        LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
+        return Objects.nonNull(lendingLoanInsurance) ? lendingLoanInsurance.getInsurancePremium() : 0D;
     }
 
     public void storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) throws Exception {
@@ -3928,11 +3926,7 @@ public class LendingApplicationServiceV2 {
 
         data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
         data.put("personal_loan_amount_in_words", getAmountInWords(String.valueOf(kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee())));
-        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
-                applicationId,
-                kfsDto.getLender(),
-                "SELECTED"
-                );
+        LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(applicationId, kfsDto.getLender(), SELECTED);
         if(ObjectUtils.isEmpty(lendingLoanInsurance)) {
             data.put("insurance_na_display", "block");
             data.put("insurance_display", "none");
