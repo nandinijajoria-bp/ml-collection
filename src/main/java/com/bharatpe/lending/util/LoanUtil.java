@@ -50,15 +50,13 @@ import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
-import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
-import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -313,12 +311,6 @@ public class LoanUtil {
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
 	@Autowired
-	LenderAssociationStageFactory lenderAssociationStageFactory;
-
-	@Autowired
-	AbflForeclosureFetchService abflForeclosureFetchService;
-
-	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
 
 	@Autowired
@@ -415,6 +407,9 @@ public class LoanUtil {
 	PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 	@Autowired
 	PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
+
+	@Autowired
+	LenderForeclosureCachingService lenderForeclosureCachingService;
 
 	@PostConstruct
 	public void init(){
@@ -1660,12 +1655,12 @@ public class LoanUtil {
 
 	public double getForeClosureAmountForLender(LendingPaymentSchedule lendingPaymentSchedule) {
 		Double netForeclosureAtLender = 0d;
-		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
-		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
-			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
+		if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+			netForeclosureAtLender = (double) getForeclosureAmount(lendingPaymentSchedule);
+			return netForeclosureAtLender;
 		}
+		LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
+		netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		return netForeclosureAtLender;
 	}
 

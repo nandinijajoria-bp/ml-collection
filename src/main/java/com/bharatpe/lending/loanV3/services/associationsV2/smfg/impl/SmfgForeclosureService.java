@@ -61,7 +61,7 @@ public class SmfgForeclosureService {
                         .basicInfo(SmfgGetForeclosureDetailsRequest.BasicInfo.builder()
                                 .landId(lendingApplication.getNbfcId()).build())
                         .build()).build();
-        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH);
+        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH, smfgConfig.getForeclosureDetailsTimeoutThreshold());
         try {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 SmfgForeclosureDetailsResponse response = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), SmfgForeclosureDetailsResponse.class);
