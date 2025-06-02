@@ -56,6 +56,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -1941,6 +1942,10 @@ public class LoanUtil {
 	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
+		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) && isBTApplication(lendingApplication)) {
+			logger.info("skip nach flow is not applicable for BT application {}", lendingApplication.getId());
+			return false;
+		}
 		String finalLender = enachServiceLenderMapper(lender);
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
@@ -3065,6 +3070,18 @@ public class LoanUtil {
 		} catch (Exception e) {
 			logger.info("Exception occurred while saving penal charges for loan: {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), e);
 		}
+	}
+
+	private Boolean isBTApplication(LendingApplication lendingApplication) {
+		try {
+			LendingApplication prevApplication = fetchParentApplication(lendingApplication.getId());
+			if(!ObjectUtils.isEmpty(prevApplication) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender())) {
+				return true;
+			}
+		} catch (Exception e) {
+			logger.error("Exception in checking BT application for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+		}
+		return false;
 	}
 }
 
