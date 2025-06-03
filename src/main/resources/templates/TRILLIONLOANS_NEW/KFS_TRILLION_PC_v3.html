@@ -17,6 +17,9 @@
         .width-6 {
             width: 6%;
         }
+        .width-20 { 
+            width: 20%;
+        }
 
         .width-24 {
             width: 24%;
@@ -661,14 +664,15 @@
                             style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
-                                    <td class="width-33 bold text-center" style="padding: 8px;">
+                                    <td class="width-20 bold text-center" style="padding: 8px;">
                                         Tenure (Months)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">
+                                    <td class="width-20 bold" style="padding: 8px;">
                                         Closure in (Months)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">Rate on Principle Outstanding at the
+                                    <td class="width-20 bold" style="padding: 8px;">Rate on Principle Outstanding at the
                                         time of Foreclosure</td>
+                                    <td class="width-20 bold" style="padding: 8px;">Minimum amount</td>
                                 </tr>
 
                                 <tr class="width-100 ">
@@ -686,6 +690,8 @@
                                             {{rate_of_principle_1}}%
                                         </p>
                                     </td>
+                                    <td class="text-center" rowspan="11" style="border-bottom: none !important;">Rs. 1000</td>
+
                                 </tr>
                                 <tr class="width-100 ">
                                     <td style="padding: 0px 5px" class="width-33">
@@ -932,7 +938,7 @@
                         <p style="margin: 6px 16px;" class="fw400 text-left bold">For Lender</p>
                         <p style="margin: 6px 16px;" class="fw400 text-left">Name & Designation of the Nodal Officer-
                             {{nodal_officer_name}}, Head-Operations</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">E-mail: nodalofficer@trillionloans.com</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">E-mail: grievances@trillionloans.com</p>
                         <p style="margin: 6px 16px;" class="fw400 text-left">Phone No-
                             +91-{{nodal_officer_contact_number}} from 09:30 am to
                             7:00 pm on all working days (Mon to Fri)

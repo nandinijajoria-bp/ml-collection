@@ -188,6 +188,9 @@ public class LoanDetailsServiceV2 {
     @Value("${gst3b.ineligible.source:LOW_TRANSACTION}")
     List<String> gst3bIneligibleSourceList;
 
+    @Value("${deprecated.merchant.references:true}")
+    private boolean hasDeprecatedMerchantReferences;
+
 
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
@@ -1584,6 +1587,9 @@ public class LoanDetailsServiceV2 {
             }
 
             log.info("references limit for merchantId:{} {}", merchant.getId(), referencesLimit);
+            if(hasDeprecatedMerchantReferences){
+                return new ApiResponse<>(false, "Merchant score api is deprecated");
+            }
             Integer toBeShown = getToBeShownReferences(referencesLimit);
             MerchantReferencesResponseDto responseDto;
             DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());

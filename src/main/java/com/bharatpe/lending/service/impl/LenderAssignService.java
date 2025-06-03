@@ -247,7 +247,6 @@ public class LenderAssignService implements ILenderAssignService {
     }
 
     public String lenderAssignmentHandler(LendingApplication application, EdiModel ediModel, BasicDetailsDto merchantDetails, Boolean isApplicableForAggregation) {
-        refreshDisbursalLimitsForLender();
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
         RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
 
@@ -863,24 +862,6 @@ public class LenderAssignService implements ILenderAssignService {
         lendingApplicationDetailsDao.save(lenderAudit);
     }
 
-    public void refreshDisbursalLimitsForLender(){
-        log.info("Refreshing Weekly Disbursal Limits");
-        Double disbursedAmount = lenderDisbursalLimitsDao.fetchDisbursedCount();
-        LendingLenderQuota weeklyTarget = lenderDisbursalLimitsDao.findByLender("WEEKLY_TARGET");
-        log.info("Disbursed Amount: {}, TARGET: {}", disbursedAmount, weeklyTarget.getTotalWeeklyAmount());
-        if(disbursedAmount >= weeklyTarget.getTotalWeeklyAmount()){
-            List<LendingLenderQuota> quotaList = lenderDisbursalLimitsDao.findAll();
-            for(LendingLenderQuota quota : quotaList){
-                if("WEEKLY_TARGET".equals(quota.getLender())) {
-                    continue;
-                }
-                quota.setRemainingBalance(quota.getTotalWeeklyAmount());
-                quota.setAssignedAmount(0D);
-            }
-            lenderDisbursalLimitsDao.saveAll(quotaList);
-        }
-    }
-
     public List<LenderAssignmentRules> getAllActiveRules(){
         log.info("Fetching all Active Rules");
         return lenderAssignmentRulesDao.findByIsActive(Boolean.TRUE);
@@ -1477,7 +1458,6 @@ public class LenderAssignService implements ILenderAssignService {
             LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
             LendingLenderQuota defaultLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
             if(!ObjectUtils.isEmpty(eligibleLenders)) {
-                refreshDisbursalLimitsForLender();
                 List<LendingLenderQuota> lenderLimits;
                 lenderLimits = lenderDisbursalLimitsDao.fetchEligibleLenderLimits(eligibleLenders, lendingApplication.getLoanAmount());
                 eligibleLenders.clear();
@@ -1768,7 +1748,6 @@ public class LenderAssignService implements ILenderAssignService {
 
     public String lenderAssignmentHandlerV2(LendingApplication application, EdiModel ediModel, BasicDetailsDto merchantDetails, Boolean isApplicableForAggregation) {
         log.info("Running V2 lender assignment handler");
-        refreshDisbursalLimitsForLender();
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.getMerchantId());
         RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
 

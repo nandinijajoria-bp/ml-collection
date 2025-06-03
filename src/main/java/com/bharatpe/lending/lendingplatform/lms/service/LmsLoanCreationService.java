@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.lendingplatform.document.service.DocumentService;
 import com.bharatpe.lending.lendingplatform.lms.client.LendingPlatformHttpClient;
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.lendingplatform.lms.constant.ErrorResponseCodeGroupMappings;
@@ -18,6 +19,7 @@ import com.bharatpe.lending.lendingplatform.lms.dto.response.ApiResponse;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.CreateLoanResponse;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.service.APIGatewayService;
+import com.bharatpe.lending.service.LendingApplicationKycDetailsService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -68,6 +70,10 @@ public class LmsLoanCreationService {
 
     @Autowired
     private LmsCreateLoanFailureCallback lmsCreateLoanFailureCallback;
+    @Autowired
+    private DocumentService documentService;
+    @Autowired
+    private LendingApplicationKycDetailsService lendingApplicationKycDetailsService;
 
 
     public boolean processLoanRequest(LendingApplication lendingApplication,
@@ -168,6 +174,12 @@ public class LmsLoanCreationService {
 
         BankDetailsDto merchantBankDetail = lmsLoandetailsservice.getMerchantBankDetails(lendingApplication.getMerchantId());
         CKycResponseDto cKycResponseDto = lmsLoandetailsservice.getKycData(lendingApplication.getMerchantId());
+        String selfieUrl = !ObjectUtils.isEmpty(cKycResponseDto) && !ObjectUtils.isEmpty(cKycResponseDto.getSelfieString())
+                ? cKycResponseDto.getSelfieString()
+                : null;
+        if (!ObjectUtils.isEmpty(selfieUrl)) {
+            lendingApplicationKycDetailsService.copySelfieFromPresignedUrlToS3(cKycResponseDto.getSelfieString(), lenderDetails.getApplicationId());
+        }
         LendingKfs lendingKfs = lmsLoandetailsservice.getLendingKfs(lendingApplication.getId());
 
         LendingApplicationKycDetails lendingApplicationKycDetails = lmsLoandetailsservice.getKycDetails(lendingApplication.getId());
@@ -176,7 +188,7 @@ public class LmsLoanCreationService {
         CreateLoanRequest.CustomerDetails customerDetails = getCustomerDetails(lendingApplication, merchantBankDetail, cKycResponseDto, lendingPaymentSchedule, lendingApplicationKycDetails);
         CreateLoanRequest.NBFCDetails nbfcDetails = getNbfcDetails(lendingApplication.getNbfcId());
         CreateLoanRequest.MandateDetails mandateDetails = getMandateDetails(lendingApplication);
-        ArrayList<CreateLoanRequest.LoanDocuments> loanDocumentsList = getLoanDocuments(cKycResponseDto, lendingKfs, lendingApplication);
+        ArrayList<CreateLoanRequest.LoanDocuments> loanDocumentsList = getLoanDocuments(lendingKfs, lendingApplication);
         ArrayList<CreateLoanRequest.CustomerReferences> customerReferences = getCustomerReferences(lendingApplication);
         ArrayList<CreateLoanRequest.ChargesList> chargesList = getCharges(lendingApplication);
 
@@ -257,6 +269,10 @@ public class LmsLoanCreationService {
         }
 
         String customerName = cKycResponseDto.getName().replaceAll("[^a-zA-Z0-9 ]", "");
+
+        String gender = (!ObjectUtils.isEmpty(cKycResponseDto.getGender()) && cKycResponseDto.getGender().toUpperCase().startsWith("M")) ? "M" :
+                        (!ObjectUtils.isEmpty(cKycResponseDto.getGender()) && cKycResponseDto.getGender().toUpperCase().startsWith("F")) ? "F" : "O";
+
         return CreateLoanRequest.CustomerDetails.builder()
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))
                 .customerAddress(cKycResponseDto.getAddress())
@@ -265,7 +281,7 @@ public class LmsLoanCreationService {
                 .customerPinCode(Long.parseLong(cKycResponseDto.getPincode()))
                 .customerAadharNo(cKycResponseDto.getAadharNumber())
                 .customerDOB(formattedDob)
-                .customerGender(cKycResponseDto.getGender())
+                .customerGender(gender)
                 .customerBankAccNo(merchantBankDetail.getAccountNumber())
                 .customerBankBranch(merchantBankDetail.getBankName())
                 .customerBankIFSC(merchantBankDetail.getIfsc())
@@ -299,7 +315,7 @@ public class LmsLoanCreationService {
                 .build();
     }
 
-    private ArrayList<CreateLoanRequest.LoanDocuments> getLoanDocuments(CKycResponseDto cKycResponseDto, LendingKfs lendingKfs, LendingApplication lendingApplication) throws FileNotFoundException {
+    private ArrayList<CreateLoanRequest.LoanDocuments> getLoanDocuments(LendingKfs lendingKfs, LendingApplication lendingApplication){
 
         //Generating S3 Link for Shop pictures
         List<LendingShopDocuments> lendingShopDocuments = lmsLoandetailsservice.getShopFrontImage(lendingApplication.getMerchantId(), lendingApplication.getId());
@@ -322,8 +338,8 @@ public class LmsLoanCreationService {
         String proofFrontSide = proofImages.get("shop-front");
         String proofStockSide = proofImages.get("shop-stock");
 
-        String shopFrontImage = apiGatewayService.getShortUrl(s3BucketHandler.getPreSignedPublicURL(proofFrontSide, "aws.s3.doc_id.bucket"));
-        String shopStockImage = apiGatewayService.getShortUrl(s3BucketHandler.getPreSignedPublicURL(proofStockSide, "aws.s3.doc_id.bucket"));
+        String shopFrontImage = documentService.generateDocUrl(proofFrontSide);
+        String shopStockImage = documentService.generateDocUrl(proofStockSide);
         log.info("Fetched shop picture URL - {}, {}", shopFrontImage, shopStockImage);
 
         return new ArrayList<>(Arrays.asList(
@@ -337,15 +353,16 @@ public class LmsLoanCreationService {
                         .build(),
                 CreateLoanRequest.LoanDocuments.builder()
                         .docType(Constants.DocumentNamesConstants.CUSTOMER_SELFIE)
-                        .docUrl(apiGatewayService.getShortUrl(cKycResponseDto.getSelfieString()))
+                        .docUrl(documentService.generateDocUrl(
+                                lendingApplicationKycDetailsService.getSelfieImage(lendingApplication.getId())))
                         .build(),
                 CreateLoanRequest.LoanDocuments.builder()
                         .docType(Constants.DocumentNamesConstants.KEY_FACT_STATEMENT)
-                        .docUrl(lendingKfs.getKfsDocUrl())
+                        .docUrl(documentService.generateDocUrl(lendingKfs.getKfsDocFile()))
                         .build(),
                 CreateLoanRequest.LoanDocuments.builder()
                         .docType(Constants.DocumentNamesConstants.LOAN_AGREEMENT)
-                        .docUrl(lendingKfs.getSanctionLoanAgreementDocUrl())
+                        .docUrl(documentService.generateDocUrl(lendingKfs.getSanctionLoanAgreementDocFile()))
                         .build()
         ));
     }

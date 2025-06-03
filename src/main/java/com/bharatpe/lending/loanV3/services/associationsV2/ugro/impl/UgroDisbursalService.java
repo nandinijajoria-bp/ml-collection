@@ -49,10 +49,10 @@ public class UgroDisbursalService {
                         .lender(nbfcResponseDTO.getLender())
                         .leadId(lendingApplicationLenderDetails.getLeadId())
                         .status(status)
-                        .utr(disbursalResponse.getEvents().get(0).getBankRefNo())
+                        .utr(status? disbursalResponse.getEvents().get(0).getBankRefNo() : null)
                         .lan(lendingApplicationLenderDetails.getLan())
-                        .disbursalAmount(disbursalResponse.getEvents().get(0).getDisbursalAmount())
-                        .disbursalDate(new Date(disbursalResponse.getEvents().get(0).getDate()))
+                        .disbursalAmount(status? disbursalResponse.getEvents().get(0).getDisbursalAmount() : null)
+                        .disbursalDate(status? new Date(disbursalResponse.getEvents().get(0).getDate()) : null)
                         .build();
             }
             return DisbursalCallbackCommonDTO.builder().status(Boolean.FALSE).build();

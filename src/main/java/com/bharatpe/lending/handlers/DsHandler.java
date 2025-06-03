@@ -49,6 +49,9 @@ public class DsHandler {
     @Value("${validate.merhcnat.refrence.token:-}")
     String validateMerchantRefrenceToken;
 
+    @Autowired
+    ObjectMapper objectMapper;
+
 
 
     public List<MerchantReference> validateMerchantReferences(Long merchantId, List<ValidateMerchantReferencesRequestDto> referenceList) {
@@ -202,16 +205,27 @@ public class DsHandler {
             HttpHeaders headers = new HttpHeaders();
             headers.add("accept", MediaType.APPLICATION_JSON_VALUE);
             HttpEntity<Object> request = new HttpEntity<>(headers);
-            String url = deMileStoneBaseUrl + "/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
+            String url = deMileStoneBaseUrl + "/rte/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
 
             log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
 
-            ResponseEntity<DSMileStoneResponse> responseEntity = null;
             try {
-                responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, DSMileStoneResponse.class);
-                log.info("response {} of target for merchantid {}", responseEntity.getBody(),merchantId);
-                if (responseEntity.getBody() != null && responseEntity.getStatusCode().is2xxSuccessful()) {
-                    return responseEntity.getBody();
+                ResponseEntity<String> responseEntity = restTemplate.exchange(
+                        url,
+                        HttpMethod.GET,
+                        request,
+                        String.class
+                );
+
+                log.info("DS raw response for merchantId {}: {}", merchantId, responseEntity);
+
+                if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null) {
+                    DSMileStoneResponse response = mapper.readValue(responseEntity.getBody(), DSMileStoneResponse.class);
+                    log.info("Mapped DS response for merchantId {}: {}", merchantId, response);
+
+                    if (!ObjectUtils.isEmpty(response)) {
+                        return response;
+                    }
                 }
             } catch (HttpClientErrorException e) {
                 log.error("Exception in Http Client while fetching DS milestones for merchant:{} error is: {}", merchantId, e.getResponseBodyAsString());

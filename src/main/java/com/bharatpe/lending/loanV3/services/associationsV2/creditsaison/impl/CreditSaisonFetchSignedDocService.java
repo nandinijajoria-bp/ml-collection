@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.common.query.dao.LendingKfsSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingKfsSlave;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.request.creditsasion.CreditSaisonFetchSignedDocsRequestDTO;
@@ -19,6 +20,7 @@ import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -44,6 +46,13 @@ public class CreditSaisonFetchSignedDocService {
 
     @Autowired
     LendingKfsSlaveDao lendingKfsSlaveDao;
+
+    @Autowired
+    S3BucketHandler s3BucketHandler;
+
+    @Value("${aws.s3.bucket:loan-document}")
+    private String bucket;
+
 
     public boolean invokeFetchSignedDocs(LendingApplication lendingApplication, DocType docType ) {
         if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -113,11 +122,18 @@ public class CreditSaisonFetchSignedDocService {
     private String getDocUrl(DocType docType, LendingKfsSlave lendingKfsSlave) {
         switch (docType) {
             case KEY_FACT_STATEMENT:
-                return lendingKfsSlave.getKfsDocUrl();
+                return getS3PreSignedUrlFromKey(lendingKfsSlave.getKfsDocFile());
             case LOAN_AGREEMENT:
-                return lendingKfsSlave.getSanctionLoanAgreementDocUrl();
+                return getS3PreSignedUrlFromKey(lendingKfsSlave.getSanctionLoanAgreementDocFile());
             default:
                 return "";
         }
     }
+
+    private String getS3PreSignedUrlFromKey(String key) {
+        log.info("key to fetch from aws: {}", key);
+        return ObjectUtils.isEmpty(key) ? "" :s3BucketHandler.getPreSignedPublicURLWithExceptionHandled(key, bucket);
+    }
+
+
 }

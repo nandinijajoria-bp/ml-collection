@@ -124,7 +124,7 @@ public class LendingPlatformHttpClient {
 
     private <T> ApiResponse<T> handleFailureResponse(ApiResponse rawResponse) {
         log.info("Request failed - Error: {}", rawResponse.getError());
-
+        rawResponse.setData(null);
         return rawResponse;
     }
 

@@ -355,6 +355,21 @@ public class S3BucketHandler {
 		logger.info("Time Taken by AWS S3 upload API : {} miliseconds", Duration.between(start, end).toMillis());
 		return fileName;
 	}
+	public boolean uploadImageToS3Bucket(InputStream imageStream, String fileName, String bucket) {
+		AmazonS3 s3client = createS3WriteConnection();
+		try {
+			if(s3client != null) {
+				ObjectMetadata metadata = new ObjectMetadata();
+				metadata.setContentType("image/jpeg");
+				metadata.setCacheControl("public, max-age=31536000");
+				s3client.putObject(bucket, fileName, imageStream, metadata);
+				return true;
+			}
+		}catch(Exception e) {
+			logger.error("Exception while Uploading image to S3 bucket message : {}", e.getMessage());
+		}
+		return false;
+	}
 
 	public static Date addMinutes(Integer minutes) {
 		Date date = new Date();
