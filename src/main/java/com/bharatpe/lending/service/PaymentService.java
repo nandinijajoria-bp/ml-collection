@@ -2954,6 +2954,7 @@ public class PaymentService {
                     lendingCollectionExcess.setStatus("ACTIVE");
                     lendingCollectionExcess.setMode(UPI_AUTO_PAY);
                     lendingCollectionExcessDao.save(lendingCollectionExcess);
+                    if(lendingPaymentSchedule != null && "PAYU".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) loanPaymentLedgerAdjustmentService.createAutoPayUpiExcessCreditAuditEntry(lendingCollectionExcess, lendingPaymentSchedule, refundAmount);
 
                 }
             }
