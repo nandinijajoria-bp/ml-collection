@@ -891,6 +891,9 @@ public class SignAgreementService {
 			}
 			lendingApplicationDetails.setPrevAppId(prevLendingSchedule.getLoanApplication().getId());
 			lendingApplicationDetails.setOfferId(eligibleLoan.getId());
+			if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender())) {
+				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender()));
+			}
 
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
 
