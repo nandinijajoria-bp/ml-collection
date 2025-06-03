@@ -634,6 +634,7 @@ public class MerchantLoansService {
                         case "TRILLIONLOANS":
                         case "LIQUILOANS_NBFC":
                         case "PAYU":
+                        case "OXYZO":
                             nachBounce = 500.0;
                             break;
                         case "LIQUILOANS_P2P_OF":
