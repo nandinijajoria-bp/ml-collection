@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
+import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -24,7 +25,6 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.service.LendingCollectionAuditService;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -37,6 +37,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
+import static com.bharatpe.lending.constant.PaymentConstants.UPI_AUTOPAY_EXCESS_CREDIT_MODE;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
@@ -85,6 +86,8 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
     @Autowired
     private EasyLoanUtil easyLoanUtil;
+    @Autowired
+    LendingCollectionAuditDao lendingCollectionAuditDao;
 
     @Value("${whitelisted.real.time.reciept.posting.lenders:TRILLIONLOANS}")
     String realTimeRecieptPostingWhitelistedLenders;
@@ -123,7 +126,7 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         log.info("inside creating lending ledger and audit for loan {} and order {}",loan,order);
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
-        if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
+        if( !"PAYU".equalsIgnoreCase(loan.getNbfc()) && ("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
             //push loanId to kafka
             if(lendingLedger!= null) confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
         }
@@ -357,6 +360,38 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
 
     @Override
+    public void createAutoPayUpiExcessCreditAuditEntry(LendingCollectionExcess lendingCollectionExcess, LendingPaymentSchedule lendingPaymentSchedule, Double refundAmount) {
+        try {
+            log.info("Creating AUTO PAY UPI excess credit entry for PAYU for excess entry {} , for loan {} , for amount {} ", lendingCollectionExcess, lendingPaymentSchedule, refundAmount);
+            LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
+                    .merchantId(lendingPaymentSchedule.getMerchantId())
+                    .merchantStoreId(lendingPaymentSchedule.getMerchantStoreId())
+                    .loanId(lendingPaymentSchedule.getId())
+                    .applicationId(lendingPaymentSchedule.getLoanApplication().getId())
+                    .bpLoanId(lendingPaymentSchedule.getLoanApplication().getExternalLoanId())
+                    .nbfcId(lendingPaymentSchedule.getLoanApplication().getNbfcId())
+                    .txnType("EDI")
+                    .description(lendingCollectionExcess.getTerminalOrderId())
+                    .transferType(TransferTypeModes.DIRECT_TRANSFER_LENDER.name())
+                    .status("PENDING")
+                    .amount(refundAmount)
+                    .otherCharges(0D)
+                    .penalty(0D)
+                    .adjustmentMode(UPI_AUTOPAY_EXCESS_CREDIT_MODE)
+                    .transferDate(DateTimeUtil.getCurrentDayStartTime())
+                    .terminalOrderId(lendingCollectionExcess.getTerminalOrderId())
+                    .lender(lendingPaymentSchedule.getNbfc())
+                    .loanStatus(lendingPaymentSchedule.getStatus())
+                    .mobile(lendingPaymentSchedule.getMobile())
+                    .ledgerId(lendingCollectionExcess.getId())
+                    .build();
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            if(lendingPaymentSchedule.getClosingDate() != null) lendingCollectionAudit.setLoanClosingDate(lendingPaymentSchedule.getClosingDate());
+        } catch (Exception e) {
+            log.error("Error in creating collection audit for excess credit entry for ledger id {}, {}", lendingCollectionExcess, Arrays.asList(e.getStackTrace()));
+        }
+    }
+
     public void creatingPenaltyInPenaltyLedger(LendingPaymentSchedule loan, double penaltyFee, String description, boolean isWaiveOff) {
         PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), -penaltyFee, description, isWaiveOff, loan.getNbfc(),false);
         penaltyFeeLedgerDao.save(penaltyFeeLedger);
