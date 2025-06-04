@@ -94,6 +94,7 @@ public class LmsLoanCreationService {
             return handleFailureResponse(createLoanResponse, lendingApplication.getExternalLoanId());
         } catch (Exception e) {
             log.error("Exception occurred while processing loan request: {}", e.getMessage(), e);
+            lmsCreateLoanFailureCallback.sendLoanToOldFlow(lendingApplication.getExternalLoanId());
             throw new RuntimeException("Error during loan request processing: " + e.getMessage(), e);
         }
     }
