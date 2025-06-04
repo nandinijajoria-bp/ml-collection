@@ -74,7 +74,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -1773,14 +1772,12 @@ public class LoanDetailsServiceV2 {
             if (Objects.isNull(requestedReferenceList)) {
                 return new ApiResponse<>(false, "references field can not be empty!");
             }
-            Pair<Boolean,String> res = hasValidRestrictedRelations(requestedReferenceList);
-            if (!res.getFirst()) {
-                return new ApiResponse<>(false, res.getSecond());
+            if (!hasValidRestrictedRelations(requestedReferenceList)) {
+                return new ApiResponse<>(false, "References Relations are not associated correctly!");
             }
             for (MerchantReference reference : requestedReferenceList) {
-                Pair<Boolean,String> ans = isValid(reference, merchant);
-                if (!ans.getFirst()) {
-                    return new ApiResponse<>(false, ans.getSecond());
+                if (!isValid(reference, merchant)) {
+                    return new ApiResponse<>(false, "references are not valid!");
                 }
             }
             List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, applicationId);
@@ -2893,43 +2890,43 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private Pair<Boolean,String> isValid(MerchantReference reference, BasicDetailsDto merchant) {
+    private boolean isValid(MerchantReference reference, BasicDetailsDto merchant) {
         String name = reference.getName();
         if (StringUtils.isEmpty(name)) {
-            log.info("Reference name is Empty!");
-            return Pair.of(false,"");
+            log.info("reference name is Empty!");
+            return false;
         }
         String strippedName = name.replaceAll(" ", "");
         String merchantName = loanUtil.getBeneficiaryName(merchant.getId());
         // Rule 1: Name cannot be the same as the merchant's name
         if (!StringUtils.isEmpty(merchantName) && name.equalsIgnoreCase(merchant.getName())) {
             log.info("reference name matches with merchant name, {}", name);
-            return Pair.of(false,"Reference name matches with merchant name : " + name);
+            return false;
         }
 
         // Rule 2: Must have at least 3 consecutive characters
         if (!commonUtil.hasAtLeastThreeConsecutiveChars(name)) {
             log.info("reference name is not having atleast three consecutive chars, {}", name);
-            return Pair.of(false,"Reference name contains three consecutive chars : " + name );
+            return false;
         }
 
         // Rule 3: Must not contain any numerical or special characters
         if (!strippedName.matches("[a-zA-Z]+")) {
             log.info("reference name is having special or numeric chars, {}", name);
-            return Pair.of(false,"Reference name is having special or numeric chars : " + name);
+            return false;
         }
 
         // Rule 4: Must not be entirely consecutive letters
         if (commonUtil.isAllConsecutiveLetters(strippedName)) {
             log.info("reference name having all consecutive letters, {}", name);
-            return Pair.of(false,"Reference name having all consecutive letters : " + name);
+            return false;
         }
 
         String merchantMobile = merchant.getMobile();
         String referenceMobile = reference.getPhoneNumber();
         if (StringUtils.isEmpty(merchantMobile) || StringUtils.isEmpty(referenceMobile) || referenceMobile.length() < 10) {
             log.info("reference mobile is empty or length is less than 10");
-            return Pair.of(false,"reference mobile is empty or length is less than 10 : " + referenceMobile);
+            return false;
         }
         merchantMobile = merchantMobile.length() == 12 ? merchantMobile.substring(2) : merchantMobile;
         referenceMobile = referenceMobile.length() == 12 ? referenceMobile.substring(2) : referenceMobile;
@@ -2937,24 +2934,24 @@ public class LoanDetailsServiceV2 {
         // Rule 1: Mobile number cannot be the same as the merchant's number
         if (referenceMobile.equals(merchantMobile)) {
             log.info("merchant mobile matches with reference mobile, {}", referenceMobile);
-            return Pair.of(false,"merchant mobile matches with reference mobile : " + referenceMobile);
+            return false;
         }
 
         // Rule 2: Consecutive numbers for more than 4 values are not allowed
         if (commonUtil.hasMoreThanFourConsecutiveNumbers(referenceMobile)) {
             log.info("reference mobile having more than 4 consecutive numbers, {}", referenceMobile);
-            return Pair.of(false,"reference mobile having more than 4 consecutive numbers : " + referenceMobile);
+            return false;
         }
 
         // Rule 3: The same digit repeated more than 4 times is not allowed
         if (commonUtil.hasMoreThanFourSameDigits(referenceMobile)) {
             log.info("reference mobile having same digit more than 4 times, {}", referenceMobile);
-            return Pair.of(false,"reference mobile having same digit more than 4 times : " + referenceMobile);
+            return false;
         }
-        return Pair.of(true,"");
+        return true;
     }
 
-    private Pair<Boolean,String> hasValidRestrictedRelations(List<MerchantReference> references) {
+    private boolean hasValidRestrictedRelations(List<MerchantReference> references) {
         Map<ReferenceRelation, Integer> relationCount = new HashMap<>();
 
         ReferenceRelation relation = null;
@@ -2963,18 +2960,16 @@ public class LoanDetailsServiceV2 {
                 relation = ReferenceRelation.valueOf(reference.getInferredRelation());
             } catch (Exception e) {
                 log.error("Exception while getting relation enum", e);
-                return Pair.of(false,"Exception while getting relation enum " + e);
+                return false;
             }
-            if (ObjectUtils.isEmpty(relation)) {
-                return Pair.of(false,"Empty relation!");
-            }
+            if (ObjectUtils.isEmpty(relation)) return false;
             relationCount.put(relation, relationCount.getOrDefault(relation, 0) + 1);
             if ((restrictedRelations.contains(relation) && relationCount.get(relation) > 1) || relationCount.get(relation) > MAX_UNIQUE_RELATION) {
                 log.info("Relation {} is associated with threshold references!", relation);
-                return Pair.of(false,relation + " can not be more than " + MAX_UNIQUE_RELATION + ". Please provide different reference details.");
+                return false;
             }
         }
-        return Pair.of(true,"");
+        return true;
     }
 
     public ApiResponse<?> additionalLoanDetails(BasicDetailsDto merchant, Long applicationId) {
