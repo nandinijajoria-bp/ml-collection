@@ -117,6 +117,8 @@ public class LoanDetailsV3Response {
     private String udyamRegistrationLink;
     private String kycAddress;
     private Boolean invalidState;
+    private Boolean isAadhaarAddressVerified;
+    private Boolean loanPurpose;
 
     @Data
     @ToString
@@ -316,6 +318,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setEdiModelModified(agreementStateDTO.isEdiModelModified());
         loanDetailsV3Response.setRepayment(agreementStateDTO.getRepayment());
         loanDetailsV3Response.setAccountDetails(agreementStateDTO.getAccountDetails());
+        loanDetailsV3Response.setIsAadhaarAddressVerified(agreementStateDTO.getIsAadhaarAddressVerified());
+        loanDetailsV3Response.setLoanPurpose(agreementStateDTO.getLoanPurpose());
     }
 
 
@@ -378,6 +382,8 @@ public class LoanDetailsV3Response {
         loanDetailsV3Response.setMerchantName(referenceStateDTO.getMerchantName());
         loanDetailsV3Response.setMobile(referenceStateDTO.getMobile());
         loanDetailsV3Response.setMerchantId(referenceStateDTO.getMerchantId());
+        loanDetailsV3Response.setIsAadhaarAddressVerified(referenceStateDTO.getIsAadhaarAddressVerified());
+        loanDetailsV3Response.setLoanPurpose(referenceStateDTO.getLoanPurpose());
     }
 
     private static void setLenderEvaluationResponse(LenderEvaluationStateDTO lenderEvaluationStateDTO, LoanDetailsV3Response loanDetailsV3Response){

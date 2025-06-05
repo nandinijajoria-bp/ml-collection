@@ -38,7 +38,8 @@ public class AgreementStateDTO {
     private Long merchantId;
     private LendingApplication lendingApplication;
     private LendingApplicationLenderDetails lendingApplicationLenderDetails;
-
+    private Boolean isAadhaarAddressVerified;
+    private Boolean loanPurpose;
     @Data
     @ToString
     @Builder
