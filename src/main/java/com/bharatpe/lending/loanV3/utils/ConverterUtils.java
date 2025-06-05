@@ -93,4 +93,13 @@ public class ConverterUtils {
         }
         return data;
     }
+
+    public String sanitizeByRegex(String input, String allowedRegex) {
+        if (ObjectUtils.isEmpty(input) || ObjectUtils.isEmpty(allowedRegex)) return null;
+
+        // Invert the allowed characters to define a pattern of disallowed characters
+        String disallowedPattern = "[^" + allowedRegex + "]";
+        return input.replaceAll(disallowedPattern, "");
+    }
+
 }
