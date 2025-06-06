@@ -13,12 +13,15 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.util.EdiUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -39,6 +42,9 @@ public class ModifiedOfferStageService implements IStageDataService<ModifiedOffe
     @Lazy
     LoanDetailsV3Service loanDetailsV3Service;
 
+    @Autowired
+    private EdiUtil ediUtil;
+
     @Override
     public LendingStateDTO<ModifiedOfferStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
 
@@ -58,7 +64,8 @@ public class ModifiedOfferStageService implements IStageDataService<ModifiedOffe
             // calculate processing fee
             Double interestAmt = (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * (lendingApplication1.getInterestRate() * lendingApplication1.getTenureInMonths()) / 100);
             Long payableDays = lendingApplication1.getPayableDays();
-            Double ediAmount = Math.ceil((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            Double ediAmount = ((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication1.getId(), ediAmount, lendingApplication1.getLender());
             double initialDisbursalAmountWithoutProcessingFee = lendingApplication1.getDisbursalAmount() + lendingApplication1.getProcessingFee();
             double  processingFeeRate = lendingApplication1.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
             double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);

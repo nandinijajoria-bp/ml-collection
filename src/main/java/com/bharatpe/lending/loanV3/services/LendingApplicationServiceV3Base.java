@@ -24,6 +24,7 @@ import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -117,6 +118,9 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
+
+    @Autowired
+    private EdiUtil ediUtil;
 
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
@@ -679,7 +683,8 @@ public abstract class LendingApplicationServiceV3Base {
 
             Double interestAmt = (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100);
             Long payableDays = lendingApplication.getPayableDays();
-            Double ediAmount = Math.ceil((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            double ediAmount = ((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
 //            double initialDisbursalAmountWithoutProcessingFee = lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee();
 //            double processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
 //            double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
@@ -790,7 +795,8 @@ public abstract class LendingApplicationServiceV3Base {
 
                         Double processingFee = Math.ceil((pfRate * approvedLoanOfferAmount) / 100);
                         Double interestAmt = (approvedLoanOfferAmount * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                        Double ediAmount = Math.ceil((approvedLoanOfferAmount + interestAmt) / lendingApplication.getPayableDays());
+                        double ediAmount = ((approvedLoanOfferAmount + interestAmt) / lendingApplication.getPayableDays());
+                        ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
                         Double repayment = ediAmount * lendingApplication.getPayableDays();
 
                         newOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
