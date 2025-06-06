@@ -12,20 +12,16 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
-import com.bharatpe.lending.loanV3.revamp.services.UdyamService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.CommonUtil;
-import com.bharatpe.lending.util.EdiUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -58,11 +54,7 @@ public class CommonService {
     private LendingEligibleLoanDao eligibleLoanDao;
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
-    @Autowired
-    private UdyamService udyamService;
 
-    @Autowired
-    private EdiUtil ediUtil;
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -98,12 +90,6 @@ public class CommonService {
                 lenderAssociationDetailsRequest.getLendingApplication().getLender(),
                 currStage,
                 LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lenderAssociationDetailsRequest.getLendingApplication().getLender()), LenderAssociationStages.valueOf(currStage)));
-        if(LenderAssociationStages.ASSC_COMPLETED.equals(nextStage)){
-            udyamService.triggerFetchUdyamCertificate(
-                    lenderAssociationDetailsRequest.getLendingApplication().getId(),
-                    lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(),
-                    lenderAssociationDetailsRequest.getLendingApplication().getLender());
-        }
     }
 
     public void manageApplicationStateAndRejectApplication(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -164,8 +150,7 @@ public class CommonService {
 
         Double processingFee = Math.ceil((pfRate * loanAmount) / 100);
         Double interestAmt = (loanAmount * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-        double ediAmount = ((loanAmount + interestAmt) / lendingApplication.getPayableDays());
-        ediAmount = ediUtil.getEdiAfterRoundingLogic(newApplication.getId(), ediAmount, newApplication.getLender());
+        Double ediAmount = Math.ceil((loanAmount + interestAmt) / lendingApplication.getPayableDays());
         newApplication.setLoanAmount(loanAmount);
         newApplication.setProcessingFee(processingFee);
         newApplication.setEdi(ediAmount);

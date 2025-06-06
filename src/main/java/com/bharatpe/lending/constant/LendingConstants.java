@@ -51,7 +51,6 @@ public interface LendingConstants {
 	String CREATE_PG_TXN_V2 = "/v2/client/transaction";
 	String CREATE_PG_TXN_V1 = "/v1/client/transaction";
 
-	String LENDING_CLIENT = "LENDING";
 	String CREATE_PG_TXN_MANDATE_PLUGIN = "/v2/client/mandate/create-mandate";
 	String MANDATE_REVOKE = "/v2/client/mandate/revoke";
 	String PG_STATUS_CHECK = "/v1/client/transaction?orderId=";
@@ -60,7 +59,6 @@ public interface LendingConstants {
 	String KYC_DOC_URL = "/api/v2/internal/get-document";
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
 	String UPLOAD_SHOP_IMAGE = "/api/v3/internal/upload-shop";
-	String UDYAM_FETCH_API = "/api/v1/udyam-fetch";
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String PAN_NAME = "/api/v1/internal/pan-verify";
 	String PAN_VERIFY_V3_INTERNAL = "/api/v3/internal/pan-verify";

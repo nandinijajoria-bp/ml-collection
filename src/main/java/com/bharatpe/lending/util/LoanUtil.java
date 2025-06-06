@@ -333,8 +333,6 @@ public class LoanUtil {
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
-	@Value("${round.down.eligible.lenders:TRILLIONLOANS}")
-	private List<String> roundDownEligibleLenders;
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
@@ -2867,21 +2865,14 @@ public class LoanUtil {
 		return 0D;
 	}
 
-	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
+	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount){
 		eligibleLoan.setRateOfInterest(interestRate);
 		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
-		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
-		if(!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)){
-			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
-			ediAmount = Math.floor(ediAmount);
-		}else{
-			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
-			ediAmount = Math.ceil(ediAmount);
-		}
+		Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
 		Double repayment = ediAmount * eligibleLoan.getEdiCount();
 		eligibleLoan.setProcessingFee(processingFee.intValue());
 		eligibleLoan.setRepayment(repayment.intValue());
-		eligibleLoan.setEdi((int) ediAmount);
+		eligibleLoan.setEdi(ediAmount.intValue());
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());

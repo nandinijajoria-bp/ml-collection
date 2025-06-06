@@ -30,7 +30,6 @@ import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.services.LendingApplicationServiceV3Base;
 import com.bharatpe.lending.loanV3.utils.OfferUtils;
-import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.EntityToDtoConvertorUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +41,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
-import org.springframework.util.StringUtils;
 
-import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
@@ -237,12 +234,6 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Value("${lender.apr.enable_new_logic:true}")
     private boolean enableNewLenderAprLogic;
-
-    @Value("${wildcard.lender.base.check.enabled:true}")
-    private boolean baseCheckForWildCardLender;
-
-    @Autowired
-    private EdiUtil ediUtil;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -1029,25 +1020,8 @@ public class LenderAssignService implements ILenderAssignService {
             }
             LendingLenderQuota fallbackLender = lenderDisbursalLimitsDao.findByEdiModelIsNull();
             if(!ObjectUtils.isEmpty(fallbackLender) && !alreadyAssignedLender.contains(fallbackLender.getLender())){
-                LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
-                LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.get().getMerchantId());
-                RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
-
-                LendingLenderPricing lenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                        lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                        application.get().getTenureInMonths(), fallbackLender.getLender(), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
-                if (Objects.nonNull(lenderPricing)) {
-                    Map<String, LendingLenderPricing> lenderPricingMap = new HashMap<>();
-                    lenderPricingMap.put(lenderPricing.getLender(), lenderPricing);
-                    riskVariables.setLenderPricingMap(lenderPricingMap);
-                }
-
-                if(baseCheckForWildCardLender && ! lenderBaseChecksCleared(
-                        application.get(), fallbackLender.getLender(), EdiModel.valueOf(ediDetails.getEdiModel()), riskVariables)){
-                    log.info("irr_apr check failed for fallback lender: {}, for application: {}", fallbackLender.getLender(), application.get().getId());
-                    return null;
-                }
                 log.info("assigning fallback lender for applicationId and lender : {} {}", applicationId, application.get().getLender());
+                LendingApplicationDetails ediDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(applicationId);
                 EdiModel ediModel = EdiModel.valueOf(ediDetails.getEdiModel());
                 String oldLender = application.get().getLender();
                 String newLender = assignFallackLender(application.get(), ediModel);
@@ -1123,9 +1097,6 @@ public class LenderAssignService implements ILenderAssignService {
             LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(), Arrays.asList("ACTIVE"));
             if(topupLenders.contains(activeLoan.getNbfc())){
                 lender = topupLenderMapper(activeLoan.getNbfc());
-                if(!StringUtils.isEmpty(lender)){
-                    updateLendingApplication(lendingApplication, lender);
-                }
                 lendingApplication.setLender(lender);
                 lendingApplicationDao.save(lendingApplication);
                 saveLenderChangeAudit(lendingApplication, lender, lendingApplication.getLender());
@@ -1136,15 +1107,6 @@ public class LenderAssignService implements ILenderAssignService {
             }
         }
         return lender;
-    }
-
-    private void updateLendingApplication(@NotNull LendingApplication lendingApplication, @NotNull String lender) {
-        Double interestAmt = (lendingApplication.getLoanAmount() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100);
-        double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / lendingApplication.getPayableDays());
-        ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lender);
-        Double repayment = ediAmount * lendingApplication.getPayableDays();
-        lendingApplication.setEdi(ediAmount);
-        lendingApplication.setRepayment(repayment);
     }
 
     public static String topupLenderMapper(String prevLender){
@@ -1178,8 +1140,7 @@ public class LenderAssignService implements ILenderAssignService {
             log.info("modifying application details post lender change for {}", lendingApplication.getId());
             Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), ediModel);
             Double interestAmt = (lendingApplication.getLoanAmount() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-            Double edi = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-            edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), edi, lendingApplication.getLender());
+            Double edi = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
             Double repayment = edi * payableDays;
             lendingApplication.setRepayment(repayment);
             lendingApplication.setEdi(edi);
@@ -1682,8 +1643,7 @@ public class LenderAssignService implements ILenderAssignService {
         if(!ObjectUtils.isEmpty(lendingLenderPricing)){
             Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
             Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-            double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-            ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, newLender);
+            Double ediAmount = Math.ceil((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
             Double repayment = ediAmount * payableDays;
             Double processingFee = Math.ceil((lendingLenderPricing.getProcessingFeeRate() * lendingApplication.getLoanAmount()) / 100);
 
@@ -1846,10 +1806,6 @@ public class LenderAssignService implements ILenderAssignService {
                     return LendingConstants.NONE_LENDER;
                 }
                 if (isWildcardLenderConfigEnabled && !ObjectUtils.isEmpty(lendingLenderQuota)) {
-                    if(baseCheckForWildCardLender && ! lenderBaseChecksCleared(application, lendingLenderQuota.getLender(), ediModel, riskVariables)){
-                        log.info("irr_apr check failed for wildcard lender: {}, for application: {}", lendingLenderQuota.getLender(), application.getId());
-                        return LendingConstants.NONE_LENDER;
-                    }
                     log.info("Assigning Wild Card Lender as : {} for application id : {} because eligible lender list : {}",
                             lendingLenderQuota.getLender() , application.getId(), lenders);
                     try {
@@ -1900,8 +1856,7 @@ public class LenderAssignService implements ILenderAssignService {
         if (!ObjectUtils.isEmpty(lenderPricing)) {
             Long payableDays = (long) OfferUtils.getEdiDays(application.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
             Double interestAmt = (loanAmount * (lenderPricing.getInterestRate() * application.getTenureInMonths()) / 100) ;
-            edi = ((loanAmount + interestAmt) / payableDays);
-            edi = ediUtil.getEdiAfterRoundingLogic(applicationId, edi, lender);
+            edi = Math.ceil((loanAmount + interestAmt) / payableDays);
         }
 
         switch (lenderEnum) {
