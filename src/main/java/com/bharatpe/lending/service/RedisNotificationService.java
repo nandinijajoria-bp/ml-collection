@@ -10,7 +10,6 @@ import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.dto.NbfcRetryRequestDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -222,11 +221,15 @@ public class RedisNotificationService {
 	public void sendRepaymentNudge(Long merchantId, Double processingFee) {
 		try {
 			logger.info("Sending PF repayment nudge for merchant {}", merchantId);
-			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
-			BankDetailsDto merchantBankDetail = null;
-			if (bankDetailsDtoOptional.isPresent())
-				merchantBankDetail = bankDetailsDtoOptional.get();
-			String message = "Hi " + merchantBankDetail.getBeneficiaryName() + "\nSpecial offer on repaying your BharatPe Loan through QR Transactions - Get Processing Fees Charges of Rs." + processingFee + " refunded. Start accepting payments through BharatPe QR and repay your loan easily.";
+			//if bank details are not present, we should retry 3 times
+			BankDetailsDto merchantBankDetail = getBankDetailsDtoWithRetry(merchantId, 3);
+			String beneficiaryName = "";
+			if (merchantBankDetail != null) beneficiaryName = merchantBankDetail.getBeneficiaryName();
+			if (ObjectUtils.isEmpty(beneficiaryName)) {
+				logger.warn("Beneficiary name is empty for merchant {}", merchantId);
+				beneficiaryName = "Merchant";
+			}
+			String message = "Hi " + beneficiaryName + "\nSpecial offer on repaying your BharatPe Loan through QR Transactions - Get Processing Fees Charges of Rs." + processingFee + " refunded. Start accepting payments through BharatPe QR and repay your loan easily.";
 			InstantNotificationDto notificationDto=new InstantNotificationDto();
 			notificationDto.setMerchantId(merchantId);
 			notificationDto.setMessageCategory("LENDING_PF_NUDGE");
@@ -236,5 +239,20 @@ public class RedisNotificationService {
 		catch(Exception e ) {
 			logger.error("Error occured while sending pf nudge for merchant {}", merchantId, e);
 		}
+	}
+
+	public BankDetailsDto getBankDetailsDtoWithRetry(Long merchantId, int retryCount) {
+		BankDetailsDto merchantBankDetail = null;
+
+		// Retry mechanism for fetching bank details
+		for (int attempt = 0; attempt < retryCount; attempt++) {
+			Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
+			if (bankDetailsDtoOptional.isPresent()) {
+				merchantBankDetail = bankDetailsDtoOptional.get();
+				break; // Exit loop if bank details are found
+			}
+			logger.warn("Attempt {} to fetch bank details failed for merchant {}", attempt, merchantId);
+		}
+		return merchantBankDetail;
 	}
 }
