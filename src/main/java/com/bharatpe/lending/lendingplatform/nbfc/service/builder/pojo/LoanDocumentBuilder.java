@@ -31,6 +31,7 @@ public class LoanDocumentBuilder {
 	public Map<DocType, LoanDocument> buildLoanDocuments(LendingApplication lendingApplication) {
 		log.info("Fetching Bank Details for merchant: {}", lendingApplication.getMerchantId());
 
+
 		LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(
 				lendingApplication.getId(), lendingApplication.getLender());
 

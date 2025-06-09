@@ -19,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
+import java.util.Optional;
 
 import static com.bharatpe.lending.common.enums.LenderAssociationStages.ASSC_COMPLETED;
 import static com.bharatpe.lending.common.enums.LenderAssociationStatus.RISK_FAILED;
@@ -86,6 +87,8 @@ public class BRECallbackProcessingService {
         lald.setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lald.setStage(ASSC_COMPLETED.name());
+        Optional.ofNullable(breCallbackResponse.getData().getLeadId())
+                .ifPresent(lald::setLeadId);
         laldDao.save(lald);
     }
 

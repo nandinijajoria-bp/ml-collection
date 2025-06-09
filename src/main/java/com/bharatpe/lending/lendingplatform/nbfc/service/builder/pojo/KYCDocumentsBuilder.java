@@ -101,6 +101,7 @@ public class KYCDocumentsBuilder {
 				.livelinessScore(BigDecimal.valueOf(doc.getLivelinessScore()))
 				.faceMatchPer(ObjectUtils.isEmpty(doc.getFaceMatchPer()) ?
 						null : BigDecimal.valueOf(BuildersUtil.getParsedFaceMatchPer(doc.getFaceMatchPer())))
+				.docFrontImageUrl(doc.getDocFrontImageUrl())
 				.build();
 	}
 
