@@ -22,4 +22,5 @@ public class CustomerAdditionalData {
     private String settlementLevel;
     private float mobileLatitude;
     private float mobileLongitude;
+    private String loanAgreement;
 }
