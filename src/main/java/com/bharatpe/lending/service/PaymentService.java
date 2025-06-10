@@ -3011,12 +3011,17 @@ public class PaymentService {
     }
 
     private void imposePenalCharges(Long orderId, LendingPaymentSchedule activeLoan) {
+        log.info("Imposing real time penal charges for orderId:{} and loanId: {}", orderId, activeLoan.getId());
         try {
             Optional<LoanPaymentOrder> optionalLoanPaymentOrder = loanPaymentOrderDao.findById(orderId);
             LoanPaymentOrder loanPaymentOrder = optionalLoanPaymentOrder.orElse(null);
+            log.info("Loan Payment Order for orderId {} and loanId: {} is: {}", orderId, activeLoan.getId(), loanPaymentOrder);
             if (loanPaymentOrder != null && "FORECLOSURE".equalsIgnoreCase(loanPaymentOrder.getDescription()) && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getStartDate())) {
+                log.info("Imposing real time penal charges for orderId:{} and loanId: {} for PIRAMAL", orderId, activeLoan.getId());
                 double penaltyFee = loanUtil.calculatePiramalPenalty(activeLoan);
+                log.info("Calculated penalty fee for PIRAMAL loan: {} is: {}", activeLoan.getId(), penaltyFee);
                 if (penaltyFee > 0) {
+                    log.info("Creating penalty ledger for PIRAMAL loan: {} with penalty fee: {}", activeLoan.getId(), penaltyFee);
                     loanPaymentLedgerAdjustmentService.creatingPenaltyInPenaltyLedger(activeLoan, penaltyFee, "Penalty Fee", false);
                     loanPaymentLedgerAdjustmentService.createPenaltyLedger(activeLoan, penaltyFee, "PENALTY FEE");
                     loanUtil.savePenalCharges(activeLoan, false, penaltyFee, 0);
