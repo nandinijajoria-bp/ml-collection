@@ -20,5 +20,7 @@ public class ReferenceStateDTO {
     private String mobile;
     private Long merchantId;
     private String loanType;
+    private Boolean isAadhaarAddressVerified;
+    private Boolean loanPurpose;
 
 }

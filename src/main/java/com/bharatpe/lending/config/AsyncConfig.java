@@ -45,6 +45,8 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setCorePoolSize(piramalAsyncCorePoolSize);
         executor.setMaxPoolSize(piramalAsyncMaxPoolSize);
         executor.setThreadNamePrefix("LenderAsyncThread::");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

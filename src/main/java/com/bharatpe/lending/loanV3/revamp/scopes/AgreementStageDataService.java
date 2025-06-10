@@ -151,7 +151,6 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
 
         LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
         AgreementStateDTO agreementResponseV3 = AgreementStateDTO.builder()
                 .applicationId(lendingApplication.getId())
                 .lender(lendingApplication.getLender())
@@ -179,7 +178,13 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 .lendingApplication(lendingApplication)
                 .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
                 .build();
-        if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()))agreementResponseV3.setTopup(true);
+        if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+            log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
+            throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
+        }
+        agreementResponseV3.setTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
+        agreementResponseV3.setIsAadhaarAddressVerified(!ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
+        agreementResponseV3.setLoanPurpose(Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
 
         return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
     }
