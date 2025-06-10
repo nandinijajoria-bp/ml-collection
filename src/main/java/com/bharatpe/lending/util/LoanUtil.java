@@ -1950,6 +1950,7 @@ public class LoanUtil {
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
 		}
+
 		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
