@@ -1,6 +1,8 @@
 package com.bharatpe.lending.dto;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 
@@ -8,17 +10,20 @@ public class ImageProofRequestDto {
 
     @NotNull(message = "Application ID is required")
     @Min(value = 1, message = "Application ID must be positive")
-    private Long applicationId;
+
+    @JsonProperty(value = "application_id")
+    private String applicationId;
 
     private String[] shopDocType;
 
+    @JsonProperty(value = "skip_distance_check")
     private Boolean skipDistanceCheck;
 
-    public Long getApplicationId() {
+    public String getApplicationId() {
         return applicationId;
     }
 
-    public void setApplicationId(Long applicationId) {
+    public void setApplicationId(String applicationId) {
         this.applicationId = applicationId;
     }
 
