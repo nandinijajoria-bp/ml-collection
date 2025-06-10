@@ -187,9 +187,13 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private LendingPaymentSchedule adjustMoney(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, List<LoanPaymentMode> loanPaymentModes, LoanSettlementMechanism settlementMechanism) {
+        log.info("adjustMoney for loan: {} and payment {} with settlementMechanism: {}", loan, payment, settlementMechanism);
         if (!CollectionUtils.isEmpty(loanPaymentModes) && settlementMechanism != null) {
+            log.info("Checking for loan foreclosure for loanId: {}", loan.getId());
             boolean loanForeClosed = checkForLoanForeClosure(loan, payment, settlementMechanism.name());
+            log.info("Loan foreclosure check for loanId: {} with payment: {} and settlementMechanism: {} result: {}", loan.getId(), payment, settlementMechanism.name(), loanForeClosed);
             if (!loanForeClosed) {
+                log.info("Loan foreclosure not required for loanId: {} with payment: {} and settlementMechanism: {}", loan.getId(), payment, settlementMechanism.name());
                 for (LoanPaymentMode paymentMode : loanPaymentModes) {
                     log.info("adjustMoney for loanId: {} paymentMode {} by mechanism {} ", loan.getId(), paymentMode, settlementMechanism.name());
 //                    Raise Dues for settlement initiated cases if received amount is more then dues created
@@ -396,24 +400,27 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     private boolean checkForLoanForeClosure(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism) {
+        log.info("checkForLoanForeClosure for loan: {} and payment: {} and settlementMechanism: {}", loan, payment, settlementMechanism);
         if ("CLOSED".equalsIgnoreCase(loan.getStatus())) {
             log.info("loan already closed. {}", loan);
             return false;
         }
 
-
+        log.info("checkForLoanForeClosure: fetching Foreclosure Amount for loan: {}", loan.getId());
         Integer principalDueAmount = getForeclosureAmount(loan);
-
+        log.info("checkForLoanForeClosure: Foreclosure Amount for loan: {} is {}", loan.getId(), principalDueAmount);
         // case 1 (-ve/0 foreclosure) -  we already have sufficient fund no need for additional payment
         //                                     any upcoming payment will lead to unwanted foreclosure
         // Case 2 - (foreclosure < loan due) - we have some excess amount and if someone paying due will
         //                                     foreclose un-intentionally
         // case 3 - due_amount == foreclosure - can't do anything ....
         if (principalDueAmount <= 0 || principalDueAmount < loan.getDueAmount()) {
+            log.info("checkForLoanForeClosure: loanId: {} principalDueAmount: {} is less than or equal to 0 or less than due amount: {}. No need for fore closure", loan.getId(), principalDueAmount, loan.getDueAmount());
             return false;
         }
 
         if(loanUtil.isTodayIsLoanLastDay(loan)){
+            log.info("checkForLoanForeClosure: loanId: {} is last day of loan, so not checking for fore closure", loan.getId());
             return false;
         }
         // there will be some pending txn before release this description field wasn't populated
@@ -423,8 +430,13 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 //        }
 
         Integer ediHolidayInterestAmount = getEDIHolidayInterestAmount(loan);
+        log.info("checkForLoanForeClosure: EDI Holiday Interest Amount for loan: {} is {}", loan.getId(), ediHolidayInterestAmount);
+
         double amount = payment.getOtherAmount();
+        log.info("checkForLoanForeClosure: payment amount for loan: {} is {}", loan.getId(), amount);
+
         if (principalDueAmount + ediHolidayInterestAmount - amount <= 1D) {
+            log.info("checkForLoanForeClosure: loanId: {} principalDueAmount: {} + ediHolidayInterestAmount: {} - payment amount: {} is less than or equal to 1. Proceeding with fore closure", loan.getId(), principalDueAmount, ediHolidayInterestAmount, amount);
             foreCloseLoan(loan, payment, settlementMechanism, principalDueAmount, ediHolidayInterestAmount);
             return "CLOSED".equalsIgnoreCase(loan.getStatus());
         }
@@ -539,9 +551,10 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
 
     private void foreCloseLoan(LendingPaymentSchedule loan, LoanPaymentDetailDTO payment, String settlementMechanism, Integer principalDueAmount, Integer ediHolidayInterestAmount) {
         double amount = payment.getOtherAmount();
-
+        log.info("foreCloseLoan for loan: {} and payment: {} and settlementMechanism: {}", loan, payment, settlementMechanism);
        Integer pendingNachCharges = nachBounceChargesService.getNachCharges(loan).intValue();
         if (principalDueAmount + ediHolidayInterestAmount + pendingNachCharges - amount <= 1D) {  //foreClosure
+            log.info("foreCloseLoan: loanId: {} principalDueAmount: {} + ediHolidayInterestAmount: {} + pendingNachCharges: {} - payment amount: {} is less than or equal to 1. Proceeding with fore closure", loan.getId(), principalDueAmount, ediHolidayInterestAmount, pendingNachCharges, amount);
             // releaseing the short fall principal for fore closure in pdpd for all lenders  on 9/1/25
 //            if (PIRAMAL.name().equalsIgnoreCase(loan.getNbfc())) {
                 checkAndAdjustPdpdInterestIfRequired(loan);
@@ -692,15 +705,22 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     }
 
     public int getForeclosureAmount(LendingPaymentSchedule lendingPaymentSchedule) {
+        log.info("Fetching Foreclosure amount for loanId: {}", lendingPaymentSchedule.getId());
         if (lendingPaymentSchedule == null || lendingPaymentSchedule.getStatus().equals("CLOSED")) {
             return 0;
         }
         LendingPrepayment lendingPrepayment = lendingPrepaymentDao.findByMerchantIdAndLoanId(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
+        log.info("LendingPrepayment: {} for loan: {}", lendingPrepayment, lendingPaymentSchedule.getId());
         double advanceEdiAmount = lendingPrepayment != null && lendingPrepayment.getAdvanceEdiAmount() != null ? lendingPrepayment.getAdvanceEdiAmount() : 0d;
+        log.info("Advance EDI Amount: {} for loan: {}", advanceEdiAmount, lendingPaymentSchedule.getId());
 
         Double excessCollectionBalance = excessNachService.getExcessCollectionBalanceAmount(lendingPaymentSchedule.getMerchantId(), lendingPaymentSchedule.getId());
-        Double extraInterestofPerpetualDpdLoan = loanUtil.fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
+        log.info("Excess Collection Balance: {} for loan: {}", excessCollectionBalance, lendingPaymentSchedule.getId());
 
+        Double extraInterestofPerpetualDpdLoan = loanUtil.fetchExtraEdiInterestCollectionForPerpetualDpdLoan(lendingPaymentSchedule.getId());
+        log.info("Extra Interest of Perpetual DPD Loan: {} for loan: {}", extraInterestofPerpetualDpdLoan, lendingPaymentSchedule.getId());
+
+        log.info("Calculating Foreclosure amount for loanId: {}", lendingPaymentSchedule.getId());
         return (int) Math.ceil(lendingPaymentSchedule.getLoanAmount() + (Objects.nonNull(lendingPaymentSchedule.getDuePenalty()) ? lendingPaymentSchedule.getDuePenalty() : 0)
                 - (lendingPaymentSchedule.getPaidPrinciple() != null ? lendingPaymentSchedule.getPaidPrinciple() : 0)
                 + (lendingPaymentSchedule.getDueInterest() != null ? lendingPaymentSchedule.getDueInterest() : 0)
