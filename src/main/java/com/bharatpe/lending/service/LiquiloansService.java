@@ -1887,6 +1887,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(totalInterest);
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(cal.getTime());
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "BHARATPE");
             lendingPaymentScheduleDao.save(paymentSchedule);
         } catch (Exception ex) {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
@@ -1939,6 +1940,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(piramalGetLoanResponseDto.getTotalInterestPayable().doubleValue());
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(piramalGetLoanResponseDto.getMaturityDate());
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "LENDER");
             lendingPaymentScheduleDao.save(paymentSchedule);
             return true;
         } catch (Exception ex) {
@@ -1999,6 +2001,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(totalInterestPayable);
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(parsedDate);
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "LENDER");
             lendingPaymentScheduleDao.save(paymentSchedule);
             return true;
         } catch (Exception ex) {
@@ -2061,6 +2064,7 @@ public class LiquiloansService {
                 lendingApplication.setRepayment(totalPayableAmount);
                 lendingApplicationDao.save(lendingApplication);
             }
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "LENDER");
             lendingPaymentScheduleDao.save(paymentSchedule);
             return true;
         } catch (Exception ex) {
@@ -2331,4 +2335,16 @@ public class LiquiloansService {
                         (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
     }
 
+    private void saveRpsTypeMetadata(Long applicationId, String type) {
+        try {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, "ACTIVE");
+            Map<String, Object> metaData = Optional.ofNullable(lendingApplicationLenderDetails.getMetaData()).orElse(new HashMap<>());
+            metaData.put("rpsType", type);
+            lendingApplicationLenderDetails.setMetaData(metaData);
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        } catch (Exception e) {
+            logger.error("Failed to save RPS metadata for application ID {}", applicationId, e);
+        }
+    }
 }
