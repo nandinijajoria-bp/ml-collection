@@ -32,7 +32,7 @@ public class RolloutUtil {
 
 	private List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 
-	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS}")
+	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS,OXYZO}")
 	private List<String> eligibleLenders;
 	@Value("${lending.platform.nbfc.eligible.merchants:20000100}")
 	private List<Long> eligibleMerchants;

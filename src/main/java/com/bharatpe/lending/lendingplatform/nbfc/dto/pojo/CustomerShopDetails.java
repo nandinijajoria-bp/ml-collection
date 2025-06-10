@@ -10,4 +10,5 @@ import lombok.Data;
 public class CustomerShopDetails {
     private AddressDetails addressDetails;
     private int pincode;
+    private String businessName;
 }

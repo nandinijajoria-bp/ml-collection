@@ -12,5 +12,6 @@ public enum LeadStatus {
     LOAN_SANCTION,
     UPDATE_LEAD,
     NACH,
-    LOAN_DISBURSAL;
+    LOAN_DISBURSAL,
+    LOAN_DOCUMENT_DOWNLOAD
 }
