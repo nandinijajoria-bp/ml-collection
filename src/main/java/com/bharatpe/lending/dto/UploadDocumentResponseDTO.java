@@ -3,27 +3,21 @@ package com.bharatpe.lending.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
-import java.util.Map;
 
 public class UploadDocumentResponseDTO {
+
     private Boolean success;
-
-    private List<Document> document;
-
-    private boolean isInValidPhoto;
-
-    @JsonProperty("selected_loan")
-    Map<String, Object> selectedLoan;
-
-    private boolean isSidGreaterThanRequired = false;
+    private List<Document> documents;
+    private boolean invalidPhoto;
+    private boolean sidGreaterThanRequired;
 
     @JsonProperty("is_sid_greater_than_required")
     public boolean isSidGreaterThanRequired() {
-        return isSidGreaterThanRequired;
+        return sidGreaterThanRequired;
     }
 
     public void setSidGreaterThanRequired(boolean sidGreaterThanRequired) {
-        isSidGreaterThanRequired = sidGreaterThanRequired;
+        this.sidGreaterThanRequired = sidGreaterThanRequired;
     }
 
     public Boolean getSuccess() {
@@ -34,48 +28,41 @@ public class UploadDocumentResponseDTO {
         this.success = success;
     }
 
-    public List<Document> getDocument() {
-        return document;
+    public List<Document> getDocuments() {
+        return documents;
     }
 
-    public void setDocument(List<Document> document) {
-        this.document = document;
+    public void setDocuments(List<Document> documents) {
+        this.documents = documents;
     }
 
-    public Map<String, Object> getSelectedLoan() {
-        return selectedLoan;
+    public boolean isInvalidPhoto() {
+        return invalidPhoto;
     }
 
-    public void setSelectedLoan(Map<String, Object> selectedLoan) {
-        this.selectedLoan = selectedLoan;
-    }
-
-    public boolean isInValidPhoto() {
-        return isInValidPhoto;
-    }
-
-    public void setInValidPhoto(boolean inValidPhoto) {
-        isInValidPhoto = inValidPhoto;
+    public void setInvalidPhoto(boolean invalidPhoto) {
+        this.invalidPhoto = invalidPhoto;
     }
 
     @Override
     public String toString() {
-        return "UploadDocumentResponse{" +
+        return "UploadDocumentResponseDTO{" +
                 "success=" + success +
-                ", document=" + document +
-                ", selectedLoan=" + selectedLoan +
+                ", documents=" + documents +
+                ", invalidPhoto=" + invalidPhoto +
+                ", sidGreaterThanRequired=" + sidGreaterThanRequired +
                 '}';
     }
 
-    public class Document {
+    public static class Document {
         @JsonProperty("proof_id")
-        Long proofId;
+        private Long proofId;
 
         @JsonProperty("proof_type")
-        String proofType;
+        private String proofType;
 
         @JsonProperty("single_page_document")
-        Integer singlePageDocument;
+        private Integer singlePageDocument;
 
         public Long getProofId() {
             return proofId;

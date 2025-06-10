@@ -112,11 +112,14 @@ import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 import static com.bharatpe.lending.constant.KfsConstants.*;
@@ -386,6 +389,9 @@ public class LendingApplicationServiceV2 {
 
     @Value("${lender.vernac.lang.rollout.percent:1}")
     Integer lenderVernacLangRolloutPercent;
+
+    @Value("${replicate.shop.documents.vintage:24}")
+    Integer replicateShopDocumentsVintage;
 
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -817,8 +823,6 @@ public class LendingApplicationServiceV2 {
             loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount());
         }
 
-//        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-
         lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
@@ -881,9 +885,7 @@ public class LendingApplicationServiceV2 {
             rejectApplicationForIncorrectLender(lendingApplication);
             return lendingApplication;
         }
-//        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
-//        lendingApplication.setLender("ABFL");
-//        lendingApplication = lendingApplicationDao.save(lendingApplication);
+
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(lendingApplication, isPreApproved);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
@@ -926,8 +928,19 @@ public class LendingApplicationServiceV2 {
                     lendingGstDao.save(replicateGst);
                 }
                 List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                if (!lendingShopDocuments.isEmpty()) {
-                    for (LendingShopDocuments shopDocuments : lendingShopDocuments) {
+                List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
+                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null
+                                && doc.getCreatedAt() != null
+                                && doc.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
+                                .isAfter(LocalDate.now().minusMonths(replicateShopDocumentsVintage)))
+                        .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+                        .values().stream()
+                        .flatMap(docs -> docs.stream().limit(1))
+                        .collect(Collectors.toList());
+
+                log.info("Filtered shop documents for replication: {} for applicationId: {}", filteredDocuments, lendingApplication.getId());
+                if (!filteredDocuments.isEmpty() && filteredDocuments.size() >=2) {
+                    for (LendingShopDocuments shopDocuments : filteredDocuments) {
                         LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
                         replicateShopDocument.setApplicationId(lendingApplication.getId());
                         replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
@@ -938,9 +951,6 @@ public class LendingApplicationServiceV2 {
                         replicateShopDocument.setLongitude(shopDocuments.getLongitude());
                         replicateShopDocument.setLatitude(shopDocuments.getLatitude());
                         replicateShopDocument.setStatus(shopDocuments.getStatus());
-                        if(isPreApproved) {
-                            replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
-                        }
                         lendingShopDocumentsDao.save(replicateShopDocument);
                     }
                 }

@@ -88,6 +88,7 @@ public class UploadDocumentRequestDTO {
                     "changeFlag=" + changeFlag +
                     ", proofType='" + proofType + '\'' +
                     ", singlePageDocument=" + singlePageDocument +
+                    ", proof=" + proof +
                     '}';
         }
     }
