@@ -929,10 +929,7 @@ public class LendingApplicationServiceV2 {
                 }
                 List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
                 List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
-                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null
-                                && doc.getCreatedAt() != null
-                                && doc.getCreatedAt().toInstant().atZone(ZoneId.systemDefault()).toLocalDate()
-                                .isAfter(LocalDate.now().minusMonths(replicateShopDocumentsVintage)))
+                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
                         .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
                         .values().stream()
                         .flatMap(docs -> docs.stream().limit(1))
