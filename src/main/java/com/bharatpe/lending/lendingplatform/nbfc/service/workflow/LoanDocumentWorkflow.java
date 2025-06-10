@@ -36,7 +36,7 @@ public class LoanDocumentWorkflow implements Workflow {
     @Override
     public void invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
-        LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
+        LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         lald.setLeadStatus(LOAN_DOCUMENT.name());
         lald.setLeadSubStatus(LeadSubStatus.PENDING);
         lendingApplicationLenderDetailsService.save(lald);
