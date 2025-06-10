@@ -2944,6 +2944,8 @@ public class LoanUtil {
 				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 			}
 			else {
+				penaltyFeeLedger.setPostingStatus("FAILED");
+				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 				logger.info("Piramal: penalty  posting failed to request {} response {}",piramalForeclosureChargesRequestDto, nbfcResponseDto);
 			}
 		} catch (JsonProcessingException e) {
