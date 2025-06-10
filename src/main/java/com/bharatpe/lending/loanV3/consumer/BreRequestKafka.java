@@ -248,6 +248,17 @@ public class BreRequestKafka {
         }
     }
 
+    private static final Map<String, String> fieldSanitizationRegexMap;
+
+    static {
+        Map<String, String> map = new HashMap<>();
+
+        map.put("ADDRESS", "a-zA-Z0-9 &(),.-");
+        map.put("BUSINESS_NAME", "a-zA-Z0-9 &(),.-");
+
+        fieldSanitizationRegexMap = Collections.unmodifiableMap(map);
+    }
+
     public BreApiRequestDto createPayload(Long applicationId) {
         try {
             Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
@@ -273,7 +284,9 @@ public class BreRequestKafka {
                                             BreApiRequestDto.CustomerReport.builder()
                                                     .kycInfo(
                                                             BreApiRequestDto.KycInfo.builder()
-                                                                    .addressLine1(lendingApplicationServiceV2.constructShopAddress(lendingApplication.get()))
+                                                                    .addressLine1(converterUtils.sanitizeByRegex(
+                                                                            lendingApplicationServiceV2.constructShopAddress(lendingApplication.get()),
+                                                                            fieldSanitizationRegexMap.getOrDefault("ADDRESS", null)))
                                                                     .addressLine2("")
                                                                     .addressLine3("")
                                                                     .city(lendingApplication.get().getCity())
@@ -303,7 +316,9 @@ public class BreRequestKafka {
                                     .bpVintage(getVintage(lendingRiskVariablesSnapshot))
                                     .tpv(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getMonthlyTpv()) ? "0" : new DecimalFormat("#").format(lendingRiskVariablesSnapshot.getMonthlyTpv() * 2))
                                     .shopPincode(lendingApplication.get().getPincode())
-                                    .registeredBusinessName(getRegisteredBusinessName(lendingApplication.get(), cKycResponseDto))
+                                    .registeredBusinessName(converterUtils.sanitizeByRegex(
+                                            getRegisteredBusinessName(lendingApplication.get(), cKycResponseDto),
+                                            fieldSanitizationRegexMap.getOrDefault("BUSINESS_NAME", null)))
                                     .build())
                     .build();
             log.info("breRequest payload {}", breRequestKafkaDto);
