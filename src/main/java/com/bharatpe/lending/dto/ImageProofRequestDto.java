@@ -14,6 +14,7 @@ public class ImageProofRequestDto {
     @JsonProperty(value = "application_id")
     private String applicationId;
 
+    @JsonProperty(value = "shop_doc_type")
     private String[] shopDocType;
 
     @JsonProperty(value = "skip_distance_check")
