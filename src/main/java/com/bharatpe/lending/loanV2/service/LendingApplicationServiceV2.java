@@ -398,7 +398,7 @@ public class LendingApplicationServiceV2 {
     @Value("${lender.vernac.lang.rollout.percent:1}")
     Integer lenderVernacLangRolloutPercent;
 
-    @Value("${skip.picture.threshold:}")
+    @Value("${skip.picture.threshold:0}")
     private int skipPictureThreshold;
 
 
