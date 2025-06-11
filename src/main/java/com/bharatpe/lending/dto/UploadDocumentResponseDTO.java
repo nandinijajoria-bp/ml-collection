@@ -9,9 +9,11 @@ import java.util.List;
 public class UploadDocumentResponseDTO {
 
     private Boolean success;
+
     private List<Document> documents;
+
+    @JsonProperty("invalid_photo")
     private boolean invalidPhoto;
-    private boolean sidGreaterThanRequired;
 
     @JsonProperty("is_sid_greater_than_required")
     private boolean isSidGreaterThanRequired;
