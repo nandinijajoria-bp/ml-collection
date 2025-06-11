@@ -147,7 +147,8 @@ public interface LendingConstants {
 
 	String HEADER_X_API_KEY = "X-API-KEY";
 	String INSURANCE_ELIGIBILITY_API =  "/api/eligibility";
+	String SHOP_FRONT = "shop-front";
+	String SHOP_STOCK = "shop-stock";
 }
-
 
 

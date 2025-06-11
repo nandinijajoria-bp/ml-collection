@@ -306,14 +306,14 @@ public class ImageURLService {
 				}
 			}
 
-			Double distanceBetweenShopAndInferredLocation = null;
+			//Double distanceBetweenShopAndInferredLocation = null;
 
-			skipDistanceCheck = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent) ? skipDistanceCheck : true;
+			//skipDistanceCheck = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent) ? skipDistanceCheck : true;
 
-			if (!skipDistanceCheck) {
+			/*if (!skipDistanceCheck) {
 				distanceBetweenShopAndInferredLocation = calculateDistanceBetweenInferredLocationAndShopDocumentLocation(lendingShopDocumentsList.get(0),
 						merchant.getId());
-			}
+			}*/
 
 			for(LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList){
 				Map<String, Object> moreDocument = new LinkedHashMap<>();
@@ -327,7 +327,7 @@ public class ImageURLService {
 					}
 
 					// if the distance between the inferred location and where the image is uploaded from is more than 2.5KM then don't return the images for repeat loans
-					if (!skipDistanceCheck) {
+				/*	if (!skipDistanceCheck) {
 						logger.info("Applying distance check for applicationId : {} where distance id : {}", lendingApplication.getId(), distanceBetweenShopAndInferredLocation);
 						if (!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
 							if (distanceBetweenShopAndInferredLocation != null && distanceBetweenShopAndInferredLocation > sidThreshold){
@@ -347,7 +347,7 @@ public class ImageURLService {
 								continue;
 							}
 						}
-					}
+					}*/
 
 					String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);
 					imageURL.add(frontURL);
