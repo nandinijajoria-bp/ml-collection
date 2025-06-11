@@ -928,6 +928,7 @@ public class LendingApplicationServiceV2 {
                 loanUtil.publishSmsAnalysisData(merchantBasicDetails);
             }
         });
+       // loanUtil.createLendingAuditTrailDTO(lendingApplication);
         return lendingApplication;
     }
 
