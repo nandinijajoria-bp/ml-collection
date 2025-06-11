@@ -1,5 +1,9 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.dao.PaymentBankDao;
+import com.bharatpe.lending.enums.PaymentBank;
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -15,12 +19,51 @@ public class PaymentBankService {
     @Autowired
     private LoanUtil loanUtil;
 
-    private boolean isValidPaymentAccount(String bankName, double amount, String status){
-        log.info("Validating payment account");
-        if(bankName == null || bankName.isEmpty()){
-            log.error("Bank name is null or empty");
+    @Autowired
+    private PaymentBankDao paymentBankDao;
+
+
+    public boolean changePaymentAccount(LendingApplication lendingApplication) {
+        if(lendingApplication == null) {
+            log.error("Lending application is null");
             return false;
         }
 
+        String bankName = isPaymentBank(lendingApplication.getMerchantId());
+        String loanType = lendingApplication.getLoanType();
+        boolean repeatLoan = loanUtil.isRepeatLoan(lendingApplication.getMerchantId());
+       if(repeatLoan || loanType.equalsIgnoreCase("TOPUP")) {
+            if(lendingApplication.getLoanAmount() >= 150000 && bankName != null ){
+                return true;
+            }
+       }else{
+           if(lendingApplication.getLoanAmount() >= 50000 && bankName != null) {
+               return true;
+           }
+       }
+
+        return false;
     }
+
+    private String isPaymentBank(Long merchantId) {
+        BankAccountDetails accDetails = loanUtil.getAccountDetails(merchantId);
+
+        if (accDetails == null) {
+            log.error("No payment account found for merchantId: {}", merchantId);
+            return null;
+        }
+        String bankName = accDetails.getBankName();
+        if (bankName == null || bankName.isEmpty()) {
+            log.error("Bank name is null or empty for merchantId: {}", merchantId);
+            return null;
+        }
+        for (PaymentBank paymentBank : PaymentBank.values()) {
+            if (bankName.equalsIgnoreCase(paymentBank.getVal())) {
+                return paymentBank.name();
+            }
+        }
+        return null;
+    }
+
+
 }

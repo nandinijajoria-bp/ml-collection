@@ -29,4 +29,5 @@ public class EnachStateDTO {
     private boolean isTopup;
     private String lender;
     private Long merchantId;
+    private boolean isPaymentBank;
 }

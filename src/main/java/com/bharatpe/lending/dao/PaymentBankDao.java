@@ -1,5 +1,8 @@
 package com.bharatpe.lending.dao;
 
+import com.bharatpe.lending.common.entity.PaymentBank;
+import org.springframework.data.jpa.repository.JpaRepository;
+
 public interface PaymentBankDao extends JpaRepository<PaymentBank, Long> {
 
     // Define any custom query methods if needed

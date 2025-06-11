@@ -34,6 +34,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.service.MerchantLoansService;
+import com.bharatpe.lending.service.PaymentBankService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
 
     @Autowired
     private LoanDashboardService loanDashboardService;
+
+    @Autowired
+    private PaymentBankService paymentBankService;
 
     @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
@@ -191,6 +195,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
 
         enachStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
+        enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
 
         log.info("Enach Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), enachStateDTO);
         return new LendingStateDTO<>(enachStateDTO , LendingViewStates.ENACH_PAGE, LendingViewStates.ENACH_PAGE);
