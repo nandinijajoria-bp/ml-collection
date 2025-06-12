@@ -2821,7 +2821,7 @@ public class LoanUtil {
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
-			logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
+			logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
 			return null;
 		}
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
