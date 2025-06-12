@@ -3,11 +3,13 @@ package com.bharatpe.lending.loanV2.controller;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.dto.*;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.ArcSoldLoanService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,10 @@ public class LendingApplicationControllerV2 {
 
     @Autowired
     APIGatewayService apiGatewayService;
+
+    @Lazy
+    @Autowired
+    InsuranceService insuranceService;
 
     @PostMapping(value = "/initiateKyc")
     public ResponseEntity<ApiResponse<?>> initiateKyc(@RequestAttribute BasicDetailsDto merchant,
@@ -166,6 +172,14 @@ public class LendingApplicationControllerV2 {
     ){
         ApiResponse response = lendingApplicationServiceV2.saveAddressDetails(merchant,saveMerchantDetailsDto);
         log.info("save address_details response:{} for merchant:{}", response, merchant.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping(value = "/update/insuranceDetails")
+    public ResponseEntity<ApiResponse<?>> updateInsuranceDetails(@RequestAttribute BasicDetailsDto merchant, @RequestBody UpdateInsuranceDetailsRequestDTO updateInsuranceDetailsRequest) {
+        log.info("update insurance details request received :{} for merchant : {}", updateInsuranceDetailsRequest, merchant.getId());
+        ApiResponse<?> response = insuranceService.updateInsuranceDetails(updateInsuranceDetailsRequest);
+        log.info("update insurance details request :{} for merchant:{}", response, merchant.getId());
         return ResponseEntity.ok(response);
     }
 

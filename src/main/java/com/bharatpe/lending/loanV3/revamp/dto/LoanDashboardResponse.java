@@ -12,8 +12,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.util.Date;
-
 @Data
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -54,9 +52,8 @@ public class LoanDashboardResponse {
 
     //only if the merchant is in masked mobile flow
     private Boolean isMaskedMobileCase;
-    private InsuranceEligibilityResponseDTO.InsuranceEligibilityData insuranceEligibility;
+    private InsuranceEligibilityResponseDTO.ResponseData insuranceEligibility;
     private boolean showRTEPage;
-
 
 }
 
