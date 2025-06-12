@@ -969,13 +969,13 @@ public class LendingApplicationServiceV2 {
                     LocalDateTime startOfDay = today.atStartOfDay();
                     Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
 
-                    List<LendingApplication> lendingApplications = lendingApplicationDao.findByMerchantIdAndLenderAndCreatedAtGreaterThanEqual(
-                            lendingApplication.getMerchantId(), lendersToSkipShopPicture, startOfDate);
+                    List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
+                            lendersToSkipShopPicture, startOfDate);
 
                     int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
                     log.info("Found {} applications for lender {} created today for merchantId: {}",
                             todayApplicationsCount, lendersToSkipShopPicture, lendingApplication.getMerchantId());
-                    if(todayApplicationsCount <= skipPictureThreshold) {
+                    if(todayApplicationsCount >= skipPictureThreshold) {
                         ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
                         shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
                         shopPicturesStateDTO.setApplicationId(lendingApplication.getId());

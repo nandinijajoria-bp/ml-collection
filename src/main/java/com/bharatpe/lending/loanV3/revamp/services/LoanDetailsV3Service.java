@@ -592,8 +592,8 @@ public class LoanDetailsV3Service {
             LocalDateTime startOfDay = today.atStartOfDay();
             Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
 
-            List<LendingApplication> lendingApplications = lendingApplicationDao.findByMerchantIdAndLenderAndCreatedAtGreaterThanEqual(
-                    merchantId, lendersToSkipShopPicture, startOfDate);
+            List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
+                     lendersToSkipShopPicture, startOfDate);
 
             int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
             log.info("Found {} applications for lender {} created today for merchantId: {}",
@@ -602,7 +602,7 @@ public class LoanDetailsV3Service {
 
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
+                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount >= skipPictureThreshold) {
 
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
