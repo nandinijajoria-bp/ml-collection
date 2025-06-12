@@ -19,6 +19,7 @@ import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplica
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -48,6 +49,7 @@ public class CreateLeadWorkflow implements Workflow {
     @Lazy
     private final NbfcUtils nbfcUtils;
     private final WorkflowUtil workflowUtil;
+    private final EdiUtil ediUtil;
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
     @Lazy
     private final WorkflowRegistryFactory workflowRegistryFactory;
@@ -127,7 +129,7 @@ public class CreateLeadWorkflow implements Workflow {
         lendingApplicationLenderDetails.setLeadSubStatus(LeadSubStatus.PENDING);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (com.bharatpe.lending.enums.Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }
