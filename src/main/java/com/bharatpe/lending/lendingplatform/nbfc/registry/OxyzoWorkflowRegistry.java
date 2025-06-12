@@ -1,5 +1,6 @@
 package com.bharatpe.lending.lendingplatform.nbfc.registry;
 
+import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage;
 import com.bharatpe.lending.lendingplatform.nbfc.service.workflow.BreWorkflow;
 import com.bharatpe.lending.lendingplatform.nbfc.service.workflow.CreateLeadWorkflow;
@@ -32,6 +33,7 @@ public class OxyzoWorkflowRegistry implements WorkflowRegistry {
     private final DisbursalWorkflow disbursalWorkflow;
     private final LoanDocumentWorkflow loanDocumentWorkflow;
     private final Map<WorkflowStage, List<Workflow>> workflowMap = new HashMap<>();
+    private final Map<Workflow, LenderAssociationStages> workflowStage = new HashMap<>();
 
     @PostConstruct
     private void initWorkflowMap() {
@@ -41,9 +43,23 @@ public class OxyzoWorkflowRegistry implements WorkflowRegistry {
         workflowMap.put(DISBURSAL, Arrays.asList(disbursalWorkflow));
     }
 
+    @PostConstruct
+    private void initWorkflowStageMap() {
+        workflowStage.put(createLeadWorkflow, LenderAssociationStages.KYC);
+        workflowStage.put(kycWorkflow, LenderAssociationStages.BRE);
+        workflowStage.put(breWorkflow, LenderAssociationStages.ASSC_COMPLETED);
+        workflowStage.put(loanDocumentWorkflow, LenderAssociationStages.DRAWDOWN);
+        workflowStage.put(disbursalWorkflow, LenderAssociationStages.COMPLETED);
+    }
+
     @Override
     public List<Workflow> getStageWorkflow(WorkflowStage stage) {
         return workflowMap.getOrDefault(stage, Collections.emptyList());
+    }
+
+    @Override
+    public LenderAssociationStages getAssociationStageForWorkflow(Workflow workflow) {
+        return workflowStage.get(workflow);
     }
 }
 

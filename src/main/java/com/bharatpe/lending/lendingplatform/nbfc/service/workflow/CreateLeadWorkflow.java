@@ -4,7 +4,6 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LeadSubStatus;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.lendingplatform.nbfc.client.LendingPlatformClient;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.request.CreateLeadRequest;
@@ -12,6 +11,8 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.request.LenderBaseRequest;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.CreateLeadResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
 import com.bharatpe.lending.lendingplatform.nbfc.service.builder.request.CreateLeadRequestBuilder;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationLenderDetailsService;
@@ -48,6 +49,8 @@ public class CreateLeadWorkflow implements Workflow {
     private final NbfcUtils nbfcUtils;
     private final WorkflowUtil workflowUtil;
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
+    @Lazy
+    private final WorkflowRegistryFactory workflowRegistryFactory;
 
 
     @Override
@@ -65,14 +68,16 @@ public class CreateLeadWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
             return;
         }
-        updateLad(applicationId);
+        WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+        updateLad(applicationId, workflowRegistry);
         invokeCreateLead(applicationId, lendingApplication, lald, createLeadRequest);
     }
 
-    private void updateLad(String applicationId) {
+    private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
         lendingApplicationDetails.setLenderAssc(true);
-        lendingApplicationDetails.setStage(LenderAssociationStages.KYC.name());
+        lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationDetailsService.save(lendingApplicationDetails);
     }
 
