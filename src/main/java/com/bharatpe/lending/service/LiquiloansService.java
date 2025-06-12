@@ -39,6 +39,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.lendingplatform.lms.service.LoanService;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV3.dto.AbflRpsResponseDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
@@ -290,6 +291,9 @@ public class LiquiloansService {
 
     @Autowired
     RolloutUtil rolloutUtil;
+
+    @Autowired
+    InsuranceService insuranceService;
 
     @Value("${sameDayEdiAdjusment.rollout.percent:0}")
     Integer sameDayEdiAdjustmentRolloutPercent;
@@ -791,7 +795,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 
                 if (lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                    publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
+                    insuranceService.publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
                 }
 
                 if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)
@@ -982,39 +986,6 @@ public class LiquiloansService {
             });
         } catch (Exception e) {
             logger.error("Error occurred while fetching payment link", e);
-        }
-    }
-
-    private void publishLoanInsuranceEvent(LendingApplication lendingApplication, LoanDashboardApiVersion loanDashboardApiVersion) {
-
-        LendingConsent lendingConsent = lendingConsentDao.findLendingConsentByApplicationIdAndMerchantIdAndConsentType(
-                lendingApplication.getId(),
-                lendingApplication.getMerchantId(),
-                "INSURANCE");
-
-        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
-                lendingApplication.getId(),
-                lendingApplication.getLender(),
-                "SELECTED");
-
-        if (ObjectUtils.isEmpty(lendingConsent)) {
-            return;
-        }
-
-        FunnelEnums.StageEvent event;
-        if (lendingConsent.getIsAccepted() && !ObjectUtils.isEmpty(lendingLoanInsurance)) {
-            event = FunnelEnums.StageEvent.ACCEPT;
-        } else {
-            event = FunnelEnums.StageEvent.REJECT;
-        }
-        logger.info("Insurance is: {} for merchant: {}", event.name(), lendingApplication.getMerchantId());
-        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-            funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                    FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-        }
-        else{
-            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                    FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString());
         }
     }
 

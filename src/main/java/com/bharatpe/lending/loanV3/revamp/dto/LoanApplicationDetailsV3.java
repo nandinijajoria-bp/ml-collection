@@ -56,7 +56,7 @@ public class LoanApplicationDetailsV3 {
     private List<LoanApplicationStage> loanApplicationStageList=new ArrayList<>();
 
     private Boolean isInsured;
-    private List<LoanInsuranceDTO> loanInsurances;
+    private List<LoanInsuranceDTO.InsuranceDetails> loanInsurances;
     private Double apr;
 
     private Double annualRoi;
