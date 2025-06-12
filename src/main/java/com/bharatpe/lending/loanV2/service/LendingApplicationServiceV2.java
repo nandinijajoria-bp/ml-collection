@@ -70,6 +70,7 @@ import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
+import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -387,6 +388,9 @@ public class LendingApplicationServiceV2 {
 
     @Value("${lender.vernac.lang.rollout.percent:1}")
     Integer lenderVernacLangRolloutPercent;
+
+    @Autowired
+    private EdiUtil ediUtil;
 
     @Autowired
     InsuranceService insuranceService;
@@ -818,7 +822,7 @@ public class LendingApplicationServiceV2 {
 
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount());
+            loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
         }
 
 //        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
@@ -2145,10 +2149,11 @@ public class LendingApplicationServiceV2 {
             else{
                 throw new NullPointerException("processing Fee can not be null for lending application");
             }
-            Integer edi,repayment;
-            edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingApplication.getInterestRate() / 100) * lendingApplication.getTenureInMonths()))) / lendingApplication.getPayableDays());
-            repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
-            lendingApplication.setEdi(Double.valueOf(edi));
+            double interestAmount = (loanAmount * lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths() / 100);
+            double ediAmount = ((loanAmount + interestAmount) / lendingApplication.getPayableDays());
+            ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
+            Integer repayment = Math.round(lendingApplication.getPayableDays() * (int)ediAmount);
+            lendingApplication.setEdi(ediAmount);
             lendingApplication.setRepayment(Double.valueOf(repayment));
             lendingApplication.setProcessingFee(processingFee.doubleValue());
             lendingApplication.setDisbursalAmount(loanAmount - processingFee.intValue());
@@ -3055,7 +3060,8 @@ public class LendingApplicationServiceV2 {
             if (!ObjectUtils.isEmpty(lenderPricing)) {
                 Long payableDays = (long) OfferUtils.getEdiDays(loanApplicationDetailsDto.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
                 Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (lenderPricing.getInterestRate() * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
-                edi = Math.ceil((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
+                double ediAmount = ((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
+                edi = ediUtil.getEdiAfterRoundingLogic(loanApplicationDetailsDto.getId(), ediAmount, lender);
                 log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), lenderPricing.getInterestRate(), edi, lenderPricing.getInterestRate());
             }
 
