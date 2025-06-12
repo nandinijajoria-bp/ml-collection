@@ -1,6 +1,7 @@
 package com.bharatpe.lending.lendingplatform.nbfc.service.workflow;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LeadSubStatus;
 import com.bharatpe.lending.lendingplatform.nbfc.client.LendingPlatformClient;
@@ -9,11 +10,15 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.request.LoanDocumentUploadR
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LoanDocumentUploadResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
 import com.bharatpe.lending.lendingplatform.nbfc.service.builder.request.LoanDocumentUploadRequestBuilder;
+import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationLenderDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -30,7 +35,10 @@ public class LoanDocumentWorkflow implements Workflow {
     private final LendingPlatformClient lendingPlatformClient;
     private final LoanDocumentUploadRequestBuilder loanDocumentRequestBuilder;
     private final LendingApplicationLenderDetailsService lendingApplicationLenderDetailsService;
+    private final LendingApplicationDetailsService lendingApplicationDetailsService;
     private final WorkflowUtil workflowUtil;
+    @Lazy
+    private final WorkflowRegistryFactory workflowRegistryFactory;
 
 
     @Override
@@ -70,6 +78,21 @@ public class LoanDocumentWorkflow implements Workflow {
             return;
         }
         log.info("Doc upload response success for application id {}", applicationId);
+
+        WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+        updateLad(applicationId, workflowRegistry);
+        updateLald(lald, workflowRegistry);
+    }
+
+    private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
+        LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
+        lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
+        lendingApplicationDetailsService.save(lendingApplicationDetails);
+    }
+
+    private void updateLald(LendingApplicationLenderDetails lald, WorkflowRegistry workflowRegistry) {
+        lald.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
     }
