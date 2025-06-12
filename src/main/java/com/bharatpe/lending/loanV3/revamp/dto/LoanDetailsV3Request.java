@@ -25,10 +25,12 @@ public class LoanDetailsV3Request {
     private boolean isIOS;
     private Boolean rteFlag;
 
-    private Boolean isInsured;
+    private boolean isInsured;
     private List<LoanInsuranceDTO> loanInsurances;
 
     private boolean kycSuccess;
+
+    private boolean isShopPhotoStepCompleted;
 
 //    private boolean isIOS = false;
 }

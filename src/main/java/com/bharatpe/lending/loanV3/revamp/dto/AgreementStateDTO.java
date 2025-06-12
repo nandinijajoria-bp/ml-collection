@@ -32,13 +32,14 @@ public class AgreementStateDTO {
     private Boolean enachBank;
     private boolean isTopup;
     private Double apr;
-    private List<LoanInsuranceDTO> loanInsurances;
+    private List<LoanInsuranceDTO.InsuranceDetails> loanInsurances;
     private Boolean isInsured;
     private String externalLoanId;
     private Long merchantId;
     private LendingApplication lendingApplication;
     private LendingApplicationLenderDetails lendingApplicationLenderDetails;
-
+    private Boolean isAadhaarAddressVerified;
+    private Boolean loanPurpose;
     @Data
     @ToString
     @Builder

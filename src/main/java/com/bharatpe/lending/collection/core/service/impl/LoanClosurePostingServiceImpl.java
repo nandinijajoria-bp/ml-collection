@@ -310,14 +310,18 @@ public class LoanClosurePostingServiceImpl implements LoanClosurePostingService 
             loanReceiptRequestDTO.setPaymentType(PaymentTypePiramal.FORECLOSURE_PAYMENT);
             loanReceiptRequestDTO.setPaymentRequestType(PaymentRequestType.POST);
             loanReceiptRequestDTO.setPaymentReceiptData(paymentReceiptData);
-            List<LoanReceiptRequestDTO.FeeList> fcFeeList = new ArrayList<>();
-            fcFeeList.add(LoanReceiptRequestDTO.FeeList.builder()
-                    .feeType("FORECLOSURE_FEES")
-                    .feeAmount(loanClosureDTO.getForeclosureCharges())
-                    .paidAmount(loanClosureDTO.getForeclosureCharges())
-                    .waiverAmount(0d)
-                    .build());
-            loanReceiptRequestDTO.setFeeList(fcFeeList);
+            Date  loanEligibilityDate = activeLoan.getLoanApplication().getAgreementAt();
+            loanReceiptRequestDTO.setFeeList(null);
+            if (loanUtil.checkIfForeClosureChargesApplicable(loanEligibilityDate, activeLoan.getNbfc())) {
+                List<LoanReceiptRequestDTO.FeeList> fcFeeList = new ArrayList<>();
+                fcFeeList.add(LoanReceiptRequestDTO.FeeList.builder()
+                        .feeType("FORECLOSURE_FEES")
+                        .feeAmount(loanClosureDTO.getForeclosureCharges())
+                        .paidAmount(loanClosureDTO.getForeclosureCharges())
+                        .waiverAmount(0d)
+                        .build());
+                loanReceiptRequestDTO.setFeeList(fcFeeList);
+            }
 
             loanReceiptRequestDTO.setAllocationDetails(allocationDetails);
             NbfcRequestDto<LoanReceiptRequestDTO> dtoNbfcRequestDto = new NbfcRequestDto<>();

@@ -22,6 +22,7 @@ public class CustomerShopDetailsBuilder {
 		CustomerShopDetails customerShopDetails = CustomerShopDetails.builder()
 				.addressDetails(addressDetails)
 				.pincode(lendingApplication.getPincode().intValue())
+				.businessName(lendingApplication.getBusinessName())
 				.build();
 
 		log.debug("Customer Shop Details for merchant: {} is {}", lendingApplication.getMerchantId(), customerShopDetails);

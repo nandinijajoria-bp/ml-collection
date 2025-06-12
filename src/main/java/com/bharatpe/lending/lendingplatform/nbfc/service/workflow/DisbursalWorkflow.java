@@ -13,6 +13,8 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.request.LoanDisbursalReques
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LoanDisbursalResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
 import com.bharatpe.lending.lendingplatform.nbfc.service.builder.request.LoanDisbursalRequestBuilder;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationLenderDetailsService;
@@ -20,6 +22,7 @@ import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplica
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -28,7 +31,6 @@ import java.util.Date;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.DisbursalStatus.SUCCESS;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.WorkflowName.DISBURSAL_WORKFLOW;
 import static com.bharatpe.lending.lendingplatform.nbfc.enums.LeadStatus.LOAN_DISBURSAL;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.TRILLIONLOANS;
 
 @Service
 @RequiredArgsConstructor
@@ -40,11 +42,14 @@ public class DisbursalWorkflow implements Workflow {
     private final LendingApplicationLenderDetailsService lendingApplicationLenderDetailsService;
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
     private final LendingApplicationServiceV4 lendingApplicationServiceV4;
+    @Lazy
+    private final WorkflowRegistryFactory workflowRegistryFactory;
+
 
     @Override
     public void invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
-        LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
+        LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         //checking is disbursal already initiated
         if (lald.getStage().equalsIgnoreCase(LenderAssociationStages.COMPLETED.name())
             || (lald.getLeadStatus().equalsIgnoreCase(LOAN_DISBURSAL.name()) &&
@@ -79,22 +84,32 @@ public class DisbursalWorkflow implements Workflow {
     private void processLoanDisbursalResponse(String applicationID, LendingApplication lendingApplication,
                                               LendingApplicationLenderDetails lald,
                                               LenderApiResponse<LoanDisbursalResponse> response) {
-        if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isLoanDisbursalResponseDataSuccess(response)){
+        Lender lender = response.getLender();
+        boolean isResponseEmptyOrFailed = ObjectUtils.isEmpty(response) || !response.isSuccess();
+        boolean isResponseDataUnsuccessful = !isLoanDisbursalResponseDataSuccess(response);
+
+        if ((lender.equals(Lender.OXYZO) && isResponseEmptyOrFailed) ||
+                (!lender.equals(Lender.OXYZO) && (isResponseEmptyOrFailed || isResponseDataUnsuccessful))) {
             log.info("Loan disbursal response failure for application id {}", applicationID);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_FAILED.name());
             lendingApplicationLenderDetailsService.save(lald);
             return;
         }
+
         log.info("Loan disbursal response success for application id {}", applicationID);
-        updateLald(lald);
+
+        WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+
+        updateLald(lald, workflowRegistry);
         updateLendingApplication(lendingApplication);
-        updateLad(applicationID);
+        updateLad(applicationID, workflowRegistry);
     }
 
-    private void updateLad(String applicationId) {
+    private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
-        lendingApplicationDetails.setStage(LenderAssociationStages.COMPLETED.name());
+        lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationDetailsService.save(lendingApplicationDetails);
 
     }
@@ -107,10 +122,10 @@ public class DisbursalWorkflow implements Workflow {
         lendingApplicationServiceV4.save(lendingApplication);
     }
 
-    private void updateLald(LendingApplicationLenderDetails lald) {
+    private void updateLald(LendingApplicationLenderDetails lald, WorkflowRegistry workflowRegistry) {
         lald.setLeadSubStatus(LeadSubStatus.CALLBACK_PENDING);
         lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_IN_PROGRESS.name());
-        lald.setStage(LenderAssociationStages.COMPLETED.name());
+        lald.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationLenderDetailsService.save(lald);
     }
 

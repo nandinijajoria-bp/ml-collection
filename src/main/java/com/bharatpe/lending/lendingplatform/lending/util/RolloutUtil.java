@@ -1,8 +1,11 @@
 package com.bharatpe.lending.lendingplatform.lending.util;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LmsLoanStatusDao;
+import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LmsLoanStatus;
 import com.bharatpe.lending.common.enums.Status;
@@ -29,7 +32,7 @@ public class RolloutUtil {
 
 	private List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 
-	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS}")
+	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS,OXYZO}")
 	private List<String> eligibleLenders;
 	@Value("${lending.platform.nbfc.eligible.merchants:20000100}")
 	private List<Long> eligibleMerchants;
@@ -63,6 +66,7 @@ public class RolloutUtil {
 	private final LendingApplicationLenderDetailsDao laldDao;
     private final LendingApplicationDao lendingApplicationDao;
     private final KycUtils kycUtils;
+    private final AutoPayUPIDao autoPayUPIDao;
 
     public boolean lendingPlatformUnderwritingFLowApplicable(Long merchantId) {
         //config for internal merchants
@@ -151,11 +155,17 @@ public class RolloutUtil {
         LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLoanByBpLoanIdAndStatus(lendingApplication.getExternalLoanId(), "FAILED");
         Long lmsLoanStatusCount = lmsLoanStatusDao.countAllLoanStatusRecords();
 
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
+                lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
+
         if (ObjectUtils.isEmpty(lendingApplication)) {
             return false;
         }
         if (topupLoans.contains(lendingApplication.getLoanType())) {
             log.info("Application: {} not eligible for new flow due to Topup loan", lendingApplication.getId());
+            return false;
+        }
+        if(!ObjectUtils.isEmpty(autoPayUPI)){
             return false;
         }
         if (!ObjectUtils.isEmpty(lmsLoanStatus)) {

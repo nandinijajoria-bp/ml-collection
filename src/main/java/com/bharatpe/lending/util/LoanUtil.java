@@ -56,6 +56,7 @@ import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
+import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
@@ -275,9 +276,6 @@ public class LoanUtil {
     @Autowired
 	ForeClosureConfigDao foreClosureDao;
 
-	@Autowired
-	LendingLoanInsuranceDao lendingLoanInsuranceDao;
-
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
 
@@ -332,6 +330,8 @@ public class LoanUtil {
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
+	@Value("${round.down.eligible.lenders:TRILLIONLOANS}")
+	private List<String> roundDownEligibleLenders;
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
@@ -395,6 +395,9 @@ public class LoanUtil {
 
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
+
+	@Value("${deprecated.merchant.references:true}")
+    private boolean hasDeprecatedMerchantReferences;
 	@Autowired
 	ObjectMapper objectMapper;
 	@Autowired
@@ -415,7 +418,6 @@ public class LoanUtil {
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
 	}
-
 
 	public List<Long> loadDerogEffectedMerchants() {
 		if (!ObjectUtils.isEmpty(derogMerchants)) {
@@ -1839,7 +1841,9 @@ public class LoanUtil {
 			Long referencesLimit = loanDetailsServiceV2.getReferenceLimit(lendingApplication);
 			Integer toBeShown = loanDetailsServiceV2.getToBeShownReferences(referencesLimit);
 			logger.info("async threadpool flow executed for getMerchantReferences.");
-			dsHandler.getMerchantReferences(merchantId, minScore, toBeShown, lendingApplication.getId());
+			if (!hasDeprecatedMerchantReferences) {
+				dsHandler.getMerchantReferences(merchantId, minScore, toBeShown, lendingApplication.getId());
+			}
 			String deReferencesCacheKey = LendingConstants.GET_MERCHANTS_REFERENCES_CACHE_KEY + merchantId;
 			cacheDeReferencesData(deReferencesCacheKey, ttl);
 			logger.info("successfully caching of merchant references from de completed");
@@ -1937,6 +1941,10 @@ public class LoanUtil {
 	public Boolean isEligibleForNachSkip(LendingApplication lendingApplication, String lender) {
 
 		if (ObjectUtils.isEmpty(lender)) return false;
+		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) && isBTApplication(lendingApplication)) {
+			logger.info("skip nach flow is not applicable for BT application {}", lendingApplication.getId());
+			return false;
+		}
 		String finalLender = enachServiceLenderMapper(lender);
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
@@ -2670,16 +2678,6 @@ public class LoanUtil {
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
-	public LendingLoanInsurance getInsuranceDetails(Long applicationId, String lender, String status) {
-		if (ObjectUtils.isEmpty(applicationId) || ObjectUtils.isEmpty(lender) || ObjectUtils.isEmpty(status)) {
-			return null;
-		}
-
-		return lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
-				applicationId,
-				lender,
-				status);
-	}
 	public List<EnachModeDTO> getEnachModes(Long merchantId) {
 		LendingNachBankResponseDTO lendingNachBankResponse = getEnachBankMode(merchantId);
 
@@ -2856,14 +2854,21 @@ public class LoanUtil {
 		return 0D;
 	}
 
-	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount){
+	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
 		eligibleLoan.setRateOfInterest(interestRate);
 		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
-		Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		if(!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)){
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		}else{
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
 		Double repayment = ediAmount * eligibleLoan.getEdiCount();
 		eligibleLoan.setProcessingFee(processingFee.intValue());
 		eligibleLoan.setRepayment(repayment.intValue());
-		eligibleLoan.setEdi(ediAmount.intValue());
+		eligibleLoan.setEdi((int) ediAmount);
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
@@ -2935,6 +2940,8 @@ public class LoanUtil {
 				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 			}
 			else {
+				penaltyFeeLedger.setPostingStatus("FAILED");
+				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 				logger.info("Piramal: penalty  posting failed to request {} response {}",piramalForeclosureChargesRequestDto, nbfcResponseDto);
 			}
 		} catch (JsonProcessingException e) {
@@ -3061,6 +3068,18 @@ public class LoanUtil {
 		} catch (Exception e) {
 			logger.info("Exception occurred while saving penal charges for loan: {}, {}", lendingPaymentSchedule.getId(), e.getMessage(), e);
 		}
+	}
+
+	private Boolean isBTApplication(LendingApplication lendingApplication) {
+		try {
+			LendingApplication prevApplication = fetchParentApplication(lendingApplication.getId());
+			if(!ObjectUtils.isEmpty(prevApplication) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender())) {
+				return true;
+			}
+		} catch (Exception e) {
+			logger.error("Exception in checking BT application for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
+		}
+		return false;
 	}
 }
 

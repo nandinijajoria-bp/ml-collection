@@ -16,9 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -105,14 +107,18 @@ public class LoanCancellationService {
         log.info("LoanCancellationService -> updateLendingPaymentSchedule -> updated lending payment schedule successfully for loan id - {}",lendingPaymentSchedule.getId());
     }
 
-    private void updateLendingLedgerAndRefundAudit(Long lmsBulkExportId, LendingPaymentSchedule lendingPaymentSchedule) {
+    public void updateLendingLedgerAndRefundAudit(Long lmsBulkExportId, LendingPaymentSchedule lendingPaymentSchedule) {
         Long loan_id = lendingPaymentSchedule.getId();
         Double totalPayableAmount = lendingPaymentSchedule.getTotalPayableAmount();
         Double totalLoanAmount = lendingPaymentSchedule.getLoanAmount();
         Double totalInterest = lendingPaymentSchedule.getInterest();
         Long merchantId = lendingPaymentSchedule.getMerchantId();
         Map<String, Object> negativeEdi= lendingLedgerDao.totalNegativeEdiAmount(loan_id);
+        // Return default values if null or empty
+        negativeEdi = checkIfEDIExists(negativeEdi);
         Map<String, Object>  positiveEdi = lendingLedgerDao.totalPositiveEdiAmount(loan_id);
+        // Return default values if null or empty
+        positiveEdi = checkIfEDIExists(positiveEdi);
         Double newNegativeEdiAmount = totalPayableAmount-(-1*(((BigDecimal) negativeEdi.get("amount")).doubleValue()));
         log.info("LoanCancellationService -> updateLendingLedgerAndRefundAudit -> newNegativeEdiAmount - {}", newNegativeEdiAmount);
         Double newPositiveEdiAmount = totalPayableAmount-(((BigDecimal) positiveEdi.get("amount")).doubleValue());
@@ -136,6 +142,21 @@ public class LoanCancellationService {
         }
         createLendingLedger(lendingPaymentSchedule,-1*newNegativeEdiAmount,-1*newNegativeEdiPrinciple,-1*newNegativeEdiInterest,merchantId);
         createLendingLedger(lendingPaymentSchedule,newPositiveEdiAmount,newPositiveEdiPrinciple,newPositiveEdiInterest,merchantId );
+    }
+
+    public Map<String, Object> checkIfEDIExists(Map<String, Object> edi) {
+        if(CollectionUtils.isEmpty(edi)) edi = new HashMap<>();
+        if(!edi.containsKey("amount") || edi.get("amount") == null) {
+            edi.put("amount", new BigDecimal("0"));
+        }
+        if(!edi.containsKey("principle") || edi.get("principle") == null) {
+            edi.put("principle", new BigDecimal("0"));
+        }
+        if(!edi.containsKey("interest") || edi.get("interest") == null) {
+            edi.put("interest", new BigDecimal("0"));
+        }
+
+        return edi;
     }
 
     private void createLoanRefund(LendingPaymentSchedule loan, double amount, Long lmsBulkExportId, String terminalOrderId, String mode) {

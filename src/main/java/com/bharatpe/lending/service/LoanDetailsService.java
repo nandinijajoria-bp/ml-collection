@@ -54,6 +54,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -75,6 +76,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 
 @Service
@@ -244,12 +246,19 @@ public class LoanDetailsService {
 	LendingRiskVariablesSnapshotSlaveDao lendingRiskVariablesSnapshotDao;
 	@Value("${bureau.credit.score.pull.days:45}")
 	private Long bureauScorePullDays;
+
+	@Value("${deprecated.merchant.references:true}")
+	private boolean hasDeprecatedMerchantReferences;
+
 	@Autowired
 	BureauHandler bureauHandler;
 	SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
 	@Autowired
 	LmsPaymentDetailsDao lmsPaymentDetailsDao;
+
+	@Autowired
+	InsuranceService insuranceService;
 
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
 												   String token) {
@@ -559,13 +568,17 @@ public class LoanDetailsService {
 			if(activeLoan != null) {
 				logger.info("Active loan found for merchant with ID {}", merchantBasicDetailsDto.getId());
 				boolean syncContacts = false;
-				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
-				if (phonebook.isEmpty()) {
-					logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
-					syncContacts = true;
+				if(!hasDeprecatedMerchantReferences){
+					List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
+					if (phonebook.isEmpty()) {
+						logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
+						syncContacts = true;
+					}
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setSyncContacts(syncContacts);
+				if(!hasDeprecatedMerchantReferences){
+					loanDetailsDTO.setSyncContacts(syncContacts);
+				}
 				loanDetailsDTO.setHistory(orignalHistoryDTOs);
 				loanDetailsDTO.setEligible(true);
 				loanDetailsDTO.setRejected(rejected);
@@ -595,13 +608,17 @@ public class LoanDetailsService {
 //			boolean retry = shouldRetry(lendingApplication);
 			if(lendingApplication != null && !eligibleFlag) {
 				boolean syncContacts = false;
-				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
-				if (phonebook.isEmpty()) {
-					logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
-					syncContacts = true;
+				if(!hasDeprecatedMerchantReferences){
+					List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchantBasicDetailsDto.getId());
+					if (phonebook.isEmpty()) {
+						logger.info("Contacts not synced for merchant:{}", merchantBasicDetailsDto.getId());
+						syncContacts = true;
+					}
 				}
 				LoanDetailsDTO loanDetailsDTO = new LoanDetailsDTO();
-				loanDetailsDTO.setSyncContacts(syncContacts);
+				if(!hasDeprecatedMerchantReferences){
+					loanDetailsDTO.setSyncContacts(syncContacts);
+				}
 				loanDetailsDTO.setHistory(loanHistoryDTOs);
 				loanDetailsDTO.setLoanApplication(loanApplicationDTO);
 				loanDetailsDTO.setEligible(true);
@@ -1518,10 +1535,10 @@ public class LoanDetailsService {
 		settlementV2ResponseDTO.setSettlement(settlementList);
 		settlementV2ResponseDTO.setLender(lendingPaymentSchedule.getNbfc());
 
-		LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+		LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(
 				lendingPaymentSchedule.getApplicationId(),
 				lendingPaymentSchedule.getNbfc(),
-				"SELECTED");
+				SELECTED);
 
 		if (Objects.nonNull(lendingLoanInsurance)) {
 			settlementV2ResponseDTO.setInsured(true);
@@ -1610,10 +1627,10 @@ public class LoanDetailsService {
 		}
 		nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
 
-		LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+		LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(
 				lendingPaymentSchedule.getApplicationId(),
 				lendingPaymentSchedule.getNbfc(),
-				"SELECTED");
+				SELECTED);
 		if (!ObjectUtils.isEmpty(lendingLoanInsurance) && !ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocUrl())) {
 			insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(applicationId, INSURANCE_POLICY_DOC_PREFIX + applicationId);
 		}

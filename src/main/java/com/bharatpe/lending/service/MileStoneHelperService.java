@@ -19,6 +19,7 @@ import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.entity.MileStoneReward;
+import com.bharatpe.lending.enums.RTEProgramType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
@@ -128,6 +129,7 @@ public class MileStoneHelperService {
         entity.setKycStatus("APPROVED");
         entity.setGraphData(0D);
         entity.setComment(null);
+        entity.setShowSummaryPage(RTEProgramType.CASHBACK.name().equalsIgnoreCase(response.getProgram_type()));
         Calendar calendar = Calendar.getInstance();
         calendar.setTime(entity.getCreatedAt());
         calendar.add(Calendar.DATE, days);
@@ -694,8 +696,8 @@ public class MileStoneHelperService {
                 boolean isMileStoneExpiry = false;
                 if (!ObjectUtils.isEmpty(entity)) {
                     Date date = new Date();
-                    isMileStoneExpiry = entity.getExpiryDate().getTime() < date.getTime();
-                    if (isMileStoneExpiry == Boolean.TRUE) {
+                    isMileStoneExpiry = !ObjectUtils.isEmpty(entity.getExpiryDate()) && entity.getExpiryDate().getTime() < date.getTime();
+                    if (isMileStoneExpiry) {
                         if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
                             lendingCache.delete(mileStoneCacheKey);
                         }

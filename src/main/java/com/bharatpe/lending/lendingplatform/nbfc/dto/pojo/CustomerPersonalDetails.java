@@ -35,6 +35,9 @@ public class CustomerPersonalDetails {
         private NameDobDetails nameDobDetails;
         private String fatherName;
         private String gender;
+        private String sonOfDaughterOf;
+        private String wifeOf;
+        private String careOf;
     }
 
     @Data
@@ -56,6 +59,7 @@ public class CustomerPersonalDetails {
         private String firstName;
         private String middleName;
         private String lastName;
+        private String fullName;
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy", timezone = "Asia/Kolkata")
         private Date dob;
     }

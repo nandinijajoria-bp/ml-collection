@@ -40,8 +40,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+
 import static com.bharatpe.lending.constant.LendingConstants.ETC_DEFAULT_DAYS;
 import static com.bharatpe.lending.constant.LendingConstants.NTC_DEFAULT_DAYS;
+import static com.bharatpe.lending.constant.LendingConstants.MINOR_HEADING_SET_LOAN;
+import static com.bharatpe.lending.constant.LendingConstants.MINOR_HEADING_DAYS;
 
 @Service
 @Slf4j
@@ -108,6 +111,15 @@ public class MileStoneHelperServicev3 {
 
     @Value("${milestone.inclusion.reasons}")
     private String inclusionReasons;
+
+    @Value("${milestone.eligible.buttonAction.deeplink}")
+    private String eligibleButtonActionDeepLink;
+
+    @Value("${milestone.eligible.cashback.buttonAction.deeplink}")
+    private String cashbackEligibleButtonActionDeeplink;
+
+    @Value("${milestone.active.buttonAction.deeplink}")
+    private String activeButtonActionDeepLink;
 
     ExecutorService executorService = Executors.newFixedThreadPool(10);
 
@@ -179,7 +191,15 @@ public class MileStoneHelperServicev3 {
 
                 Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
                 if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
-                    return rteDetailsCacheValue(responseDto, merchant, mileStoneCacheResponse);
+                    if(ObjectUtils.isEmpty(entity)) {
+                        return rteDetailsCacheValue(responseDto, merchant, mileStoneCacheResponse);
+                    }
+                    boolean isMileStoneExpiry = entity.getExpiryDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().isBefore(LocalDate.now());
+                    if (isMileStoneExpiry) {
+                        lendingCache.delete(mileStoneCacheKey);
+                    }else {
+                        return rteDetailsCacheValue(responseDto, merchant, mileStoneCacheResponse);
+                    }
                 }
             }
             responseDto = panExperianAndBureauCallHandler(merchant, entity, entityList, responseDto);
@@ -201,9 +221,8 @@ public class MileStoneHelperServicev3 {
     }
 
     private void cleverTapFunnelEventHandler(BasicDetailsDto merchant, MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
-        String program_type = RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2";
         HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
-            put("program_type", program_type);
+            put("program_type", getProgramType(responseDto.getProgramType()));
         }};
 
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchant.getId());
@@ -340,7 +359,7 @@ public class MileStoneHelperServicev3 {
                     }
 
                     if (achievementResponse == null && (ObjectUtils.isEmpty(rteProgramDetailsDto))) {
-                        return manageExpiryForExistingMerchant(merchant, bureauResponseDTO, mileStoneResponse, responseDto, experian, kycPancard);
+                        return manageExpiryForExistingMerchant(merchant, bureauResponseDTO, mileStoneResponse, responseDto, experian, kycPancard, entity);
                     }
                     return setGraphData(merchant, mileStoneResponse, achievementResponse, responseDto, bureauResponseDTO, entity, mileStoneCacheKey, mileStoneCacheResponse, experian, kycPancard);
                 }
@@ -487,6 +506,8 @@ public class MileStoneHelperServicev3 {
                 }
             }
             responseDto.setEnrollState(true);
+            responseDto.setShowSummaryPage(entity.getShowSummaryPage());
+            responseDto.setCashback(mileStoneResponse.getTotal_target().getCashback());
 
             if (daysCount == null) {
                 if (days%28==0){
@@ -499,7 +520,7 @@ public class MileStoneHelperServicev3 {
             boolean isMileStoneExpiry = false;
             if (!ObjectUtils.isEmpty(entity)) {
                 isMileStoneExpiry = entity.getExpiryDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate().isBefore(LocalDate.now());
-                if (isMileStoneExpiry == Boolean.TRUE) {
+                if (isMileStoneExpiry) {
                     if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
                         lendingCache.delete(mileStoneCacheKey);
                     }
@@ -511,6 +532,7 @@ public class MileStoneHelperServicev3 {
                     mileStoneDao.save(entity);
                     responseDto.setIsMileStoneExpiry(true);
                     responseDto.setEnrollState(false);
+                    responseDto.setSessionStatus(RTESessionStatus.COMPLETED.name());
                     log.info("setting program type when session is in progress for merchantId: {} {}", merchant.getId(), responseDto);
                     responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
                     responseDto.setMaxLimit(ObjectUtils.isEmpty(mileStoneResponse.getMax_limit()) ? null : mileStoneResponse.getMax_limit());
@@ -520,12 +542,12 @@ public class MileStoneHelperServicev3 {
                     responseDto.setPanCard(kycPancard);
 
                     if (bureauResponseDTO!=null){
-                        responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
+                        responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? setNTCProgramEligibleData(responseDto.getProgramType()) : setETCProgramEligibleData(responseDto.getProgramType()));
                         responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                                mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days)) :
-                                mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days)));
+                                setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days), responseDto.getProgramType()) :
+                                setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days), responseDto.getProgramType()));
                     }else {
-                        responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
+                        responseDto.setProgramEligibleData(setETCProgramEligibleData(responseDto.getProgramType()));
                         responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(),  String.valueOf(days)));
                     }
                     responseDto.setDeepLinkUrl(deepLink);
@@ -535,10 +557,12 @@ public class MileStoneHelperServicev3 {
                     if(isRtev3Enabled && easyLoanUtil.percentScaleUp(merchant.getId(), rtev3RolloutPercent)) {
                         if(!ObjectUtils.isEmpty(responseDto.getProgramType())) {
                             HashMap<String, String> cleverTapEvtData = new HashMap<String, String>() {{
-                                put("program_type", RTEProgramType.SLIDER.name().equals(responseDto.getProgramType()) ? "v3" : "v2");
+                                put("program_type", getProgramType(responseDto.getProgramType()));
                             }};
                             if(!ObjectUtils.isEmpty(responseDto.getGraphData()) && responseDto.getGraphData() == 1D) {
                                 //graph data is 100% when session was is in progress, now marked completed
+                                log.info("graph data completed for {}", merchant.getId());
+                                responseDto.setIsCashbackEarned(true);
                                 executorService.execute(() -> cleverTapEventService.sendClevertapEvent(CleverTapEvents.RTE_V3_ACTIVE_COMPLETE.name(), cleverTapEvtData, merchant.getMid()));
                                 funnelService.submitEvent(merchant.getId(), null, null,
                                         FunnelEnums.StageId.RTE, FunnelEnums.StageEvent.ENROLL_COMPLETE, responseDto.getProgramType());
@@ -557,14 +581,15 @@ public class MileStoneHelperServicev3 {
             responseDto.setWeekCount(daysCount);
             // To replace this with graph data
             responseDto.setGraphData(graph);
+            responseDto.setSessionStatus(!ObjectUtils.isEmpty(entity) ? entity.getSessionStatus() : null);
             if (bureauResponseDTO!=null){
-                responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
+                responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? setNTCProgramEligibleData(responseDto.getProgramType()) : setETCProgramEligibleData(responseDto.getProgramType()));
                 responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                        mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(),  String.valueOf(days)):
-                        mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days)));
+                        setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(),  String.valueOf(days), responseDto.getProgramType()):
+                        setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days), responseDto.getProgramType()));
             }else {
-                responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-                responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days)));
+                responseDto.setProgramEligibleData(setETCProgramEligibleData(responseDto.getProgramType()));
+                responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(days), responseDto.getProgramType()));
             }
 
             responseDto.setDeepLinkUrl(deepLink);
@@ -578,7 +603,7 @@ public class MileStoneHelperServicev3 {
         return responseDto;
     }
 
-    private MileStoneEligibilityResponseDto manageExpiryForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO,DSMileStoneResponse mileStoneResponse, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard) {
+    private MileStoneEligibilityResponseDto manageExpiryForExistingMerchant(BasicDetailsDto merchant, BureauResponseDTO bureauResponseDTO,DSMileStoneResponse mileStoneResponse, MileStoneEligibilityResponseDto responseDto, Experian experian, String kycPancard, MileStoneEntity entity) {
         log.info("achievement response is null for merchantId:{}", merchant.getId());
         try {
             responseDto.setDsErrorMessage("achievement response is null");
@@ -588,18 +613,21 @@ public class MileStoneHelperServicev3 {
             responseDto.setWeekCount(null);
             responseDto.setPinCode(experian.getPincode());
             responseDto.setPanCard(kycPancard);
+            responseDto.setCashback(mileStoneResponse.getTotal_target().getCashback());
+            responseDto.setShowSummaryPage(entity.getShowSummaryPage());
+            responseDto.setSessionStatus(!ObjectUtils.isEmpty(entity) ? entity.getSessionStatus() : null);
             log.info("setting program type during expiry management for merchantId: {} {}", merchant.getId(), responseDto);
             responseDto.setProgramType(ObjectUtils.isEmpty(mileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : mileStoneResponse.getProgram_type());
             responseDto.setMaxLimit(ObjectUtils.isEmpty(mileStoneResponse.getMax_limit()) ? null : mileStoneResponse.getMax_limit());
 
             if (bureauResponseDTO!=null){
-                responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? mileStoneHelperService.setNTCProgramEligibleData() : mileStoneHelperService.setETCProgramEligibleData());
+                responseDto.setProgramEligibleData(bureauResponseDTO.getIsNTC() == Boolean.TRUE ? setNTCProgramEligibleData(responseDto.getProgramType()) : setETCProgramEligibleData(responseDto.getProgramType()));
                 responseDto.setProgramActiveData(bureauResponseDTO.getIsNTC() == Boolean.TRUE?
-                        mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(mileStoneResponse.getTarget_duration_days())):
-                        mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(mileStoneResponse.getTarget_duration_days())));
+                        setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(mileStoneResponse.getTarget_duration_days()), responseDto.getProgramType()):
+                        setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(mileStoneResponse.getTarget_duration_days()), responseDto.getProgramType()));
             }else {
-                responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-                responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(mileStoneResponse.getTarget_duration_days())));
+                responseDto.setProgramEligibleData(setETCProgramEligibleData(responseDto.getProgramType()));
+                responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), String.valueOf(mileStoneResponse.getTarget_duration_days()), responseDto.getProgramType()));
             }
             responseDto.setDeepLinkUrl(deepLink);
             responseDto.setIsEligibleForReapply(true);
@@ -621,14 +649,16 @@ public class MileStoneHelperServicev3 {
         responseDto.setPanCard(kycPancard);
         responseDto.setIsEligibleForReapply(true);
         responseDto.setDeepLinkUrl(deepLink);
+        responseDto.setCashback(responseDto.getCashback());
+        responseDto.setShowSummaryPage(true);
         String days = ObjectUtils.isEmpty(entity) ? String.valueOf(responseDto.getTargetDurationDays()) : String.valueOf(entity.getProgramDuration());
 
         if (bureauResponseDTO != null && bureauResponseDTO.getIsNTC() == Boolean.TRUE) {
-            responseDto.setProgramEligibleData(mileStoneHelperService.setNTCProgramEligibleData());
-            responseDto.setProgramActiveData(mileStoneHelperService.setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), days));
+            responseDto.setProgramEligibleData(setNTCProgramEligibleData(responseDto.getProgramType()));
+            responseDto.setProgramActiveData(setNTCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), days, responseDto.getProgramType()));
         } else {
-            responseDto.setProgramEligibleData(mileStoneHelperService.setETCProgramEligibleData());
-            responseDto.setProgramActiveData(mileStoneHelperService.setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), days));
+            responseDto.setProgramEligibleData(setETCProgramEligibleData(responseDto.getProgramType()));
+            responseDto.setProgramActiveData(setETCProgramActiveData(responseDto.getGraphData(), responseDto.getWeekCount(), days, responseDto.getProgramType()));
         }
 
         if (!ObjectUtils.isEmpty(entity) && RTESessionStatus.COMPLETED.name().equalsIgnoreCase(entity.getSessionStatus())) {
@@ -680,7 +710,8 @@ public class MileStoneHelperServicev3 {
             DSMileStoneResponse dsMileStoneResponse = dsHandler.fetchMileStoneDatav3(merchant.getId(), bureauScore, bbs, pinCodeColor, loanAmountOfMerchant);
             log.info("milestone data {} for merchantId: {}", dsMileStoneResponse, merchant.getId());
 
-            if (dsMileStoneResponse == null || dsMileStoneResponse.getProgram_type() == null || ObjectUtils.isEmpty(dsMileStoneResponse.getTarget_duration_days()) || dsMileStoneResponse.getTarget().isEmpty()) {
+            if (dsMileStoneResponse == null || dsMileStoneResponse.getProgram_type() == null || dsMileStoneResponse.getTarget_duration_days() == 0 || dsMileStoneResponse.getTarget().isEmpty()) {
+                log.info("Error in ds milestone response for {}", merchant.getId());
                 String mileStoneCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
                 Object mileStoneCacheResponse = lendingCache.get(mileStoneCacheKey);
                 if (!ObjectUtils.isEmpty(mileStoneCacheResponse)) {
@@ -695,6 +726,7 @@ public class MileStoneHelperServicev3 {
                 responseDto.setProgramType(ObjectUtils.isEmpty(dsMileStoneResponse.getProgram_type()) ? RTEProgramType.NEW_MERCHANT.name() : dsMileStoneResponse.getProgram_type());
                 responseDto.setMaxLimit(ObjectUtils.isEmpty(dsMileStoneResponse.getMax_limit()) ? null : dsMileStoneResponse.getMax_limit());
                 responseDto.setTargetDurationDays(dsMileStoneResponse.getTarget_duration_days());
+                responseDto.setCashback(dsMileStoneResponse.getTotal_target().getCashback());
             }
         }catch (Exception e) {
             log.error("Exception while calling merchantMileStone DS Api merchantId: {} {}", merchant.getId(), Arrays.asList(e.getStackTrace()));
@@ -824,6 +856,9 @@ public class MileStoneHelperServicev3 {
         responseDto.setMilStoneEligibility(false);
         responseDto.setEnrollState(false);
         responseDto.setIsEligibleForReapply(false);
+        responseDto.setShowSummaryPage(entity.getShowSummaryPage());
+        responseDto.setSessionStatus(entity.getSessionStatus());
+        responseDto.setProgramType(mileStoneHelperService.fetchTarget(entity).getProgram_type());
         try {
             AddCacheDto addCacheDto = new AddCacheDto();
             addCacheDto.setKey(RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId());
@@ -834,6 +869,65 @@ public class MileStoneHelperServicev3 {
             log.error("exception occurred while caching RTE details {} !!", RTEConstants.RTE_MILESTONE_OFFER_KEY + merchant.getId());
         }
         return responseDto;
+    }
+
+    public String getProgramType(String programType) {
+        if (RTEProgramType.CASHBACK.name().equalsIgnoreCase(programType)) {
+            return RTEProgramType.CASHBACK.name();
+        } else {
+            return RTEProgramType.SLIDER.name().equals(programType) ? "v3" : "v2";
+        }
+    }
+
+    public MileStoneEligibilityResponseDto.ProgramEligibleData setETCProgramEligibleData(String programType) {
+        MileStoneEligibilityResponseDto.ProgramEligibleData programEligibleData = new MileStoneEligibilityResponseDto.ProgramEligibleData();
+        programEligibleData.setStripHeading("Join Program");
+        programEligibleData.setHeading("Get Set Loan");
+        programEligibleData.setSubHeading("Complete  targets to become eligible for loan");
+        programEligibleData.setButtonText("START NOW");
+        programEligibleData.setBannerImage("https://d30gqtvesfc1d5.cloudfront.net/hubble/r2e/home-joinprogram-lottie-1696315201206.json");
+        String buttonActionDeeplink = RTEProgramType.CASHBACK.name().equals(programType) ? cashbackEligibleButtonActionDeeplink : eligibleButtonActionDeepLink;
+        programEligibleData.setButtonActionDeeplink(buttonActionDeeplink);
+        return programEligibleData;
+    }
+    public MileStoneEligibilityResponseDto.ProgramEligibleData setNTCProgramEligibleData(String programType) {
+        MileStoneEligibilityResponseDto.ProgramEligibleData programEligibleData = new MileStoneEligibilityResponseDto.ProgramEligibleData();
+        programEligibleData.setStripHeading("Join Program");
+        programEligibleData.setHeading("Get Set Loan");
+        programEligibleData.setSubHeading("Complete  targets to become eligible for loan");
+        programEligibleData.setButtonText("START NOW");
+        String buttonActionDeeplink = RTEProgramType.CASHBACK.name().equals(programType) ? cashbackEligibleButtonActionDeeplink : eligibleButtonActionDeepLink;
+        programEligibleData.setButtonActionDeeplink(buttonActionDeeplink);
+        return programEligibleData;
+    }
+
+
+    public MileStoneEligibilityResponseDto.ProgramActiveData setNTCProgramActiveData(Double graphData, String weekCount,String programDuration, String programType) {
+        MileStoneEligibilityResponseDto.ProgramActiveData programActiveData = new MileStoneEligibilityResponseDto.ProgramActiveData();
+        String minorHeading = MINOR_HEADING_SET_LOAN + programDuration + MINOR_HEADING_DAYS;
+        programActiveData.setStripHeading(weekCount);
+        programActiveData.setMinorHeading(minorHeading);
+        programActiveData.setMajorHeading("Complete your  target!");
+        programActiveData.setSubHeading("you are on the right track. Join the program to become eligible");
+        programActiveData.setButtonText("Know More");
+        programActiveData.setProgressText("ACHIEVED");
+        programActiveData.setProgressPercentage(String.valueOf(graphData));
+        programActiveData.setButtonActionDeeplink(RTEProgramType.CASHBACK.name().equals(programType) ? cashbackEligibleButtonActionDeeplink : activeButtonActionDeepLink);
+        return programActiveData;
+    }
+
+    public MileStoneEligibilityResponseDto.ProgramActiveData setETCProgramActiveData(Double graphData, String weekCount, String programDuration, String programType) {
+        MileStoneEligibilityResponseDto.ProgramActiveData programActiveData = new MileStoneEligibilityResponseDto.ProgramActiveData();
+        String minorHeading = MINOR_HEADING_SET_LOAN + programDuration + MINOR_HEADING_DAYS;
+        programActiveData.setStripHeading(weekCount);
+        programActiveData.setMinorHeading(minorHeading);
+        programActiveData.setMajorHeading("Complete your  target!");
+        programActiveData.setSubHeading("you are on the right track. Join the program to become eligible");
+        programActiveData.setButtonText("Know More");
+        programActiveData.setProgressText("ACHIEVED");
+        programActiveData.setProgressPercentage(String.valueOf(graphData));
+        programActiveData.setButtonActionDeeplink(RTEProgramType.CASHBACK.name().equals(programType) ? cashbackEligibleButtonActionDeeplink : activeButtonActionDeepLink);
+        return programActiveData;
     }
 
 }

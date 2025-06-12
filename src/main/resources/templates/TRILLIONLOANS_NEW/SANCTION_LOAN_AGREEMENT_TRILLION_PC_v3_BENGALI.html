@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <style>
+  
+
         .fw400 {
             font-weight: 400;
         }
@@ -94,11 +96,14 @@
         .mr10 {
             margin-right: 10px;
         }
+
+        td[rowspan="11"] {
+            border-bottom: none; 
+        }
     </style>
 </head>
 
 <body>
-
 
     <div style="padding: 20px 30px; margin-top: 50px">
         <div style="display: flex; justify-content: center;" class="width-100">
@@ -570,14 +575,16 @@
                             style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
-                                    <td class="width-33 bold text-center" style="padding: 8px;">
+                                    <td class="width-24 bold text-center" style="padding: 8px;">
                                         মেয়াদ (মাস)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">
+                                    <td class="width-24 bold" style="padding: 8px;">
                                         (মাস) মধ্যে বন্ধ
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">ফোরক্লোজারের সময় প্রিন্সিপল
+                                    <td class="width-24 bold" style="padding: 8px;">ফোরক্লোজারের সময় প্রিন্সিপল
                                         অসামান্যের উপর হার</td>
+                                        <td class="width-24 bold" style="padding: 8px;">সর্বনিম্ন পরিমাণ</td>
+
                                 </tr>
 
                                 <tr class="width-100 ">
@@ -595,6 +602,8 @@
                                             {{rate_of_principle_1}}%
                                         </p>
                                     </td>
+                                    <td class="text-center" rowspan="11">Rs. 1000</td>
+
                                 </tr>
                                 <tr class="width-100 ">
                                     <td style="padding: 0px 5px" class="width-33">
@@ -840,10 +849,10 @@
                     </td>
                     <td style="padding: 0px 5px;" class="word-wrap width-70">
                         <p style="margin: 6px 16px;" class="fw400 text-left bold">ঋণ প্রদানকারীর জন্য</p>
-                        <p style="margin: 6px 16px;" class="fw400 text-left">নোডাল অফিসারের নাম ও পদ- উর্বশী নায়ার,
+                        <p style="margin: 6px 16px;" class="fw400 text-left">নোডাল অফিসারের নাম ও পদ- শ্রীমতি পুনম প্রিয়দর্শিনী দাস,
                             হেড-অপারেশন্স </p>
 
-                        <p style="margin: 6px 16px;" class="fw400 text-left">ইমেল- nodalofficer@trillionloans.com</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">ইমেল- grievances@trillionloans.com</p>
                         <p style="margin: 6px 16px;" class="fw400 text-left">ফোন নং.
                             +91-{{nodal_officer_contact_number}}, সমস্ত কাজের দিনে (সোম-শুক্র) সকাল 09:30থেকে সন্ধ্যা
                             7:00 পর্যন্ত</p>
@@ -1472,31 +1481,33 @@
                             style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
-                                    <td class="width-33 bold text-center" style="padding: 8px;">
+                                    <td class="width-24 bold text-center" style="padding: 8px;">
                                         মেয়াদ (মাস)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">
+                                    <td class="width-24 bold" style="padding: 8px;">
                                         (মাস) মধ্যে বন্ধ
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">ফোরক্লোজারের সময় প্রিন্সিপল
+                                    <td class="width-24 bold" style="padding: 8px;">ফোরক্লোজারের সময় প্রিন্সিপল
                                         অসামান্যের উপর হার</td>
-                                </tr>
-
-                                <tr class="width-100 ">
-                                    <td style="padding: 0px 5px" class="width-33">
-                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
-                                        </p>
-                                    </td>
-                                    <td style="padding: 0px 5px" class="width-33">
-                                        <p class="fw-bold text-center m6">
-                                            আগে {{closure_max_1}}
-                                        </p>
-                                    </td>
-                                    <td style="padding: 0px 5px" class="width-auto">
-                                        <p class="fw-bold text-center m6">
-                                            {{rate_of_principle_1}}%
-                                        </p>
-                                    </td>
+                                        <td class="width-24 bold" style="padding: 8px;">সর্বনিম্ন পরিমাণ</td>
+                                    </tr>
+                                    
+                                    <tr class="width-100 ">
+                                        <td style="padding: 0px 5px" class="width-33">
+                                            <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
+                                            </p>
+                                        </td>
+                                        <td style="padding: 0px 5px" class="width-33">
+                                            <p class="fw-bold text-center m6">
+                                                আগে {{closure_max_1}}
+                                            </p>
+                                        </td>
+                                        <td style="padding: 0px 5px" class="width-auto">
+                                            <p class="fw-bold text-center m6">
+                                                {{rate_of_principle_1}}%
+                                            </p>
+                                        </td>
+                                        <td class="text-center" rowspan="11">Rs. 1000</td>
                                 </tr>
                                 <tr class="width-100 ">
                                     <td style="padding: 0px 5px" class="width-33">
@@ -3367,31 +3378,33 @@
                             style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
-                                    <td class="width-33 bold text-center" style="padding: 8px;">
+                                    <td class="width-24 bold text-center" style="padding: 8px;">
                                         Tenure (Months)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">
+                                    <td class="width-24 bold" style="padding: 8px;">
                                         Closure in (Months)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">Rate on Principle Outstanding at the
+                                    <td class="width-24 bold" style="padding: 8px;">Rate on Principle Outstanding at the
                                         time of Foreclosure</td>
-                                </tr>
-
-                                <tr class="width-100 ">
-                                    <td style="padding: 0px 5px" class="width-33">
-                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
-                                        </p>
-                                    </td>
-                                    <td style="padding: 0px 5px" class="width-33">
-                                        <p class="fw-bold text-center m6">
-                                            Before {{closure_max_1}}
-                                        </p>
-                                    </td>
-                                    <td style="padding: 0px 5px" class="width-auto">
-                                        <p class="fw-bold text-center m6">
-                                            {{rate_of_principle_1}}%
-                                        </p>
-                                    </td>
+                                        <td class="width-24 bold" style="padding: 8px;">Minimum Amount</td>
+                                    </tr>
+                                    
+                                    <tr class="width-100 ">
+                                        <td style="padding: 0px 5px" class="width-33">
+                                            <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
+                                            </p>
+                                        </td>
+                                        <td style="padding: 0px 5px" class="width-33">
+                                            <p class="fw-bold text-center m6">
+                                                Before {{closure_max_1}}
+                                            </p>
+                                        </td>
+                                        <td style="padding: 0px 5px" class="width-auto">
+                                            <p class="fw-bold text-center m6">
+                                                {{rate_of_principle_1}}%
+                                            </p>
+                                        </td>
+                                        <td class="text-center" rowspan="11">Rs. 1000</td>
                                 </tr>
                                 <tr class="width-100 ">
                                     <td style="padding: 0px 5px" class="width-33">
@@ -3638,7 +3651,7 @@
                         <p style="margin: 6px 16px;" class="fw400 text-left">Name & Designation of the Nodal Officer-
                             {{nodal_officer_name}}, Head-Operations</p>
 
-                        <p style="margin: 6px 16px;" class="fw400 text-left">Email- nodalofficer@trillionloans.com</p>
+                        <p style="margin: 6px 16px;" class="fw400 text-left">Email- grievances@trillionloans.com</p>
                         <p style="margin: 6px 16px;" class="fw400 text-left">Phone No-
                             +91-{{nodal_officer_contact_number}} from 09:30 am to 7:00 pm on all working days (Mon to
                             Fri)</p>
@@ -4292,31 +4305,34 @@
                             style="display: {{foreclosure_charges_clause_display_prop}};">
                             <tbody>
                                 <tr class="width-100">
-                                    <td class="width-33 bold text-center" style="padding: 8px;">
+                                    <td class="width-24 bold text-center" style="padding: 8px;">
                                         Tenure (Months)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">
+                                    <td class="width-24 bold" style="padding: 8px;">
                                         Closure in (Months)
                                     </td>
-                                    <td class="width-33 bold" style="padding: 8px;">Rate on Principle Outstanding at the
+                                    <td class="width-24 bold" style="padding: 8px;">Rate on Principle Outstanding at the
                                         time of Foreclosure</td>
-                                </tr>
 
-                                <tr class="width-100 ">
-                                    <td style="padding: 0px 5px" class="width-33">
-                                        <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
-                                        </p>
-                                    </td>
-                                    <td style="padding: 0px 5px" class="width-33">
-                                        <p class="fw-bold text-center m6">
-                                            Before {{closure_max_1}}
-                                        </p>
-                                    </td>
-                                    <td style="padding: 0px 5px" class="width-auto">
-                                        <p class="fw-bold text-center m6">
-                                            {{rate_of_principle_1}}%
-                                        </p>
-                                    </td>
+                                        <td class="width-24 bold" style="padding: 8px;">Minimum Amount</td>
+                                    </tr>
+                                    
+                                    <tr class="width-100 ">
+                                        <td style="padding: 0px 5px" class="width-33">
+                                            <p class="fw-bold text-center m6"> {{foreclosure_tenure_1}}
+                                            </p>
+                                        </td>
+                                        <td style="padding: 0px 5px" class="width-33">
+                                            <p class="fw-bold text-center m6">
+                                                Before {{closure_max_1}}
+                                            </p>
+                                        </td>
+                                        <td style="padding: 0px 5px" class="width-auto">
+                                            <p class="fw-bold text-center m6">
+                                                {{rate_of_principle_1}}%
+                                            </p>
+                                        </td>
+                                        <td class="text-center" rowspan="11">Rs. 1000</td>
                                 </tr>
                                 <tr class="width-100 ">
                                     <td style="padding: 0px 5px" class="width-33">
