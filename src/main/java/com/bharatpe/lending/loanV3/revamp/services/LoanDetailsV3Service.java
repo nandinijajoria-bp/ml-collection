@@ -223,7 +223,7 @@ public class LoanDetailsV3Service {
                     if(Boolean.TRUE.equals(loanDetailsV3Response.getSkipShopPicture()) && Boolean.FALSE.equals(loanDetailsV3Response.getImageExist()))
                         loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     else
-                        loanDetailsV3Response.setNextPage(LendingViewStates.SHOP_PICTURES_PAGE.name());
+                        loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case APPLICATION_STATUS_PAGE:
                     setApplicationStatusResponse((ApplicationStatusStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
