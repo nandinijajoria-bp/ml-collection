@@ -220,7 +220,7 @@ public class LoanDetailsV3Service {
                     return loanDetailsV3Response;
                 case SHOP_PICTURES_PAGE:
                     setShopPicturesResponse(merchant, (ShopPicturesStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
-                    if(Boolean.TRUE.equals(loanDetailsV3Response.getSkipShopPicture()))
+                    if(Boolean.TRUE.equals(loanDetailsV3Response.getSkipShopPicture()) && Boolean.FALSE.equals(loanDetailsV3Response.getImageExist()))
                         loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     else
                         loanDetailsV3Response.setNextPage(LendingViewStates.SHOP_PICTURES_PAGE.name());
