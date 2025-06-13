@@ -17,7 +17,6 @@ public class PaymentBankService {
     private LoanUtil loanUtil;
 
 
-
     public boolean changePaymentAccount(LendingApplication lendingApplication) {
         if(lendingApplication == null) {
             log.error("Lending application is null");

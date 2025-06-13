@@ -112,6 +112,10 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${upi.nach.lender:-}")
     private Set<String> upiNachLender;
 
+    @Value("${payment.bank.change.flow.applicable:false}")
+    private boolean isPaymentBankChangeFlowApplicable;
+
+
 
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -201,7 +205,10 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
 
         enachStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
-        enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
+        if(isPaymentBankChangeFlowApplicable){
+            enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
+        }
+
 
         log.info("Enach Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), enachStateDTO);
         return new LendingStateDTO<>(enachStateDTO , LendingViewStates.ENACH_PAGE, LendingViewStates.ENACH_PAGE);

@@ -289,6 +289,9 @@ public class LoanUtil {
 	@Value("${aggregation.flow.experimentId:}")
 	String isAggregationFlowApplicableExperimentId;
 
+	@Value("${payment.bank.change.flow.applicable:false}")
+	boolean isPaymentBankChangeFlowApplicable;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
@@ -1960,10 +1963,13 @@ public class LoanUtil {
 			return Boolean.TRUE;
 		}
 
-		if (paymentBankService.changePaymentAccount(lendingApplication)) {
-			logger.info("Merchant {} using Payments Bank with loan amount threshold – skip NACH", lendingApplication.getMerchantId());
-			return Boolean.FALSE;
+		if(isPaymentBankChangeFlowApplicable){
+			if (paymentBankService.changePaymentAccount(lendingApplication)) {
+				logger.info("Merchant {} using Payments Bank with loan amount threshold – skip NACH", lendingApplication.getMerchantId());
+				return Boolean.FALSE;
+			}
 		}
+
 		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
 		if (ObjectUtils.isEmpty(approvedNachDetails)) {
