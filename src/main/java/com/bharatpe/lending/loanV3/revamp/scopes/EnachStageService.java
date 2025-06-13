@@ -117,8 +117,14 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EnachStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         if(lendingStateDTO.getData().isTopup()){
-            lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+            if(lendingStateDTO.getData().isPaymentBank()){
+                lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+            }
+            else{
+                lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+            }
         }
+
         else lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
         return lendingStateDTO;
     }

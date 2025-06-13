@@ -61,6 +61,7 @@ import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
+import com.bharatpe.lending.service.PaymentBankService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -240,6 +241,9 @@ public class LoanUtil {
 
 	@Autowired
 	LoanDpdDao loanDpdDao;
+
+	@Autowired
+	PaymentBankService paymentBankService;
 
 	@Autowired
 	AutoPayUPIDao autoPayUPIDao;
@@ -1952,6 +1956,12 @@ public class LoanUtil {
 		}
 
 		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+
+		if (!paymentBankService.changePaymentAccount(lendingApplication)) {
+			logger.info("Merchant {} using Payments Bank with loan amount threshold – skip NACH", lendingApplication.getMerchantId());
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
