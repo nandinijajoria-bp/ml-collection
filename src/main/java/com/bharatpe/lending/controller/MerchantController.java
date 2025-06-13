@@ -4,10 +4,7 @@ import com.bharatpe.lending.common.dao.LendingMerchantDetailsDao;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.entity.LendingMerchantDetails;
 import com.bharatpe.lending.common.entity.LendingPincodes;
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.dto.ListMerchantAddressResponseDto;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDto;
-import com.bharatpe.lending.common.service.merchant.dto.ReqAddAddress;
+import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ErrorMessages;
 import com.bharatpe.lending.loanV2.dto.BusinessDetailsDTO;
@@ -42,7 +39,7 @@ public class MerchantController {
     // return standard response
     @PutMapping("/address")
     public ResponseEntity<Object> addAddress(@RequestAttribute BasicDetailsDto merchant,
-                                             @RequestBody ReqAddAddress payload,@RequestHeader("token") String token ) {
+                                             @RequestBody ReqAddAddress payload) {
         log.info("Received request to add address for merchant: {}", merchant.getId());
 
         if (payload.getPincode() == null || payload.getState() == null || payload.getCity() == null ||
@@ -52,7 +49,7 @@ public class MerchantController {
 
         MerchantDto merchantDto = convertToMerchantDto(merchant);
 
-        com.bharatpe.lending.common.service.merchant.dto.AddAddressRes response = merchantService.addAddress(merchantDto.getMerchantId(), payload);
+       AddAddressRes response = merchantService.addAddress(merchantDto.getMerchantId(), payload);
 
         if (ObjectUtils.isEmpty(response)) {
             return buildErrorResponse("ERR_ADDRESS_VALIDATION", ErrorMessages.ADDRESS_VALIDATION_ERROR);
