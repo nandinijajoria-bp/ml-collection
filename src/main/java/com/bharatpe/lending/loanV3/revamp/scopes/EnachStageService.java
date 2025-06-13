@@ -17,10 +17,8 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.NachMandateEligibilityConfigDao;
 import com.bharatpe.lending.dto.EnachErrorMessageDTO;
 import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.EnachMode;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.*;
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -203,12 +201,17 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             }
             else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
         }
-
-        enachStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
+        BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
+        enachStateDTO.setBankDetails(accountDetails);
+        String bankName = accountDetails.getBankName();
         if(isPaymentBankChangeFlowApplicable){
+            for (PaymentBank paymentBank : PaymentBank.values()) {
+                if (bankName.equalsIgnoreCase(paymentBank.getVal())) {
+                    enachStateDTO.setHasLinkedPaymentBank(true);
+                }
+            }
             enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
         }
-
 
         log.info("Enach Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), enachStateDTO);
         return new LendingStateDTO<>(enachStateDTO , LendingViewStates.ENACH_PAGE, LendingViewStates.ENACH_PAGE);

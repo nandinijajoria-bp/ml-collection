@@ -18,22 +18,28 @@ public class PaymentBankService {
 
 
     public boolean changePaymentAccount(LendingApplication lendingApplication) {
+        log.info("Entering into the changePaymentAccount method with lendingApplication: {}", lendingApplication.getId());
         if(lendingApplication == null) {
             log.error("Lending application is null");
             return false;
         }
 
-        String bankName = isPaymentBank(lendingApplication.getMerchantId());
+        String bankName = paymentBank(lendingApplication.getMerchantId());
+        if (bankName == null) {
+            log.error("Bank name is null for merchantId: {}", lendingApplication.getMerchantId());
+            return false;
+        }
+        log.info("Bank name for merchantId {} is: {}", lendingApplication.getMerchantId(), bankName);
         String loanType = lendingApplication.getLoanType();
         boolean repeatLoan = loanUtil.isRepeatLoan(lendingApplication.getMerchantId());
         if(repeatLoan || loanType.equalsIgnoreCase("TOPUP")) {
-            return lendingApplication.getLoanAmount() >= 150000 && bankName != null;
+            return lendingApplication.getLoanAmount() >= 150000;
         }else{
-            return lendingApplication.getLoanAmount() >= 50000 && bankName != null;
+            return lendingApplication.getLoanAmount() >= 50000;
         }
     }
 
-    private String isPaymentBank(Long merchantId) {
+    private String paymentBank(Long merchantId) {
         BankAccountDetails accDetails = loanUtil.getAccountDetails(merchantId);
 
         if (accDetails == null) {
@@ -52,6 +58,7 @@ public class PaymentBankService {
         }
         return null;
     }
+
 
 
 }

@@ -30,4 +30,5 @@ public class EnachStateDTO {
     private String lender;
     private Long merchantId;
     private boolean isPaymentBank;
+    private boolean hasLinkedPaymentBank;
 }

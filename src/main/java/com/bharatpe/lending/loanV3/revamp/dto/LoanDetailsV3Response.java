@@ -56,6 +56,8 @@ public class LoanDetailsV3Response {
     private Boolean showReferencePage;
     private Integer ediDaysModel;
     private Long merchantId;
+    private boolean paymentBank;
+    private boolean hasLinkedPaymentBank;
 
     private String currentPage;
     private String nextPage;
@@ -449,6 +451,8 @@ public class LoanDetailsV3Response {
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
+        loanDetailsV3Response.setPaymentBank(enachStateDTO.isPaymentBank());
+        loanDetailsV3Response.setHasLinkedPaymentBank(enachStateDTO.isHasLinkedPaymentBank());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
