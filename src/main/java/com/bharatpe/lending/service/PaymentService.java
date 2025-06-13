@@ -1358,9 +1358,9 @@ public class PaymentService {
                     .updateGlobalTxnlimit(true)
                     .build());
 
-            if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
-                redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
-            }
+//            if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+//                redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
+//            }
             double finalAmount = amount;
             // Todo: fix when opening  for roll out
             notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, false));
@@ -1661,9 +1661,9 @@ public class PaymentService {
             }
         }
 
-        if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
-            redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
-        }
+//        if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+//            redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
+//        }
         boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
         Double finalAmount = amount;
