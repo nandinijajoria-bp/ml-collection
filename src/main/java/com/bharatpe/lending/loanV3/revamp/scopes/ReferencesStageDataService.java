@@ -75,11 +75,6 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
             }
-            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(scopeDataArgs.getApplicationId());
-            if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
-                log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
-                throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
-            }
             referenceStateDTO.setIsAadhaarAddressVerified(!ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
             referenceStateDTO.setLoanPurpose(lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
 
