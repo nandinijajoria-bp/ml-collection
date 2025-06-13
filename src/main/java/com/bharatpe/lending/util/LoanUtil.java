@@ -1960,10 +1960,9 @@ public class LoanUtil {
 			return Boolean.TRUE;
 		}
 
-		if (!paymentBankService.changePaymentAccount(lendingApplication)) {
+		if (paymentBankService.changePaymentAccount(lendingApplication)) {
 			logger.info("Merchant {} using Payments Bank with loan amount threshold – skip NACH", lendingApplication.getMerchantId());
-			setIsNachSkip(lendingApplication);
-			return Boolean.TRUE;
+			return Boolean.FALSE;
 		}
 		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
