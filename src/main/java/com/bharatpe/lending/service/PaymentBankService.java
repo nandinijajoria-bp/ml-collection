@@ -1,13 +1,10 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.dao.PaymentBankDao;
 import com.bharatpe.lending.enums.PaymentBank;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,8 +16,6 @@ public class PaymentBankService {
     @Autowired
     private LoanUtil loanUtil;
 
-    @Autowired
-    private PaymentBankDao paymentBankDao;
 
 
     public boolean changePaymentAccount(LendingApplication lendingApplication) {
