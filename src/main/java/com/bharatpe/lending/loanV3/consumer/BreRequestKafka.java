@@ -25,6 +25,7 @@ import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.loanV3.utils.RiskEngineUtil;
+import com.bharatpe.lending.util.EdiUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -77,6 +78,9 @@ public class BreRequestKafka {
     @Autowired
     MerchantService merchantService;
 
+    @Autowired
+    private EdiUtil ediUtil;
+
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
 
@@ -119,7 +123,7 @@ public class BreRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP: RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));

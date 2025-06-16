@@ -13,6 +13,8 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.request.LoanDisbursalReques
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LoanDisbursalResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
 import com.bharatpe.lending.lendingplatform.nbfc.service.builder.request.LoanDisbursalRequestBuilder;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationLenderDetailsService;
@@ -20,6 +22,7 @@ import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplica
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -39,6 +42,9 @@ public class DisbursalWorkflow implements Workflow {
     private final LendingApplicationLenderDetailsService lendingApplicationLenderDetailsService;
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
     private final LendingApplicationServiceV4 lendingApplicationServiceV4;
+    @Lazy
+    private final WorkflowRegistryFactory workflowRegistryFactory;
+
 
     @Override
     public void invoke(String applicationId) {
@@ -92,14 +98,18 @@ public class DisbursalWorkflow implements Workflow {
         }
 
         log.info("Loan disbursal response success for application id {}", applicationID);
-        updateLald(lald);
+
+        WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+
+        updateLald(lald, workflowRegistry);
         updateLendingApplication(lendingApplication);
-        updateLad(applicationID);
+        updateLad(applicationID, workflowRegistry);
     }
 
-    private void updateLad(String applicationId) {
+    private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
-        lendingApplicationDetails.setStage(LenderAssociationStages.COMPLETED.name());
+        lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationDetailsService.save(lendingApplicationDetails);
 
     }
@@ -112,10 +122,10 @@ public class DisbursalWorkflow implements Workflow {
         lendingApplicationServiceV4.save(lendingApplication);
     }
 
-    private void updateLald(LendingApplicationLenderDetails lald) {
+    private void updateLald(LendingApplicationLenderDetails lald, WorkflowRegistry workflowRegistry) {
         lald.setLeadSubStatus(LeadSubStatus.CALLBACK_PENDING);
         lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_IN_PROGRESS.name());
-        lald.setStage(LenderAssociationStages.COMPLETED.name());
+        lald.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationLenderDetailsService.save(lald);
     }
 

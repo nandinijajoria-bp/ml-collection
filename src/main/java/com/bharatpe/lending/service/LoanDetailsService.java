@@ -54,6 +54,7 @@ import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
@@ -75,6 +76,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 
 @Service
@@ -254,6 +256,9 @@ public class LoanDetailsService {
 
 	@Autowired
 	LmsPaymentDetailsDao lmsPaymentDetailsDao;
+
+	@Autowired
+	InsuranceService insuranceService;
 
 	public LoanDetailsResponseDTO fetchLoanDetails(BasicDetailsDto merchantBasicDetailsDto, RequestDTO<IneligibleRequestDTO> requestDTO, String clientIp,
 												   String token) {
@@ -1530,10 +1535,10 @@ public class LoanDetailsService {
 		settlementV2ResponseDTO.setSettlement(settlementList);
 		settlementV2ResponseDTO.setLender(lendingPaymentSchedule.getNbfc());
 
-		LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+		LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(
 				lendingPaymentSchedule.getApplicationId(),
 				lendingPaymentSchedule.getNbfc(),
-				"SELECTED");
+				SELECTED);
 
 		if (Objects.nonNull(lendingLoanInsurance)) {
 			settlementV2ResponseDTO.setInsured(true);
@@ -1622,10 +1627,10 @@ public class LoanDetailsService {
 		}
 		nocUrl = supportService.getNocUrl(lendingPaymentSchedule);
 
-		LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
+		LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(
 				lendingPaymentSchedule.getApplicationId(),
 				lendingPaymentSchedule.getNbfc(),
-				"SELECTED");
+				SELECTED);
 		if (!ObjectUtils.isEmpty(lendingLoanInsurance) && !ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocUrl())) {
 			insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(applicationId, INSURANCE_POLICY_DOC_PREFIX + applicationId);
 		}

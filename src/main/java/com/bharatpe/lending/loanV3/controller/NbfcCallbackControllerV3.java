@@ -178,7 +178,7 @@ public class NbfcCallbackControllerV3 {
     @PostMapping("insurance-doc")
     public ResponseEntity<ApiResponse<?>> getInsuranceDoc(@RequestBody NbfcResponseDto nbfcResponseDto) throws JsonProcessingException {
         log.info("Loan insurance doc callback received via controller {}", nbfcResponseDto);
-        ApiResponse<?> response = insurancePolicyDocService.uploadInsurancePolicyDoc(nbfcResponseDto);
+        ApiResponse<?> response = insurancePolicyDocService.insuranceDocCallback(nbfcResponseDto);
         return ResponseEntity.status(response.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST ).body(response);
     }
 
