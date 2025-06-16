@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -41,6 +42,7 @@ import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
+@Lazy
 public class LendingApplicationServiceV3Impl extends LendingApplicationServiceV3Base {
 
     @Autowired

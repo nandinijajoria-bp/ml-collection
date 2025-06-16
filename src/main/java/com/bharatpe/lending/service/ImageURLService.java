@@ -306,14 +306,14 @@ public class ImageURLService {
 				}
 			}
 
-			Double distanceBetweenShopAndInferredLocation = null;
+			//Double distanceBetweenShopAndInferredLocation = null;
 
 			//skipDistanceCheck = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent) ? skipDistanceCheck : true;
 
-			if (!skipDistanceCheck) {
+			/*if (!skipDistanceCheck) {
 				distanceBetweenShopAndInferredLocation = calculateDistanceBetweenInferredLocationAndShopDocumentLocation(lendingShopDocumentsList.get(0),
 						merchant.getId());
-			}
+			}*/
 
 			for(LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList){
 				Map<String, Object> moreDocument = new LinkedHashMap<>();
@@ -324,18 +324,6 @@ public class ImageURLService {
 				try {
 					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide()) || (!StringUtils.isEmpty(shopDocType) && !shopDocType.contains(lendingShopDocuments.getProofType()))) {
 						continue;
-					}
-
-					if(!skipDistanceCheck) {
-						logger.info("skipping set Null images for merchantId: {} and applicationId: {}", lendingApplication.getMerchantId(), lendingApplication.getId());
-						if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-									funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-										FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-							}
-							else{
-									funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-											FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation));
-								}
 					}
 
 					// if the distance between the inferred location and where the image is uploaded from is more than 2.5KM then don't return the images for repeat loans
