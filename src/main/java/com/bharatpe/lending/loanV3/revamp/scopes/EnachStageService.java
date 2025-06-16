@@ -126,7 +126,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                 lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
             }
         }
-
+        if(lendingStateDTO.getData().isPaymentBank() || lendingStateDTO.getData().isHasLinkedPaymentBank()){
+            lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+        }
         else lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
         return lendingStateDTO;
     }
