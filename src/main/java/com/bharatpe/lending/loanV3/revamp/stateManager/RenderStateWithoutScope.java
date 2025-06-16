@@ -27,6 +27,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.KYCStageDataService;
 import com.bharatpe.lending.loanV3.revamp.services.EligibilityV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
+import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
@@ -486,7 +487,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
 
     private static boolean populateResponseDTO(LoanDetailsV3Response loanDetailsV3Response, LendingStateDTO<?> lendingStateDTO) {
         if (!ObjectUtils.isEmpty(lendingStateDTO)) {
-            LoanDetailsV3Response.populateResponseForRequestWithoutScope(lendingStateDTO, loanDetailsV3Response);
+            LoanDetailsV3Service.populateResponseForRequestWithoutScope(lendingStateDTO, loanDetailsV3Response);
             return true;
         }
         return false;

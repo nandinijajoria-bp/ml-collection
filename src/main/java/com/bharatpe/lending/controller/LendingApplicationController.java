@@ -95,7 +95,7 @@ public class LendingApplicationController {
 			return null;
 		}
 		requestDTO.getMeta().setIp(clientIp);
-		UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO);
+		UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO, false);
 
 		logger.info("UploadDocument response : {}", uploadDocumentResponse);
 		return uploadDocumentResponse;

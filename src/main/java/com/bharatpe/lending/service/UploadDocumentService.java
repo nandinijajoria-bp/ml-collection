@@ -1,7 +1,5 @@
 package com.bharatpe.lending.service;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -22,12 +20,13 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingCategoryDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
-//import com.bharatpe.lending.util.UploadDocumentUtil;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.util.BQPublisherUtil;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,39 +37,29 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.handlers.KarzaHandler;
-import com.bharatpe.lending.handlers.S3BucketHandler;
-import com.fasterxml.jackson.core.JsonParseException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 
 @Service
 public class UploadDocumentService {
 	Logger logger = LoggerFactory.getLogger(UploadDocumentService.class);
-	
+
 	@Autowired
 	DocumentsIdProofDaoMaster documentsIdProofDaoMaster;
 
 	@Autowired
 	LendingShopDocumentsDao lendingShopDocumentsDao;
-	
+
 //	@Autowired
 //	DocAuthenticationDao docAuthenticationDao;
-	
+
 	@Autowired
 	LendingApplicationDao lendingApplicationDao;
-	
+
 	@Autowired
 	S3BucketHandler s3BucketHandler;
 
 	@Autowired
 	LendingResubmitTaskDao lendingResubmitTaskDao;
-	
+
 	@Autowired
 	KarzaHandler karzaHandler;
 
@@ -101,145 +90,236 @@ public class UploadDocumentService {
 	@Autowired
 	LoanUtil loanUtil;
 
-    @Autowired
-    DsHandler dsHandler;
+	@Autowired
+	DsHandler dsHandler;
 
-    @Autowired
-    EasyLoanUtil easyLoanUtil;
+	@Autowired
+	EasyLoanUtil easyLoanUtil;
 
 	@Autowired
 	private LoanDashboardService loanDashboardService;
 
-    @Value("${sid.threshold}")
-    Double sidThreshold;
+	@Autowired
+	private CommonUtil commonUtil;
 
-    @Value("${sid.rollout.percent}")
-    Integer sidRolloutPercent;
+	@Value("${sid.threshold}")
+	Double sidThreshold;
+
+	@Value("${sid.rollout.percent}")
+	Integer sidRolloutPercent;
 
 //	@Autowired
 //	MerchantDao merchantDao;
 
-	public UploadDocumentResponseDTO uploadDocument(BasicDetailsDto merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
-		Map<String, Object> finalResponse = new LinkedHashMap<>();
+	public UploadDocumentResponseDTO uploadDocument(BasicDetailsDto merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO, boolean notS3Upload)  {
+		Long merchantId = merchant.getId();
 		UploadDocumentResponseDTO uploadDocumentResponse = new UploadDocumentResponseDTO();
 		uploadDocumentResponse.setSuccess(false);
 		uploadDocumentResponse.setInValidPhoto(false);
-		Boolean resubmitRequest = false;
+
+		if (requestDTO == null || requestDTO.getPayload() == null) {
+			logger.warn("Invalid request payload for merchantId: {}", merchantId);
+			return uploadDocumentResponse;
+		}
+
 		UploadDocumentRequestDTO uploadDocumentRequest = requestDTO.getPayload();
-		Long applicationId =  uploadDocumentRequest.getApplicationId();
+		logger.info("Processing uploadDocument request for merchantId: {}, applicationId: {}", merchantId, uploadDocumentRequest.getApplicationId());
+
+		Long applicationId = uploadDocumentRequest.getApplicationId();
 		List<UploadDocumentRequestDTO.Document> documents = uploadDocumentRequest.getDocuments();
 
-		if(applicationId == null || applicationId <= 0 || documents == null || documents.isEmpty()) {
-			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
+		if (applicationId == null || applicationId <= 0 || documents == null || documents.isEmpty()) {
+			logger.warn("Invalid applicationId: {} or empty documents for merchantId: {}", applicationId, merchantId);
 			return uploadDocumentResponse;
 		}
 
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId, merchant.getId(), "draft");
-		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(requestDTO.getPayload().getApplicationId());
-		if(lendingApplication ==  null && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
-			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId, merchantId, "draft");
+		LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+		boolean resubmitRequest = false;
+
+		if (lendingApplication == null && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
+			logger.warn("No valid LendingApplication or ResubmitTask for applicationId: {}, merchantId: {}", applicationId, merchantId);
 			return uploadDocumentResponse;
 		}
-		if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
-			lendingApplication =lendingApplicationDao.findById(requestDTO.getPayload().getApplicationId()).get();
+
+		if (lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() &&
+				(lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
+			logger.info("Found resubmit task for applicationId: {}, merchantId: {}", applicationId, merchantId);
+			lendingApplication = lendingApplicationDao.findById(applicationId).orElse(null);
 			resubmitRequest = true;
+
+			if (lendingApplication == null) {
+				logger.warn("Application not found even for resubmit task, applicationId: {}, merchantId: {}", applicationId, merchantId);
+				return uploadDocumentResponse;
+			}
 		}
+
 		LendingCategories lendingCategories = lendingCategoryDao.getByCategory(lendingApplication.getCategory());
-
-		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
-
+		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchantId, lendingApplication);
 		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-        if(!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())){
-			Double SID = null;
-			if (!ObjectUtils.isEmpty(requestDTO.getMeta())) {
-				SID = calculateShopInferredDistance(requestDTO.getMeta().getLatitude(), requestDTO.getMeta().getLongitude(), lendingApplication.getMerchantId());
+
+		if (!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
+			Double SID = calculateShopInferredDistance(requestDTO.getMeta(), lendingApplication);
+			logger.info("Calculated SID for merchantId: {}, applicationId: {}: {}", merchantId, applicationId, SID);
+
+			if (SID != null && SID > sidThreshold && easyLoanUtil.percentScaleUp(merchantId, sidRolloutPercent)) {
+				logger.info("SID exceeds threshold for merchantId: {}, applicationId: {}", merchantId, applicationId);
+				uploadDocumentResponse.setSidGreaterThanRequired(true);
+
+				logSidFunnelEvent(merchantId, applicationId, SID, loanDashboardApiVersion.getApiVersion());
 			}
-            logger.info("Calculated Shop Inferred Distance for merchant:{} and application:{} is:{}", lendingApplication.getMerchantId(), lendingApplication.getId(), SID);
-            if (SID != null && SID > sidThreshold && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent)) {
-                logger.info("SID iS greater than 2.5KM for merchant:{} and application:{}", lendingApplication.getMerchantId(), lendingApplication.getId());
-                uploadDocumentResponse.setSidGreaterThanRequired(true);
-
-				if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-					funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN, String.valueOf(SID), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-				}
-				else{
-					funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN, String.valueOf(SID));
-				}
-            }
-        }
-
-		List<DocumentsIdProofMaster> documentsIdProofList =
-				documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
-		List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(),lendingApplication.getId());
-		Boolean isUpdateDocument = false;
-		Boolean isUpdateMoreDocument = false;
-		if(documentsIdProofList.size() > 0) {
-			isUpdateDocument = true;
 		}
-		if(lendingShopDocumentsList.size()>0){
-			isUpdateMoreDocument = true;
-		}
-		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(), uploadDocumentResponse,isUpdateMoreDocument, resubmitRequest, loanDashboardApiVersion.getApiVersion());
 
-		if(documentList.size() > 0) {
-			finalResponse.put("success", true);
+		List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchantId, lendingApplication.getId());
+		List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchantId, lendingApplication.getId());
+		logger.info("Found {} DocumentsIdProofMaster and {} LendingShopDocuments for merchantId: {}, applicationId: {}",
+				documentsIdProofList.size(), lendingShopDocumentsList.size(), merchantId, applicationId);
+
+		Boolean isUpdateDocument = !documentsIdProofList.isEmpty();
+		Boolean isUpdateMoreDocument = !lendingShopDocumentsList.isEmpty();
+
+		List<UploadDocumentResponseDTO.Document> documentList = processAndUploadDocuments(
+				documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(),
+				uploadDocumentResponse, isUpdateMoreDocument, resubmitRequest, loanDashboardApiVersion.getApiVersion(), notS3Upload);
+
+		if (!documentList.isEmpty()) {
 			uploadDocumentResponse.setSuccess(true);
-
-			if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-				funnelService.submitEventV3(merchant.getId(), null, applicationId,
-						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-			}
-			else{
-				funnelService.submitEvent(merchant.getId(), null, applicationId,
-						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED, LocalDateTime.now().toString());
-			}
+			logDocumentSubmissionEvent(merchantId, applicationId, loanDashboardApiVersion.getApiVersion());
 		}
+
 		uploadDocumentResponse.setDocument(documentList);
-//		uploadDocumentResponse.setSelectedLoan(LoanUtil.prepareSelectedLoanForClient(lendingApplication, lendingCategories));
+		logger.info("Completed uploadDocument for merchantId: {}, applicationId: {}, success: {}",
+				merchantId, applicationId, uploadDocumentResponse.getSuccess());
+
 		return uploadDocumentResponse;
 	}
-	
-	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse,Boolean isUpdateMoreDocument, Boolean resubmitRequest, String version) {
-		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 
+	private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, String apiVersion) {
+		if (LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(apiVersion)) {
+			funnelService.submitEventV3(merchantId, null, applicationId,
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN,
+					String.valueOf(SID), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+		} else {
+			funnelService.submitEvent(merchantId, null, applicationId,
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_MODAL_SHOWN,
+					String.valueOf(SID));
+		}
+	}
+
+	private void logDocumentSubmissionEvent(Long merchantId, Long applicationId, String apiVersion) {
+		if (LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(apiVersion)) {
+			funnelService.submitEventV3(merchantId, null, applicationId,
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED,
+					LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+		} else {
+			funnelService.submitEvent(merchantId, null, applicationId,
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED,
+					LocalDateTime.now().toString());
+		}
+	}
+
+	private Double calculateShopInferredDistance(MetaDTO meta, LendingApplication lendingApplication) {
+		Long merchantId = lendingApplication.getMerchantId();
+		logger.info("Calculating shop inferred distance for merchantId: {}", merchantId);
+
+		if (meta == null || StringUtils.isEmpty(meta.getLatitude()) || StringUtils.isEmpty(meta.getLongitude())) {
+			logger.info("Missing location data for merchantId: {}", merchantId);
+			return null;
+		}
+
+		try {
+			if (loanUtil.isInternalMerchant(merchantId)) {
+				logger.info("Internal merchant detected for merchantId: {}, returning default SID", merchantId);
+				return 3000D;
+			}
+
+			Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
+			if (ObjectUtils.isEmpty(dsResponse) || !dsResponse.containsKey("latitude") ||
+					ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") ||
+					ObjectUtils.isEmpty(dsResponse.get("longitude"))) {
+				logger.info("Missing DS location data for merchantId: {}", merchantId);
+				return null;
+			}
+
+			Double lat1 = Double.valueOf(meta.getLatitude());
+			Double lon1 = Double.valueOf(meta.getLongitude());
+			Double lat2 = dsResponse.get("latitude");
+			Double lon2 = dsResponse.get("longitude");
+
+			Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
+			logger.info("Calculated SID: {} for merchantId: {}", inferredDistance, merchantId);
+
+			return (inferredDistance == -1D) ? null : inferredDistance;
+		} catch (Exception ex) {
+			logger.error("Error calculating SID for merchantId: {}, error: {}", merchantId, ex.getMessage(), ex);
+		}
+
+		return null;
+	}
+
+	private List<UploadDocumentResponseDTO.Document> processAndUploadDocuments(List<UploadDocumentRequestDTO.Document> documents, Boolean isUpdate, BasicDetailsDto merchantBasicDetails, LendingApplication lendingApplication, MetaDTO meta, UploadDocumentResponseDTO uploadDocumentResponse, Boolean isUpdateMoreDocument, Boolean resubmitRequest, String version, Boolean notS3Upload) {
+		logger.info("Processing and uploading documents for merchantId: {}, applicationId: {}, isUpdate: {}, isUpdateMoreDocument: {}, resubmitRequest: {}, version: {}",
+				merchantBasicDetails.getId(), lendingApplication.getId(), isUpdate, isUpdateMoreDocument, resubmitRequest, version);
+
+		List<UploadDocumentResponseDTO.Document> documentList = new ArrayList<>();
 		List<LendingShopDocumentsAudit> lendingShopDocumentsAuditList = new ArrayList<>();
-		for(UploadDocumentRequestDTO.Document document : documents) {
-			if(isUpdate && !document.getChangeFlag()) {
+
+		for (UploadDocumentRequestDTO.Document document : documents) {
+			logger.info("Processing document for merchantId: {}, applicationId: {}, proofType: {}, changeFlag: {}, singlePageDocument: {}",
+					merchantBasicDetails.getId(), lendingApplication.getId(), document.getProofType(), document.getChangeFlag(), document.getSinglePageDocument());
+
+			if (isUpdate && !document.getChangeFlag()) {
+				logger.info("Skipping document for merchantId: {}, applicationId: {} as changeFlag is false", merchantBasicDetails.getId(), lendingApplication.getId());
 				continue;
 			}
 
-			if(document.getProof() == null || document.getProof().isEmpty() || document.getProof().get(0) == null) {
-				logger.error("Empty Documents");
+			if (document.getProof() == null || document.getProof().isEmpty() || document.getProof().get(0) == null) {
+				logger.error("Empty proof data for merchantId: {}, applicationId: {}", merchantBasicDetails.getId(), lendingApplication.getId());
+				continue;
 			}
-			
+
 			String proofType = document.getProofType();
 			int singlePageDocument = document.getSinglePageDocument() ? 1 : 0;
 
-			Map<String, String>	proofSides = processAndUploadProof(document.getProof(), merchantBasicDetails);
+			Map<String, String> proofSides = new HashMap<>();
+			logger.info("Uploading proof for merchantId: {}, applicationId: {}, proofType: {}, document: {}", merchantBasicDetails.getId(), lendingApplication.getId(), proofType, document);
+			if(Boolean.TRUE.equals(notS3Upload))
+			{
+				logger.info("Processing proof without S3 upload for merchantId: {}, applicationId: {}, proofType: {}", merchantBasicDetails.getId(), lendingApplication.getId(), proofType);
+				proofSides = processAndUploadProofWithoutS3(document.getProof(), merchantBasicDetails);
+			}
+			else {
+				logger.info("Processing proof with S3 upload for merchantId: {}, applicationId: {}, proofType: {}", merchantBasicDetails.getId(), lendingApplication.getId(), proofType);
+				proofSides = processAndUploadProof(document.getProof(), merchantBasicDetails);
+			}
 
 			String frontSide = proofSides.get("frontSide");
 			String backSide = proofSides.get("backSide");
 
+			logger.info("Uploaded proof for merchantId: {}, applicationId: {}, proofType: {}, frontSide: {}, backSide: {}",
+					merchantBasicDetails.getId(), lendingApplication.getId(), proofType, frontSide, backSide);
+
 			DocumentsIdProofMaster documentsIdProof = null;
 			LendingShopDocuments lendingShopDocuments = null;
-			if("shop-front".equalsIgnoreCase(proofType) || "shop-stock".equalsIgnoreCase(proofType) || "shop-qr".equalsIgnoreCase(proofType)){
-				if(isUpdateMoreDocument){
-					lendingShopDocuments = updateShopDocuments(proofType,frontSide,backSide,merchantBasicDetails,lendingApplication,meta, version);
-				}else{
-					lendingShopDocuments = insertShopDocuments(proofType,frontSide,backSide,merchantBasicDetails,lendingApplication,meta);
+
+			if ("shop-front".equalsIgnoreCase(proofType) || "shop-stock".equalsIgnoreCase(proofType) || "shop-qr".equalsIgnoreCase(proofType)) {
+				if (isUpdateMoreDocument) {
+					lendingShopDocuments = updateShopDocuments(proofType, frontSide, backSide, merchantBasicDetails, lendingApplication, meta, version);
+				} else {
+					lendingShopDocuments = insertShopDocuments(proofType, frontSide, backSide, merchantBasicDetails, lendingApplication, meta);
 				}
-			}else{
-//				Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-				if(isUpdate) {
+			} else {
+				if (isUpdate) {
 					documentsIdProof = updateDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, merchantBasicDetails, lendingApplication, meta);
 				} else {
 					documentsIdProof = insertDocumentIdProof(proofType, frontSide, backSide, singlePageDocument, lendingApplication, meta);
 				}
 			}
 
-			if(documentsIdProof != null) {
+			if (documentsIdProof != null) {
+				logger.info("DocumentIdProof created/updated for merchantId: {}, applicationId: {}, proofType: {}, proofId: {}",
+						merchantBasicDetails.getId(), lendingApplication.getId(), proofType, documentsIdProof.getId());
+
 				UploadDocumentResponseDTO.Document documentResponse = uploadDocumentResponse.new Document();
 				documentResponse.setProofId(documentsIdProof.getId());
 				documentResponse.setProofType(proofType);
@@ -247,56 +327,26 @@ public class UploadDocumentService {
 				documentList.add(documentResponse);
 			}
 
-			if(lendingShopDocuments != null){
+			if (lendingShopDocuments != null) {
+				logger.info("LendingShopDocuments created/updated for merchantId: {}, applicationId: {}, proofType: {}, proofId: {}",
+						merchantBasicDetails.getId(), lendingApplication.getId(), proofType, lendingShopDocuments.getId());
+
 				UploadDocumentResponseDTO.Document documentResponse = uploadDocumentResponse.new Document();
 				documentResponse.setProofId(lendingShopDocuments.getId());
 				documentResponse.setProofType(proofType);
 				documentResponse.setSinglePageDocument(1);
 				documentList.add(documentResponse);
-				if(lendingShopDocuments.getProofType().equalsIgnoreCase("shop-front") && (merchantBasicDetails.getId())%10 == 0) {
-					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
-							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), true, false, false, true));
-					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {
-						DsImageValidationResponseDto.ShopParams shopFrontExistence = dsImageValidationResponseDto.getShopFrontExistence();
-						DsImageValidationResponseDto.ShopParams shopFrontStructure = dsImageValidationResponseDto.getShopFrontStructure();
-						if (!ObjectUtils.isEmpty(shopFrontExistence)) {
-							saveLendingShopDocumentsDsParams(lendingShopDocuments, shopFrontExistence.getDsClass(), shopFrontExistence.getConfidence(), shopFrontExistence.getVerifiedShop());
-							if (!ObjectUtils.isEmpty(shopFrontExistence.getVerifiedShop()) && !shopFrontExistence.getVerifiedShop()) {
-								uploadDocumentResponse.setInValidPhoto(shopFrontExistence.getDsClass().equalsIgnoreCase("NO_SHOP") && shopFrontExistence.getConfidence() > 0.75);
-							}
-						}
-						if (!ObjectUtils.isEmpty(shopFrontStructure)) {
-							LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(lendingApplication.getId());
-							if (!ObjectUtils.isEmpty(lendingGstDetail)) {
-								if(Objects.isNull(lendingGstDetail.getShopType()) && !ObjectUtils.isEmpty(shopFrontStructure.getDsClass()))lendingGstDetail.setShopType(shopFrontStructure.getDsClass());
-								lendingGstDetail.setComputedShopType(shopFrontStructure.getDsClass());
-								lendingGstDetail.setConfidence(shopFrontStructure.getConfidence());
-								lendingGstDao.save(lendingGstDetail);
-							}
-						}
-					}
-				} else if (lendingShopDocuments.getProofType().equalsIgnoreCase("shop-stock") && (merchantBasicDetails.getId())%10 == 0) {
-					DsImageValidationResponseDto dsImageValidationResponseDto = apiGatewayService.validateImage(
-							new DsImageValidationRequestDto(lendingShopDocuments.getProofFrontSide(), false, true, false, false));
-					if (!ObjectUtils.isEmpty(dsImageValidationResponseDto)) {
-						DsImageValidationResponseDto.ShopParams shopStockCategory = dsImageValidationResponseDto.getShopStockCategory();
-						if (!ObjectUtils.isEmpty(shopStockCategory)) {
-							saveLendingShopDocumentsDsParams(lendingShopDocuments, shopStockCategory.getDsClass(), shopStockCategory.getConfidence(), shopStockCategory.getVerifiedShop());
-						}
-					}
-				}
-				lendingShopDocumentsAuditList.add(new LendingShopDocumentsAudit(lendingShopDocuments,resubmitRequest));
+
+				lendingShopDocumentsAuditList.add(new LendingShopDocumentsAudit(lendingShopDocuments, resubmitRequest));
 			}
-//			sinzyCorrectPanCheck(documentsIdProof, proofType, merchantBasicDetails, lendingApplication.getId());
-			//karzaVerification(proofType, frontSide, backSide, singlePageDocument, documentsIdProof, merchant, lendingApplication);
 		}
-		if (lendingShopDocumentsAuditList.size() > 0) {
-//			mongoPublisher.publish("Lending", "lending_shop_documents_audit", merchantBasicDetails.getId().toString(),lendingShopDocumentsAuditList);
 
-			logger.info("data push to BQ for lending shop docs for merchant id {}",merchantBasicDetails.getId());
-			bqPublisherUtil.publish("Lending","lending_shop_documents_audit",lendingShopDocumentsAuditList);
-
+		if (!lendingShopDocumentsAuditList.isEmpty()) {
+			logger.info("Pushing LendingShopDocumentsAudit data to BQ for merchantId: {}, applicationId: {}", merchantBasicDetails.getId(), lendingApplication.getId());
+			bqPublisherUtil.publish("Lending", "lending_shop_documents_audit", lendingShopDocumentsAuditList);
 		}
+
+		logger.info("Completed processing and uploading documents for merchantId: {}, applicationId: {}", merchantBasicDetails.getId(), lendingApplication.getId());
 		return documentList;
 	}
 
@@ -325,19 +375,68 @@ public class UploadDocumentService {
 		proofSides.put("backSide", "");
 
 		String frontBase64Encoded = processBase64String(proof.get(0));
-		String fileName = merchant.getId() + "_" + UUID.randomUUID().toString() + ".jpeg";
+		String fileName = merchant.getId() + "_" + UUID.randomUUID() + ".jpeg";
 		String frontUrl = s3BucketHandler.uploadToS3Bucket(frontBase64Encoded, fileName, bucket);
 		proofSides.put("frontSide", frontUrl);
 
 		if(proof.size() > 1 && !StringUtils.isEmpty(proof.get(1))) {
 			String backBase64Encoded = processBase64String(proof.get(1));
-			fileName = merchant.getId() + "_" + UUID.randomUUID().toString() + ".jpeg";
+			fileName = merchant.getId() + "_" + UUID.randomUUID() + ".jpeg";
 			String backUrl = s3BucketHandler.uploadToS3Bucket(backBase64Encoded, fileName, bucket);
 			proofSides.put("backSide", backUrl);
 		}
 		return proofSides;
 	}
-	
+
+	private Map<String, String> processAndUploadProofWithoutS3(List<String> proof, BasicDetailsDto merchant) {
+		Map<String, String> proofSides = new LinkedHashMap<>();
+		proofSides.put("frontSide", "");
+		proofSides.put("backSide", "");
+
+		String frontUrl = proof.get(0);
+		logger.info("Processing front side URL: {}", frontUrl);
+		if (frontUrl.contains("amazonaws.com")) {
+			frontUrl = getTempUrl(frontUrl,merchant.getId());
+			proofSides.put("frontSide", frontUrl);
+		}
+		else {
+			proofSides.put("frontSide", frontUrl);
+		}
+
+		if(proof.size() > 1 && !StringUtils.isEmpty(proof.get(1))) {
+			String backUrl = proof.get(1);
+			logger.info("Processing back side URL: {}", backUrl);
+			if (backUrl.contains("amazonaws.com")) {
+				backUrl = getTempUrl(backUrl, merchant.getId());
+				proofSides.put("backSide", backUrl);
+			}
+			else {
+				proofSides.put("backSide", backUrl);
+			}
+		}
+		return proofSides;
+	}
+
+	public String getTempUrl(String docUrl, Long merchantId) {
+		try {
+			String shopImage = commonUtil.getBase64FromImageURL(docUrl);
+			String newShopPictureIdentifier = UUID.randomUUID().toString();
+			String fileName =  merchantId + "_" + newShopPictureIdentifier + ".jpeg";
+			String newTempUrl = "";
+			if (shopImage != null) {
+				newTempUrl = s3BucketHandler.uploadToS3Bucket(shopImage,fileName , bucket);
+				logger.info("Uploading new shop picture to S3 {}", newTempUrl);
+			}
+			else {
+				throw new Exception("Unable to get Base64 from Image URL");
+			}
+			return fileName;
+		} catch (Exception e) {
+			return "";
+		}
+
+	}
+
 	public String processBase64String(String base64EncodedString) {
 		base64EncodedString.replace(' ', '+');
 		if(base64EncodedString.contains("base64,")) {
@@ -348,8 +447,8 @@ public class UploadDocumentService {
 	}
 
 	private DocumentsIdProofMaster insertDocumentIdProof(String proofType, String frontSide, String backSide,
-												   int singlePageDocument,
-												   LendingApplication lendingApplication, MetaDTO meta) {
+														 int singlePageDocument,
+														 LendingApplication lendingApplication, MetaDTO meta) {
 		DocumentsIdProofMaster documentsIdProof = new DocumentsIdProofMaster();
 		documentsIdProof.setMerchantId(lendingApplication.getMerchantId());
 		documentsIdProof.setLendingApplicationId(lendingApplication.getId());
@@ -383,10 +482,10 @@ public class UploadDocumentService {
 		lendingShopDocumentsDao.save(lendingShopDocuments);
 		return lendingShopDocuments;
 	}
-	
+
 	private DocumentsIdProofMaster updateDocumentIdProof(String proofType, String frontSide, String backSide,
-												   int singlePageDocument, BasicDetailsDto merchant,
-												   LendingApplication lendingApplication, MetaDTO meta) {
+														 int singlePageDocument, BasicDetailsDto merchant,
+														 LendingApplication lendingApplication, MetaDTO meta) {
 		if(!"pancard".equalsIgnoreCase(proofType) && !"selfie".equalsIgnoreCase(proofType)){
 			DocumentsIdProofMaster poaDocument=documentsIdProofDaoMaster.fetchLatestAddressProof(merchant.getId(), lendingApplication.getId(), "LENDING");
 			if(poaDocument != null && !poaDocument.getProofType().equalsIgnoreCase(proofType)){
@@ -394,7 +493,7 @@ public class UploadDocumentService {
 				documentsIdProofDaoMaster.save(poaDocument);
 			}
 		}
-		
+
 		DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findTop1ByMerchantIdAndLendingApplicationIdAndProofTypeAndDeletedAtIsNullOrderByIdDesc(lendingApplication.getMerchantId(), lendingApplication.getId(), proofType);
 		if(documentsIdProof != null) {
 			documentsIdProof.setProofFrontSide(frontSide);
@@ -438,34 +537,34 @@ public class UploadDocumentService {
 		return lendingShopDocuments;
 	}
 
-    public Double calculateShopInferredDistance(String latitude, String longitude, Long merchantId){
-        logger.info("Calculating shop inferred distance for merchant:{}", merchantId);
-        try{
-            // send more than 2500 for internal merchant
-            if(loanUtil.isInternalMerchant(merchantId)){
-                return 3000D;
-            }
+	public Double calculateShopInferredDistance(String latitude, String longitude, Long merchantId){
+		logger.info("Calculating shop inferred distance for merchant:{}", merchantId);
+		try{
+			// send more than 2500 for internal merchant
+			if(loanUtil.isInternalMerchant(merchantId)){
+				return 3000D;
+			}
 
-            Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
-            if(ObjectUtils.isEmpty(latitude) || ObjectUtils.isEmpty(longitude) || ObjectUtils.isEmpty(dsResponse)
-                    || !dsResponse.containsKey("latitude") || ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") || ObjectUtils.isEmpty(dsResponse.get("longitude"))){
-                return null;
-            }
-            Double lat1 = Double.valueOf(latitude);
-            Double lon1 = Double.valueOf(longitude);
-            Double lat2 = dsResponse.get("latitude");
-            Double lon2 = dsResponse.get("longitude");
+			Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
+			if(ObjectUtils.isEmpty(latitude) || ObjectUtils.isEmpty(longitude) || ObjectUtils.isEmpty(dsResponse)
+					|| !dsResponse.containsKey("latitude") || ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") || ObjectUtils.isEmpty(dsResponse.get("longitude"))){
+				return null;
+			}
+			Double lat1 = Double.valueOf(latitude);
+			Double lon1 = Double.valueOf(longitude);
+			Double lat2 = dsResponse.get("latitude");
+			Double lon2 = dsResponse.get("longitude");
 
-            Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
-            logger.info("SID:{}", inferredDistance);
+			Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
+			logger.info("SID:{}", inferredDistance);
 
-            return (inferredDistance == -1D) ? null:inferredDistance;
+			return (inferredDistance == -1D) ? null:inferredDistance;
 
-        }catch (Exception ex){
-            logger.error("Exception occurred while calculating inferred distance for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
-        }
-        return null;
-    }
+		}catch (Exception ex){
+			logger.error("Exception occurred while calculating inferred distance for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+		}
+		return null;
+	}
 
 //	private void karzaVerification(String proofType, String frontSide, String backSide, int singlePageDocument, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 //		if(proofType.equals("pancard") || proofType.equals("adhaarcard") || proofType.equals("aadharcard") || proofType.equals("votercard") || proofType.equals("passport")) {
@@ -477,7 +576,7 @@ public class UploadDocumentService {
 //			}).start();
 //		}
 //	}
-	
+
 //	private void kycUsingKarzaAPI(String proofType, String fileName, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 //		try {
 //			Instant start = Instant.now();
@@ -530,7 +629,7 @@ public class UploadDocumentService {
 //			logger.info("UploadDocumentService exception while fetching tempURL from S3 bucket, merchant: {}, message : {}",merchant.getId(), e.getMessage());
 //		}
 //	}
-	
+
 //	private DocKycDetails processAndSaveKycResponse(String responseString, String proofType, DocumentsIdProof documentsIdProof, Merchant merchant) {
 //		ObjectMapper mapper = new ObjectMapper();
 //        Map<String, Object> response = null;
@@ -632,7 +731,7 @@ public class UploadDocumentService {
 //		}
 //		return null;
 //	}
-	
+
 //	private void pancardAuthenticationUsingKarzaAPI(Map<String, Object> response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 //		List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
 //
@@ -651,7 +750,7 @@ public class UploadDocumentService {
 //			}
 //		}
 //	}
-	
+
 //	private void processAndSavePanAuthenticationResponse(String response, DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, LendingApplication lendingApplication) {
 //		ObjectMapper mapper = new ObjectMapper();
 //        Map<String, Object> responseMap = null;
@@ -697,7 +796,7 @@ public class UploadDocumentService {
 //		}
 //		docAuthenticationDao.save(docAuthentication);
 //	}
-	
+
 //	private void createFailedEntryForPancardDocAuthentication(DocKycDetails docKycDetails, DocumentsIdProof documentsIdProof, Merchant merchant, LendingApplication lendingApplication) {
 //		DocAuthentication docAuthentication = new DocAuthentication();
 //		docAuthentication.setDocKycDetails(docKycDetails);
@@ -714,7 +813,7 @@ public class UploadDocumentService {
 //		docAuthentication.setStatus("");
 //		docAuthenticationDao.save(docAuthentication);
 //	}
-	
+
 //	private DocKycDetails createFailedDocKycDetails(String docType, DocumentsIdProof documentsIdProof, Merchant merchant) {
 //		DocKycDetails docKycDetails = new DocKycDetails();
 //		docKycDetails.setDocumentsIdProof(documentsIdProof);
@@ -733,5 +832,5 @@ public class UploadDocumentService {
 //		docKycDetailsDao.save(docKycDetails);
 //		return docKycDetails;
 //	}
-	
+
 }
