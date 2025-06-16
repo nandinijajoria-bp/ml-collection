@@ -31,7 +31,11 @@ public class PaymentBankService {
         }
         log.info("Bank name for merchantId {} is: {}", lendingApplication.getMerchantId(), bankName);
         String loanType = lendingApplication.getLoanType();
+        if(loanType != null && loanType.equalsIgnoreCase("TOPUP")){
+            log.info("Loan type is TOPUP for lending application: {}", lendingApplication.getId());
+        }
         boolean repeatLoan = loanUtil.isRepeatLoan(lendingApplication.getMerchantId());
+        log.info("Repeat loan status for merchantId {} is: {}", lendingApplication.getMerchantId(), repeatLoan);
         if(repeatLoan || loanType.equalsIgnoreCase("TOPUP")) {
             return lendingApplication.getLoanAmount() >= 150000;
         }else{
