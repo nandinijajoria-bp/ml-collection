@@ -305,7 +305,7 @@ public class LendingApplicationServiceV2 {
     @Value("${shop.picture.skip.enabled:false}")
     private boolean shouldSkipShopPicture;
 
-    @Value("${shop.picture.skip.lenders:}")
+    @Value("${lenders.skip.shop.picture:}")
     private List<String> lendersToSkipShopPicture;
 
     @Lazy
@@ -928,7 +928,7 @@ public class LendingApplicationServiceV2 {
                 loanUtil.publishSmsAnalysisData(merchantBasicDetails);
             }
         });
-       // loanUtil.createLendingAuditTrailDTO(lendingApplication);
+        loanUtil.createLendingAuditTrailDTO(lendingApplication);
         return lendingApplication;
     }
 
