@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class NbfcLenderGateway extends APIGatewayService {
     LendingHmacCalculator lendingHmacCalculator;
 
     @Autowired
+    @Qualifier("nbfcRestTemplate")
     RestTemplate restTemplate;
 
 
