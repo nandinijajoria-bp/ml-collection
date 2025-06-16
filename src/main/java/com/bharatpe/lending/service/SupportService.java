@@ -22,7 +22,6 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.ExperianConstants;
-import com.bharatpe.lending.constant.LoanInsuranceConstants;
 import com.bharatpe.lending.constant.SupportConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
@@ -32,6 +31,7 @@ import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.handlers.FinanceUtilsHandler;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
@@ -234,7 +234,7 @@ public class SupportService {
     PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 
     @Autowired
-    LendingLoanInsuranceDao lendingLoanInsuranceDao;
+    InsuranceService insuranceService;
 
 	@Value("${aws.s3.bucket:loan-document}")
     private String bucket;
@@ -256,9 +256,6 @@ public class SupportService {
 
     @Autowired
     MileStoneHelperServicev3 mileStoneHelperServicev3;
-
-    @Autowired
-    LoanInsuranceConstants loanInsuranceConstants;
 
     public SupportResponseDTO supportLoan(Long merchantId) {
         logger.info("supportLoan called for merchant:{}", merchantId);
@@ -1033,7 +1030,7 @@ public class SupportService {
 
             for (LendingApplicationSlave application : applicationList) {
 
-                InsuranceDetailsDTO insuranceDetailsDTO = findInsuranceForApplication(application);
+                InsuranceDetailsDTO insuranceDetailsDTO = insuranceService.fetchInsuranceDetailsForApplication(application);
                 logger.info("Insurance Details for merchant: {} is :{}", application.getId(), insuranceDetailsDTO);
                 Boolean isInsured = false;
                 Double insurancePremium = null;
@@ -1155,33 +1152,6 @@ public class SupportService {
             return LedgerDescriptionTxnType.getOrDefault(lendingLedger.getDescription(), lendingLedger.getDescription());
         }
         return Objects.isNull(lendingLedger.getAdjustmentMode()) ? "EDI": lendingLedger.getAdjustmentMode();
-    }
-
-    public InsuranceDetailsDTO findInsuranceForApplication(LendingApplicationSlave application) {
-        LendingLoanInsurance lendingLoanInsurance = lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
-                application.getId(),
-                application.getLender(),
-                "SELECTED");
-
-        if (ObjectUtils.isEmpty(lendingLoanInsurance)) {
-            return null;
-        } else {
-            if (!ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocUrl())) {
-                String insuranceDocUrl = lendingApplicationServiceV2.fetchLoanInsuranceDoc(application.getId(), INSURANCE_POLICY_DOC_PREFIX + application.getId());
-                lendingLoanInsurance.setPolicyDocUrl(insuranceDocUrl);
-                lendingLoanInsuranceDao.save(lendingLoanInsurance);
-            }
-            return InsuranceDetailsDTO.builder()
-                    .sumInsured(lendingLoanInsurance.getSumInsured())
-                    .insurancePremiumAmount(lendingLoanInsurance.getInsurancePremium())
-                    .insuranceProviderName(lendingLoanInsurance.getProvider())
-                    .insuranceAvailedDate(lendingLoanInsurance.getCommencementDate())
-                    .insuranceApplicable(true)
-                    .insuranceDocument(lendingLoanInsurance.getPolicyDocUrl())
-                    .benefitsOfTheInsurance(loanInsuranceConstants.careBenefits)
-                    .insurancePartnerContactDetails(loanInsuranceConstants.insuranceContactDetails)
-                    .build();
-        }
     }
 
     private List<Map<String, Object>> populatePenaltyLedger(LendingPaymentSchedule lendingPaymentSchedule1, List<Map<String, Object>> penaltyLedgerList) {

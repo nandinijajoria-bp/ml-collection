@@ -23,6 +23,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.CreateLe
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalDocumentUploadService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,9 @@ public class InvokeCreateLeadAndDocUploadWraperService {
     @Lazy
     @Autowired
     KycUtils kycUtils;
+
+    @Autowired
+    private EdiUtil ediUtil;
 
     @Value("${lender.change.enabled:false}")
     private Boolean enableLenderChange;
@@ -191,7 +195,7 @@ public class InvokeCreateLeadAndDocUploadWraperService {
         lendingApplicationLenderDetails.setStatus(recordStatus);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }

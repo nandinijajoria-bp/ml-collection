@@ -15,7 +15,7 @@ import java.util.List;
 @NoArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class InsuranceEligibilityResponseDTO {
+public class InsuranceActiveApplicationResponseDTO {
     private Boolean success;
     private ResponseData data;
 
@@ -26,23 +26,6 @@ public class InsuranceEligibilityResponseDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ResponseData {
-        private Boolean eligible;
-        private Long customerId;
-        private List<InsuranceEligibilityDTO> eligibleInsurances;
-        private List<InsuranceApplicationDTO> activeApplications;
-    }
-
-    @Data
-    @Builder
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class InsuranceEligibilityDTO {
-        private Double coveredAmount;
-        private Double premiumAmount;
-        private Integer validityYears;
-        private String insuranceType;
-        private String partner;
+        private List<InsuranceApplicationDTO> applications;
     }
 }
