@@ -163,6 +163,8 @@ public class CustomerPersonalDetailsBuilder {
 		nameDobDetails.setFirstName(firstName);
 		nameDobDetails.setMiddleName(middleName);
 		nameDobDetails.setLastName(lastName);
+		nameDobDetails.setFullName(fullname);
+
 		return nameDobDetails;
 	}
 
