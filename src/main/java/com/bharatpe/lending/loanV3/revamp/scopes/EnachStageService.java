@@ -126,6 +126,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                 lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
             }
         } else if (lendingStateDTO.getData().isPaymentBank() || lendingStateDTO.getData().isHasLinkedPaymentBank()) {
+            log.info("Payment Bank Change flow is applicable for merchantId: {}", scopeDataArgs.getMerchant().getId());
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         }
         else lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
@@ -209,6 +210,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             for (PaymentBank paymentBank : PaymentBank.values()) {
                 if (bankName.equalsIgnoreCase(paymentBank.getVal())) {
                     enachStateDTO.setHasLinkedPaymentBank(true);
+                    log.info("Payment Bank {} is linked for merchantId: {}", paymentBank.getVal(), scopeDataArgs.getMerchant().getId());
                 }
             }
             enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
