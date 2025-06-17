@@ -94,6 +94,9 @@ public class LoanDetailsV3Service {
     @Value("${sid.threshold}")
     Double sidThreshold;
 
+    @Autowired
+    LendingAutoDisbursalDao lendingAutoDisbursalDao;
+
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
     public LoanDetailsV3Response getLoanDetails(LoanDetailsV3Request request, BasicDetailsDto merchant, String token)
@@ -785,39 +788,64 @@ public class LoanDetailsV3Service {
             return null;
         }
 
+        List<LendingAutoDisbursal> lendingAutoDisbursal = lendingAutoDisbursalDao.findByMerchantId(merchantId);
+
         List<LendingApplication> approvedApplications = lendingApplicationDao.findAllByMerchantIdAndStatus(
                 merchantId, ApplicationStatus.APPROVED.name().toLowerCase());
 
-        if (CollectionUtils.isEmpty(approvedApplications)) {
-            log.info("No approved applications found for merchantId: {}", merchantId);
-            return null;
+        // Find application IDs that are in approvedApplications but not in lendingAutoDisbursal
+        Set<Long> autoDisbursalAppIds = lendingAutoDisbursal.stream()
+                .map(LendingAutoDisbursal::getApplicationId)
+                .collect(Collectors.toSet());
+
+        List<LendingApplication> nonSTPApps = approvedApplications.stream()
+                .filter(app -> !autoDisbursalAppIds.contains(app.getId()))
+                .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
+                .collect(Collectors.toList());
+
+
+        // Now check each application for valid field values, starting with the latest
+        Optional<LendingApplication> validApp = nonSTPApps.stream()
+                .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
+                .filter(app -> {
+                    List<Long> fieldIds = Arrays.asList(38L, 39L);
+                    List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(app.getId(), fieldIds);
+
+                    if (CollectionUtils.isEmpty(fieldValues)) {
+                        return false;
+                    }
+
+                    // Check if we have both fields
+                    boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+                    boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+
+                    // Check if field 38 has valid values (permanent or temporary)
+                    boolean isField38Valid = fieldValues.stream()
+                            .filter(f -> f.getFieldId() == 38L)
+                            .allMatch(f -> {
+                                String val = f.getFieldDropdownValue();
+                                return val != null && ALLOWED_SHOP_STRUCTURE_TYPES.contains(val.toLowerCase());
+                            });
+
+                    // Check if field 39 has valid value (yes)
+                    boolean isField39Valid = fieldValues.stream()
+                            .filter(f -> f.getFieldId() == 39L)
+                            .allMatch(f -> {
+                                String val = f.getFieldDropdownValue();
+                                return val != null && val.equalsIgnoreCase("yes");
+                            });
+
+                    return hasField38 && hasField39 && isField38Valid && isField39Valid;
+                })
+                .findFirst();
+
+        LendingApplication latestValidApp = validApp.orElse(null);
+
+        if (latestValidApp != null) {
+            log.info("Found latest valid application with ID: {} for merchantId: {}",
+                    latestValidApp.getId(), merchantId);
         }
-
-        Long latestStpApplicationId = null;
-        Date latestTimestamp = null;
-
-        for (LendingApplication app : approvedApplications) {
-            if (app == null || app.getId() == null || app.getCreatedAt() == null) {
-                continue;
-            }
-
-            LendingRiskVariablesSnapshot riskSnapshot =
-                    lendingRiskVariablesSnapshotDao.findByApplicationId(app.getId());
-
-            if (riskSnapshot != null && Boolean.TRUE.equals(riskSnapshot.getStpFlag())) {
-                // For the first STP application or if this one is more recent
-                if (latestTimestamp == null || app.getCreatedAt().after(latestTimestamp)) {
-                    latestStpApplicationId = app.getId();
-                    latestTimestamp = app.getCreatedAt();
-                    log.debug("Found newer STP application: {} with timestamp: {}",
-                            latestStpApplicationId, latestTimestamp);
-                }
-            }
-        }
-
-        log.info("Latest STP application for merchantId: {}: {}",
-                merchantId, latestStpApplicationId != null ? latestStpApplicationId : "Not found");
-        return latestStpApplicationId;
+        return latestValidApp != null ? latestValidApp.getId() : null;
     }
 
     /**
