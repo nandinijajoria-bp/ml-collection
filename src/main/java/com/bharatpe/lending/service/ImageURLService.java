@@ -218,8 +218,17 @@ public class ImageURLService {
 
 		for (LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList) {
 			try {
-				if (StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide()) ||
-						(!StringUtils.isEmpty(imageProofRequestDto.getShopDocType()) && imageProofRequestDto.getShopDocType().length > 0 && Arrays.asList(imageProofRequestDto.getShopDocType()).contains(lendingShopDocuments.getProofType()))) {
+
+				if (StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide())) {
+					logger.debug("Skipping shop document with empty proof front side, id: {}", lendingShopDocuments.getId());
+					continue;
+				}
+
+				if (!ObjectUtils.isEmpty(imageProofRequestDto.getShopDocType()) &&
+						imageProofRequestDto.getShopDocType().length > 0 &&
+						!Arrays.asList(imageProofRequestDto.getShopDocType()).contains(lendingShopDocuments.getProofType())) {
+					logger.info("Skipping shop document with type {} as it's not in the requested types: {}",
+							lendingShopDocuments.getProofType(), Arrays.toString(imageProofRequestDto.getShopDocType()));
 					continue;
 				}
 
