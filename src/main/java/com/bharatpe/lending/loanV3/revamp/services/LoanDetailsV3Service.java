@@ -864,12 +864,12 @@ public class LoanDetailsV3Service {
                     // Check if field 38 has valid values (permanent or temporary)
                     boolean isField38Valid = fieldValues.stream()
                             .filter(f -> f.getFieldId() == 38L)
-                            .anyMatch(f -> ALLOWED_SHOP_STRUCTURE_TYPES.contains(f.getFieldValue().toLowerCase()));
+                            .anyMatch(f -> ALLOWED_SHOP_STRUCTURE_TYPES.contains(f.getFieldDropdownValue().toLowerCase()));
 
                     // Check if field 39 has valid value (yes)
                     boolean isField39Valid = fieldValues.stream()
                             .filter(f -> f.getFieldId() == 39L)
-                            .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldValue()));
+                            .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldDropdownValue()));
 
                     log.info("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
                             app.getId(), isField38Valid, isField39Valid);
