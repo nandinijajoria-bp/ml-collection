@@ -801,63 +801,72 @@ public class LoanDetailsV3Service {
     }
 
     /**
-     * Find the latest STP application for a merchant
+     * Find the latest Non-STP application for a merchant
      *
      * @param merchantId Merchant ID
      * @return application ID or null if not found
      */
     private Long findLatestStpApplication(Long merchantId) {
+        log.info("Finding latest Non-STP application for merchantId: {}", merchantId);
+
         if (merchantId == null) {
-            log.warn("Cannot find STP application with null merchantId");
+            log.warn("Cannot find Non-STP application with null merchantId");
             return null;
         }
 
         List<LendingAutoDisbursal> lendingAutoDisbursal = lendingAutoDisbursalDao.findByMerchantId(merchantId);
+        log.info("Found {} auto disbursal records for merchantId: {}",
+                lendingAutoDisbursal != null ? lendingAutoDisbursal.size() : 0, merchantId);
 
         List<LendingApplication> approvedApplications = lendingApplicationDao.findAllByMerchantIdAndStatus(
                 merchantId, ApplicationStatus.APPROVED.name().toLowerCase());
+        log.info("Found {} approved applications for merchantId: {}",
+                approvedApplications != null ? approvedApplications.size() : 0, merchantId);
 
         // Find application IDs that are in approvedApplications but not in lendingAutoDisbursal
         Set<Long> autoDisbursalAppIds = lendingAutoDisbursal.stream()
                 .map(LendingAutoDisbursal::getApplicationId)
                 .collect(Collectors.toSet());
+        log.debug("Auto disbursal application IDs: {}", autoDisbursalAppIds);
 
         List<LendingApplication> nonSTPApps = approvedApplications.stream()
                 .filter(app -> !autoDisbursalAppIds.contains(app.getId()))
                 .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
                 .collect(Collectors.toList());
-
+        log.info("Found {} potential non-STP applications after filtering",
+                nonSTPApps != null ? nonSTPApps.size() : 0);
 
         // Now check each application for valid field values, starting with the latest
         Optional<LendingApplication> validApp = nonSTPApps.stream()
                 .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
                 .filter(app -> {
+                    log.debug("Checking application ID: {} for field values", app.getId());
                     List<Long> fieldIds = Arrays.asList(38L, 39L);
                     List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(app.getId(), fieldIds);
 
                     if (CollectionUtils.isEmpty(fieldValues)) {
+                        log.debug("No field values found for application ID: {}", app.getId());
                         return false;
                     }
 
                     // Check if we have both fields
                     boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
                     boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+                    log.debug("Application ID: {} - Has field 38: {}, Has field 39: {}",
+                            app.getId(), hasField38, hasField39);
 
                     // Check if field 38 has valid values (permanent or temporary)
                     boolean isField38Valid = fieldValues.stream()
                             .filter(f -> f.getFieldId() == 38L)
-                            .allMatch(f -> {
-                                String val = f.getFieldDropdownValue();
-                                return val != null && ALLOWED_SHOP_STRUCTURE_TYPES.contains(val.toLowerCase());
-                            });
+                            .anyMatch(f -> ALLOWED_SHOP_STRUCTURE_TYPES.contains(f.getFieldValue().toLowerCase()));
 
                     // Check if field 39 has valid value (yes)
                     boolean isField39Valid = fieldValues.stream()
                             .filter(f -> f.getFieldId() == 39L)
-                            .allMatch(f -> {
-                                String val = f.getFieldDropdownValue();
-                                return val != null && val.equalsIgnoreCase("yes");
-                            });
+                            .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldValue()));
+
+                    log.debug("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
+                            app.getId(), isField38Valid, isField39Valid);
 
                     return hasField38 && hasField39 && isField38Valid && isField39Valid;
                 })
@@ -866,11 +875,15 @@ public class LoanDetailsV3Service {
         LendingApplication latestValidApp = validApp.orElse(null);
 
         if (latestValidApp != null) {
-            log.info("Found latest valid application with ID: {} for merchantId: {}",
-                    latestValidApp.getId(), merchantId);
+            log.info("Found valid Non-STP application ID: {} for merchantId: {}, created at: {}",
+                    latestValidApp.getId(), merchantId, latestValidApp.getCreatedAt());
+            return latestValidApp.getId();
+        } else {
+            log.info("No valid Non-STP application found for merchantId: {}", merchantId);
+            return null;
         }
-        return latestValidApp != null ? latestValidApp.getId() : null;
     }
+
 
     /**
      * Check CKYC documents for shop pictures
