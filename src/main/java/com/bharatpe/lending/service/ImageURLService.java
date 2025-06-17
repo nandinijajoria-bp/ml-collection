@@ -19,10 +19,12 @@ import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.ImageProofRequestDto;
 import com.bharatpe.lending.dto.ImageProofResponseDto;
+import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.util.LoanUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +59,12 @@ public class ImageURLService {
 
 	@Autowired
 	FunnelService funnelService;
+
+	@Autowired
+	LoanUtil loanUtil;
+
+	@Autowired
+	DsHandler dsHandler;
 
 	@Autowired
 	private LoanDashboardService loanDashboardService;
@@ -298,5 +306,33 @@ public class ImageURLService {
 					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED,
 					imageURL.toString());
 		}
+	}
+
+	public Double calculateDistanceBetweenInferredLocationAndShopDocumentLocation(LendingShopDocuments lendingShopDocuments, Long merchantId){
+		logger.info("Calculating shop inferred distance for merchant:{}", merchantId);
+		try{
+			// send more than 2500 for internal merchant
+			if(loanUtil.isInternalMerchant(merchantId)){
+				return 3000D;
+			}
+			Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
+			if(ObjectUtils.isEmpty(lendingShopDocuments) || ObjectUtils.isEmpty(lendingShopDocuments.getLatitude()) || ObjectUtils.isEmpty(lendingShopDocuments.getLongitude()) || ObjectUtils.isEmpty(dsResponse)
+					|| !dsResponse.containsKey("latitude") || ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") || ObjectUtils.isEmpty(dsResponse.get("longitude"))){
+				return null;
+			}
+			Double lat1 = Double.valueOf(lendingShopDocuments.getLatitude());
+			Double lon1 = Double.valueOf(lendingShopDocuments.getLongitude());
+			Double lat2 = dsResponse.get("latitude");
+			Double lon2 = dsResponse.get("longitude");
+
+			Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
+			logger.info("SID:{} for merchantId : {}", inferredDistance, merchantId);
+
+			return (inferredDistance == -1D) ? null : inferredDistance;
+
+		}catch (Exception ex){
+			logger.error("Exception occurred while calculating inferred distance for merchant:{}, {}, {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+		}
+		return null;
 	}
 }

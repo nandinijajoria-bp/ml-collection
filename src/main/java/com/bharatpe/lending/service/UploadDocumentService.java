@@ -20,6 +20,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.handlers.KarzaHandler;
 import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -98,7 +99,7 @@ public class UploadDocumentService {
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 
-	public ApiResponse<UploadDocumentResponseDTO> uploadDocument(BasicDetailsDto merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO) {
+	public ApiResponse<UploadDocumentResponseDTO> uploadDocument(BasicDetailsDto merchant, RequestDTO<UploadDocumentRequestDTO> requestDTO, Boolean notS3upload) {
 		try {
 			UploadDocumentResponseDTO uploadDocumentResponse = new UploadDocumentResponseDTO();
 			uploadDocumentResponse.setSuccess(false);
@@ -152,7 +153,7 @@ public class UploadDocumentService {
 							lendingApplication.getMerchantId(), lendingApplication.getId());
 					uploadDocumentResponse.setSidGreaterThanRequired(true);
 
-					logSidFunnelEvent(merchantId, applicationId, SID, loanDashboardApiVersion.getApiVersion());
+					logSidFunnelEvent(merchant.getId(), applicationId, SID, loanDashboardApiVersion.getApiVersion());
 				}
 			}
 
@@ -168,7 +169,7 @@ public class UploadDocumentService {
 			ApiResponse<List<UploadDocumentResponseDTO.Document>> documentResponse = processAndUploadDocuments(
 					documents, isUpdateDocument, merchant, lendingApplication, requestDTO.getMeta(),
 					uploadDocumentResponse, isUpdateMoreDocument, resubmitRequest,
-					loanDashboardApiVersion.getApiVersion()
+					loanDashboardApiVersion.getApiVersion(), notS3upload
 			);
 
 			if (!documentResponse.isSuccess()) {
@@ -224,56 +225,6 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 		}
 	}
 
-	private void logDocumentSubmissionEvent(Long merchantId, Long applicationId, String apiVersion) {
-		if (LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(apiVersion)) {
-			funnelService.submitEventV3(merchantId, null, applicationId,
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED,
-					LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-		} else {
-			funnelService.submitEvent(merchantId, null, applicationId,
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SUBMITTED,
-					LocalDateTime.now().toString());
-		}
-	}
-
-	private Double calculateShopInferredDistance(MetaDTO meta, LendingApplication lendingApplication) {
-		Long merchantId = lendingApplication.getMerchantId();
-		logger.info("Calculating shop inferred distance for merchantId: {}", merchantId);
-
-		if (meta == null || StringUtils.isEmpty(meta.getLatitude()) || StringUtils.isEmpty(meta.getLongitude())) {
-			logger.info("Missing location data for merchantId: {}", merchantId);
-			return null;
-		}
-
-		try {
-			if (loanUtil.isInternalMerchant(merchantId)) {
-				logger.info("Internal merchant detected for merchantId: {}, returning default SID", merchantId);
-				return 3000D;
-			}
-
-			Map<String, Double> dsResponse = dsHandler.fetchDsLocation(merchantId);
-			if (ObjectUtils.isEmpty(dsResponse) || !dsResponse.containsKey("latitude") ||
-					ObjectUtils.isEmpty(dsResponse.get("latitude")) || !dsResponse.containsKey("longitude") ||
-					ObjectUtils.isEmpty(dsResponse.get("longitude"))) {
-				logger.info("Missing DS location data for merchantId: {}", merchantId);
-				return null;
-			}
-
-			Double lat1 = Double.valueOf(meta.getLatitude());
-			Double lon1 = Double.valueOf(meta.getLongitude());
-			Double lat2 = dsResponse.get("latitude");
-			Double lon2 = dsResponse.get("longitude");
-
-			Double inferredDistance = loanUtil.calculateLatLonDistance(lat1, lon1, lat2, lon2);
-			logger.info("Calculated SID: {} for merchantId: {}", inferredDistance, merchantId);
-
-			return (inferredDistance == -1D) ? null : inferredDistance;
-		} catch (Exception ex) {
-			logger.error("Error calculating SID for merchantId: {}, error: {}", merchantId, ex.getMessage(), ex);
-		}
-
-		return null;
-	}
 
 	private ApiResponse<List<UploadDocumentResponseDTO.Document>> processAndUploadDocuments(
 			List<UploadDocumentRequestDTO.Document> documents,

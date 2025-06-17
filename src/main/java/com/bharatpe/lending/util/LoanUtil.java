@@ -3111,7 +3111,7 @@ public class LoanUtil {
 				return;
 			}
 			Map<String, Object> auditTrailData = objectMapper.convertValue(lendingAuditTrailDTO, Map.class);
-			bqPublisherUtil.publish("lending","lending_audit_trail_table", auditTrailData);
+			bqPublisherUtil.publish("lending","lending_audit_trail", auditTrailData);
 			logger.info("Successfully saved AuditTrailDTO to BQ: {}", lendingAuditTrailDTO);
 		}
 		catch (Exception e) {

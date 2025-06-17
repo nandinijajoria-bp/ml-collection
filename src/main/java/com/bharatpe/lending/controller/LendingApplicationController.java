@@ -103,7 +103,7 @@ public class LendingApplicationController {
 			requestDTO.getMeta().setIp(clientIp);
 		}
 
-		com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO);
+		com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO, false);
 
 		logger.info("UploadDocument response : {}", uploadDocumentResponse);
 
