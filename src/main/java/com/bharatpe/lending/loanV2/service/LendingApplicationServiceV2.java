@@ -123,6 +123,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
@@ -845,8 +846,6 @@ public class LendingApplicationServiceV2 {
             loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
         }
 
-//        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
-
         lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
         lendingApplication.setIoEdi(eligibleLoan.getIoEdi() != null ? Double.valueOf(eligibleLoan.getIoEdi()) : 0D);
@@ -924,9 +923,7 @@ public class LendingApplicationServiceV2 {
             rejectApplicationForIncorrectLender(lendingApplication);
             return lendingApplication;
         }
-//        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
-//        lendingApplication.setLender("ABFL");
-//        lendingApplication = lendingApplicationDao.save(lendingApplication);
+
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
         replicateApplicationData(merchantBasicDetails,lendingApplication, isPreApproved);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
@@ -1026,21 +1023,26 @@ public class LendingApplicationServiceV2 {
                 else{
                     log.info("Replicating shop pictures for merchant: {} and previous application:{}", lendingApplication.getMerchantId(), prevApplication.getId());
                     List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                    if (!lendingShopDocuments.isEmpty()) {
-                        for (LendingShopDocuments shopDocuments : lendingShopDocuments) {
-                            LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
-                            replicateShopDocument.setApplicationId(lendingApplication.getId());
-                            replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
-                            replicateShopDocument.setIp(shopDocuments.getIp());
-                            replicateShopDocument.setProofType(shopDocuments.getProofType());
-                            replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
-                            replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
-                            replicateShopDocument.setLongitude(shopDocuments.getLongitude());
-                            replicateShopDocument.setLatitude(shopDocuments.getLatitude());
-                            replicateShopDocument.setStatus(shopDocuments.getStatus());
-                            if (isPreApproved) {
-                                replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
-                            }
+                    List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
+                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
+                        .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+                        .values().stream()
+                        .flatMap(docs -> docs.stream().limit(1))
+                        .collect(Collectors.toList());
+
+                log.info("Filtered shop documents for replication: {} for applicationId: {}", filteredDocuments, lendingApplication.getId());
+                if (!filteredDocuments.isEmpty() && filteredDocuments.size() >=2) {
+                        for (LendingShopDocuments shopDocuments : filteredDocuments) {
+                        LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+                        replicateShopDocument.setApplicationId(lendingApplication.getId());
+                        replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
+                        replicateShopDocument.setIp(shopDocuments.getIp());
+                        replicateShopDocument.setProofType(shopDocuments.getProofType());
+                        replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
+                        replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
+                        replicateShopDocument.setLongitude(shopDocuments.getLongitude());
+                        replicateShopDocument.setLatitude(shopDocuments.getLatitude());
+                        replicateShopDocument.setStatus(shopDocuments.getStatus());
                             lendingShopDocumentsDao.save(replicateShopDocument);
                         }
                     }
