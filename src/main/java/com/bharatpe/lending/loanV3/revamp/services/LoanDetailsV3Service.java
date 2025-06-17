@@ -742,7 +742,6 @@ public class LoanDetailsV3Service {
             checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration);
             return response.getSkipShopPicture();
         }
-        response.setSkipShopPicture(false);
 
         LendingApplication refApp = referenceApplication.get();
 
