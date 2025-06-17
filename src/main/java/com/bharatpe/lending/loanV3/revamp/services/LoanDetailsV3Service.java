@@ -769,7 +769,7 @@ public class LoanDetailsV3Service {
                 shopStockDoc.getProofFrontSide(), refApp.getMerchantId());
 
         LendingShopDocuments shopPictureDocs = lendingShopDocumentsDao
-                .findTopByMerchantIdAndProofFrontSideOrderByUpdatedAtDesc(
+                .findTopByMerchantIdAndProofFrontSideOrderByUpdatedAtAsc(
                         refApp.getMerchantId(), shopStockDoc.getProofFrontSide());
 
         log.info("Found shop picture document with proofFrontSide: {} for merchantId: {}",
