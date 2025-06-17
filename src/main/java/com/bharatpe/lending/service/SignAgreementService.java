@@ -548,20 +548,47 @@ public class SignAgreementService {
 			lendingGstDao.save(replicateGst);
 		}
 
-		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(),prevApplication.getId());
-		if(lendingShopDocuments.size() > 0 && !lendingShopDocuments.isEmpty()){
-			for(LendingShopDocuments shopDocuments : lendingShopDocuments){
-				LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
-				replicateShopDocument.setApplicationId(newApplication.getId());
-				replicateShopDocument.setMerchantId(newApplication.getMerchantId());
-				replicateShopDocument.setIp(shopDocuments.getIp());
-				replicateShopDocument.setProofType(shopDocuments.getProofType());
-				replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
-				replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
-				replicateShopDocument.setLongitude(shopDocuments.getLongitude());
-				replicateShopDocument.setLatitude(shopDocuments.getLatitude());
-				replicateShopDocument.setStatus(shopDocuments.getStatus());
-				lendingShopDocumentsDao.save(replicateShopDocument);
+		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
+		if (!lendingShopDocuments.isEmpty()) {
+			logger.info("Found {} shop documents for replication from applicationId: {} for merchantId: {}",
+					lendingShopDocuments.size(), prevApplication.getId(), prevApplication.getMerchantId());
+
+			// Filter shop documents: keep only those with geo coordinates and take only one per proof type
+			List<LendingShopDocuments> filteredShopDocuments = lendingShopDocuments.stream()
+					.filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
+					.collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+					.values().stream()
+					.flatMap(docs -> docs.stream().limit(1))
+					.collect(Collectors.toList());
+
+			logger.info("Filtered {} shop documents for replication from applicationId: {} for merchantId: {}",
+					filteredShopDocuments.size(), prevApplication.getId(), prevApplication.getMerchantId());
+
+			if (!filteredShopDocuments.isEmpty()) {
+				for (LendingShopDocuments shopDocument : filteredShopDocuments) {
+					LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+					replicateShopDocument.setApplicationId(newApplication.getId());
+					replicateShopDocument.setMerchantId(newApplication.getMerchantId());
+					replicateShopDocument.setIp(shopDocument.getIp());
+					replicateShopDocument.setProofType(shopDocument.getProofType());
+					replicateShopDocument.setProofFrontSide(shopDocument.getProofFrontSide());
+					replicateShopDocument.setProofBackSide(shopDocument.getProofBackSide());
+					replicateShopDocument.setLongitude(shopDocument.getLongitude());
+					replicateShopDocument.setLatitude(shopDocument.getLatitude());
+					replicateShopDocument.setStatus(shopDocument.getStatus());
+
+					logger.info("Replicating shop document proofType: {}, with latitude: {}, longitude: {} for applicationId: {}",
+							shopDocument.getProofType(), shopDocument.getLatitude(), shopDocument.getLongitude(),
+							newApplication.getId());
+
+					lendingShopDocumentsDao.save(replicateShopDocument);
+				}
+
+				logger.info("Successfully replicated {} filtered shop documents for new applicationId: {}",
+						filteredShopDocuments.size(), newApplication.getId());
+			} else {
+				logger.warn("No valid shop documents with location data found for replication for applicationId: {}",
+						newApplication.getId());
 			}
 		}
 
