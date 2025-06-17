@@ -701,7 +701,7 @@ public class LoanDetailsV3Service {
         Optional<LendingApplication> referenceApplication = Optional.empty();
 
         if (LoanSegment.REPEAT.name().equalsIgnoreCase(loanSegment)) {
-            Long latestStpApplicationId = findLatestStpApplication(merchant.getId());
+            Long latestStpApplicationId = findLatestNonStpApplication(merchant.getId());
             if (latestStpApplicationId != null) {
                 referenceApplication = lendingApplicationDao.findById(latestStpApplicationId);
             }
@@ -772,8 +772,13 @@ public class LoanDetailsV3Service {
                 .findTopByMerchantIdAndProofFrontSideOrderByUpdatedAtDesc(
                         refApp.getMerchantId(), shopStockDoc.getProofFrontSide());
 
+        log.info("Found shop picture document with proofFrontSide: {} for merchantId: {}",
+                shopPictureDocs != null ? shopPictureDocs.getProofFrontSide() : "null", refApp.getMerchantId());
+
         List<LendingShopDocuments> shopPictureDocsList = lendingShopDocumentsDao
                 .findByMerchantIdAndApplicationId(refApp.getMerchantId(), shopPictureDocs.getApplicationId());
+        log.info("Found {} shop picture documents for merchantId: {}, applicationId: {}",
+                shopPictureDocsList, refApp.getMerchantId(), shopPictureDocs.getApplicationId());
 
         if (!CollectionUtils.isEmpty(shopDocs) &&
                 isDocumentsRecent(shopPictureDocsList, validDuration, loanSegment) &&
@@ -806,7 +811,7 @@ public class LoanDetailsV3Service {
      * @param merchantId Merchant ID
      * @return application ID or null if not found
      */
-    private Long findLatestStpApplication(Long merchantId) {
+    private Long findLatestNonStpApplication(Long merchantId) {
         log.info("Finding latest Non-STP application for merchantId: {}", merchantId);
 
         if (merchantId == null) {
