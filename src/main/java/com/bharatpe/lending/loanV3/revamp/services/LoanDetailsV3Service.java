@@ -729,9 +729,7 @@ public class LoanDetailsV3Service {
                 }
             }
 
-            // If no past approved applications, use current application
             if (!referenceApplication.isPresent()) {
-                referenceApplication = Optional.of(application);
                 log.info("No past approved applications found, using current application");
             }
         }
