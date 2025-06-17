@@ -966,18 +966,52 @@ public class LoanDetailsV3Service {
         return Duration.ZERO;
     }
 
+    /**
+     * Checks if the provided shop documents are recent enough based on the specified duration
+     * and loan type.
+     *
+     * @param docs The shop documents to check
+     * @param duration The maximum allowed age of documents
+     * @param loanType The type of loan (FRESH, REPEAT, etc.)
+     * @return true if all documents are recent enough, false otherwise
+     */
     private boolean isDocumentsRecent(List<LendingShopDocuments> docs, Duration duration, String loanType) {
-        if (docs == null || docs.isEmpty()) return false;
+        log.info("Checking if documents are recent for loan type: {}, with duration: {}", loanType, duration);
+
+        if (docs == null || docs.isEmpty()) {
+            log.warn("Document list is null or empty, returning false");
+            return false;
+        }
+
+        log.info("Found {} shop documents to check for recency", docs.size());
 
         Instant threshold = Instant.now().minus(duration);
+        log.info("Threshold for document recency: {}", threshold);
+
+        boolean allRecent = true;
 
         for (LendingShopDocuments doc : docs) {
+            if (doc.getUpdatedAt() == null) {
+                log.warn("Document has null updatedAt timestamp: documentId={}, proofType={}", doc.getId(), doc.getProofType());
+                allRecent = false;
+                continue;
+            }
+
             Instant updatedAt = doc.getUpdatedAt().toInstant();
-            if (updatedAt.isBefore(threshold)) {
-                return false;
+            boolean isRecent = !updatedAt.isBefore(threshold);
+
+            log.info("Document recency check: documentId={}, proofType={}, updatedAt={}, isRecent={}",
+                    doc.getId(), doc.getProofType(), doc.getUpdatedAt(), isRecent);
+
+            if (!isRecent) {
+                log.info("Document is too old: documentId={}, proofType={}, updatedAt={}, threshold={}",
+                        doc.getId(), doc.getProofType(), doc.getUpdatedAt(), threshold);
+                allRecent = false;
             }
         }
-        return true;
+
+        log.info("Document recency check result: {} for loan type: {}", allRecent, loanType);
+        return allRecent;
     }
 
     private boolean isDocumentsRecentCreatedAt(Duration duration, String loanType, Date createdAt) {
