@@ -68,12 +68,9 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
 
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
             log.info("lendingApplication {} and status {}", lendingApplication, lendingApplication.getStatus());
-            if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
-                referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
-                referenceStateDTO.setLender(lendingApplication.getLender());
-                referenceStateDTO.setLoanType(lendingApplication.getLoanType());
-            }
+
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(scopeDataArgs.getApplicationId());
+
             if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
                 log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
