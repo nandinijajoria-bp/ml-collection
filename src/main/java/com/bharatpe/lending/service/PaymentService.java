@@ -585,7 +585,7 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("Previous transaction is pending.");
             }
 
-            Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
+            Long appVersion = getAppVersion(request);
             logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
             if (Objects.equals(request.getMeta().getClient(), "android")) {
                 if (appVersion < androidVersion) {
@@ -707,6 +707,37 @@ public class PaymentService {
             logger.error("Exception while initiating payment for merchant id {} {} {}", merchantBasicDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
+    }
+
+    // equivalent to with error handling
+    // Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
+    public long getAppVersion(RequestDTO<InitiatePaymentRequestDTO> request) {
+        try {
+            if (request == null || request.getMeta() == null
+                || request.getMeta().getDeviceInfo() == null
+                || StringUtils.isEmpty(request.getMeta().getDeviceInfo().getAppVersion())
+            ) return 100L; // default version if meta or device info is not present
+
+            String appVersion = request.getMeta().getDeviceInfo().getAppVersion();
+            try {
+                return Long.parseLong(appVersion);
+            } catch (NumberFormatException numberFormatException) {
+                log.error("numberFormatException for {}", request.getMeta());
+                return Long.parseLong(convertVersionCode(appVersion));
+            }
+        } catch (Exception e) {
+            log.error("getAppVersion for {}", request);
+        }
+        return 100L; // default version if not provided or parsing fails
+    }
+
+    public String convertVersionCode(String appVersion) {
+        if (StringUtils.isEmpty(appVersion)) {
+            return "100";
+        }
+        String finalVersionResult = appVersion.replace(".", "");
+        log.info("Converted version:{} for version {} ",appVersion, finalVersionResult);
+        return finalVersionResult;
     }
 
     private void saveLoanForeClosureCharges(BasicDetailsDto merchantBasicDetails, long orderId, long loanId, ForeClosureDetailDTO foreClosureDetail) {
