@@ -848,6 +848,7 @@ public class LoanDetailsV3Service {
                     log.info("Checking application ID: {} for field values", app.getId());
                     List<Long> fieldIds = Arrays.asList(38L, 39L);
                     List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(app.getId(), fieldIds);
+                    log.info("Found {} field values for application ID: {}", fieldValues, app.getId());
 
                     if (CollectionUtils.isEmpty(fieldValues)) {
                         log.info("No field values found for application ID: {}", app.getId());
