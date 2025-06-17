@@ -38,6 +38,10 @@ public interface ErrorMessages {
     String REGS_FAILED = "Mandate registration failed. Please contact your home branch";
     String BANK_ERROR_XML = "Bank Returning Error XML";
     String TXN_CNACALLED_AT_BANK = "Transaction Cancelled at Bank end";
-
-
+    String ADDRESS_REQUIRED = "Required address info";
+    String ADDRESS_VALIDATION_ERROR = "Unable to Validate merchant address";
+    String NO_ADDRESS_FOUND = "No addresses found for the merchant";
+    String BUSINESS_NAME_REQUIRED = "Business name is required";
+    String BUSINESS_NAME_UPDATE_FAILED = "Unable to update business name";
+    String MERCHANT_ID_MISSING = "MerchantId is required.";
 }

@@ -1164,10 +1164,11 @@ public class LoanUtil {
 		dsHandler.pushKafkaAudit(kafkaAudit);
 	}
 
-	private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
+	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			if (lendingRiskVariables != null) {
+			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
@@ -3080,6 +3081,43 @@ public class LoanUtil {
 			logger.error("Exception in checking BT application for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 		return false;
+	}
+
+	public void createLendingAuditTrailDTO(LendingApplication lendingApplication) {
+
+		LendingAuditTrailDTO lendingAuditTrailDTO = LendingAuditTrailDTO.builder()
+				.applicationId(lendingApplication.getId())
+				.merchantId(lendingApplication.getMerchantId())
+				.shopNumber(lendingApplication.getShopNumber())
+				.streetAddress(lendingApplication.getStreetAddress())
+				.area(lendingApplication.getArea())
+				.landmark(lendingApplication.getLandmark())
+				.pincode(String.valueOf(lendingApplication.getPincode()))
+				.city(lendingApplication.getCity())
+				.state(lendingApplication.getState())
+				.businessName(lendingApplication.getBusinessName())
+				.createdAt(new Date())
+				.updatedAt(new Date())
+				.source("LENDING")
+				.remarks("Audit trail created for SHOP_DETAILS")
+				.build();
+		saveLendingAuditTrailToBQ(lendingAuditTrailDTO);
+	}
+
+	public void saveLendingAuditTrailToBQ(LendingAuditTrailDTO lendingAuditTrailDTO) {
+		try {
+			if (lendingAuditTrailDTO == null) {
+				logger.warn("AuditTrailDTO is null, skipping BQ save.");
+				return;
+			}
+			Map<String, Object> auditTrailData = objectMapper.convertValue(lendingAuditTrailDTO, Map.class);
+			bqPublisherUtil.publish("lending","lending_audit_trail_table", auditTrailData);
+			logger.info("Successfully saved AuditTrailDTO to BQ: {}", lendingAuditTrailDTO);
+		}
+		catch (Exception e) {
+			logger.error("Error while saving lending audit trail to BQ for applicationId: {}, error: {}",
+					lendingAuditTrailDTO.getApplicationId(), e.getMessage(), e);
+		}
 	}
 }
 
