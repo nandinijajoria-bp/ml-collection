@@ -832,7 +832,7 @@ public class LoanDetailsV3Service {
         Set<Long> autoDisbursalAppIds = lendingAutoDisbursal.stream()
                 .map(LendingAutoDisbursal::getApplicationId)
                 .collect(Collectors.toSet());
-        log.debug("Auto disbursal application IDs: {}", autoDisbursalAppIds);
+        log.info("Auto disbursal application IDs: {}", autoDisbursalAppIds);
 
         List<LendingApplication> nonSTPApps = approvedApplications.stream()
                 .filter(app -> !autoDisbursalAppIds.contains(app.getId()))
