@@ -319,7 +319,7 @@ public class InsuranceService {
             String docUrl = s3BucketHandler.getPreSignedPublicURL(fileName, bucket);
             String docShortUrl = apiGatewayService.getShortUrl(docUrl);
 
-            loanInsurance.setPolicyDocFile(fileName);
+            //loanInsurance.setPolicyDocFile(fileName);
             loanInsurance.setPolicyDocUrl(docShortUrl);
             loanInsurance.setCommencementDate(commencementDate);
             loanInsurance.setMaturityDate(maturityDate);
@@ -339,9 +339,9 @@ public class InsuranceService {
             LendingLoanInsurance lendingLoanInsurance = getInsuranceDetails(application.getId(), application.getLender(), SELECTED);
             if (!ObjectUtils.isEmpty(lendingLoanInsurance)) {
                 String policyDocUrl = null;
-                if (!ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocFile())) {
+                /*if (!ObjectUtils.isEmpty(lendingLoanInsurance.getPolicyDocFile())) {
                     policyDocUrl = s3BucketHandler.getPreSignedPublicURL(lendingLoanInsurance.getPolicyDocFile(), bucket);
-                }
+                }*/
                 return InsuranceDetailsDTO.builder()
                         .sumInsured(lendingLoanInsurance.getSumInsured())
                         .insurancePremiumAmount(lendingLoanInsurance.getInsurancePremium())
