@@ -651,7 +651,7 @@ public class LoanDetailsV3Service {
         List<ImageProofResponseDto.Proof> proofs = imageURLService.fetchImageUrl(merchant, application, imageProofRequestDto);
 
         log.info("Found {} proof images for merchantId: {}", proofs != null ? proofs.size() : 0, dto.getMerchantId());
-        for (ImageProofResponseDto.Proof proof : proofs) {q
+        for (ImageProofResponseDto.Proof proof : proofs) {
             log.info("Image details: proof_type={}, proof_urls={}",
                     proof.getProofType(),
                     proof.getProofUrls());
