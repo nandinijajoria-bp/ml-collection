@@ -157,6 +157,7 @@ public class LendingApplicationServiceV2 {
     LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
+    @Lazy
     LoanUtil loanUtil;
 
     @Autowired
