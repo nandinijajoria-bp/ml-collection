@@ -836,7 +836,7 @@ public class LoanDetailsV3Service {
 
         List<LendingApplication> nonSTPApps = approvedApplications.stream()
                 .filter(app -> !autoDisbursalAppIds.contains(app.getId()))
-                .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
+                .sorted(Comparator.comparing(LendingApplication::getUpdatedAt).reversed())
                 .collect(Collectors.toList());
         log.info("Found {} potential non-STP applications after filtering",
                 nonSTPApps != null ? nonSTPApps : 0);
