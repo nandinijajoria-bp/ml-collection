@@ -61,6 +61,7 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
