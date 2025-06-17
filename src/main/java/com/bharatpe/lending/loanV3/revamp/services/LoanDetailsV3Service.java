@@ -839,25 +839,25 @@ public class LoanDetailsV3Service {
                 .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
                 .collect(Collectors.toList());
         log.info("Found {} potential non-STP applications after filtering",
-                nonSTPApps != null ? nonSTPApps.size() : 0);
+                nonSTPApps != null ? nonSTPApps : 0);
 
         // Now check each application for valid field values, starting with the latest
         Optional<LendingApplication> validApp = nonSTPApps.stream()
                 .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
                 .filter(app -> {
-                    log.debug("Checking application ID: {} for field values", app.getId());
+                    log.info("Checking application ID: {} for field values", app.getId());
                     List<Long> fieldIds = Arrays.asList(38L, 39L);
                     List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(app.getId(), fieldIds);
 
                     if (CollectionUtils.isEmpty(fieldValues)) {
-                        log.debug("No field values found for application ID: {}", app.getId());
+                        log.info("No field values found for application ID: {}", app.getId());
                         return false;
                     }
 
                     // Check if we have both fields
                     boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
                     boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
-                    log.debug("Application ID: {} - Has field 38: {}, Has field 39: {}",
+                    log.info("Application ID: {} - Has field 38: {}, Has field 39: {}",
                             app.getId(), hasField38, hasField39);
 
                     // Check if field 38 has valid values (permanent or temporary)
@@ -870,7 +870,7 @@ public class LoanDetailsV3Service {
                             .filter(f -> f.getFieldId() == 39L)
                             .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldValue()));
 
-                    log.debug("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
+                    log.info("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
                             app.getId(), isField38Valid, isField39Valid);
 
                     return hasField38 && hasField39 && isField38Valid && isField39Valid;
