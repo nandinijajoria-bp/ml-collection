@@ -748,11 +748,35 @@ public class LoanDetailsV3Service {
 
         LendingApplication refApp = referenceApplication.get();
 
+        // Get shop documents for reference application
         List<LendingShopDocuments> shopDocs = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(
                 refApp.getMerchantId(), refApp.getId());
 
+        // Filter for shop-stock documents
+        List<LendingShopDocuments> shopStockDocs = shopDocs.stream()
+                .filter(doc -> "shop-stock".equalsIgnoreCase(doc.getProofType()) && doc.getProofFrontSide() != null)
+                .collect(Collectors.toList());
+
+        // Check if we have any shop-stock documents
+        if (CollectionUtils.isEmpty(shopStockDocs)) {
+            log.info("No shop-stock documents found for merchantId: {}, applicationId: {}",
+                    refApp.getMerchantId(), refApp.getId());
+            return false;
+        }
+
+        LendingShopDocuments shopStockDoc = shopStockDocs.get(0);
+        log.info("Found shop-stock document with proofFrontSide: {} for merchantId: {}",
+                shopStockDoc.getProofFrontSide(), refApp.getMerchantId());
+
+        LendingShopDocuments shopPictureDocs = lendingShopDocumentsDao
+                .findTopByMerchantIdAndProofFrontSideOrderByUpdatedAtDesc(
+                        refApp.getMerchantId(), shopStockDoc.getProofFrontSide());
+
+        List<LendingShopDocuments> shopPictureDocsList = lendingShopDocumentsDao
+                .findByMerchantIdAndApplicationId(refApp.getMerchantId(), shopPictureDocs.getApplicationId());
+
         if (!CollectionUtils.isEmpty(shopDocs) &&
-                isDocumentsRecent(shopDocs, validDuration, loanSegment) &&
+                isDocumentsRecent(shopPictureDocsList, validDuration, loanSegment) &&
                 isValidShopDocuments(response,shopDocs, dto, refApp.getId())) {
 
             RequestDTO<UploadDocumentRequestDTO> uploadRequest = new RequestDTO<>();
