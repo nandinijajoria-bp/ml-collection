@@ -50,7 +50,7 @@
         <dependency>
             <groupId>com.bharatpe.lending.common</groupId>
             <artifactId>lending-common</artifactId>
-            <version>3.0-IS-SNAPSHOT</version>
+            <version>3.0-uat-SNAPSHOT</version>
         </dependency>
 
 
