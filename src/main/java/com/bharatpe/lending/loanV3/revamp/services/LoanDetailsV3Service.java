@@ -7,13 +7,11 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.dao.LendingApplicationDao;
-import com.bharatpe.lending.dto.MetaDTO;
-import com.bharatpe.lending.dto.RequestDTO;
-import com.bharatpe.lending.dto.UploadDocumentRequestDTO;
-import com.bharatpe.lending.dto.UploadDocumentResponseDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.enums.LoanSegment;
 import com.bharatpe.lending.handlers.KycHandler;
+import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
@@ -385,7 +383,7 @@ public class LoanDetailsV3Service {
 
         populateBasicShopDetails(shopDetailsStateDTO, loanDetailsV3Response);
         populateLoanApplicationDetails(shopDetailsStateDTO, loanDetailsV3Response);
-        populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
+        //populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
 
         log.info("Shop details response populated successfully {}", loanDetailsV3Response);
     }
@@ -645,27 +643,27 @@ public class LoanDetailsV3Service {
             return false;
         }
 
-        CommonAPIRequest commonAPIRequest = new CommonAPIRequest();
-        commonAPIRequest.setPayload("application_id", dto.getApplicationId());
+        ImageProofRequestDto imageProofRequestDto = new ImageProofRequestDto();
+        imageProofRequestDto.setApplicationId(String.valueOf(dto.getApplicationId()));
 
         LendingApplication application = lendingApplicationDao.findByIdAndMerchantId(dto.getApplicationId(), dto.getMerchantId());
         if (application == null) {
             return false;
         }
 
-        List<Map<String, Object>> images = imageURLService.fetchImageUrl(merchant, application, commonAPIRequest);
+        List<ImageProofResponseDto.Proof> proofs = imageURLService.fetchImageUrl(merchant, application, imageProofRequestDto);
 
-        log.info("Found {} images for merchantId: {}", images != null ? images.size() : 0, dto.getMerchantId());
-        for (Map<String, Object> image : images) {
+        log.info("Found {} proof images for merchantId: {}", proofs != null ? proofs.size() : 0, dto.getMerchantId());
+        for (ImageProofResponseDto.Proof proof : proofs) {
             log.info("Image details: proof_type={}, proof_urls={}",
-                    image.get("proof_type"),
-                    image.get("proof"));
+                    proof.getProofType(),
+                    proof.getProofUrls());
         }
 
         List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(
                 dto.getMerchantId(), dto.getApplicationId());
 
-        if (!CollectionUtils.isEmpty(images) && images.size() >= 2 &&
+        if (!CollectionUtils.isEmpty(proofs) && proofs.size() >= 2 &&
                 !CollectionUtils.isEmpty(lendingShopDocuments) && lendingShopDocuments.size() >= 2 &&
                 lendingShopDocuments.stream().allMatch(doc -> Boolean.TRUE.equals(doc.getIsSkipped()))) {
             log.info("Valid shop images found for merchantId: {}", dto.getMerchantId());
@@ -785,9 +783,11 @@ public class LoanDetailsV3Service {
             populateUploadDocumentRequest(shopDocs, uploadRequest, refApp.getId(), application.getId());
 
             if (uploadRequest.getPayload() != null) {
-                UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, uploadRequest,true);
-                if(uploadDocumentResponse.getSuccess()) {
+                ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, uploadRequest, true);
+                if (uploadDocumentResponse != null && uploadDocumentResponse.isSuccess() && uploadDocumentResponse.getData() != null) {
                     response.setSkipShopPicture(true);
+                    log.info("Shop picture skipped for merchantId: {}, applicationId: {}",
+                            dto.getMerchantId(), dto.getApplicationId());
                 }
                 log.info("Shop picture skipped for merchantId: {}, applicationId: {}",
                         dto.getMerchantId(), dto.getApplicationId());
@@ -919,10 +919,11 @@ public class LoanDetailsV3Service {
         if (isValidCKycDocs(cKycDocDetails.get(), dto, tempDocList)) {
             RequestDTO<UploadDocumentRequestDTO> requestDTO = new RequestDTO<>();
             populateUploadDocumentRequest(tempDocList, requestDTO, dto.getApplicationId(), dto.getApplicationId());
-            UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO, true);
-            if(uploadDocumentResponse.getSuccess()) {
+            ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO, true);
+            if (uploadDocumentResponse != null && uploadDocumentResponse.isSuccess() && uploadDocumentResponse.getData() != null) {
                 response.setSkipShopPicture(true);
-                log.info("CKYC documents used for shop pictures for merchantId: {}", dto.getMerchantId());
+                log.info("Shop picture skipped for merchantId: {}, applicationId: {}",
+                        dto.getMerchantId(), dto.getApplicationId());
             }
             log.info("Using CKYC documents for shop pictures for merchantId: {}", dto.getMerchantId());
         }

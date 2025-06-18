@@ -207,7 +207,6 @@ public abstract class LendingApplicationServiceV3Base {
                                 .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                                 .stage(LenderAssociationStages.COMPLETED)
                                 .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                                .lender(currentDraftApplication.getLender())
                                 .build());
                     }
                 }
@@ -220,8 +219,20 @@ public abstract class LendingApplicationServiceV3Base {
                             .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                             .stage(LenderAssociationStages.COMPLETED)
                             .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                            .lender(currentDraftApplication.getLender())
                             .build());
+                }
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
+                    Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+                    if (eligibleLoan.isPresent() && currentDraftApplication.getProcessingFee().intValue() != eligibleLoan.get().getProcessingFee()) {
+                        log.info("Processing fee changed for applicationId {}", currentDraftApplication.getId());
+                        return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                                .isRoiDecreased(true)
+                                .lender(currentDraftApplication.getLender())
+                                .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                                .stage(LenderAssociationStages.COMPLETED)
+                                .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                                .build());
+                    }
                 }
 
                 log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
@@ -666,7 +677,7 @@ public abstract class LendingApplicationServiceV3Base {
             if(Lender.TRILLIONLOANS.name().equals(lendingApplication.getLender())){
                 ApiResponse<?> response = invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
                 if(ObjectUtils.isEmpty(response) || !response.success){
-                    log.error("Update Lead failed for application:{}", lendingApplication.getId());
+                    log.error("Update Loan failed for application:{}", lendingApplication.getId());
                     return new ApiResponse<>(false, createResponse("false", "Please try again later"), "Please try again later");
                 }
             }

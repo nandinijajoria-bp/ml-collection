@@ -5,31 +5,22 @@ import java.time.LocalDateTime;
 import java.util.*;
 
 import com.bharatpe.common.entities.*;
-import com.bharatpe.lending.common.Handler.PhonebookHandler;
-import com.bharatpe.lending.common.bpnewmaster.dao.DocKycDetailsDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
-import com.bharatpe.lending.common.bpnewmaster.entity.DocKycDetailsMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingEkycDao;
 import com.bharatpe.lending.common.dao.LendingResubmitTaskDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
-import com.bharatpe.lending.common.dto.PhonebookDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingEkyc;
 import com.bharatpe.lending.common.entity.LendingResubmitTask;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.FunnelEnums;
-import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.FunnelService;
-import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dto.ImageProofRequestDto;
+import com.bharatpe.lending.dto.ImageProofResponseDto;
 import com.bharatpe.lending.handlers.DsHandler;
+import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
@@ -38,8 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -59,33 +50,9 @@ public class ImageURLService {
 
 	@Autowired
 	S3BucketHandler s3BucketHandler;
-	
-	@Autowired
-	LendingEkycDao lendingEkycDao;
 
 	@Autowired
 	LendingResubmitTaskDao lendingResubmitTaskDao;
-
-	@Autowired
-	PhonebookHandler phonebookHandler;
-
-	@Autowired
-	RedisNotificationService redisNotificationService;
-
-	@Autowired
-	DocKycDetailsDaoMaster docKycDetailsDaoMaster;
-
-	@Autowired
-	MerchantService merchantService;
-
-	@Autowired
-	DsHandler dsHandler;
-
-	@Autowired
-	LoanUtil loanUtil;
-
-	@Autowired
-	LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
 	@Autowired
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
@@ -94,7 +61,10 @@ public class ImageURLService {
 	FunnelService funnelService;
 
 	@Autowired
-	EasyLoanUtil easyLoanUtil;
+	LoanUtil loanUtil;
+
+	@Autowired
+	DsHandler dsHandler;
 
 	@Autowired
 	private LoanDashboardService loanDashboardService;
@@ -102,282 +72,249 @@ public class ImageURLService {
 	@Value("${aws.s3.bucket}")
 	private String bucket;
 
-	@Value("${sid.threshold}")
-	Double sidThreshold;
+	public ApiResponse<ImageProofResponseDto> fetchAndWrapResult(BasicDetailsDto merchant, ImageProofRequestDto imageProofRequestDto) {
+		logger.info("Fetching image proofs for merchantId: {}, payload: {}", merchant.getId(), imageProofRequestDto);
 
-	@Value("${sid.rollout.percent}")
-	Integer sidRolloutPercent;
+		Long applicationId = imageProofRequestDto.getApplicationId() != null
+				? Long.parseLong(imageProofRequestDto.getApplicationId().toString())
+				: null;
 
-	@Value("${deprecated.merchant.references:true}")
-	private boolean hasDeprecatedMerchantReferences;
-
-	public Map<String, Object> fetchAndWrapResult(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
-		Map<String, Object> result = new HashMap<String, Object>();
-		Map<String, String> panNameCheck = new HashMap<>();
-		Long applicationId =  commonAPIRequest.getPayload().get("application_id") != null ? Long.parseLong(commonAPIRequest.getPayload().get("application_id").toString()) : null;
-		if(applicationId == null || applicationId <= 0) {
-			logger.info("Invalid Application Id: {} for merchant : {}", applicationId, merchant.getId());
-			result.put("success", false);
-			return result;
+		if (applicationId == null || applicationId <= 0) {
+			logger.warn("Missing or invalid Application Id: {} for merchant: {}", applicationId, merchant.getId());
+			return ApiResponse.error(String.valueOf(HttpStatus.BAD_REQUEST.value()), "Missing or invalid application id", null);
 		}
-		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(applicationId,
-		merchant.getId(), "draft");
-		LendingResubmitTask lendingResubmitTask =lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-		if(lendingApplication == null  && (Objects.isNull(lendingResubmitTask) || lendingResubmitTask.getResubmitDone())) {
-			logger.info("Application not found for Id: {} for merchant : {}", applicationId, merchant.getId());
-			result.put("success", false);
-			return result;
+
+		LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantIdAndStatus(
+				applicationId, merchant.getId(), "draft");
+		LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+
+		if (lendingApplication == null && (lendingResubmitTask == null || Boolean.TRUE.equals(lendingResubmitTask.getResubmitDone()))) {
+			logger.warn("Application not found or already resubmitted for Id: {} merchant: {}", applicationId, merchant.getId());
+			return ApiResponse.error(String.valueOf(HttpStatus.NOT_FOUND.value()), "Application not found or already resubmitted", null);
 		}
-		if(lendingApplication == null && Objects.nonNull(lendingResubmitTask) && lendingResubmitTask.getResubmit() && (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())){
-			lendingApplication =lendingApplicationDao.findById(applicationId).get();
+
+		if (lendingApplication == null && lendingResubmitTask != null
+				&& Boolean.TRUE.equals(lendingResubmitTask.getResubmit())
+				&& (lendingResubmitTask.getResubmitDone() == null || !lendingResubmitTask.getResubmitDone())) {
+
+			Optional<LendingApplication> appOptional = lendingApplicationDao.findById(applicationId);
+			if (!appOptional.isPresent()) {
+				logger.error("LendingApplication not found for resubmission, applicationId: {}", applicationId);
+				return ApiResponse.error(String.valueOf(HttpStatus.NOT_FOUND.value()), "Application not found for resubmission", null);
+			}
+			lendingApplication = appOptional.get();
 		}
 
 		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId());
-		if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
+		if (LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())) {
 			funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-		}
-		else{
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.INITIATED,
+					LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+		} else {
 			funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.INITIATED, LocalDateTime.now().toString());
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.INITIATED,
+					LocalDateTime.now().toString());
 		}
 
-		logger.info("Application: {}", lendingApplication);
+		logger.info("Processing application: {}", lendingApplication.getId());
 
-		panNameCheck = getBanificaryAndPanName(merchant, lendingApplication);
-		result.put("panNameCheck", panNameCheck);
+		try {
+			List<ImageProofResponseDto.Proof> proofList = fetchImageUrl(merchant, lendingApplication, imageProofRequestDto);
+			ImageProofResponseDto responseDto = new ImageProofResponseDto();
+			responseDto.setProofs(proofList);
+			responseDto.setQrMandatory(!"NTB".equals(lendingApplication.getLoanType()));
 
-		Boolean ekycDone = false;
-		if(!LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-			ekycDone=isEkycDone(merchant, lendingApplication.getId());
-			if(ekycDone==null){
-				result.put("success", false);
-				return result;
-			}
+			logger.info("Successfully fetched {} image proofs for applicationId: {}", proofList.size(), lendingApplication.getId());
+			return ApiResponse.success(responseDto);
+		} catch (Exception e) {
+			logger.error("Error fetching image proofs for applicationId: {}, error: {}", applicationId, e.getMessage(), e);
+			return ApiResponse.error(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), "Failed to process image proofs: " + e.getMessage(), null);
 		}
-		boolean finalCall = commonAPIRequest.getPayload().get("finalCall") != null && (boolean) commonAPIRequest.getPayload().get("finalCall");
-		if(!hasDeprecatedMerchantReferences){
-			if (finalCall) {
-				List<PhonebookDTO> phonebook = phonebookHandler.getPhonebook(merchant.getId());
-				if (phonebook.isEmpty()) {
-					logger.info("Contacts not synced for merchant:{}", merchant.getId());
-					result.put("success", false);
-					result.put("message", "CONTACTS_NOT_SYNCED");
-					return result;
-				}
-			}
-		}
-
-		result.put("isEKYC",ekycDone);
-		result.put("allow_route", allowRoute(lendingApplication, merchant, ekycDone));
-		List<Map<String, Object>> data = fetchImageUrl(merchant, lendingApplication, commonAPIRequest);
-		result.put("proofs", data);
-		result.put("success", true);
-		result.put("qrMandatory", !lendingApplication.getLoanType().equals("NTB"));
-		if (finalCall) {
-			redisNotificationService.sendNotificationForAppliedApplication(merchant.getId(), lendingApplication);
-		}
-		return result;
 	}
 
-	public Map<String, String> getBanificaryAndPanName(BasicDetailsDto merchant, LendingApplication lendingApplication){
-		Map<String, String> result = new HashMap<>();
-		DocumentsIdProofMaster documentsIdProof = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(merchant.getId(), lendingApplication.getId(), "pancard");
-		if(Objects.nonNull(documentsIdProof) && Objects.nonNull(documentsIdProof.getPanNameMatch()) && !documentsIdProof.getPanNameMatch().isEmpty() && documentsIdProof.getPanNameMatch().equals("NO")){
-			DocKycDetailsMaster docKycDetails = docKycDetailsDaoMaster.fetchLatestPanCardDetails(merchant.getId(), lendingApplication.getId());
+	public List<ImageProofResponseDto.Proof> fetchImageUrl(BasicDetailsDto merchant, LendingApplication lendingApplication, ImageProofRequestDto imageProofRequestDto) {
+		logger.info("Fetching image URLs for merchantId: {}, applicationId: {}", merchant.getId(), lendingApplication.getId());
+		List<ImageProofResponseDto.Proof> proofList = new ArrayList<>();
 
-			final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchant.getId());
-			BankDetailsDto merchantBankDetail = null;
-			if (bankDetailsDtoOptional.isPresent())
-				merchantBankDetail = bankDetailsDtoOptional.get();
+		try {
+			List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantAndLendingApplication(
+					merchant.getId(), lendingApplication.getId());
+			logger.debug("Found {} document proofs for applicationId: {}", documentsIdProofList.size(), lendingApplication.getId());
 
-			String benificiaryName =  merchantBankDetail!= null ? (merchantBankDetail.getBeneficiaryName()!= null ? merchantBankDetail.getBeneficiaryName() : "") : "";
-			String nameInPan = docKycDetails != null && Objects.nonNull(docKycDetails.getPersonName()) ? docKycDetails.getPersonName() : "";
+			processIdDocuments(documentsIdProofList, proofList);
 
-			if(nameInPan.isEmpty()){
-				return null;
-			}
+			processShopDocuments(merchant, lendingApplication, imageProofRequestDto, proofList);
 
-			result.put("benificiaryName", benificiaryName);
-			result.put("nameInPan", nameInPan);
-
-			return result;
+			// Sort by timestamp
+			proofList.sort(Comparator.comparing(ImageProofResponseDto.Proof::getUpdatedAt));
+			logger.info("Successfully fetched {} image proofs for applicationId: {}", proofList.size(), lendingApplication.getId());
+			return proofList;
+		} catch (Exception e) {
+			logger.error("Failed to fetch image URLs for applicationId: {}, error: {}",
+					lendingApplication.getId(), e.getMessage(), e);
+			throw new RuntimeException("Error fetching image URLs: " + e.getMessage());
 		}
-
-		return null;
 	}
 
-	private boolean allowRoute(LendingApplication lendingApplication, BasicDetailsDto merchant, Boolean isEkycDone) {
-		boolean selfie = false;
-		boolean pancard = false;
-		boolean poa = false;
-
-		List<DocumentsIdProofMaster> documentsIdProofList =
-		documentsIdProofDaoMaster.findByMerchantIdAndLendingApplicationId(merchant.getId(), lendingApplication.getId());
+	private void processIdDocuments(List<DocumentsIdProofMaster> documentsIdProofList, List<ImageProofResponseDto.Proof> proofList) {
 		for (DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
-			if (documentsIdProof.getProofType().equalsIgnoreCase("selfie")) {
-				selfie = true;
-			} else if (documentsIdProof.getProofType().equalsIgnoreCase("pancard")) {
-				pancard = true;
-			} else {
-				poa = true;
-			}
-		}
-		return selfie && pancard && (isEkycDone || poa);
-	}
-	
-	public Boolean isEkycDone(BasicDetailsDto merchant, Long applicationId) {
-		try{
-			LendingEkyc lendingEkyc = lendingEkycDao.findSuccessEkyc(merchant.getId(), applicationId);
-			DocumentsIdProofMaster ekycDoc = documentsIdProofDaoMaster.findByMerchantIdApplicationIdAndProofType(merchant.getId(), applicationId, "eAadhar");
-			return lendingEkyc != null && ekycDoc != null;
-		}
-		catch(Exception e) {
-			logger.error("Error occured while checking for ekyc status",e);
-			return false;
-		}
-	}
-
-	public List<Map<String, Object>> fetchImageUrl(BasicDetailsDto merchant, LendingApplication lendingApplication, CommonAPIRequest commonAPIRequest) {
-		List<Map<String, Object>> finalResponse = new ArrayList<>();
-		List<DocumentsIdProofMaster> documentsIdProofList = documentsIdProofDaoMaster.findByMerchantAndLendingApplication(merchant.getId(), lendingApplication.getId());
-		List<LendingShopDocuments> lendingShopDocumentsList  = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
-		//LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-		String shopDocType = ObjectUtils.isEmpty(commonAPIRequest.getPayload().get("shop_doc_type")) ? null : commonAPIRequest.getPayload().get("shop_doc_type").toString();
-		for(DocumentsIdProofMaster documentsIdProof : documentsIdProofList) {
 			if (documentsIdProof.getProofType().equalsIgnoreCase("eAadhar")) {
+				logger.debug("Skipping eAadhar document with id: {}", documentsIdProof.getId());
 				continue;
 			}
-			Map<String, Object> proof = new LinkedHashMap<>();
-			proof.put("proof_type",documentsIdProof.getProofType());
-			proof.put("single_page_document", documentsIdProof.getSinglePage() == null || documentsIdProof.getSinglePage() == 1);
 
-			List<String> imageURL = new ArrayList<>();
+			if (StringUtils.isEmpty(documentsIdProof.getProofFrontSide())) {
+				logger.warn("Empty front URL for documentsIdProof: {}, skipping", documentsIdProof.getId());
+				continue;
+			}
+
 			try {
-				if(StringUtils.isEmpty(documentsIdProof.getProofFrontSide())) {
-					logger.error("Empty front Url for documentsIdProof: {}", documentsIdProof.getId());
-					continue;
-				}
+				ImageProofResponseDto.Proof proof = new ImageProofResponseDto.Proof();
+				proof.setProofType(documentsIdProof.getProofType());
+				proof.setSinglePageDocument(documentsIdProof.getSinglePage() == null || documentsIdProof.getSinglePage() == 1);
+
+				List<String> imageURL = new ArrayList<>();
+
 				String frontURL = s3BucketHandler.getTemporaryPublicURL(documentsIdProof.getProofFrontSide(), bucket);
 				imageURL.add(frontURL);
 
-				if(!StringUtils.isEmpty(documentsIdProof.getProofBackSide())) {
+				if (!StringUtils.isEmpty(documentsIdProof.getProofBackSide())) {
 					String backURL = s3BucketHandler.getTemporaryPublicURL(documentsIdProof.getProofBackSide(), bucket);
 					imageURL.add(backURL);
-
 				}
+
+				proof.setProofUrls(imageURL);
+				proof.setUpdatedAt(documentsIdProof.getUpdatedAt());
+				proofList.add(proof);
+				logger.debug("Added {} proof with {} images", proof.getProofType(), imageURL.size());
 			} catch (FileNotFoundException e) {
-				logger.info("ImageURLService file not found in S3 bucket for key : {}", documentsIdProof.getProofBackSide());
+				logger.warn("File not found in S3 bucket for proof: {}, document ID: {}",
+						documentsIdProof.getProofType(), documentsIdProof.getId());
 			} catch (Exception e) {
-				logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", documentsIdProof.getProofBackSide(), e.getMessage());
+				logger.error("Error processing document proof: {}, document ID: {}, error: {}",
+						documentsIdProof.getProofType(), documentsIdProof.getId(), e.getMessage());
 			}
-			proof.put("proof",imageURL);
-			proof.put("updated_at", documentsIdProof.getUpdatedAt());
-			finalResponse.add(proof);
+		}
+	}
+
+	private void processShopDocuments(BasicDetailsDto merchant, LendingApplication lendingApplication,
+									 ImageProofRequestDto imageProofRequestDto,
+									  List<ImageProofResponseDto.Proof> proofList) {
+
+		List<LendingShopDocuments> lendingShopDocumentsList = lendingShopDocumentsDao
+				.findByMerchantIdAndApplicationId(merchant.getId(), lendingApplication.getId());
+		logger.debug("Found {} shop documents for applicationId: {}",
+				lendingShopDocumentsList.size(), lendingApplication.getId());
+
+		if (ObjectUtils.isEmpty(lendingShopDocumentsList)) {
+			logger.info("No shop documents found for applicationId: {}", lendingApplication.getId());
+			return;
 		}
 
-		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
+		processSkipDistanceCheck(merchant, lendingApplication, imageProofRequestDto);
 
-		if(!ObjectUtils.isEmpty(lendingShopDocumentsList)){
+		LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService
+				.getLoanDashboardApiVersion(merchant.getId(), lendingApplication);
 
-			Boolean skipDistanceCheck = false;
+		for (LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList) {
+			try {
 
-			LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
-			if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
-				lendingApplicationDetails = new LendingApplicationDetails();
-				lendingApplicationDetails.setApplicationId(lendingApplication.getId());
-				lendingApplicationDetailsDao.save(lendingApplicationDetails);
-			}
-
-			if (!ObjectUtils.isEmpty(lendingApplicationDetails.getSkipDistanceCheck())) {
-				skipDistanceCheck = lendingApplicationDetails.getSkipDistanceCheck();
-			} else if (ObjectUtils.isEmpty(lendingApplicationDetails.getSkipDistanceCheck()) && !ObjectUtils.isEmpty(commonAPIRequest.getPayload().get("skip_distance_check"))) {
-				skipDistanceCheck = Boolean.valueOf(commonAPIRequest.getPayload().get("skip_distance_check").toString());
-				lendingApplicationDetails.setSkipDistanceCheck(skipDistanceCheck);
-				lendingApplicationDetailsDao.save(lendingApplicationDetails);
-
-				if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-					funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED, String.valueOf(skipDistanceCheck), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+				if (StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide())) {
+					logger.debug("Skipping shop document with empty proof front side, id: {}", lendingShopDocuments.getId());
+					continue;
 				}
-				else{
-					funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-							FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED, String.valueOf(skipDistanceCheck));
+
+				if (!ObjectUtils.isEmpty(imageProofRequestDto.getShopDocType()) &&
+						imageProofRequestDto.getShopDocType().length > 0 &&
+						!Arrays.asList(imageProofRequestDto.getShopDocType()).contains(lendingShopDocuments.getProofType())) {
+					logger.info("Skipping shop document with type {} as it's not in the requested types: {}",
+							lendingShopDocuments.getProofType(), Arrays.toString(imageProofRequestDto.getShopDocType()));
+					continue;
 				}
-			}
 
-			//Double distanceBetweenShopAndInferredLocation = null;
-
-			//skipDistanceCheck = easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), sidRolloutPercent) ? skipDistanceCheck : true;
-
-			/*if (!skipDistanceCheck) {
-				distanceBetweenShopAndInferredLocation = calculateDistanceBetweenInferredLocationAndShopDocumentLocation(lendingShopDocumentsList.get(0),
-						merchant.getId());
-			}*/
-
-			for(LendingShopDocuments lendingShopDocuments : lendingShopDocumentsList){
-				Map<String, Object> moreDocument = new LinkedHashMap<>();
-				moreDocument.put("proof_type",lendingShopDocuments.getProofType());
-				moreDocument.put("single_page_document",Boolean.TRUE);
+				ImageProofResponseDto.Proof proof = new ImageProofResponseDto.Proof();
+				proof.setProofType(lendingShopDocuments.getProofType());
+				proof.setSinglePageDocument(true);
 
 				List<String> imageURL = new ArrayList<>();
-				try {
-					if(StringUtils.isEmpty(lendingShopDocuments.getProofFrontSide()) || (!StringUtils.isEmpty(shopDocType) && !shopDocType.contains(lendingShopDocuments.getProofType()))) {
-						continue;
-					}
+				String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);
+				imageURL.add(frontURL);
 
-					// if the distance between the inferred location and where the image is uploaded from is more than 2.5KM then don't return the images for repeat loans
-//					if (!skipDistanceCheck) {
-//						logger.info("Applying distance check for applicationId : {} where distance id : {}", lendingApplication.getId(), distanceBetweenShopAndInferredLocation);
-//						if (!RiskSegment.TOPUP.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
-//							if (distanceBetweenShopAndInferredLocation != null && distanceBetweenShopAndInferredLocation > sidThreshold){
-//								//removing old existing shop links.
-//								lendingShopDocuments.setProofFrontSide(null);
-//								lendingShopDocuments.setProofBackSide(null);
-//								lendingShopDocumentsDao.save(lendingShopDocuments);
-//
-//								if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-//									funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-//											FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-//								}
-//								else{
-//									funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-//											FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.OLD_PHOTO_DELETED, String.valueOf(distanceBetweenShopAndInferredLocation));
-//								}
-//								continue;
-//							}
-//						}
-//					}
-
-					String frontURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofFrontSide(), bucket);
-					imageURL.add(frontURL);
-
-					if(!StringUtils.isEmpty(lendingShopDocuments.getProofBackSide())) {
-						String backURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofBackSide(), bucket);
-						imageURL.add(backURL);
-					}
-
-					if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-						funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-								FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED, imageURL.toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-					}
-					else{
-						funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-								FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED, imageURL.toString());
-					}
-				} catch (FileNotFoundException e) {
-					logger.info("ImageURLService file not found in S3 bucket for key : {}", lendingShopDocuments.getProofBackSide());
-				} catch (Exception e) {
-					logger.info("ImageURLService exception while fetching S3 bucket for key : {}, message : {}", lendingShopDocuments.getProofBackSide(), e.getMessage());
+				if (!StringUtils.isEmpty(lendingShopDocuments.getProofBackSide())) {
+					String backURL = s3BucketHandler.getTemporaryPublicURL(lendingShopDocuments.getProofBackSide(), bucket);
+					imageURL.add(backURL);
 				}
-				moreDocument.put("proof",imageURL);
-				moreDocument.put("updated_at", lendingShopDocuments.getUpdatedAt());
-				finalResponse.add(moreDocument);
+
+				submitShopPhotoFunnelEvent(lendingApplication, loanDashboardApiVersion, imageURL);
+
+				proof.setProofUrls(imageURL);
+				proof.setUpdatedAt(lendingShopDocuments.getUpdatedAt());
+				proofList.add(proof);
+
+				logger.debug("Added shop document of type {} with {} images",
+						lendingShopDocuments.getProofType(), imageURL.size());
+			} catch (FileNotFoundException e) {
+				logger.warn("File not found in S3 for shop document: {}, id: {}",
+						lendingShopDocuments.getProofType(), lendingShopDocuments.getId());
+			} catch (Exception e) {
+				logger.error("Error processing shop document: {}, id: {}, error: {}",
+						lendingShopDocuments.getProofType(), lendingShopDocuments.getId(), e.getMessage());
 			}
 		}
+	}
 
-		finalResponse.sort(Comparator.comparing(o -> ((Date) o.get("updated_at"))));
-		return finalResponse;
+
+	private void processSkipDistanceCheck(BasicDetailsDto merchant, LendingApplication lendingApplication,
+										   	ImageProofRequestDto imageProofRequestDto) {
+		Boolean skipDistanceCheck = false;
+
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao
+				.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+
+		if (ObjectUtils.isEmpty(lendingApplicationDetails)) {
+			logger.info("Creating new application details for applicationId: {}", lendingApplication.getId());
+			lendingApplicationDetails = new LendingApplicationDetails();
+			lendingApplicationDetails.setApplicationId(lendingApplication.getId());
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+		}
+
+		if (!ObjectUtils.isEmpty(lendingApplicationDetails.getSkipDistanceCheck())) {
+			skipDistanceCheck = lendingApplicationDetails.getSkipDistanceCheck();
+			logger.debug("Using existing skipDistanceCheck value: {} for applicationId: {}",
+					skipDistanceCheck, lendingApplication.getId());
+		} else if (!ObjectUtils.isEmpty(imageProofRequestDto.getSkipDistanceCheck())) {
+			skipDistanceCheck = Boolean.valueOf(imageProofRequestDto.getSkipDistanceCheck().toString());
+			lendingApplicationDetails.setSkipDistanceCheck(skipDistanceCheck);
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+			logger.info("Updated skipDistanceCheck to {} for applicationId: {}",
+					skipDistanceCheck, lendingApplication.getId());
+
+			LoanDashboardApiVersion loanDashboardApiVersion = loanDashboardService
+					.getLoanDashboardApiVersion(merchant.getId());
+
+			if (LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())) {
+				funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED,
+						String.valueOf(skipDistanceCheck), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+			} else {
+				funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+						FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.DISTANCE_CHECK_SKIPPED,
+						String.valueOf(skipDistanceCheck));
+			}
+		}
+	}
+
+	private void submitShopPhotoFunnelEvent(LendingApplication lendingApplication,
+											LoanDashboardApiVersion loanDashboardApiVersion, List<String> imageURL) {
+		if (LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())) {
+			funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED,
+					imageURL.toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
+		} else {
+			funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
+					FunnelEnums.StageId.SHOP_PHOTO, FunnelEnums.StageEvent.SHOP_PHOTO_PREFILLED,
+					imageURL.toString());
+		}
 	}
 
 	public Double calculateDistanceBetweenInferredLocationAndShopDocumentLocation(LendingShopDocuments lendingShopDocuments, Long merchantId){

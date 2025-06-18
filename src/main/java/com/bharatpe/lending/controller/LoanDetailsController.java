@@ -116,14 +116,23 @@ public class LoanDetailsController {
 		return resp;
 	}
 
-	@RequestMapping(value="/imageURL", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public Object imageURL(@RequestAttribute BasicDetailsDto merchant, HttpServletResponse response, @RequestBody CommonAPIRequest commonAPIRequest) {
-		logger.info("ImageURLController request : {}",commonAPIRequest);
+	@RequestMapping(value = "/imageURL", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<ImageProofResponseDto>> imageURL(
+			@RequestAttribute BasicDetailsDto merchant,
+			@RequestBody ImageProofRequestDto imageProofRequestDto) {
+		logger.info("ImageUrl request : {}", imageProofRequestDto);
 
-		Object resp = imageURLService.fetchAndWrapResult(merchant, commonAPIRequest);
+		try {
+			com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<ImageProofResponseDto> resp = imageURLService.fetchAndWrapResult(merchant, imageProofRequestDto);
+			logger.info("ImageURLController response : {}", resp);
 
-		logger.info("ImageURLController response : {}", resp);
-		return resp;
+			return ResponseEntity.ok(resp);
+		} catch (Exception e) {
+			logger.error("Error fetching image URLs: {}", e.getMessage(), e);
+
+			com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<ImageProofResponseDto> errorResponse = com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse.error("500", "Failed to fetch image URLs", null);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+		}
 	}
 
 	@RequestMapping(value="/settlement", method = RequestMethod.GET, consumes="application/json", produces="application/json")

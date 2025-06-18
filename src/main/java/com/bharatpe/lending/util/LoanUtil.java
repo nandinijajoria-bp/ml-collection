@@ -2822,7 +2822,7 @@ public class LoanUtil {
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
-			logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
+			logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
 			return null;
 		}
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
@@ -3113,7 +3113,7 @@ public class LoanUtil {
 				return;
 			}
 			Map<String, Object> auditTrailData = objectMapper.convertValue(lendingAuditTrailDTO, Map.class);
-			bqPublisherUtil.publish("lending","lending_audit_trail_table", auditTrailData);
+			bqPublisherUtil.publish("lending","lending_audit_trail", auditTrailData);
 			logger.info("Successfully saved AuditTrailDTO to BQ: {}", lendingAuditTrailDTO);
 		}
 		catch (Exception e) {
