@@ -412,6 +412,7 @@ public class LendingApplicationServiceV2 {
     @Autowired
     InsuranceService insuranceService;
 
+    private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -1521,7 +1522,7 @@ public class LendingApplicationServiceV2 {
                     udyamRegistrationDto.setText("Udyam Registration");
                     udyamRegistrationDto.setDisabled(enachMandatory);
                     udyamRegistrationDto.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
-                    udyamRegistrationDto.setStatus(docUploadUtils.isUdyamRegistrationRequired(lendingApplicationLenderDetails, lendingApplication) ? "PENDING" : "APPROVED");
+                    udyamRegistrationDto.setStatus(udyamSuccessStatus.contains(lendingApplicationLenderDetails.getDataUploadStatus()) ? "APPROVED" : "PENDING" );
                     applicationDTO.add(udyamRegistrationDto);
                 }
             }

@@ -113,6 +113,7 @@ public class LoanDetailsV3Response {
     private Boolean loanPurpose;
     private Boolean skipShopPicture;
     private Boolean imageExist;
+    private String udyamFlowStatus;
 
     @Data
     @ToString
