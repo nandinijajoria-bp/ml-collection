@@ -97,6 +97,7 @@ public class LoanDetailsV3Response {
     private Double emiLoanAmount;
     private Boolean emiRejected;
     private String rejectReason;
+    private Integer emiEligibleIn;
     private String loanType;
     private String previousLender;
     private Double processingFee;

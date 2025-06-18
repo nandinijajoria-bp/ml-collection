@@ -76,6 +76,7 @@ public class PlanSelectionStageService implements IStageDataService<EligibilityS
             if(!emiUtils.isEligible(emiDashboardData.getLastRejectedDate(), lendingRiskVariables)){
                 emiEligibility.setEmiRejected(true);
                 emiEligibility.setRejectReason(emiDashboardData.getRejectReason());
+                emiEligibility.setEmiEligibleIn(emiUtils.getEmiEligibleIn(emiDashboardData.getLastRejectedDate());
             }
         }
         return emiEligibility;
