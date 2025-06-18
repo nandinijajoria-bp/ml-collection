@@ -2,7 +2,7 @@ package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
-import com.bharatpe.lending.common.slave.entity.LendingApplicationSlave;
+import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EmiLoanStatus;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
