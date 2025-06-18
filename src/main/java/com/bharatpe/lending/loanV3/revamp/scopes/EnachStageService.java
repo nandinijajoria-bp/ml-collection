@@ -128,6 +128,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         } else if (lendingStateDTO.getData().isPaymentBank() || lendingStateDTO.getData().isHasLinkedPaymentBank()) {
             log.info("Payment Bank Change flow is applicable for merchantId: {}", scopeDataArgs.getMerchant().getId());
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+            log.info("Setting LendingViewStates to ENACH_PAGE for merchantId: {}", scopeDataArgs.getMerchant().getId());
         }
         else lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
         return lendingStateDTO;
@@ -206,14 +207,20 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setBankDetails(accountDetails);
         String bankName = accountDetails.getBankName();
+        if(bankName != null){
+            bankName = bankName.trim();
+        }
+        log.info("Bank Name for merchantId {} is: {}", scopeDataArgs.getMerchant().getId(), bankName);
         if(isPaymentBankChangeFlowApplicable){
             for (PaymentBank paymentBank : PaymentBank.values()) {
                 if (bankName.equalsIgnoreCase(paymentBank.getVal())) {
-                    enachStateDTO.setHasLinkedPaymentBank(true);
                     log.info("Payment Bank {} is linked for merchantId: {}", paymentBank.getVal(), scopeDataArgs.getMerchant().getId());
+                    enachStateDTO.setHasLinkedPaymentBank(true);
+                    log.info("Setting setHasLinkedPaymentBank to true for merchantId: {}", scopeDataArgs.getMerchant().getId());
                 }
             }
             enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
+            log.info("Payment Bank Change flow is applicable for merchantId: {} and setPaymentBank is: {}", scopeDataArgs.getMerchant().getId(), enachStateDTO.isPaymentBank());
         }
 
         log.info("Enach Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), enachStateDTO);
