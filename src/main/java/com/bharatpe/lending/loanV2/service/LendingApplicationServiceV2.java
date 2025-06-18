@@ -669,7 +669,7 @@ public class LendingApplicationServiceV2 {
                     BusinessDetailsDTO businessDetailsDTO = BusinessDetailsDTO.builder().businessCategory(applicationRequest.getCategory()).
                             businessName(applicationRequest.getBusinessName()).build();
                     addBusinessDetails(businessDetailsDTO,merchant);
-                    //merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), applicationRequest.getBusinessName());
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), applicationRequest.getBusinessName());
                     if (applicationRequest.getAddressDetails() != null) {
                         AddressDetails addressDetails = applicationRequest.getAddressDetails();
                         lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
@@ -884,9 +884,9 @@ public class LendingApplicationServiceV2 {
                 addBusinessDetails(businessDetailsDTO, merchantBasicDetails);
             }
 
-           /* if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
+            if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
                 merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
-            }*/
+            }
         }
 
         if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || (eligibleLoan.getEdiCount() % 30 == 0)) {
@@ -1085,10 +1085,10 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
                 lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
                 log.info("shop number getting saved in lending_application: {}", !StringUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1() : lendingApplication.getShopNumber());
-                /*if (isMismatch) {
+                if (isMismatch) {
                     log.info("Address mismatch found. Saving updated address details.");
                     merchantService.addAddress(lendingApplication.getMerchantId(),reqAddAddress);
-                }*/
+                }
             }
             if (applicationRequest.getAdditionalDetails() != null) {
                 AdditionalDetails additionalDetails = applicationRequest.getAdditionalDetails();

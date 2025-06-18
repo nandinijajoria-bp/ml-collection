@@ -383,7 +383,7 @@ public class LoanDetailsV3Service {
 
         populateBasicShopDetails(shopDetailsStateDTO, loanDetailsV3Response);
         populateLoanApplicationDetails(shopDetailsStateDTO, loanDetailsV3Response);
-        //populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
+        populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
 
         log.info("Shop details response populated successfully {}", loanDetailsV3Response);
     }
