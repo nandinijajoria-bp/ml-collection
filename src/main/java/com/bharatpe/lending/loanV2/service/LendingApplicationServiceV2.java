@@ -3840,6 +3840,8 @@ public class LendingApplicationServiceV2 {
         data.put("lsp_contact_number", KfsConstants.LSP_CONTACT_NUMBER_FORMATTED);
         data.put("nodal_officer_name", KfsConstants.NODAL_OFFICER_NAME);
         data.put("nodal_officer_contact_number", KfsConstants.NODAL_OFFICER_CONTACT_NUMBER);
+        data.put("gro_officer_name", KfsConstants.GRO_OFFICER_NAME);
+        data.put("gro_officer_contact_number", KfsConstants.GRO_OFFICER_CONTACT_NUMBER);
         data.put("name_of_lender_nbfc", kfsDto.getLenderCorporateName());
         data.put("register_address_of_nbfc", kfsDto.getLenderBusinessAddress());
         data.put("loan_amount_in_figure", kfsDto.getLoanAmount());
