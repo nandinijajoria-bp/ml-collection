@@ -1287,6 +1287,7 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setMerchantId(udyamRegistrationStateDTO.getMerchantId());
         loanDetailsV3Response.setApplicationId(udyamRegistrationStateDTO.getApplicationId());
         loanDetailsV3Response.setUdyamRegistrationRequired(udyamRegistrationStateDTO.getIsUdyamRequired());
+        loanDetailsV3Response.setUdyamFlowStatus(udyamRegistrationStateDTO.getUdyamStatus());
     }
 
 }

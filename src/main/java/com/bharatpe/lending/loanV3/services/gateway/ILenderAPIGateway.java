@@ -6,4 +6,6 @@ import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 
 public interface ILenderAPIGateway {
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage);
+
+    public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage, Integer timeout);
 }

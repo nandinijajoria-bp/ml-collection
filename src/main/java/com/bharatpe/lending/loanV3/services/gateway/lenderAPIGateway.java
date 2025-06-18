@@ -116,6 +116,12 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.kyc.api:api/v3/lender/kyc-status-check}")
     String kycStatusCheckUrl;
 
+    @Value("${nbfc.kyc.api:api/v3/lender/udyam}")
+    String udyamUrl;
+
+    @Value("${nbfc.kyc.api:api/v3/lender/udyam-status}")
+    String udyamStatusCheckUrl;
+
     @Autowired
     UgroConfig ugroConfig;
 
@@ -134,6 +140,15 @@ public class lenderAPIGateway implements ILenderAPIGateway{
         return null;
     }
 
+    @Override
+    public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage, Integer timeout) {
+        try {
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NBFCResponseDTO.class, getUrl(lenderAssociationStage), timeout);
+        } catch (Exception e) {
+            log.error("exception occurred while processing {} api call to nbfc for lender {} for {} {},{}", lenderAssociationStage.name(), nbfcRequestDto.getLender(), nbfcRequestDto, e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
+        return null;
+    }
 
     private String getUrl (LenderAssociationStages lenderAssociationStages) {
         switch (lenderAssociationStages.name()) {
@@ -199,6 +214,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return  nbfcBaseUrl+nbfcUpdateLoanUrl;
             case "KYC_STATUS_CHECK":
                 return nbfcBaseUrl+kycStatusCheckUrl;
+            case "UDYAM":
+                return nbfcBaseUrl+udyamUrl;
+            case "UDYAM_STATUS_CHECK":
+                return nbfcBaseUrl+udyamStatusCheckUrl;
             default:
                 return null;
         }

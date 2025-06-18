@@ -331,15 +331,6 @@ public class NbfcUtils {
         return false;
     }
 
-    public NBFCResponseDTO<?> getStageDetails(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LenderAssociationStages stage) {
-        switch (stage) {
-            case GENERATE_DOCUMENT:
-                return associationServiceUtil.getDocsGenerateService(lender, lenderAssociationDetailsDto);
-            default:
-                return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
-        }
-    }
-
     public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         RiskVariablesDTO riskVariables = new RiskVariablesDTO();

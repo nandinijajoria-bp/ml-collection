@@ -17,6 +17,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MerchantAggregateDataDao;
 import com.bharatpe.lending.entity.MerchantAggregateData;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -29,7 +30,10 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,10 +42,7 @@ import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -91,9 +92,18 @@ public class TLBreService {
     @Value("${trillion.bre.retry.intervals:}")
     List<Integer> trillionBreRetryIntervals;
 
+    @Autowired
+    TrillionLoansConfig trillionLoansConfig;
+
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
     private static int attempt = 0;
+
+    public static final String MERCHANT_SUMMARY = "MERCHANT_SUMMARY";
+    public static final String DE_TPV_VARIABLES = "DE_TPV_VARIABLES";
+    public static final String DATA = "data";
+    public static final String MERCHANT_BEHAVIOUR_VARIABLES = "merchant_behaviour_variables";
+    public static final String Q_LENDER_ASSIGNMENT_RULES = "Q_LENDER_ASSIGNMENT_RULES";
 
     @Transactional
     public Boolean invokeBre(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -299,7 +309,7 @@ public class TLBreService {
                         .loanCapping(lendingApplication.getLoanAmount())
                         .age(kycUtils.getAgeFromDob(cKycResponseDto.getDob()))
                         .pilots(ObjectUtils.isEmpty(lendingRiskVariablesSnapshot.getPilotIdentifier()) ? "" : lendingRiskVariablesSnapshot.getPilotIdentifier())
-                        .sources(objectMapper.readTree(merchantAggregateData.getSources()))
+                        .sources(sanitizePayload(merchantAggregateData.getSources(), lendingApplication.getId()))
                         .scienapticProperties(objectMapper.readTree(merchantAggregateData.getScienapticProperties()))
                         .aggregateId(merchantAggregateData.getAggregateId())
                         .eligCompDate(lendingRiskVariables.getUpdatedAt().toString())
@@ -353,5 +363,54 @@ public class TLBreService {
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
             scheduleBreExecution(breRequest, lenderAssociationDetailsRequestDto);
         }, delay, TimeUnit.SECONDS);
+    }
+
+    public Object sanitizePayload(String json, Long applicationId) {
+        try {
+            JsonNode root = objectMapper.readTree(json);
+
+            // Filter MERCHANT_SUMMARY
+            JsonNode merchantSummary = root.path(MERCHANT_SUMMARY);
+            if (merchantSummary.isObject()) {
+                removeFields((ObjectNode) merchantSummary, trillionLoansConfig.getMerchantSummaryFieldsToRemove());
+            }
+
+            // Filter DE_TPV_VARIABLES -> data
+            JsonNode deTpvData = root.path(DE_TPV_VARIABLES).path(DATA);
+            if (deTpvData.isObject()) {
+                removeFields((ObjectNode) deTpvData, trillionLoansConfig.getDeTpvDataFieldsToRemove());
+            }
+
+            // Filter DE_TPV_VARIABLES -> merchant_behaviour_variables
+            JsonNode merchantBehaviour = root.path(DE_TPV_VARIABLES)
+                    .path(MERCHANT_BEHAVIOUR_VARIABLES);
+            if (merchantBehaviour.isObject()) {
+                retainOnlyFields((ObjectNode) merchantBehaviour, trillionLoansConfig.getMerchantBehaviourFieldsToRetain());
+            }
+
+            // Remove Q_LENDER_ASSIGNMENT_RULES entirely
+            ((ObjectNode) root).remove(Q_LENDER_ASSIGNMENT_RULES);
+
+            return root;
+        } catch (Exception e) {
+            log.info("Exception in sanitizing payload for applicationId {} {}", applicationId, Arrays.asList(e.getStackTrace()));
+        }
+        return json;
+    }
+
+    private void removeFields(ObjectNode node, List<String> fieldsToRemove) {
+        for (String field : fieldsToRemove) {
+            node.remove(field);
+        }
+    }
+
+    private void retainOnlyFields(ObjectNode node, List<String> fieldsToRetain) {
+        Iterator<Map.Entry<String, JsonNode>> fields = node.fields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> entry = fields.next();
+            if (!fieldsToRetain.contains(entry.getKey())) {
+                fields.remove();
+            }
+        }
     }
 }
