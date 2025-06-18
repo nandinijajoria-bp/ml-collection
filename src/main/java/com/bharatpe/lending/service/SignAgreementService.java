@@ -40,6 +40,7 @@ import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -549,7 +550,7 @@ public class SignAgreementService {
 		}
 
 		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-		if (!lendingShopDocuments.isEmpty()) {
+		if (CollectionUtils.isNotEmpty(lendingShopDocuments)) {
 			logger.info("Found {} shop documents for replication from applicationId: {} for merchantId: {}",
 					lendingShopDocuments.size(), prevApplication.getId(), prevApplication.getMerchantId());
 
@@ -564,7 +565,7 @@ public class SignAgreementService {
 			logger.info("Filtered {} shop documents for replication from applicationId: {} for merchantId: {}",
 					filteredShopDocuments.size(), prevApplication.getId(), prevApplication.getMerchantId());
 
-			if (!filteredShopDocuments.isEmpty()) {
+			if (CollectionUtils.isNotEmpty(lendingShopDocuments)) {
 				for (LendingShopDocuments shopDocument : filteredShopDocuments) {
 					LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
 					replicateShopDocument.setApplicationId(newApplication.getId());
