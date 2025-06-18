@@ -412,6 +412,10 @@ public class LoanDashboardService {
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        if(!Objects.nonNull(loanDashboardResponse.getIneligible()) && emiUtils.isRejectedWithConditions(emiDashboardData, openApplication)){
+            // send emiLoanApplication in response
+            return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
+        }
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantDetails.getId());
         if(emiUtils.isEligible(emiDashboardData, lendingRiskVariables) && loanDashboardResponse.getEligibility()!=null){
             log.info("eligible for loan merchant:{}", merchantDetails.getId());
@@ -472,7 +476,6 @@ public class LoanDashboardService {
     private static LoanApplicationDetails getLoanApplicationDetails(EmiDashboardResponse.Data emiDashboardData) {
         LoanApplicationDetails loanApplicationDetails = new LoanApplicationDetails();
         loanApplicationDetails.setApplicationId(emiDashboardData.getApplicationId());
-        loanApplicationDetails.setLoanAmount(emiDashboardData.getLoanAmount());
         loanApplicationDetails.setApplicationStatus(emiDashboardData.getStatus());
         loanApplicationDetails.setLender(emiDashboardData.getLender());
         loanApplicationDetails.setTenure(emiDashboardData.getTenureMonth() != null ?
@@ -480,6 +483,11 @@ public class LoanDashboardService {
         loanApplicationDetails.setInterestRate(emiDashboardData.getRoi());
         loanApplicationDetails.setEmi(emiDashboardData.getEmi());
         loanApplicationDetails.setRejectReason(emiDashboardData.getRejectReason());
+        loanApplicationDetails.setApplicationStatus(emiDashboardData.getStatus());
+        loanApplicationDetails.setLoanAmount(emiDashboardData.getLoanAmount());
+        if(!StringUtils.isEmpty(emiDashboardData.getRejectReason()) && LoanDetailsConstant.LENDER_CHECKS_FAILED.equalsIgnoreCase(emiDashboardData.getRejectReason())){
+            loanApplicationDetails.setLoanAmount(LoanDetailsConstant.EMI_DEFAULT_LOAN_AMOUNT);
+        }
         return loanApplicationDetails;
     }
 
