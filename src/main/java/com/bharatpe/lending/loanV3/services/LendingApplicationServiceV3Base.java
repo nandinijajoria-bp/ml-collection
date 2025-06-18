@@ -850,41 +850,4 @@ public abstract class LendingApplicationServiceV3Base {
         }
         return null;
     }
-
-    public NBFCResponseDTO<?> getStageDetails(InvokeStageRequestDTO invokeStageRequest) {
-        try {
-            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
-            if (ObjectUtils.isEmpty(lendingApplication.get())) {
-                log.error("No application found for {}", invokeStageRequest.getApplicationId());
-                return NBFCResponseDTO.builder()
-                        .applicationId(invokeStageRequest.getApplicationId().toString())
-                        .lender(invokeStageRequest.getLender()).productName("LENDING")
-                        .success(Boolean.FALSE).error("No application found").build();
-            }
-            LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
-            lenderAssociationDetailsDto.setApplicationId(lendingApplication.get().getId());
-            lenderAssociationDetailsDto.setLendingApplication(lendingApplication.get());
-            lenderAssociationDetailsDto.setMerchantId(lendingApplication.get().getMerchantId());
-            lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
-                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
-            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                log.error("Lending application lender details not found for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
-                return NBFCResponseDTO.builder()
-                        .applicationId(lendingApplication.get().getId().toString())
-                        .lender(invokeStageRequest.getLender()).productName("LENDING")
-                        .success(Boolean.FALSE).error("Lending application lender details not found").build();
-            }
-            lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
-
-            LenderAssociationStages stage = LenderAssociationStages.valueOf(invokeStageRequest.getStage());
-            return nbfcUtils.getStageDetails(lendingApplication.get().getLender(), lenderAssociationDetailsDto, stage);
-        } catch (Exception e) {
-            log.error("Exception in stage details {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
-        }
-        return NBFCResponseDTO.builder()
-                .applicationId(invokeStageRequest.getApplicationId().toString())
-                .lender(invokeStageRequest.getLender()).productName("LENDING")
-                .success(Boolean.FALSE).error("Something went wrong").build();
-    }
 }

@@ -5,7 +5,7 @@ import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
@@ -18,7 +18,6 @@ import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
-import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,37 +41,19 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
     LoanUtil loanUtil;
 
     @Autowired
-    EasyLoanUtil easyLoanUtil;
-
-    @Autowired
     LendingApplicationServiceV3 lendingApplicationServiceV3;
-
-    @Autowired
-    DocUploadUtils docUploadUtils;
 
     @Autowired
     InsuranceService insuranceService;
 
-    @Value("${udyam.registration.required.lenders.v2:}")
-    String udyamRegistrationRequiredLendersV2;
+    @Value("${udyam.registration.required.lenders:}")
+    String udyamRegistrationRequiredLenders;
 
-    @Value("${ugro.udaym.before.nach.rollout.percent:0}")
-    Integer ugroUdyamBeforeNachRolloutPercentage;
+    private final List<String> udyamPendingStatus = Arrays.asList(LenderAssociationStatus.UDYAM_PENDING.name(), LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
 
     @Override
     public LendingStateDTO<AgreementStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
-        LendingStateDTO<AgreementStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-
-        if(udyamRegistrationRequiredLendersV2.contains(lendingStateDTO.getData().getLendingApplicationLenderDetails().getLender()) ) {
-            if(Lender.UGRO.name().equalsIgnoreCase(lendingStateDTO.getData().getLendingApplicationLenderDetails().getLender())) {
-                Boolean isUdyamRequired = docUploadUtils.isUdyamRegistrationRequired(lendingStateDTO.getData().getLendingApplicationLenderDetails(), lendingStateDTO.getData().getLendingApplication());
-                Boolean isUnderRolloutPercentage = easyLoanUtil.percentScaleUp(lendingStateDTO.getData().getLendingApplication().getMerchantId(), ugroUdyamBeforeNachRolloutPercentage);
-                lendingStateDTO.setLendingViewStates((isUnderRolloutPercentage && isUdyamRequired)? LendingViewStates.UDYAM_REGISTRATION_PAGE : LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
-            }
-        }else {
-            lendingStateDTO.setLendingViewStates(LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
-        }
-        return lendingStateDTO;
+        return fetchScopedData(scopeDataArgs);
     }
 
     @Override
@@ -109,17 +90,21 @@ public class AgreementStageDataService implements IStageDataService<AgreementSta
                 .loanInsurances(insuranceDetails.getInsurances())
                 .isInsured(insuranceDetails.isSelected())
                 .externalLoanId(lendingApplication.getExternalLoanId())
-                .lendingApplication(lendingApplication)
-                .lendingApplicationLenderDetails(lendingApplicationLenderDetails)
                 .build();
+
         if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
             log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
             throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
         }
+
         agreementResponseV3.setTopup(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()));
         agreementResponseV3.setIsAadhaarAddressVerified(!ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
         agreementResponseV3.setLoanPurpose(Lender.PIRAMAL.name().equalsIgnoreCase(lendingApplication.getLender()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
 
-        return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.AGREEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
+        if(udyamRegistrationRequiredLenders.contains(lendingApplication.getLender())
+           && udyamPendingStatus.contains(lendingApplicationLenderDetails.getDataUploadStatus())) {
+           return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.UDYAM_REGISTRATION_PAGE, LendingViewStates.AGREEMENT_PAGE);
+        }
+        return new LendingStateDTO<>(agreementResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.AGREEMENT_PAGE);
     }
 }

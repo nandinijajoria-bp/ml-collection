@@ -116,6 +116,12 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Value("${nbfc.kyc.api:api/v3/lender/kyc-status-check}")
     String kycStatusCheckUrl;
 
+    @Value("${nbfc.kyc.api:api/v3/lender/udyam}")
+    String udyamUrl;
+
+    @Value("${nbfc.kyc.api:api/v3/lender/udyam-status}")
+    String udyamStatusCheckUrl;
+
     @Autowired
     UgroConfig ugroConfig;
 
@@ -199,6 +205,10 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return  nbfcBaseUrl+nbfcUpdateLoanUrl;
             case "KYC_STATUS_CHECK":
                 return nbfcBaseUrl+kycStatusCheckUrl;
+            case "UDYAM":
+                return nbfcBaseUrl+udyamUrl;
+            case "UDYAM_STATUS_CHECK":
+                return nbfcBaseUrl+udyamStatusCheckUrl;
             default:
                 return null;
         }

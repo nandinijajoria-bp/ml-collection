@@ -52,9 +52,6 @@ public class MFKycService {
     @Autowired
     AssociationServiceUtil associationServiceUtil;
 
-    @Value("${muthoot.udyam.registration.link:}")
-    String muthootUdyamRegistrationLink;
-
     @Value("${muthoot.udyam.registration.enabled.for.all.merchants:false}")
     Boolean muthootUdyamRegistrationEnabledForAllMerchants;
 
@@ -151,7 +148,6 @@ public class MFKycService {
                     if ("PROCESSING".equalsIgnoreCase(kycCallbackResponseDTO.getData().getStatus()) && ("TRIGGER_IDENTITY_CHECKS".equalsIgnoreCase(kycCallbackResponseDTO.getData().getAction()) || "TRIGGER_IDENTITY_CHECK".equalsIgnoreCase(kycCallbackResponseDTO.getData().getAction()))) {
                         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(getStatus(kycCallbackResponseDTO).name());
                         if(muthootUdyamRegistrationEnabledForAllMerchants || !ObjectUtils.isEmpty(kycCallbackResponseDTO.getData().getOutputVariables()) && "N".equalsIgnoreCase(kycCallbackResponseDTO.getData().getOutputVariables().getUdyamStatus())) {
-                            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setNbfcKycAsyncId(muthootUdyamRegistrationLink);
                             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setDataUploadStatus(LenderAssociationStatus.UDYAM_REGISTRATION_PENDING.name());
                         }
                         commonService.manageApplicationState(lenderAssociationDetailsRequest);
