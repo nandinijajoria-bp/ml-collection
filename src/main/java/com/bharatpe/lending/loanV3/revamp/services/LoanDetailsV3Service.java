@@ -86,7 +86,7 @@ public class LoanDetailsV3Service {
     @Value("${lenders.skip.shop.picture:}")
     private List<String> lendersToSkipShopPicture;
 
-    @Value("${skip.picture.threshold1:5}")
+    @Value("${skip.picture.threshold1:15}")
     private int skipPictureThreshold;
 
     @Value("${sid.threshold}")

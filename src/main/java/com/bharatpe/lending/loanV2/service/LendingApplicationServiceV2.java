@@ -403,7 +403,7 @@ public class LendingApplicationServiceV2 {
     Integer lenderVernacLangRolloutPercent;
 
 
-    @Value("${skip.picture.threshold1:5}")
+    @Value("${skip.picture.threshold1:15}")
     private int skipPictureThreshold;
 
     @Autowired
@@ -1001,8 +1001,14 @@ public class LendingApplicationServiceV2 {
                         log.error("Error while skipping shop picture replication for lender: {} and merchant: {}",
                                 lendingApplication.getLender(), lendingApplication.getMerchantId());
                         List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                        if (!lendingShopDocuments.isEmpty() && lendingShopDocuments.size() >= 2) {
-                            for (LendingShopDocuments shopDocuments : lendingShopDocuments) {
+                        List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
+                                .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
+                                .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+                                .values().stream()
+                                .flatMap(docs -> docs.stream().limit(1))
+                                .collect(Collectors.toList());
+                        if (!filteredDocuments.isEmpty() && filteredDocuments.size() >= 2) {
+                            for (LendingShopDocuments shopDocuments : filteredDocuments) {
                                 LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
                                 replicateShopDocument.setApplicationId(lendingApplication.getId());
                                 replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
