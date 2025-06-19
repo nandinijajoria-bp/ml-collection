@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -287,9 +288,9 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 					DocumentsIdProofMaster documentsIdProof = null;
 					LendingShopDocuments lendingShopDocuments = null;
 
-					if ("shop-front".equalsIgnoreCase(proofType) ||
-							"shop-stock".equalsIgnoreCase(proofType) ||
-							"shop-qr".equalsIgnoreCase(proofType)) {
+					if (LendingConstants.SHOP_FRONT.equalsIgnoreCase(proofType) ||
+							LendingConstants.SHOP_STOCK.equalsIgnoreCase(proofType) ||
+							LendingConstants.SHOP_QR.equalsIgnoreCase(proofType)) {
 
 						if (Boolean.TRUE.equals(isUpdateMoreDocument)) {
 							lendingShopDocuments = updateShopDocuments(
@@ -376,8 +377,8 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 		if (merchantBasicDetails.getId() % 10 != 0 || lendingShopDocuments == null) return;
 
 		String proofType = lendingShopDocuments.getProofType();
-		boolean isShopFront = "shop-front".equalsIgnoreCase(proofType);
-		boolean isShopStock = "shop-stock".equalsIgnoreCase(proofType);
+		boolean isShopFront = LendingConstants.SHOP_FRONT.equalsIgnoreCase(proofType);
+		boolean isShopStock = LendingConstants.SHOP_STOCK.equalsIgnoreCase(proofType);
 
 		if (!isShopFront && !isShopStock) return;
 

@@ -80,17 +80,20 @@ public class LoanDetailsV3Service {
     @Autowired
     KycHandler kycHandler;
 
-    @Value("${shop.picture.skip.enabled:false}")
+    @Value("${shop.picture.skip.enabled1:true}")
     private boolean shouldSkipShopPicture;
 
     @Value("${lenders.skip.shop.picture:}")
     private List<String> lendersToSkipShopPicture;
 
-    @Value("${skip.picture.threshold:0}")
+    @Value("${skip.picture.threshold1:20}")
     private int skipPictureThreshold;
 
     @Value("${sid.threshold}")
     Double sidThreshold;
+
+    @Autowired
+    LendingAutoDisbursalDao lendingAutoDisbursalDao;
 
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
@@ -382,7 +385,7 @@ public class LoanDetailsV3Service {
 
         populateBasicShopDetails(shopDetailsStateDTO, loanDetailsV3Response);
         populateLoanApplicationDetails(shopDetailsStateDTO, loanDetailsV3Response);
-        //populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
+        populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
 
         log.info("Shop details response populated successfully {}", loanDetailsV3Response);
     }
@@ -602,7 +605,7 @@ public class LoanDetailsV3Service {
 
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount >= skipPictureThreshold) {
+                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
 
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
@@ -698,7 +701,7 @@ public class LoanDetailsV3Service {
         Optional<LendingApplication> referenceApplication = Optional.empty();
 
         if (LoanSegment.REPEAT.name().equalsIgnoreCase(loanSegment)) {
-            Long latestStpApplicationId = findLatestStpApplication(merchant.getId());
+            Long latestStpApplicationId = findLatestNonStpApplication(merchant.getId());
             if (latestStpApplicationId != null) {
                 referenceApplication = lendingApplicationDao.findById(latestStpApplicationId);
             }
@@ -726,9 +729,7 @@ public class LoanDetailsV3Service {
                 }
             }
 
-            // If no past approved applications, use current application
             if (!referenceApplication.isPresent()) {
-                referenceApplication = Optional.of(application);
                 log.info("No past approved applications found, using current application");
             }
         }
@@ -741,15 +742,43 @@ public class LoanDetailsV3Service {
             checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration);
             return response.getSkipShopPicture();
         }
-        response.setSkipShopPicture(false);
 
         LendingApplication refApp = referenceApplication.get();
 
+        // Get shop documents for reference application
         List<LendingShopDocuments> shopDocs = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(
                 refApp.getMerchantId(), refApp.getId());
 
-        if (!CollectionUtils.isEmpty(shopDocs) &&
-                isDocumentsRecent(shopDocs, validDuration, loanSegment) &&
+        // Filter for shop-stock documents
+        List<LendingShopDocuments> shopStockDocs = shopDocs.stream()
+                .filter(doc -> "shop-stock".equalsIgnoreCase(doc.getProofType()) && doc.getProofFrontSide() != null)
+                .collect(Collectors.toList());
+
+        // Check if we have any shop-stock documents
+        if (CollectionUtils.isEmpty(shopStockDocs)) {
+            log.info("No shop-stock documents found for merchantId: {}, applicationId: {}",
+                    refApp.getMerchantId(), refApp.getId());
+            return false;
+        }
+
+        LendingShopDocuments shopStockDoc = shopStockDocs.get(0);
+        log.info("Found shop-stock document with proofFrontSide: {} for merchantId: {}",
+                shopStockDoc.getProofFrontSide(), refApp.getMerchantId());
+
+        LendingShopDocuments shopPictureDocs = lendingShopDocumentsDao
+                .findTopByMerchantIdAndProofFrontSideOrderByUpdatedAtAsc(
+                        refApp.getMerchantId(), shopStockDoc.getProofFrontSide());
+
+        log.info("Found shop picture document with proofFrontSide: {} for merchantId: {}",
+                shopPictureDocs != null ? shopPictureDocs.getProofFrontSide() : "null", refApp.getMerchantId());
+
+        List<LendingShopDocuments> shopPictureDocsList = lendingShopDocumentsDao
+                .findByMerchantIdAndApplicationId(refApp.getMerchantId(), shopPictureDocs.getApplicationId());
+        log.info("Found {} shop picture documents for merchantId: {}, applicationId: {}",
+                shopPictureDocsList, refApp.getMerchantId(), shopPictureDocs.getApplicationId());
+
+        if (!CollectionUtils.isEmpty(shopPictureDocsList) &&
+                isDocumentsRecent(shopPictureDocsList, validDuration, loanSegment) &&
                 isValidShopDocuments(response,shopDocs, dto, refApp.getId())) {
 
             RequestDTO<UploadDocumentRequestDTO> uploadRequest = new RequestDTO<>();
@@ -776,51 +805,90 @@ public class LoanDetailsV3Service {
     }
 
     /**
-     * Find the latest STP application for a merchant
+     * Find the latest Non-STP application for a merchant
      *
      * @param merchantId Merchant ID
      * @return application ID or null if not found
      */
-    private Long findLatestStpApplication(Long merchantId) {
+    private Long findLatestNonStpApplication(Long merchantId) {
+        log.info("Finding latest Non-STP application for merchantId: {}", merchantId);
+
         if (merchantId == null) {
-            log.warn("Cannot find STP application with null merchantId");
+            log.warn("Cannot find Non-STP application with null merchantId");
             return null;
         }
+
+        List<LendingAutoDisbursal> lendingAutoDisbursal = lendingAutoDisbursalDao.findByMerchantId(merchantId);
+        log.info("Found {} auto disbursal records for merchantId: {}",
+                lendingAutoDisbursal != null ? lendingAutoDisbursal.size() : 0, merchantId);
 
         List<LendingApplication> approvedApplications = lendingApplicationDao.findAllByMerchantIdAndStatus(
                 merchantId, ApplicationStatus.APPROVED.name().toLowerCase());
+        log.info("Found {} approved applications for merchantId: {}",
+                approvedApplications != null ? approvedApplications.size() : 0, merchantId);
 
-        if (CollectionUtils.isEmpty(approvedApplications)) {
-            log.info("No approved applications found for merchantId: {}", merchantId);
+        // Find application IDs that are in approvedApplications but not in lendingAutoDisbursal
+        Set<Long> autoDisbursalAppIds = lendingAutoDisbursal.stream()
+                .map(LendingAutoDisbursal::getApplicationId)
+                .collect(Collectors.toSet());
+        log.info("Auto disbursal application IDs: {}", autoDisbursalAppIds);
+
+        List<LendingApplication> nonSTPApps = approvedApplications.stream()
+                .filter(app -> !autoDisbursalAppIds.contains(app.getId()))
+                .sorted(Comparator.comparing(LendingApplication::getUpdatedAt).reversed())
+                .collect(Collectors.toList());
+        log.info("Found {} potential non-STP applications after filtering",
+                nonSTPApps != null ? nonSTPApps : 0);
+
+        // Now check each application for valid field values, starting with the latest
+        Optional<LendingApplication> validApp = nonSTPApps.stream()
+                .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
+                .filter(app -> {
+                    log.info("Checking application ID: {} for field values", app.getId());
+                    List<Long> fieldIds = Arrays.asList(38L, 39L);
+                    List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(app.getId(), fieldIds);
+                    log.info("Found {} field values for application ID: {}", fieldValues, app.getId());
+
+                    if (CollectionUtils.isEmpty(fieldValues)) {
+                        log.info("No field values found for application ID: {}", app.getId());
+                        return false;
+                    }
+
+                    // Check if we have both fields
+                    boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+                    boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+                    log.info("Application ID: {} - Has field 38: {}, Has field 39: {}",
+                            app.getId(), hasValidShopStructure, isShopOperational);
+
+                    // Check if field 38 has valid values (permanent or temporary)
+                    boolean isValidShopStructure = fieldValues.stream()
+                            .filter(f -> f.getFieldId() == 38L)
+                            .anyMatch(f -> ALLOWED_SHOP_STRUCTURE_TYPES.contains(f.getFieldDropdownValue().toLowerCase()));
+
+                    // Check if field 39 has valid value (yes)
+                    boolean isValidShopOperational = fieldValues.stream()
+                            .filter(f -> f.getFieldId() == 39L)
+                            .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldDropdownValue()));
+
+                    log.info("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
+                            app.getId(), isValidShopStructure, isValidShopOperational);
+
+                    return hasValidShopStructure && isShopOperational && isValidShopStructure && isValidShopOperational;
+                })
+                .findFirst();
+
+        LendingApplication latestValidApp = validApp.orElse(null);
+
+        if (latestValidApp != null) {
+            log.info("Found valid Non-STP application ID: {} for merchantId: {}, created at: {}",
+                    latestValidApp.getId(), merchantId, latestValidApp.getCreatedAt());
+            return latestValidApp.getId();
+        } else {
+            log.info("No valid Non-STP application found for merchantId: {}", merchantId);
             return null;
         }
-
-        Long latestStpApplicationId = null;
-        Date latestTimestamp = null;
-
-        for (LendingApplication app : approvedApplications) {
-            if (app == null || app.getId() == null || app.getCreatedAt() == null) {
-                continue;
-            }
-
-            LendingRiskVariablesSnapshot riskSnapshot =
-                    lendingRiskVariablesSnapshotDao.findByApplicationId(app.getId());
-
-            if (riskSnapshot != null && Boolean.TRUE.equals(riskSnapshot.getStpFlag())) {
-                // For the first STP application or if this one is more recent
-                if (latestTimestamp == null || app.getCreatedAt().after(latestTimestamp)) {
-                    latestStpApplicationId = app.getId();
-                    latestTimestamp = app.getCreatedAt();
-                    log.debug("Found newer STP application: {} with timestamp: {}",
-                            latestStpApplicationId, latestTimestamp);
-                }
-            }
-        }
-
-        log.info("Latest STP application for merchantId: {}: {}",
-                merchantId, latestStpApplicationId != null ? latestStpApplicationId : "Not found");
-        return latestStpApplicationId;
     }
+
 
     /**
      * Check CKYC documents for shop pictures
@@ -898,18 +966,52 @@ public class LoanDetailsV3Service {
         return Duration.ZERO;
     }
 
+    /**
+     * Checks if the provided shop documents are recent enough based on the specified duration
+     * and loan type.
+     *
+     * @param docs The shop documents to check
+     * @param duration The maximum allowed age of documents
+     * @param loanType The type of loan (FRESH, REPEAT, etc.)
+     * @return true if all documents are recent enough, false otherwise
+     */
     private boolean isDocumentsRecent(List<LendingShopDocuments> docs, Duration duration, String loanType) {
-        if (docs == null || docs.isEmpty()) return false;
+        log.info("Checking if documents are recent for loan type: {}, with duration: {}", loanType, duration);
+
+        if (docs == null || docs.isEmpty()) {
+            log.warn("Document list is null or empty, returning false");
+            return false;
+        }
+
+        log.info("Found {} shop documents to check for recency", docs.size());
 
         Instant threshold = Instant.now().minus(duration);
+        log.info("Threshold for document recency: {}", threshold);
+
+        boolean allRecent = true;
 
         for (LendingShopDocuments doc : docs) {
+            if (doc.getUpdatedAt() == null) {
+                log.warn("Document has null updatedAt timestamp: documentId={}, proofType={}", doc.getId(), doc.getProofType());
+                allRecent = false;
+                continue;
+            }
+
             Instant updatedAt = doc.getUpdatedAt().toInstant();
-            if (updatedAt.isBefore(threshold)) {
-                return false;
+            boolean isRecent = !updatedAt.isBefore(threshold);
+
+            log.info("Document recency check: documentId={}, proofType={}, updatedAt={}, isRecent={}",
+                    doc.getId(), doc.getProofType(), doc.getUpdatedAt(), isRecent);
+
+            if (!isRecent) {
+                log.info("Document is too old: documentId={}, proofType={}, updatedAt={}, threshold={}",
+                        doc.getId(), doc.getProofType(), doc.getUpdatedAt(), threshold);
+                allRecent = false;
             }
         }
-        return true;
+
+        log.info("Document recency check result: {} for loan type: {}", allRecent, loanType);
+        return allRecent;
     }
 
     private boolean isDocumentsRecentCreatedAt(Duration duration, String loanType, Date createdAt) {
@@ -952,28 +1054,28 @@ public class LoanDetailsV3Service {
             return false;
         }
 
-        boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
-        boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+        boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+        boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
 
-        boolean isField38Valid = fieldValues.stream()
+        boolean isValidShopStructure = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 38L)
                 .allMatch(f -> {
                     String val = f.getFieldDropdownValue();
                     log.info("FieldId: 38, Value: {}", val);
                     return val != null && ALLOWED_SHOP_STRUCTURE_TYPES.contains(val.toLowerCase());
                 });
-        log.info("FieldId: 38 shopStructureType valid: {}", isField38Valid);
+        log.info("FieldId: 38 shopStructureType valid: {}", isValidShopStructure);
 
-        boolean isField39Valid = fieldValues.stream()
+        boolean isValidShopOperational = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 39L)
                 .allMatch(f -> {
                     String val = f.getFieldDropdownValue();
                     log.info("FieldId: 39, Value: {}", val);
                     return val != null && val.equalsIgnoreCase("yes");
                 });
-        log.info("FieldId: 39 isShopOperational valid: {}", isField38Valid);
+        log.info("FieldId: 39 isShopOperational valid: {}", isValidShopStructure);
 
-        boolean allFieldsValid = hasField38 && hasField39 && isField38Valid && isField39Valid;
+        boolean allFieldsValid = hasValidShopStructure && isShopOperational && isValidShopStructure && isValidShopOperational;
         log.info("All LMS field values valid: {}", allFieldsValid);
         return allFieldsValid;
     }

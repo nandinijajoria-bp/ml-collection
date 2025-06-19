@@ -151,6 +151,7 @@ public interface LendingConstants {
 	String INSURANCE_ELIGIBILITY_API =  "/api/eligibility";
 	String SHOP_FRONT = "shop-front";
 	String SHOP_STOCK = "shop-stock";
+	String SHOP_QR = "shop-qr";
 	String INSURANCE_ACTIVE_APPLICATION_API = "/api/insurance/activeApplications";
 }
 
