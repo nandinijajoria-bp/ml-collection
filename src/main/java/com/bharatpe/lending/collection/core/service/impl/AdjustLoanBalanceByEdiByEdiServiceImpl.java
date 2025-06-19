@@ -35,6 +35,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
     @Autowired
     LendingAdjustedEDIScheduleDao lendingAdjustedEDIScheduleDao;
 
+    @Autowired
+    AdjustChargesServiceImpl adjustChargesServiceImpl;
+
     @Override
     public PaymentCalculation adjustLoanBalance(LendingPaymentSchedule loan, double amount) {
         return adjustEdiSchedule(loan, amount, loan.getSettleAllPrinciple());
@@ -74,6 +77,9 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
                 .interestSettled(settleLoanPaymentDTO.getInterestSettled())
                 .penaltySettled(penalty.getUsed())
                 .chargesSettled(charges.getUsed())
+                .isChargeApportioned(penalty.isChargeApportioned())
+                .nachBounceSettled(penalty.isChargeApportioned() ? penalty.getNachBounceSettled() : 0)
+                .penalChargesSettled(penalty.isChargeApportioned() ? penalty.getPenalChargesSettled() : 0)
                 .build();
     }
 
@@ -162,12 +168,18 @@ public class AdjustLoanBalanceByEdiByEdiServiceImpl implements AdjustLoanBalance
             log.info("LoanAdjustment#{} adjustPenalty of amount:{} for loan:{}",activeLoan.getId(), penaltyPaid, activeLoan);
         }
 
+        // Charges Apportionment Adjustment
+        PaymentCalculation chargesAdjusted = adjustChargesServiceImpl.checkAndAdjustChargesApportionment(activeLoan, penaltyPaid);
+
         log.info("LoanAdjustment#{} adjustPenalty is completed for loan {} with adjustment  received :{} adjusted :{} balance {}",activeLoan.getId(), activeLoan, amount, penaltyPaid, amount - penaltyPaid);
         return PaymentCalculation.builder()
                 .received(amount)
                 .used(penaltyPaid)
                 .balance(amount - penaltyPaid)
                 .penaltySettled(penaltyPaid)
+                .isChargeApportioned(chargesAdjusted.isChargeApportioned())
+                .nachBounceSettled(chargesAdjusted.isChargeApportioned() ? chargesAdjusted.getNachBounceSettled() : 0)
+                .penalChargesSettled(chargesAdjusted.isChargeApportioned() ? chargesAdjusted.getPenalChargesSettled() : 0)
                 .build();
     }
 
