@@ -306,7 +306,7 @@ public class LendingApplicationServiceV2 {
     @Value("${shop.photo.sync.rollout:0}")
     private Integer shopPhotoSyncRollout;
 
-    @Value("${shop.picture.skip.enabled1:true}")
+    @Value("${shop.picture.skip.enabled:false}")
     private boolean shouldSkipShopPicture;
 
     @Value("${lenders.skip.shop.picture:}")
@@ -403,7 +403,7 @@ public class LendingApplicationServiceV2 {
     Integer lenderVernacLangRolloutPercent;
 
 
-    @Value("${skip.picture.threshold1:30}")
+    @Value("${skip.picture.threshold:0}")
     private int skipPictureThreshold;
 
     @Autowired
