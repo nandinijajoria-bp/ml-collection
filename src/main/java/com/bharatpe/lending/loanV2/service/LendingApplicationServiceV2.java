@@ -1074,8 +1074,8 @@ public class LendingApplicationServiceV2 {
         try {
             if (applicationRequest.getAddressDetails() != null) {
                 AddressDetails addressDetails = applicationRequest.getAddressDetails();
-                ReqAddAddress reqAddAddress = new ReqAddAddress();
-                boolean isMismatch = checkAndUpdateAddressMismatch(lendingApplication, addressDetails, reqAddAddress);
+                //ReqAddAddress reqAddAddress = new ReqAddAddress();
+                //boolean isMismatch = checkAndUpdateAddressMismatch(lendingApplication, addressDetails, reqAddAddress);
                 lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
                 lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
                 lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
@@ -1085,10 +1085,10 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
                 lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
                 log.info("shop number getting saved in lending_application: {}", !StringUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1() : lendingApplication.getShopNumber());
-                if (isMismatch) {
-                    log.info("Address mismatch found. Saving updated address details.");
-                    merchantService.addAddress(lendingApplication.getMerchantId(),reqAddAddress);
-                }
+//                if (isMismatch) {
+//                    log.info("Address mismatch found. Saving updated address details.");
+//                    merchantService.addAddress(lendingApplication.getMerchantId(),reqAddAddress);
+//                }
             }
             if (applicationRequest.getAdditionalDetails() != null) {
                 AdditionalDetails additionalDetails = applicationRequest.getAdditionalDetails();
