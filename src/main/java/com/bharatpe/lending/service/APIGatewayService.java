@@ -1796,7 +1796,7 @@ public class APIGatewayService {
         if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(merchantId)){
             log.info("Merchant {} has been rolled out to the platform v1 flow for Global Limit Response.", merchantId);
             GlobalLimitResponse globalLimitResponse =  underwritingService.getEligibility(String.valueOf(merchantId),
-                    LendingConstants.LENDING_SOURCE, isPincodeChanged, flagForUwToSkipCache);
+                   offerCheckedBy.name(), isPincodeChanged, flagForUwToSkipCache);
             log.info("Global Limit response from platform v1 flow for merchantId : {} {}", merchantId, globalLimitResponse);
             return globalLimitResponse;
         }
