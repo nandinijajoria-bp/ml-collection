@@ -403,7 +403,7 @@ public class LendingApplicationServiceV2 {
     Integer lenderVernacLangRolloutPercent;
 
 
-    @Value("${skip.picture.threshold1:20}")
+    @Value("${skip.picture.threshold1:30}")
     private int skipPictureThreshold;
 
     @Autowired
