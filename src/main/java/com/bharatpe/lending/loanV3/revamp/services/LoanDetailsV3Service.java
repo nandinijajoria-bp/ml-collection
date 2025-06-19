@@ -861,19 +861,19 @@ public class LoanDetailsV3Service {
                             app.getId(), hasValidShopStructure, isShopOperational);
 
                     // Check if field 38 has valid values (permanent or temporary)
-                    boolean isField38Valid = fieldValues.stream()
+                    boolean isValidShopStructure = fieldValues.stream()
                             .filter(f -> f.getFieldId() == 38L)
                             .anyMatch(f -> ALLOWED_SHOP_STRUCTURE_TYPES.contains(f.getFieldDropdownValue().toLowerCase()));
 
                     // Check if field 39 has valid value (yes)
-                    boolean isField39Valid = fieldValues.stream()
+                    boolean isValidShopOperational = fieldValues.stream()
                             .filter(f -> f.getFieldId() == 39L)
                             .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldDropdownValue()));
 
                     log.info("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
-                            app.getId(), isField38Valid, isField39Valid);
+                            app.getId(), isValidShopStructure, isValidShopOperational);
 
-                    return hasValidShopStructure && isShopOperational && isField38Valid && isField39Valid;
+                    return hasValidShopStructure && isShopOperational && isValidShopStructure && isValidShopOperational;
                 })
                 .findFirst();
 
@@ -1057,25 +1057,25 @@ public class LoanDetailsV3Service {
         boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
         boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
 
-        boolean isField38Valid = fieldValues.stream()
+        boolean isValidShopStructure = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 38L)
                 .allMatch(f -> {
                     String val = f.getFieldDropdownValue();
                     log.info("FieldId: 38, Value: {}", val);
                     return val != null && ALLOWED_SHOP_STRUCTURE_TYPES.contains(val.toLowerCase());
                 });
-        log.info("FieldId: 38 shopStructureType valid: {}", isField38Valid);
+        log.info("FieldId: 38 shopStructureType valid: {}", isValidShopStructure);
 
-        boolean isField39Valid = fieldValues.stream()
+        boolean isValidShopOperational = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 39L)
                 .allMatch(f -> {
                     String val = f.getFieldDropdownValue();
                     log.info("FieldId: 39, Value: {}", val);
                     return val != null && val.equalsIgnoreCase("yes");
                 });
-        log.info("FieldId: 39 isShopOperational valid: {}", isField38Valid);
+        log.info("FieldId: 39 isShopOperational valid: {}", isValidShopStructure);
 
-        boolean allFieldsValid = hasValidShopStructure && isShopOperational && isField38Valid && isField39Valid;
+        boolean allFieldsValid = hasValidShopStructure && isShopOperational && isValidShopStructure && isValidShopOperational;
         log.info("All LMS field values valid: {}", allFieldsValid);
         return allFieldsValid;
     }
