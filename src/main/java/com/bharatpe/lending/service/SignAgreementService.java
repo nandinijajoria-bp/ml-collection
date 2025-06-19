@@ -556,7 +556,6 @@ public class SignAgreementService {
 
 			// Filter shop documents: keep only those with geo coordinates and take only one per proof type
 			List<LendingShopDocuments> filteredShopDocuments = lendingShopDocuments.stream()
-					.filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
 					.collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
 					.values().stream()
 					.flatMap(docs -> docs.stream().limit(1))
