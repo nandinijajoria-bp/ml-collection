@@ -69,6 +69,12 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
             log.info("lendingApplication {} and status {}", lendingApplication, lendingApplication.getStatus());
 
+            if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
+                referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
+                referenceStateDTO.setLender(lendingApplication.getLender());
+                referenceStateDTO.setLoanType(lendingApplication.getLoanType());
+            }
+
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(scopeDataArgs.getApplicationId());
 
             if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
