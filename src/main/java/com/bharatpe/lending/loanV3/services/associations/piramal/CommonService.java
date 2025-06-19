@@ -6,12 +6,14 @@ import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
+import com.bharatpe.lending.loanV3.revamp.services.UdyamService;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.EdiUtil;
@@ -23,9 +25,13 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
@@ -57,9 +63,30 @@ public class CommonService {
     private LendingEligibleLoanDao eligibleLoanDao;
     @Autowired
     LendingApplicationDetailsDao lendingApplicationDetailsDao;
+    @Autowired
+    private UdyamService udyamService;
+    @Autowired
+    private EasyLoanUtil easyLoanUtil;
+
+    @Value("${udyam.fetch.rollout:0}")
+    private Integer udyamFetchRollout;
+
+    private ExecutorService udyamExecutor;
 
     @Autowired
     private EdiUtil ediUtil;
+
+    @PostConstruct
+    public void init() {
+        udyamExecutor = Executors.newSingleThreadExecutor();
+    }
+
+    @PreDestroy
+    public void destroy() {
+        if (udyamExecutor != null && !udyamExecutor.isShutdown()) {
+            udyamExecutor.shutdown();
+        }
+    }
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -95,6 +122,23 @@ public class CommonService {
                 lenderAssociationDetailsRequest.getLendingApplication().getLender(),
                 currStage,
                 LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lenderAssociationDetailsRequest.getLendingApplication().getLender()), LenderAssociationStages.valueOf(currStage)));
+        if(LenderAssociationStages.ASSC_COMPLETED.equals(nextStage)
+                && easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(), udyamFetchRollout)){
+            try {
+                udyamExecutor.submit(()-> udyamService.triggerFetchUdyamCertificate(
+                        lenderAssociationDetailsRequest.getLendingApplication().getId(),
+                        lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(),
+                        lenderAssociationDetailsRequest.getLendingApplication().getLender()));
+
+            }catch (Exception exception){
+                log.error("Exception occurred while triggering udyam fetch(asynchronously) for applicationId: {}, merchantId: {}, lender: {}. Error: {}",
+                        lenderAssociationDetailsRequest.getLendingApplication().getId(),
+                        lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(),
+                        lenderAssociationDetailsRequest.getLendingApplication().getLender(),
+                        exception.getMessage());
+            }
+        }
+
     }
 
     public void manageApplicationStateAndRejectApplication(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
