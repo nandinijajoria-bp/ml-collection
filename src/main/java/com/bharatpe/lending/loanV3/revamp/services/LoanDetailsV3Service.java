@@ -777,7 +777,7 @@ public class LoanDetailsV3Service {
         log.info("Found {} shop picture documents for merchantId: {}, applicationId: {}",
                 shopPictureDocsList, refApp.getMerchantId(), shopPictureDocs.getApplicationId());
 
-        if (!CollectionUtils.isEmpty(shopDocs) &&
+        if (!CollectionUtils.isEmpty(shopPictureDocsList) &&
                 isDocumentsRecent(shopPictureDocsList, validDuration, loanSegment) &&
                 isValidShopDocuments(response,shopDocs, dto, refApp.getId())) {
 
