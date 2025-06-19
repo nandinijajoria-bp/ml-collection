@@ -80,13 +80,13 @@ public class LoanDetailsV3Service {
     @Autowired
     KycHandler kycHandler;
 
-    @Value("${shop.picture.skip.enabled:false}")
+    @Value("${shop.picture.skip.enabled1:true}")
     private boolean shouldSkipShopPicture;
 
     @Value("${lenders.skip.shop.picture:}")
     private List<String> lendersToSkipShopPicture;
 
-    @Value("${skip.picture.threshold:0}")
+    @Value("${skip.picture.threshold1:5}")
     private int skipPictureThreshold;
 
     @Value("${sid.threshold}")
