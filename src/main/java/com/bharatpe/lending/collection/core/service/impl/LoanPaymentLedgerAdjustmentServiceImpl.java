@@ -307,8 +307,18 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
 
     @Override
-    public void adjustPenaltyLedger(LendingPaymentSchedule loan, double amount, String source, boolean waveOff) {
-        if (amount > 0.5) {
+    public void adjustPenaltyLedger(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation, String source, boolean waveOff) {
+        double amount = paymentCalculation.getPenaltySettled();
+
+        // New flow Save PenaltyFeeLedger and penal charges with apportionment
+        if (paymentCalculation.isChargeApportioned() && amount > 0.5) {
+            PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), amount, source,
+                    waveOff, loan.getNbfc(), paymentCalculation.getNachBounceSettled(), paymentCalculation.getPenalChargesSettled());
+            penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            savePenalChargesWithApportionment(loan, paymentCalculation);
+        } else if (amount > 0.5) {
+            // Old flow Save PenaltyFeeLedger and penal charges without apportionment
+
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), amount, source, waveOff, loan.getNbfc());
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
             savePenalCharges(loan, amount);
@@ -417,5 +427,37 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setDescription(penaltyDescription);
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
+    }
+
+    private void savePenalChargesWithApportionment(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation) {
+        try {
+            log.info("In savePenalChargesWithAportionment with loanId: {} and paymentCalculation: {}", loan.getId(), paymentCalculation);
+            PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
+            if (ObjectUtils.isEmpty(penalCharge)) {
+                return;
+            }
+            double nachBounceAdjusted = paymentCalculation.getNachBounceSettled();
+            double netPenaltyAdjusted = paymentCalculation.getPenalChargesSettled();
+            if (Objects.nonNull(penalCharge.getDueNachBounce()) && nachBounceAdjusted > 0) {
+
+                double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
+                Double due = penalCharge.getDueNachBounce() - nachBounceAdjusted;
+                penalCharge.setDueNachBounce((double) Math.round(due));
+                penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
+            }
+
+            if (Objects.nonNull(penalCharge.getDuePenalty()) && netPenaltyAdjusted > 0) {
+                double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
+
+                penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+                Double due = penalCharge.getDuePenalty() - netPenaltyAdjusted;
+                penalCharge.setDuePenalty((double) Math.round(due));
+            }
+            penalChargesDao.save(penalCharge);
+            log.info("Penal Charges table updated for loanId: {} , dueNachBounce: {}, paidNachBounce: {}, duePenalty: {}, paidPenalty: {}",
+                    loan.getId(), penalCharge.getDueNachBounce(), penalCharge.getPaidNachBounce(), penalCharge.getDuePenalty(), penalCharge.getPaidPenalty());
+        } catch (Exception e) {
+            log.error("Exception occured while saving penal charge for loan: {} {} Stack: {}", loan.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 }

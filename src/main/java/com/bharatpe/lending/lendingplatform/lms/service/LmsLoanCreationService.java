@@ -7,7 +7,9 @@ import com.bharatpe.lending.common.dao.LmsLoanStatusDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.dto.PanFetchKYCResponseDto;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.lendingplatform.document.service.DocumentService;
 import com.bharatpe.lending.lendingplatform.lms.client.LendingPlatformHttpClient;
@@ -18,6 +20,7 @@ import com.bharatpe.lending.lendingplatform.lms.dto.request.CreateLoanRequest;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.ApiResponse;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.CreateLoanResponse;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.LendingApplicationKycDetailsService;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +77,8 @@ public class LmsLoanCreationService {
     private DocumentService documentService;
     @Autowired
     private LendingApplicationKycDetailsService lendingApplicationKycDetailsService;
+    @Autowired
+    private KycHandler kycHandler;
 
 
     public boolean processLoanRequest(LendingApplication lendingApplication,
@@ -95,7 +100,7 @@ public class LmsLoanCreationService {
         } catch (Exception e) {
             log.error("Exception occurred while processing loan request: {}", e.getMessage(), e);
             lmsCreateLoanFailureCallback.sendLoanToOldFlow(lendingApplication.getExternalLoanId());
-            throw new RuntimeException("Error during loan request processing: " + e.getMessage(), e);
+            return false;
         }
     }
 
@@ -128,7 +133,7 @@ public class LmsLoanCreationService {
         }
 
         if (createLoanResponse.isSuccess()) {
-            return "SUCCESS";
+            return "PENDING";
         }
 
         String errorCode = createLoanResponse.getError().getErrorStatusCode();
@@ -222,23 +227,29 @@ public class LmsLoanCreationService {
 
     private CreateLoanRequest.LoanDetails getLoanDetails(LendingApplication lendingApplication,
                                                          Double annualRoi) {
-        log.info("Disbursed Timestamp {}", lendingApplication.getDisbursalAmount());
-        LocalDate disburseLocalDate = lendingApplication.getDisburseTimestamp().toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate();
+        try {
+            log.info("Disbursed Timestamp {}", lendingApplication.getDisburseTimestamp());
+            LocalDate disburseLocalDate = lendingApplication.getDisburseTimestamp().toInstant()
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate();
 
-        LocalDate currentDate = LocalDate.now(ZoneId.systemDefault());
+            LocalDate currentDate = LocalDate.now(ZoneId.systemDefault());
 
-        return CreateLoanRequest.LoanDetails.builder()
-                .loanAmount(BigDecimal.valueOf(lendingApplication.getLoanAmount()))
-                .ediAmount(lendingApplication.getEdi().intValue())
-                .disbursedAmount(BigDecimal.valueOf(lendingApplication.getLoanAmount()))
-                .disburseDate(java.sql.Date.valueOf(disburseLocalDate))
-                .instrumentDate(java.sql.Date.valueOf(currentDate))
-                .roi(BigDecimal.valueOf(annualRoi))
-                .loanTenure(lendingApplication.getPayableDays().intValue())
-                .firstDueDate(java.sql.Date.valueOf(disburseLocalDate.plusDays(1)))
-                .build();
+            return CreateLoanRequest.LoanDetails.builder()
+                    .loanAmount(BigDecimal.valueOf(lendingApplication.getLoanAmount()))
+                    .ediAmount(lendingApplication.getEdi().intValue())
+                    .disbursedAmount(BigDecimal.valueOf(lendingApplication.getLoanAmount()))
+                    .disburseDate(java.sql.Date.valueOf(disburseLocalDate))
+                    .instrumentDate(java.sql.Date.valueOf(currentDate))
+                    .roi(BigDecimal.valueOf(annualRoi))
+                    .loanTenure(lendingApplication.getPayableDays().intValue())
+                    .firstDueDate(java.sql.Date.valueOf(disburseLocalDate.plusDays(1)))
+                    .build();
+        } catch(Exception e) {
+            log.error("Error while mapping loan details for bpLoanId: {}", lendingApplication.getExternalLoanId(), e);
+            throw new RuntimeException("Error while mapping loan details: " + e.getMessage(), e);
+        }
+
     }
 
     private CreateLoanRequest.CustomerDetails getCustomerDetails(LendingApplication lendingApplication,
@@ -249,9 +260,13 @@ public class LmsLoanCreationService {
 
         String formattedDob = null;
         try {
+            PanFetchKYCResponseDto panFetchKYCResponse = kycHandler.panFetch(cKycResponseDto.getPanNumber(), lendingApplication.getMerchantId());
+            String panDob = panFetchKYCResponse.getData().getVerifiedDob();
+            String cKycDob = cKycResponseDto.getDob();
+            log.info("cKycDob: {}, panDob: {}", cKycDob, panDob);
             SimpleDateFormat inputFormat = new SimpleDateFormat("dd/MM/yyyy");
             SimpleDateFormat outputFormat = new SimpleDateFormat("yyyy-MM-dd");
-            formattedDob = outputFormat.format(inputFormat.parse(cKycResponseDto.getDob()));
+            formattedDob = outputFormat.format(inputFormat.parse( !ObjectUtils.isEmpty(cKycDob) ? cKycDob : panDob));
         } catch (ParseException e) {
             log.error("Error parsing date of birth: {}", e.getMessage(), e);
         }
