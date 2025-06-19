@@ -505,6 +505,7 @@ public class PaymentService {
                 penaltyFee += pendingNachCharges.intValue();
                 data.setPrincipalDueAmount(data.getPrincipalDueAmount()+pendingNachCharges.intValue());
                 data.setForeClosureAmount(data.getForeClosureAmount()+pendingNachCharges.intValue());
+                data.setForeClosureAmountAtBp(data.getForeClosureAmountAtBp() + pendingNachCharges.intValue());
             }
 
             data.setForeclosurePenaltyFee(0.0);

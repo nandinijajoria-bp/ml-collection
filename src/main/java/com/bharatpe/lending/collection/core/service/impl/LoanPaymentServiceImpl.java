@@ -39,6 +39,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -144,6 +145,9 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
     @Autowired
     NachBounceChargesService nachBounceChargesService;
 
+    @Autowired
+    private AdjustChargesServiceImpl adjustChargesService;
+
     @Value("${payu.nach.bounce.charge:500}")
     Integer payUNachBounceCharge;
 
@@ -229,7 +233,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
         LoanPaymentOrder order = loanPaymentOrderDao.findByOrderId(String.valueOf(payment.getOrderId()));
         log.info("got order for loanId:{} orderId:{} order:{}", loan.getId(), payment.getOrderId(), order);
         ledgerAdjustmentService.adjustLendingLedger(loan, otherAdjustment, order, payment.getDescription(), payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
-        ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment.getPenaltySettled(), payment.getSource(), false);
+        ledgerAdjustmentService.adjustPenaltyLedger(loan, otherAdjustment, payment.getSource(), false);
         if (payment.isUpdateGlobalTxnlimit()) updateGlobaltxnLimit(loan.getMerchantId(), "CREDIT", otherAdjustment.getPrincipleSettled());
     }
 
@@ -380,7 +384,7 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
             ledgerAdjustmentService.adjustNachLedger(lendingCollectionExcess, nachAdjustment);
             String terminalOrderId = lendingCollectionExcess.getTerminalOrderId() + EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX + lendingCollectionExcess.getDeductionCount().toString();
             ledgerAdjustmentService.adjustLendingLedger(loan, nachAdjustment, order, terminalOrderId, adjustmentMode, transferType, terminalOrderId);
-            ledgerAdjustmentService.adjustPenaltyLedger(loan, nachAdjustment.getPenaltySettled(), source, false);
+            ledgerAdjustmentService.adjustPenaltyLedger(loan, nachAdjustment, source, false);
         }
     }
 
@@ -660,7 +664,11 @@ public class LoanPaymentServiceImpl implements LoanPaymentService {
                     .build();
 
             LendingLedger positiveEntry = ledgerAdjustmentService.adjustLendingLedger(loan, paymentAdjustedPositiveEntry,null, preclosureDescription  , payment.getSource(), payment.getTransferType(), payment.getTerminalOrderId());
-            ledgerAdjustmentService.adjustPenaltyLedger(loan, paidPenalty, payment.getSource(), false);
+
+            // Charges Apportionment Adjustment
+            PaymentCalculation chargesAdjuest = adjustChargesService.checkAndAdjustChargesApportionment(loan, paidPenalty);
+            chargesAdjuest.setPenaltySettled(paidPenalty);
+            ledgerAdjustmentService.adjustPenaltyLedger(loan, chargesAdjuest, payment.getSource(), false);
 
             if (surplusAmount > 0 && EDI_BY_EDI.name().equalsIgnoreCase(settlementMechanism) ) {
                 log.info("Extra principle received for loanId:{} and extra amount:{}", loan.getId(), surplusAmount);

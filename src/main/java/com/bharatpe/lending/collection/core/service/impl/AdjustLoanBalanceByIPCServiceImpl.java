@@ -4,6 +4,7 @@ import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.collection.core.dto.internal.PaymentCalculation;
 import com.bharatpe.lending.collection.core.service.AdjustLoanBalanceService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
@@ -13,6 +14,8 @@ import java.util.Objects;
 @Slf4j
 public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceService {
 
+    @Autowired
+    private AdjustChargesServiceImpl adjustChargesServiceImpl;
 
     @Override
     public PaymentCalculation adjustLoanBalance(LendingPaymentSchedule activeLoan, double amount) {
@@ -37,6 +40,9 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
                 .interestSettled(interest.getUsed())
                 .penaltySettled(penalty.getUsed())
                 .chargesSettled(charges.getUsed())
+                .isChargeApportioned(penalty.isChargeApportioned())
+                .nachBounceSettled(penalty.isChargeApportioned() ? penalty.getNachBounceSettled() : 0)
+                .penalChargesSettled(penalty.isChargeApportioned() ? penalty.getPenalChargesSettled() : 0)
                 .build();
     }
 
@@ -100,12 +106,18 @@ public class AdjustLoanBalanceByIPCServiceImpl implements AdjustLoanBalanceServi
             log.info("LoanAdjustment#{} adjustPenalty of amount:{} for loan:{}",activeLoan.getId(), penaltyPaid, activeLoan);
         }
 
+        // Charges Apportionment Adjustment
+        PaymentCalculation chargesAdjusted = adjustChargesServiceImpl.checkAndAdjustChargesApportionment(activeLoan, penaltyPaid);
+
         log.info("LoanAdjustment#{} adjustPenalty is completed for loan {} with adjustment  received :{} adjusted :{} balance {}",activeLoan.getId(), activeLoan, amount, penaltyPaid, amount - penaltyPaid);
         return PaymentCalculation.builder()
                 .received(amount)
                 .used(penaltyPaid)
                 .balance(amount - penaltyPaid)
                 .penaltySettled(penaltyPaid)
+                .isChargeApportioned(chargesAdjusted.isChargeApportioned())
+                .nachBounceSettled(chargesAdjusted.isChargeApportioned() ? chargesAdjusted.getNachBounceSettled() : 0)
+                .penalChargesSettled(chargesAdjusted.isChargeApportioned() ? chargesAdjusted.getPenalChargesSettled() : 0)
                 .build();
     }
 
