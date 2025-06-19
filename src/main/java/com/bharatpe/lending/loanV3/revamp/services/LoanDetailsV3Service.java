@@ -855,10 +855,10 @@ public class LoanDetailsV3Service {
                     }
 
                     // Check if we have both fields
-                    boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
-                    boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+                    boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+                    boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
                     log.info("Application ID: {} - Has field 38: {}, Has field 39: {}",
-                            app.getId(), hasField38, hasField39);
+                            app.getId(), hasValidShopStructure, isShopOperational);
 
                     // Check if field 38 has valid values (permanent or temporary)
                     boolean isField38Valid = fieldValues.stream()
@@ -873,7 +873,7 @@ public class LoanDetailsV3Service {
                     log.info("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
                             app.getId(), isField38Valid, isField39Valid);
 
-                    return hasField38 && hasField39 && isField38Valid && isField39Valid;
+                    return hasValidShopStructure && isShopOperational && isField38Valid && isField39Valid;
                 })
                 .findFirst();
 
@@ -1054,8 +1054,8 @@ public class LoanDetailsV3Service {
             return false;
         }
 
-        boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
-        boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+        boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+        boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
 
         boolean isField38Valid = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 38L)
@@ -1075,7 +1075,7 @@ public class LoanDetailsV3Service {
                 });
         log.info("FieldId: 39 isShopOperational valid: {}", isField38Valid);
 
-        boolean allFieldsValid = hasField38 && hasField39 && isField38Valid && isField39Valid;
+        boolean allFieldsValid = hasValidShopStructure && isShopOperational && isField38Valid && isField39Valid;
         log.info("All LMS field values valid: {}", allFieldsValid);
         return allFieldsValid;
     }
