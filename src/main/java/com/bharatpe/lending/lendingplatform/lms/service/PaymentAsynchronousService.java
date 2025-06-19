@@ -54,12 +54,9 @@ public class PaymentAsynchronousService {
                 }
                 return;
             }
-
-            log.error("Payment posting failed: Empty or invalid response received for BP Loan ID: {}", lendingApplication.getExternalLoanId());
-            throw new RuntimeException("Payment posting failed: Invalid response from lending platform."); // TODO : Add custom exception
+            log.warn("Payment posting failed: Empty or invalid response received for BP Loan ID: {}", lendingApplication.getExternalLoanId());
         } catch (Exception e) {
             log.error("Exception occurred while initiating Payment posting request: {}", e.getMessage(), e);
-            throw new RuntimeException("Error during Payment posting : " + e.getMessage(), e); // TODO : Add custom exception
         }
     }
 
@@ -90,8 +87,7 @@ public class PaymentAsynchronousService {
                     lmsPaymentDetails.getAmount().doubleValue(), lmsPaymentDetails.getAdjustmentMode(), terminalOrderId, lendingApplication, merchantBankDetail, lald, lmsPaymentDetails.getTransferDate(), orderId , false);
 
             if (!postPaymentToLMS(lmsPaymentDetails, paymentAsynchronousRequest)) {
-                log.error("Payment posting failed: Invalid response from lending platform for BP Loan ID: {}", lendingApplication.getExternalLoanId());
-                throw new RuntimeException("Payment posting failed: Invalid response from lending platform."); // TODO : Add custom exception
+                log.warn("Payment posting failed: Invalid response from lending platform for BP Loan ID: {}", lendingApplication.getExternalLoanId());
             }
         } catch (Exception exception) {
             log.error("Exception occurred while Payment posting request: {}", exception.getMessage(), exception);

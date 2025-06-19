@@ -359,17 +359,6 @@ public class LoanService {
 //       createEdiException(lendingPaymentSchedule);
 //       Note: TOPUP and PDPD cases are not handled yet.
 
-        postPayoutAuditDto.setPostPayoutResponse(response);
-        kafkaAudit.setData(postPayoutAuditDto);
-        pushKafkaAudit(kafkaAudit);
-
-        executeSmsAndPaymentLink(application, newSchedule, basicDetails);
-
-        LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLatestByBpLoanId(application.getExternalLoanId());
-        lmsLoanStatus.setStatus("SUCCESS");
-        lmsLoanStatus.setUpdatedAt(new Date());
-        updateDBForDisbursedLoan(newSchedule, application, lmsLoanStatus);
-
         log.info("Disbursed loan successful for applicationId: {}", application.getId());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }

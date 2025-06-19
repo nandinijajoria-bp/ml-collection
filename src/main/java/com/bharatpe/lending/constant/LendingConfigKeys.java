@@ -9,4 +9,5 @@ public class LendingConfigKeys {
     public static final String SETTLEMENT_WAIVER_REVERSAL = "SETTLEMENT_WAIVER_REVERSAL";
 
     public static final String LENDER_COOL_OFF_PERIOD = "lender.cooling.off.period";
+    public static final String CHARGES_APPORTIONMENT_ENABLED_LENDERS = "charges.apportionment.enabled.lenders";
 }
