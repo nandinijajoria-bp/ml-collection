@@ -283,6 +283,8 @@ public class LoanDetailsV3Service {
             loanDetailsV3Response.setEmiLoanAmount(emiEligibility.getEmiLoanAmount());
             loanDetailsV3Response.setEmiRejected(emiEligibility.getEmiRejected());
             loanDetailsV3Response.setRejectReason(emiEligibility.getRejectReason());
+            loanDetailsV3Response.setEmiEligibleIn(emiEligibility.getEmiEligibleIn());
+            loanDetailsV3Response.setMerchantId(data.getMerchantId());
         }
         if(data.getEligibility()!=null){
             loanDetailsV3Response.setLoanAmount(data.getEligibility().getLoanAmount());
@@ -1389,6 +1391,7 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setMerchantId(udyamRegistrationStateDTO.getMerchantId());
         loanDetailsV3Response.setApplicationId(udyamRegistrationStateDTO.getApplicationId());
         loanDetailsV3Response.setUdyamRegistrationRequired(udyamRegistrationStateDTO.getIsUdyamRequired());
+        loanDetailsV3Response.setUdyamFlowStatus(udyamRegistrationStateDTO.getUdyamStatus());
     }
 
 }

@@ -97,6 +97,7 @@ public class LoanDetailsV3Response {
     private Double emiLoanAmount;
     private Boolean emiRejected;
     private String rejectReason;
+    private Integer emiEligibleIn;
     private String loanType;
     private String previousLender;
     private Double processingFee;
@@ -113,6 +114,7 @@ public class LoanDetailsV3Response {
     private Boolean loanPurpose;
     private Boolean skipShopPicture;
     private Boolean imageExist;
+    private String udyamFlowStatus;
 
     @Data
     @ToString

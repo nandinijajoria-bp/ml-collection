@@ -297,7 +297,7 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         log.info("emi_dashboard_data and lending_risk_variable for merchant_id: {} are {} , {}",
                 scopeDataArgs.getMerchant().getId(), emiDashboardData, lendingRiskVariables);
 
-        if(emiUtils.isEligible(emiDashboardData, lendingRiskVariables)){
+        if(emiUtils.isEligibleForPlanSelectionPage(emiDashboardData, lendingRiskVariables)){
             lendingStateDTO.setScopeState(LendingViewStates.PLAN_SELECTION_PAGE);
             scopeDataArgs.setEligibilityStateDTO(eligibilityStateDTO);
             return lendingStateDTO;
