@@ -212,12 +212,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
         log.info("Bank Name for merchantId {} is: {}", scopeDataArgs.getMerchant().getId(), bankName);
         if(isPaymentBankChangeFlowApplicable){
-            for (PaymentBank paymentBank : PaymentBank.values()) {
-                if (bankName.equalsIgnoreCase(paymentBank.getVal())) {
-                    log.info("Payment Bank {} is linked for merchantId: {}", paymentBank.getVal(), scopeDataArgs.getMerchant().getId());
-                    enachStateDTO.setHasLinkedPaymentBank(true);
-                    log.info("Setting setHasLinkedPaymentBank to true for merchantId: {}", scopeDataArgs.getMerchant().getId());
-                }
+            if(paymentBankService.isPaymentBank(openApplication.getMerchantId())){
+                enachStateDTO.setHasLinkedPaymentBank(true);
+                log.info("Setting setHasLinkedPaymentBank to true for merchantId: {}", scopeDataArgs.getMerchant().getId());
             }
             enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication));
             log.info("Payment Bank Change flow is applicable for merchantId: {} and setPaymentBank is: {}", scopeDataArgs.getMerchant().getId(), enachStateDTO.isPaymentBank());

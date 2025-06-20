@@ -18,49 +18,51 @@ public class PaymentBankService {
 
 
     public boolean changePaymentAccount(LendingApplication lendingApplication) {
-        log.info("Entering into the changePaymentAccount method with lendingApplication: {}", lendingApplication.getId());
-        if(lendingApplication == null) {
+        log.info("Entering into the changePaymentAccount method with lendingApplication: {}",
+                lendingApplication != null ? lendingApplication.getId() : "null");
+
+        if (lendingApplication == null) {
             log.error("Lending application is null");
             return false;
         }
-
-        String bankName = paymentBank(lendingApplication.getMerchantId());
-        if (bankName == null) {
-            log.error("Bank name is null for merchantId: {}", lendingApplication.getMerchantId());
+        Long merchantId = lendingApplication.getMerchantId();
+        if (!isPaymentBank(merchantId)) {
+            log.info("MerchantId {} is not using a payment bank", merchantId);
             return false;
         }
-        log.info("Bank name for merchantId {} is: {}", lendingApplication.getMerchantId(), bankName);
+        log.info("MerchantId {} is using a valid payment bank", merchantId);
         String loanType = lendingApplication.getLoanType();
-        if(loanType != null && loanType.equalsIgnoreCase("TOPUP")){
+        if (loanType != null && loanType.equalsIgnoreCase("TOPUP")) {
             log.info("Loan type is TOPUP for lending application: {}", lendingApplication.getId());
         }
-        boolean repeatLoan = loanUtil.isRepeatLoan(lendingApplication.getMerchantId());
-        log.info("Repeat loan status for merchantId {} is: {}", lendingApplication.getMerchantId(), repeatLoan);
-        if(repeatLoan || loanType.equalsIgnoreCase("TOPUP")) {
+        boolean repeatLoan = loanUtil.isRepeatLoan(merchantId);
+        log.info("Repeat loan status for merchantId {} is: {}", merchantId, repeatLoan);
+        if (repeatLoan || "TOPUP".equalsIgnoreCase(loanType)) {
             return lendingApplication.getLoanAmount() >= 150000;
-        }else{
+        } else {
             return lendingApplication.getLoanAmount() >= 50000;
         }
     }
 
-    private String paymentBank(Long merchantId) {
+
+    public boolean isPaymentBank(Long merchantId) {
         BankAccountDetails accDetails = loanUtil.getAccountDetails(merchantId);
 
-        if (accDetails == null) {
-            log.error("No payment account found for merchantId: {}", merchantId);
-            return null;
+        if (accDetails == null || accDetails.getBankName() == null || accDetails.getBankName().isEmpty()) {
+            log.error("Bank account details missing or bank name is empty for merchantId: {}", merchantId);
+            return false;
         }
+
         String bankName = accDetails.getBankName();
-        if (bankName == null || bankName.isEmpty()) {
-            log.error("Bank name is null or empty for merchantId: {}", merchantId);
-            return null;
-        }
         for (PaymentBank paymentBank : PaymentBank.values()) {
             if (bankName.equalsIgnoreCase(paymentBank.getVal())) {
-                return paymentBank.name();
+                log.info("Bank {} is a recognized payment bank for merchantId: {}", bankName, merchantId);
+                return true;
             }
         }
-        return null;
+
+        log.info("Bank {} is NOT a recognized payment bank for merchantId: {}", bankName, merchantId);
+        return false;
     }
 
 

@@ -1964,7 +1964,7 @@ public class LoanUtil {
 		}
 
 		if(isPaymentBankChangeFlowApplicable){
-			if (paymentBankService.changePaymentAccount(lendingApplication)) {
+			if (paymentBankService.changePaymentAccount(lendingApplication) || paymentBankService.isPaymentBank(lendingApplication.getMerchantId())) {
 				logger.info("Merchant {} using Payments Bank with loan amount threshold – skip NACH", lendingApplication.getMerchantId());
 				return Boolean.FALSE;
 			}
