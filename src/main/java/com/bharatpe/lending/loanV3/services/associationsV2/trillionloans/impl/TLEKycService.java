@@ -148,7 +148,7 @@ public class TLEKycService {
                 if (!ObjectUtils.isEmpty(eKycCallbackResponse) && Arrays.asList("approval_pending", "approved", "success").contains(eKycCallbackResponse.getPayload().getKycRequest().getStatus())) {
                     NBFCRequestDTO<?> eKycStatusRequestDto = getEKycStatusCheckPayload(lendingApplication, lendingApplicationLenderDetails, false);
                     NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(eKycStatusRequestDto, LenderAssociationStages.EKYC_STATUS);
-                    if (nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                    if (nbfcResponseDto != null && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                         TLEKycStatusCheckResponseDto ekycStatusCheckResponseDto = objectMapper.convertValue(nbfcResponseDto.getData(), TLEKycStatusCheckResponseDto.class);
                         if (processEKycStatusResponse(ekycStatusCheckResponseDto, lendingApplication, lenderAssociationDetailsRequest))
                             return true;
