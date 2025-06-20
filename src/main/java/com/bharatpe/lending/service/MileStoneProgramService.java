@@ -586,7 +586,7 @@ public class MileStoneProgramService {
                 cleverTapEvtData.put("transactions_done", String.valueOf(weekAchievements.getTxn_cnt()));
 
                 if(!ObjectUtils.isEmpty(mileStoneResponse.getTarget())) {
-                    Target weeklyTargets = mileStoneResponse.getTarget().get(weekAchievements.getMilestone_no());
+                    Target weeklyTargets = mileStoneResponse.getTarget().get(weekAchievements.getMilestone_no()-1);
                     if(eligibleForWeeklyCashback(merchant, weekAchievements, weeklyTargets)) {
                         cleverTapEvtData.put("cashback_status", Constants.YES);
                         cleverTapEvtData.put("cashback_value", String.valueOf(weeklyTargets.getCashback()));
