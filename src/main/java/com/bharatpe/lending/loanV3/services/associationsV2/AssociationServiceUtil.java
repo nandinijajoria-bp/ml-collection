@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
@@ -279,6 +280,9 @@ public class AssociationServiceUtil {
 
     @Autowired
     PiramalInsuranceService piramalInsuranceService;
+
+    @Autowired
+    VKycService vKycService;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -757,5 +761,9 @@ public class AssociationServiceUtil {
             default:
                 return null;
         }
+    }
+
+    public boolean invokeSkipVkyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto.getMerchantId(),  lenderAssociationDetailsRequestDto.getApplicationId(), lender);
     }
 }

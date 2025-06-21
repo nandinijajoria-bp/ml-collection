@@ -1,6 +1,7 @@
 package com.bharatpe.lending.loanV3.services.gateway;
 
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
+import com.bharatpe.lending.config.VkycConfig;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -125,6 +126,8 @@ public class lenderAPIGateway implements ILenderAPIGateway{
     @Autowired
     UgroConfig ugroConfig;
 
+    @Autowired
+    VkycConfig vkycConfig;
 
     @Override
     public NBFCResponseDTO invokeStage(NBFCRequestDTO nbfcRequestDto, LenderAssociationStages lenderAssociationStage) {
@@ -218,6 +221,14 @@ public class lenderAPIGateway implements ILenderAPIGateway{
                 return nbfcBaseUrl+udyamUrl;
             case "UDYAM_STATUS_CHECK":
                 return nbfcBaseUrl+udyamStatusCheckUrl;
+            case "CHECK_VKYC_ELIGIBILITY":
+                return nbfcBaseUrl + vkycConfig.getCheckVkycEligibilityUrl();
+            case "INITIATE_VKYC":
+                return nbfcBaseUrl + vkycConfig.getInitiateVkycUrl();
+            case "VKYC_STATUS_CHECK":
+                return nbfcBaseUrl + vkycConfig.getVkycStatusUrl();
+            case "SKIP_VKYC":
+                return nbfcBaseUrl + vkycConfig.getSkipVkycUrl();
             default:
                 return null;
         }

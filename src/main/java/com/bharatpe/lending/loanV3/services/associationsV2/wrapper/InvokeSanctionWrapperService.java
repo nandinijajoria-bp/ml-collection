@@ -78,7 +78,7 @@ public class InvokeSanctionWrapperService {
                 return;
             }
 
-            if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.UGRO.name()).contains(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLender())) {
+            if(Arrays.asList(Lender.TRILLIONLOANS.name(), Lender.UGRO.name(), Lender.PAYU.name()).contains(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getLender())) {
                 stagesToBeInvokedInOrder = checkRetryAndGetStageToBeInvokedInOrderList(lenderAssociationDetailsDto, stagesToBeInvokedInOrder);
             }
 
@@ -88,7 +88,7 @@ public class InvokeSanctionWrapperService {
                 MDC.clear();
                 return;
             }
-            if(Arrays.asList(Lender.MUTHOOT.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
+            if(Arrays.asList(Lender.MUTHOOT.name(), Lender.PAYU.name()).contains(lenderAssociationDetailsDto.getLendingApplication().getLender())) {
                 commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsDto);
             }
             MDC.clear();
@@ -144,8 +144,9 @@ public class InvokeSanctionWrapperService {
                 else
                     return Arrays.asList(LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
             }
-            case "CAPRI":
             case "PAYU":
+                return Arrays.asList(LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.SKIP_VKYC.name());
+            case "CAPRI":
             case "SMFG":
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
             case "MUTHOOT":

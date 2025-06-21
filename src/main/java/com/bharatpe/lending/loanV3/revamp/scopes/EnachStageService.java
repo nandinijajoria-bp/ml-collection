@@ -34,6 +34,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.service.MerchantLoansService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,6 +109,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${upi.nach.lender:-}")
     private Set<String> upiNachLender;
 
+    @Autowired
+    VKycService vkycService;
+
 
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -115,7 +119,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         if(lendingStateDTO.getData().isTopup()){
             lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         }
-        else lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
+        else lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
         return lendingStateDTO;
     }
 
@@ -187,7 +191,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             if(LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())){
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.AGREEMENT_PAGE);
             }
-            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender()));
         }
 
         enachStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
