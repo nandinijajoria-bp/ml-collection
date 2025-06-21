@@ -133,7 +133,7 @@ public class MFUdyamService {
             if(!LenderAssociationStatus.UDYAM_REGISTRATION_INITIATED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus())) {
                 log.info("invalid status {} for udyam status check for applicationId {}", lendingApplicationLenderDetails.getDataUploadStatus(), lendingApplication.getId());
                 statusCheckResponse.setUdyamStatus(lenderAssociationDetailsDto.getLendingApplicationLenderDetails().getDataUploadStatus());
-                statusCheckResponse.setIsUdyamRequired(!LenderAssociationStatus.UDYAM_GENERATION_SUCCESS.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus()));
+                statusCheckResponse.setIsUdyamRequired(!LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name().equalsIgnoreCase(lendingApplicationLenderDetails.getDataUploadStatus()));
                 return statusCheckResponse;
             }
             NBFCRequestDTO request = NBFCRequestDTO.builder()
