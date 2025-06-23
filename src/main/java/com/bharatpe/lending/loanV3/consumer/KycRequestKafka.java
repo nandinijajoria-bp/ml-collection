@@ -113,7 +113,7 @@ public class KycRequestKafka {
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void kycRequestListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -178,7 +178,7 @@ public class KycRequestKafka {
 
     @KafkaListener(
             topics="${abfl.kyc.callback.topic:kyc-callback}",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void kycCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
