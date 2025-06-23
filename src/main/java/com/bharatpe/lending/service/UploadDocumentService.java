@@ -312,7 +312,7 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 							validateShopImages(lendingShopDocuments, merchantBasicDetails, uploadDocumentResponse, lendingApplication);
 
 							lendingShopDocumentsAuditList.add(new LendingShopDocumentsAudit(
-									lendingShopDocuments, resubmitRequest));
+									lendingShopDocuments, resubmitRequest, null));
 						}
 					} else {
 						if (isUpdate) {
