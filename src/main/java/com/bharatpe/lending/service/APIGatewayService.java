@@ -1440,6 +1440,7 @@ public class APIGatewayService {
             put("lender", finalLender);
             put("mode", requestDTO.getNachMode());
             put("tenure_in_months", requestDTO.getTenureInMonths());
+            put("installment_frequency", LendingConstants.NACH_INSTALLMENT_FREQUENCY_EDI);
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {

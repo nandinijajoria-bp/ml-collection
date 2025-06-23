@@ -153,6 +153,7 @@ public interface LendingConstants {
 	String SHOP_STOCK = "shop-stock";
 	String SHOP_QR = "shop-qr";
 	String INSURANCE_ACTIVE_APPLICATION_API = "/api/insurance/activeApplications";
+	String NACH_INSTALLMENT_FREQUENCY_EDI = "daily";
 }
 
 
