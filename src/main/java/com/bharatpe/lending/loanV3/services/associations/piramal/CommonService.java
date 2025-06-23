@@ -156,7 +156,7 @@ public class CommonService {
             lendingApplication.setManualKycReason(rejectReason);
             lendingApplicationDao.save(lendingApplication);
             lendingApplicationServiceV2.evictCache(lendingApplication.getMerchantId());
-            commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected", oldStatus, "APP_STATUS", lendingApplication.getManualKyc());
+            commonUtil.saveApplicationRejectionAudit(lendingApplication, "rejected", oldStatus, "APP_STATUS", lendingApplication.getManualKycReason());
         }
         if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
             lendingApplicationLenderDetails.setStatus(Status.INACTIVE.name());

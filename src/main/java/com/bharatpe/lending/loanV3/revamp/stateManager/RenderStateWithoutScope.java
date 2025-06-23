@@ -3,15 +3,9 @@ package com.bharatpe.lending.loanV3.revamp.stateManager;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingMerchantPermissionsDao;
-import com.bharatpe.lending.common.dao.LendingMerchantReferencesDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
-import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingMerchantPermissions;
-import com.bharatpe.lending.common.entity.LendingMerchantReferences;
-import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.dao.*;
+import com.bharatpe.lending.common.entity.*;
+import com.bharatpe.lending.common.enums.VkycStatus;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -30,6 +24,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.utils.EmiUtils;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -94,6 +89,12 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     @Value("${show.pan.pin.page.enabled:true}")
     private boolean showPanPinPage;
 
+    @Autowired
+    LendingApplicationVkycDetailsDao lendingApplicationVkycDetailsDao;
+
+    @Autowired
+    VKycService vkycService;
+
 
     @Override
     public LoanDetailsV3Response fetchLendingStateData(ScopeDataArgs scopeDataArgs) {
@@ -135,6 +136,11 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
                 log.info("nach doesn't exist {}", scopeDataArgs);
                 return loanDetailsV3Response;
             }
+        }
+
+        if (isVkycPending(scopeDataArgs, loanDetailsV3Response)) {
+            log.info("show vkyc pending page {}", scopeDataArgs);
+            return loanDetailsV3Response;
         }
 
         if (showApplicationStatus(scopeDataArgs,loanDetailsV3Response)) {
@@ -492,6 +498,22 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         }
         return false;
     }
+
+    public boolean isVkycPending(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+        log.info("checking for vkyc status for {}", scopeDataArgs.getMerchant().getId());
+        LendingApplication lendingApplication = scopeDataArgs.getOpenApplication();
+        if (!ObjectUtils.isEmpty(lendingApplication) && Arrays.asList("pending_verification", "approved").contains(lendingApplication.getStatus())
+                && vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
+            LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
+            if (!ObjectUtils.isEmpty(vkycDetails) && !VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
+                LendingStateDTO<ApplicationStateDTO> lendingStateDTO = new LendingStateDTO<>();
+                lendingStateDTO.setScopeState(LendingViewStates.LENDER_VKYC_PAGE);
+                return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
+            }
+        }
+        return false;
+    }
+
 }
 
 // organized merchant check ??
