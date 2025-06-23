@@ -2,7 +2,9 @@ package com.bharatpe.lending.collection.core.utils;
 
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.common.utils.NotificationUtil;
+import com.bharatpe.lending.common.dao.LendingPaymentScheduleLendingCommonDao;
 import com.bharatpe.lending.common.dto.NotificationPayloadDto;
+import com.bharatpe.lending.common.entity.LendingPaymentScheduleLendingCommon;
 import com.bharatpe.lending.common.enums.LoanSettlementMechanism;
 import com.bharatpe.lending.common.service.LendingNotificationService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
@@ -13,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.EnumUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -25,6 +28,7 @@ import static com.bharatpe.lending.collection.core.constant.ExcessConstants.Exce
 import static com.bharatpe.lending.collection.core.constant.RepaymentConstants.NON_DECIMAL_SUPPORTED_LENDER;
 import static com.bharatpe.lending.collection.core.service.impl.LoanPaymentServiceImpl.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.*;
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.enums.Lender.*;
 
 @Service
@@ -46,6 +50,10 @@ public class LoanPaymentUtil {
     NotificationUtil notificationUtil;
     @Autowired
     LendingNotificationService lendingNotificationService;
+
+    @Lazy
+    @Autowired
+    LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -204,5 +212,10 @@ public class LoanPaymentUtil {
 
     public static boolean isExcessAdjustmentEntry(String terminalOrderId) {
         return StringUtils.hasLength(terminalOrderId) && terminalOrderId.contains(EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX);
+    }
+
+    public boolean isPerpetualDpdLoan(long loanId) {
+        Optional<LendingPaymentScheduleLendingCommon> loanOptional = lendingPaymentScheduleLendingCommonDao.findById(loanId);
+        return loanOptional.isPresent() && Y.name().equalsIgnoreCase(loanOptional.get().getPerpetualDpdAdjusted());
     }
 }

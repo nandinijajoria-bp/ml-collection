@@ -895,15 +895,21 @@ public class LiquiloansService {
         }
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = Optional.empty();
         boolean perpetualDpdLoan = false;
-        if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) ||
-                (pdpPartialRollout.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent))) {
-            lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if (lendingPaymentScheduleLendingCommon.isPresent()) {
-                logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
-                perpetualDpdLoan = true;
-                lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
-                lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
-            }
+        if ( !loanUtil.checkIfUPIAutoPayIsActive(lendingApplication.getMerchantId(), lendingApplication.getLender(), lendingApplication.getId())
+              &&  ( sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender())
+                        || ( pdpPartialRollout.contains(lendingApplication.getLender())
+                                && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)
+                            )
+                  )
+        ) {
+                lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
+                if (lendingPaymentScheduleLendingCommon.isPresent()) {
+                    logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
+                    perpetualDpdLoan = true;
+                    lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
+                    lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
+                }
+
         }
         if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
