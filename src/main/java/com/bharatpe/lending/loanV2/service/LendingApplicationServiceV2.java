@@ -983,7 +983,7 @@ public class LendingApplicationServiceV2 {
                     int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
                     log.info("Found {} applications for lender {} created today for merchantId: {}",
                             todayApplicationsCount, lendersToSkipShopPicture, lendingApplication.getMerchantId());
-                    if(todayApplicationsCount <= skipPictureThreshold) {
+                    if(todayApplicationsCount >= skipPictureThreshold) {
                         ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
                         shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
                         shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
