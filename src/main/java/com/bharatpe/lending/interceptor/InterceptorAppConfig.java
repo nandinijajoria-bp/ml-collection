@@ -54,7 +54,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 						"/lending/v3/modifyLender", "/lending/v3/nextStage", "/lending/v3/callback/invoke/dataUpload", "/support/sendArcCommunication", "/lending/v3/test/**", "/lms/payment/details", "/lending/v3/callback/**",
 						"/lending/payment_link/**", "/lending/bank-statement/session/callback","/lending/liquiloan/backdated/loan", "/lending/gst3b/session/callback","/topup/close","/support/rte-program",
 						"/lending/merchant/eligibility","/support/loan-flag-status","/swagger-ui/**", "/lending/check-delete-eligible", "/lending/v3/invokeStage", "/lending/payment/details/v2", "/lending/homepage/cards", "/milestone/rte-eligibility-check",
-						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage");
+						"/lending/merchant/application/data","/lending/payment/loan_settlement/v2", "/lending/payment/loan-settlement-reversal", "/lending/payment/loan/cancel", "/lending/v3/retryStage", "/vkyc/callback");
 
         registry.addInterceptor(clientHmacInterceptor).addPathPatterns("/lending/internal/**","/lending/first_loan_status", "/lending/check_loan_status", "/lending/pullPayment",
 		"/lending/pullPayment/**", "/support/fetchBulkContacts/**","/support/cancelApplication", "/lms/v1/**",
@@ -76,7 +76,7 @@ public class InterceptorAppConfig implements WebMvcConfigurer {
 
 		registry.addInterceptor(commonInterceptor).addPathPatterns("/lending/due_amount","/lending/merchant_loans", "/lending/loanDetails/v2",
 				"/lending/loanDetails", "/lending/getLoanDashboardDetails", "/lending/v3/callback/bre", "/lending/v3/callback/kyc", "/lending/v3/callback/drawdown", "/lending/v3/callback/sanction",
-				"/lending/v3/callback/*");
+				"/lending/v3/callback/*", "/vkyc/callback");
 
 //		registry.addInterceptor(externalClientHmacInterceptor).addPathPatterns("/lending/push_lead_response");
 

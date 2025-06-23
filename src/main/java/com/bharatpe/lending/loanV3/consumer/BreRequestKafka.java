@@ -93,7 +93,7 @@ public class BreRequestKafka {
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void breRequestListener(String request) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = null;
@@ -169,7 +169,7 @@ public class BreRequestKafka {
     @KafkaListener(
             topics="${abfl.bre.callback.topic:bureau-callback}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void breCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
