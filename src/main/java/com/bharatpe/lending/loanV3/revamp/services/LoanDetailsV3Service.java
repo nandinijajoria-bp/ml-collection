@@ -608,7 +608,7 @@ public class LoanDetailsV3Service {
 
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
             if (shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount >= skipPictureThreshold) {
+                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
 
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
