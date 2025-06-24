@@ -977,7 +977,7 @@ public class PaymentService {
                                 handleUpiAutoPaySucessOrder(request, lendingPullPayment);
                                 lendingPullPayment.setStatus(request.getPaymentStatus());
                                 lendingPullPaymentDao.save(lendingPullPayment);
-                                if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                                //if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             } else {
                                 log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
                                 return "OK";
