@@ -16,12 +16,18 @@ public class WorkflowRegistryFactory {
     @Lazy
     private OxyzoWorkflowRegistry oxyzoWorkflowRegistry;
 
+    @Autowired
+    @Lazy
+    private CreditSaisonWorkflowRegistry creditSaisonWorkflowRegistry;
+
     public WorkflowRegistry getWorkflowRegistry(Lender lender) {
         switch (lender) {
             case TRILLIONLOANS:
                 return trillionWorkflowRegistry;
             case OXYZO:
                 return oxyzoWorkflowRegistry;
+            case CREDITSAISON:
+                return creditSaisonWorkflowRegistry;
             default: {
                 log.error("Invalid lender: {}. Returning an empty workflow registry.", lender);
                 return null;

@@ -6,21 +6,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Builder
+@AllArgsConstructor
+@Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class AddressDetails {
-    private float latitude;
-    private float longitude;
-    private String address1;
-    private String address2;
-    private String address3;
-    private String landmark;
-    private long pincode;
+@Builder
+public class CSCustomerAdditionalData {
+    private String type;
+    private String line1;
+    private String line2;
     private String city;
     private String state;
-    private String stateCode;
-    private String area;
+    private String country;
+    private String pinCode;
+    private String mobile;
+    private Integer priority;
 }

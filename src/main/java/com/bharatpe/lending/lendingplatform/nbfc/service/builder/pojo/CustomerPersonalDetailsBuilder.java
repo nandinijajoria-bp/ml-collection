@@ -31,11 +31,15 @@ public class CustomerPersonalDetailsBuilder {
 
 	public static String getFatherName(String careOf) {
 		try {
-			if (ObjectUtils.isEmpty(careOf) || !careOf.contains("S/O")) {
+			if (ObjectUtils.isEmpty(careOf) || (!careOf.contains("S/O") && !careOf.contains("D/O"))) {
 				return null;
 			}
 			careOf = careOf.toUpperCase();
-			careOf = careOf.replaceAll("S/O", "").replaceAll("\\.", "").replaceAll(":", "").replaceFirst(" ", "");
+			careOf = careOf.replaceAll("S/O", "")
+					.replaceAll("D/O", "")
+					.replaceAll("\\.", "")
+					.replaceAll(":", "")
+					.replaceFirst(" ", "");
 			return careOf.substring(0, careOf.indexOf(","));
 		} catch (Exception e) {
 			log.info("Exception in fetching father name from kyc address {}", Arrays.asList(e.getStackTrace()));

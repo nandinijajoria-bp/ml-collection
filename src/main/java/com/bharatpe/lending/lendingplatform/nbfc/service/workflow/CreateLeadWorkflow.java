@@ -102,6 +102,20 @@ public class CreateLeadWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
             return;
         }
+
+        if (response.getLender() == Lender.CREDITSAISON) {
+            CreateLeadResponse data = response.getData();
+            boolean isNoExposureAndNoMatch = (data != null && ObjectUtils.isEmpty(data.getAllowableExposure()) && "No Match".equalsIgnoreCase(data.getDedupeStatus()));
+            boolean isPositiveExposureAndEntityExists = (data != null && !ObjectUtils.isEmpty(data.getAllowableExposure()) && data.getAllowableExposure().doubleValue() > 0.0 && "Entity Exists".equalsIgnoreCase(data.getDedupeStatus()));
+
+            if (!(isNoExposureAndNoMatch || isPositiveExposureAndEntityExists)) {
+                log.info("Create lead failed for application id {} due to Credit Saison dedupe/exposure logic", applicationId);
+                lald.setLeadSubStatus(LeadSubStatus.FAILED);
+                nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
+                return;
+            }
+        }
+
         log.info("Create lead successful for application id {}", applicationId);
         try {
             lald.setLeadSubStatus(LeadSubStatus.SUCCESS);

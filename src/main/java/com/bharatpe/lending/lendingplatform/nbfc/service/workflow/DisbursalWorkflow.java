@@ -84,12 +84,9 @@ public class DisbursalWorkflow implements Workflow {
     private void processLoanDisbursalResponse(String applicationID, LendingApplication lendingApplication,
                                               LendingApplicationLenderDetails lald,
                                               LenderApiResponse<LoanDisbursalResponse> response) {
-        Lender lender = response.getLender();
-        boolean isResponseEmptyOrFailed = ObjectUtils.isEmpty(response) || !response.isSuccess();
-        boolean isResponseDataUnsuccessful = !isLoanDisbursalResponseDataSuccess(response);
-
-        if ((lender.equals(Lender.OXYZO) && isResponseEmptyOrFailed) ||
-                (!lender.equals(Lender.OXYZO) && (isResponseEmptyOrFailed || isResponseDataUnsuccessful))) {
+        Lender lender = Lender.valueOf(lendingApplication.getLender());
+        log.info("Processing loan disbursal response for application id {}: lender={}", applicationID, lender);
+        if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isLoanDisbursalResponseDataSuccess(response)) {
             log.info("Loan disbursal response failure for application id {}", applicationID);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_FAILED.name());

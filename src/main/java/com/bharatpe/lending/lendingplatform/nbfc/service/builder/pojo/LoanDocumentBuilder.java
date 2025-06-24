@@ -36,7 +36,8 @@ public class LoanDocumentBuilder {
 				lendingApplication.getId(), lendingApplication.getLender());
 
 		if (ObjectUtils.isEmpty(lendingKfs)) {
-			return null;
+            log.info("Loan KFS document not found for merchant: {} (applicationId: {}, lender: {})", lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLender());
+            return null;
 		}
 		Map<DocType, LoanDocument> loanDocuments = new HashMap<>();
 
@@ -52,31 +53,35 @@ public class LoanDocumentBuilder {
 		return loanDocuments;
 	}
 
-	private LoanDocument getKFSDocument(LendingKfs lendingKfs) {
-		if (ObjectUtils.isEmpty(lendingKfs.getKfsDocFile())) {
-			return null;
-		}
-		String presignedUrl = buildersUtil.getS3PresignedUrlFromKey(lendingKfs.getKfsDocFile(), bucket);
-		return LoanDocument.builder()
-				.name(DocType.KEY_FACT_STATEMENT.name())
-//				.data(BuildersUtil.convertPreSignedUrlToBase64String(presignedUrl).orElse(null))
-				.url(presignedUrl)
-				.type(DocType.KEY_FACT_STATEMENT)
-				.build();
-	}
+    private LoanDocument getKFSDocument(LendingKfs lendingKfs) {
+        if (ObjectUtils.isEmpty(lendingKfs.getKfsDocFile())) {
+            log.info("KFS document file is empty for lendingKfs id : {}", lendingKfs.getId());
+            return null;
+        }
+        String presignedUrl = buildersUtil.getS3PresignedUrlFromKey(lendingKfs.getKfsDocFile(), bucket);
+        String signedDocFile = buildersUtil.getS3PresignedUrlFromKey(lendingKfs.getSignedKfsDocFile(), bucket);
+        return LoanDocument.builder()
+                .name(DocType.KEY_FACT_STATEMENT.name())
+                .url(presignedUrl)
+                .type(DocType.KEY_FACT_STATEMENT)
+                .additionalData(signedDocFile)
+                .build();
+    }
 
-	private LoanDocument getLoanAgreementDocument(LendingKfs lendingKfs) {
-		if (ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile())) {
-			return null;
-		}
-		String presignedUrl = buildersUtil.getS3PresignedUrlFromKey(lendingKfs.getSanctionLoanAgreementDocFile(), bucket);
-		return LoanDocument.builder()
-				.name(DocType.LOAN_AGREEMENT.name())
-//				.data(BuildersUtil.convertPreSignedUrlToBase64String(presignedUrl).orElse(null))
-				.url(presignedUrl)
-				.type(DocType.LOAN_AGREEMENT)
-				.build();
-	}
+    private LoanDocument getLoanAgreementDocument(LendingKfs lendingKfs) {
+        if (ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile())) {
+            log.info("Sanction Loan Agreement document file is empty for lendingKfs id: {}", lendingKfs.getId());
+            return null;
+        }
+        String presignedUrl = buildersUtil.getS3PresignedUrlFromKey(lendingKfs.getSanctionLoanAgreementDocFile(), bucket);
+        String signedDocFile = buildersUtil.getS3PresignedUrlFromKey(lendingKfs.getSignedSanctionDocFile(), bucket);
+        return LoanDocument.builder()
+                .name(DocType.LOAN_AGREEMENT.name())
+                .url(presignedUrl)
+                .type(DocType.LOAN_AGREEMENT)
+                .additionalData(signedDocFile)
+                .build();
+    }
 
 	private LoanDocument getLOA(LendingKfs lendingKfs) {
 		if (ObjectUtils.isEmpty(lendingKfs.getLoaDocFile())) {
