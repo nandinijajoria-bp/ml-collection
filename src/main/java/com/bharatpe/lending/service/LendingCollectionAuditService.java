@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.entity.HightpvLenderDetails;
 import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -181,10 +183,8 @@ public class LendingCollectionAuditService {
             PushReceiptKafkaMsgDto dto = PushReceiptKafkaMsgDto.builder()
                     .loanId(loanId)
                     .build();
-
-            String msg = objectMapper.writeValueAsString(dto);
-            log.info("Sending receipt posting for loan id {}", msg);
-            confluentKafkaTemplate.send(realTimePostingLenderTopic, msg);
+            log.info("Sending receipt posting for loan id {}", dto);
+            confluentKafkaTemplate.send(realTimePostingLenderTopic, objectMapper.readValue(objectMapper.writeValueAsString(dto), new TypeReference<Map<String, Object>>() {}));
         } catch (Exception e) {
             log.error("sendReceiptPosting exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
