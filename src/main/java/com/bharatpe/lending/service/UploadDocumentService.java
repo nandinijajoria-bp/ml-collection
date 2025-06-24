@@ -107,8 +107,19 @@ public class UploadDocumentService {
 			uploadDocumentResponse.setInvalidPhoto(false);
 			uploadDocumentResponse.setSidGreaterThanRequired(false);
 
-			UploadDocumentRequestDTO uploadDocumentRequest = requestDTO.getPayload();
-			Long applicationId = uploadDocumentRequest.getApplicationId();
+			UploadDocumentRequestDTO uploadDocumentRequest = null;
+			Long applicationId = null;
+
+			if (requestDTO != null && requestDTO.getPayload() != null) {
+				uploadDocumentRequest = requestDTO.getPayload();
+				applicationId = uploadDocumentRequest.getApplicationId();
+			} else {
+				logger.error("Invalid request payload: null or missing payload for merchant: {}",
+						merchant != null ? merchant.getId() : "unknown");
+				return ApiResponse.error(String.valueOf(HttpStatus.BAD_REQUEST.value()),
+						"Invalid request: missing payload", null);
+			}
+
 			List<UploadDocumentRequestDTO.Document> documents = uploadDocumentRequest.getDocuments();
 
 			if (applicationId == null || applicationId <= 0 || documents == null || documents.isEmpty()) {
