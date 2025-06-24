@@ -412,6 +412,13 @@ public class LoanDashboardService {
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
         checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+
+        if(!ObjectUtils.isEmpty(entity)
+                && !ObjectUtils.isEmpty(mileStoneHelperService.fetchTarget(entity))
+                && RTEProgramType.SLIDER.name().equals(mileStoneHelperService.fetchTarget(entity).getProgram_type()) && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())){
+            loanDashboardResponse.setSliderEnrolled(true);
+        }
+
         if(!Objects.nonNull(loanDashboardResponse.getIneligible()) && emiUtils.isRejectedWithConditions(emiDashboardData, openApplication)){
             // send emiLoanApplication in response
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());

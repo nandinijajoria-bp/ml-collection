@@ -798,16 +798,31 @@ public class MileStoneProgramService {
         log.info("entity is {} for merchant id {}",entity,merchant.getId());
         log.info("loanEligibility {} of a merchant is {}",rteProgramDetailsDto.getLoanEligibility(),merchant.getId());
 
+        DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
         if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getLoanEligibility()) &&
                 rteProgramDetailsDto.getLoanEligibility().equals(Boolean.TRUE) &&
                  !ObjectUtils.isEmpty(entity)
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
-//            responseDto.setShowRTELoansFlow(false);
-            responseDto.setSessionStatus(RTESessionStatus.CLOSED.name());
-            responseDto.setEnrollState(false);
-            rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
-            updateEntity(merchant);
+            if(!RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+                //responseDto.setShowRTELoansFlow(false);
+                responseDto.setSessionStatus(RTESessionStatus.CLOSED.name());
+                responseDto.setEnrollState(false);
+                rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
+                updateEntity(merchant);
+            } else {
+                rteProgramDetailsDto.setTargetLoanAmount(Double.parseDouble(mileStoneResponse.getLoan_amount()));
+                LocalDate expiryDate = entity.getExpiryDate().toInstant()
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate();
+                LocalDate currentDate = LocalDate.now();
+                long daysLeft = ChronoUnit.DAYS.between(currentDate, expiryDate);
+                if (daysLeft < 0) {
+                    daysLeft = 0;
+                }
+                rteProgramDetailsDto.setDaysUntilExpiration(daysLeft);
+            }
         }
+
         cacheLoanDetailsData(rteProgramDetailsDto, merchant.getId());
         return new ApiResponse<>(rteProgramDetailsDto);
     }

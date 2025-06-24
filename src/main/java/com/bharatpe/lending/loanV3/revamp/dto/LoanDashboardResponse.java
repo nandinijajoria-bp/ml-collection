@@ -54,6 +54,7 @@ public class LoanDashboardResponse {
     private Boolean isMaskedMobileCase;
     private InsuranceEligibilityResponseDTO.ResponseData insuranceEligibility;
     private boolean showRTEPage;
+    private boolean sliderEnrolled;
 
 }
 
