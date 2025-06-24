@@ -192,17 +192,13 @@ public class PayUNachMandateService {
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
             NBFCRequestDTO updateAddressRequestDto = getUpdateAddressPayload(lenderAssociationDetailsRequestDto);
-            log.info("PAYU: UPDATE ADDRESS REQUEST PAYLOAD", updateAddressRequestDto.getPayload().toString());
 
             if (Objects.isNull(updateAddressRequestDto)) {
 
                 log.info("error in update address payload of PayU for applicationId: {}", lenderAssociationDetailsRequestDto.getApplicationId());
-
-                lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_ADDRESS_FAILED.name());
-                commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
-
                 return false;
             }
+            log.info("PAYU: UPDATE ADDRESS REQUEST PAYLOAD", updateAddressRequestDto.getPayload().toString());
 
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(updateAddressRequestDto, LenderAssociationStages.UPDATE_LEAD);
 
@@ -223,8 +219,6 @@ public class PayUNachMandateService {
         } catch (Exception e) {
             log.error("error while pushing update lead of PayU for  {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_ADDRESS_FAILED.name());
-        commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
 
         return Boolean.FALSE;
     }
@@ -307,8 +301,6 @@ public class PayUNachMandateService {
             NBFCRequestDTO bankDetailsUpdationRequest = getUpdateBankDetailsPayload(lenderAssociationDetailsRequest);
             if (ObjectUtils.isEmpty(bankDetailsUpdationRequest)) {
                 log.info("error in bank updation payload of PayU for applicationId: {}", lenderAssociationDetailsRequest.getApplicationId());
-                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.BANK_UPDATION_FAILED.name());
-                commonService.manageApplicationState(lenderAssociationDetailsRequest);
                 return false;
             }
             NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(bankDetailsUpdationRequest, LenderAssociationStages.UPDATE_LEAD);
@@ -329,8 +321,6 @@ public class PayUNachMandateService {
         } catch (Exception e) {
             log.error("error while pushing bank details updation request of PayU for  {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-        lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.BANK_UPDATION_FAILED.name());
-        commonService.manageApplicationState(lenderAssociationDetailsRequest);
         return Boolean.FALSE;
     }
 
