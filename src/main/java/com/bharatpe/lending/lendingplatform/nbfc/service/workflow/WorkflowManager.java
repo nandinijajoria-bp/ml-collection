@@ -90,9 +90,10 @@ public class WorkflowManager {
 
 			switch (lenderEnum) {
 				case TRILLIONLOANS:
-				case CREDITSAISON:
 				case OXYZO:
 					return getCurrentStageForCommonLenders(leadStatusEnum);
+				case CREDITSAISON:
+					return getCurrentStageForCommonLendersForCs(leadStatusEnum);
 				default:
 					log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
 					return null;
@@ -113,6 +114,20 @@ public class WorkflowManager {
 				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
 			case NACH:
 				return WorkflowStage.NACH_REGISTRATION;
+			default:
+				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
+				return null;
+		}
+	}
+
+	private static WorkflowStage getCurrentStageForCommonLendersForCs(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case LOAN_DISBURSAL:
+				return WorkflowStage.DISBURSAL;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case LOAN_DOCUMENT:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
 			default:
 				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
 				return null;
