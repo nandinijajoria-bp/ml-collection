@@ -4,12 +4,17 @@ import com.bharatpe.common.entities.LendingLedger;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.HightpvLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingCollectionAuditDao;
+import com.bharatpe.lending.common.dto.PushReceiptKafkaMsgDto;
 import com.bharatpe.lending.common.entity.HightpvLenderDetails;
 import com.bharatpe.lending.common.entity.LendingCollectionAudit;
 import com.bharatpe.lending.common.query.dao.LendingApplicationDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -31,6 +36,17 @@ public class LendingCollectionAuditService {
 
     @Autowired
     HightpvLenderDetailsDao hightpvLenderDetailsDao;
+
+    @Autowired
+    ObjectMapper objectMapper;
+
+    @Value("${collection.receipt.push.realtime.topic:realtime-posting}")
+    private String realTimePostingLenderTopic;
+
+    @Autowired
+    @Qualifier("ConfluentKafkaTemplate")
+    KafkaTemplate confluentKafkaTemplate;
+
 
     private String getAdjustmentMode(String adjustmentModeFromLedger) {
         if ((UPI_AUTOPAY_ADJUSTMENT_MODE).equalsIgnoreCase(adjustmentModeFromLedger))
@@ -157,6 +173,20 @@ public class LendingCollectionAuditService {
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         } catch (Exception e) {
             log.error("Error in creating collection audit for ledger id {}, {}", lendingLedger.getId(), Arrays.asList(e.getStackTrace()));
+        }
+    }
+
+    public void sendReceiptPosting(long loanId) {
+        try {
+            PushReceiptKafkaMsgDto dto = PushReceiptKafkaMsgDto.builder()
+                    .loanId(loanId)
+                    .build();
+
+            String msg = objectMapper.writeValueAsString(dto);
+            log.info("Sending receipt posting for loan id {}", msg);
+            confluentKafkaTemplate.send(realTimePostingLenderTopic, msg);
+        } catch (Exception e) {
+            log.error("sendReceiptPosting exception for loan id {} {} {}", loanId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
     }
 }

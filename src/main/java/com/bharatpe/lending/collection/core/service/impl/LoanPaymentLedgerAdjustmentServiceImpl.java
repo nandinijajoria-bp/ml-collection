@@ -126,25 +126,6 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         log.info("inside creating lending ledger and audit for loan {} and order {}",loan,order);
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
-        if( !"PAYU".equalsIgnoreCase(loan.getNbfc()) && ("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
-            //push loanId to kafka
-            if(lendingLedger!= null) confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
-        }
-        try {
-            if(lendingLedger != null){
-            log.info("inside sending upi-real-time-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId());
-            LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId()).orElse(null);
-
-            if (adjustmentMode != null && realTimeRecieptPostingWhitelistedPgModes.contains(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), realTimeRecieptPostingPercentScaleUp)
-                    && loan.getNbfc() != null   && realTimeRecieptPostingWhitelistedLenders.contains(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
-                    && !"Y".equalsIgnoreCase(lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted())) {
-                log.info("Real time reciept posting for UPI {}", lendingLedger);
-                confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
-            }
-            }
-        }catch (Exception ex){
-            log.error("Error while sending autopayupi-posting for loanId: {} and ledgerId: {}", loan, lendingLedger, ex);
-        }
         return lendingLedger;
     }
     @Override
