@@ -1396,6 +1396,7 @@ public class PaymentService {
             double finalAmount = amount;
             // Todo: fix when opening  for roll out
             notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, false));
+            lendingCollectionAuditService.sendReceiptPosting(activeLoan.getId());
             log.info("NewSettlement# completed the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             return;
         }
