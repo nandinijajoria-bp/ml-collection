@@ -19,6 +19,8 @@ public interface LendingApplicationDao extends CrudRepository<LendingApplication
 
 	LendingApplication findByIdAndStatus(Long id, String status);
 
+	LendingApplication findTop1ByMerchantId(Long merchantId);
+
 	@Query("SELECT la FROM LendingApplication la WHERE la.lender IN (:lenders) AND la.createdAt >= :startDate")
 	List<LendingApplication> findByLenderAndCreatedAtGreaterThanEqual(List<String> lenders, Date startDate);
 
