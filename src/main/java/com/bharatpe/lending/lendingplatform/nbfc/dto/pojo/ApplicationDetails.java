@@ -74,4 +74,5 @@ public class ApplicationDetails {
     private String offerId;
     private String merchantCategory;
     private CommonResponse ediScheduleResponse;
+    private Double apr;
 }

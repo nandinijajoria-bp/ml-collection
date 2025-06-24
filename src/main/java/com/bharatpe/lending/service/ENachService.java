@@ -364,6 +364,7 @@ public class ENachService {
                 verifyOTPService.sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
             }
         } else {
+            logger.info("Enach failed for merchant:{}", merchant.getId());
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.FAILED, bharatPeEnach.getMode());
         }

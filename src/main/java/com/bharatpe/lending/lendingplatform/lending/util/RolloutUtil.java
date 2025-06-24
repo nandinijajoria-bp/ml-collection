@@ -49,6 +49,17 @@ public class RolloutUtil {
     @Value("${lending.platform.underwriting.flow.merchant.rollout:0}")
     private int eligibleUnderwritingMerchantRollout;
 
+
+    // CreditSaison specific configurations
+    @Value("${lending.platform.cs.nbfc.merchant.rollout:0}")
+    private int eligibleLendingPlatformCsNbfcMerchantRollout;
+
+    @Value("${lending.platform.cs.nbfc.application.limit:2}")
+    private int lendingPlatformCsNbfcApplicationLimit;
+
+    @Value("${lending.platform.cs.nbfc.enable:false}")
+    private boolean csNbfcFlowEnable;
+
     @Value("${new.flow.eligible.lenders.onelms:TRILLIONLOANS}")
     private List<String> eligibleLendersForOneLms;
     @Value("${lending.platform.lms.eligible.merchants:20000100}")
@@ -117,6 +128,12 @@ public class RolloutUtil {
 			log.info("Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
 			return true;
 		}
+
+        // Rollout check for CreditSaison
+        if (lendingApplication.getLender() != null && lendingApplication.getLender().equals("CREDITSAISON")) {
+            log.info("CreditSaison New flow check for Merchant:{}", merchantId);
+            return isEligibleForCreditSaison(lendingApplication, merchantId);
+        }
 
 		if (!nbfcFlowEnable) {
 			log.info("Merchant not eligible for new flow due to flag config, application: {}", lendingApplication.getId());
@@ -198,4 +215,40 @@ public class RolloutUtil {
         log.info("New flow applicable for LMS");
         return true;
     }
+
+    private boolean isEligibleForCreditSaison(LendingApplication lendingApplication, Long merchantId) {
+
+        if (!csNbfcFlowEnable) {
+            log.info("Merchant not eligible for new flow due to flag config, application: {}", lendingApplication.getId());
+            return false;
+        }
+
+        int merchantIdPercentage = merchantId.intValue() % 100;
+        if (merchantIdPercentage > eligibleLendingPlatformCsNbfcMerchantRollout) {
+            log.info("CreditSaison New flow for Merchant:{} is not eligible due to rollout percent", merchantId);
+            return false;
+        }
+
+        if (Boolean.TRUE.equals(kycUtils.isELigibleForLenderKyc(
+                lendingApplication.getLender(), lendingApplication.getMerchantId(), false))) {
+            log.info("CreditSaison New flow for Merchant:{} is not eligible due to EKYC", merchantId);
+            return false;
+        }
+
+        if (lendingPlatformCsNbfcApplicationLimit != -1) {
+            LocalDate localDate = LocalDate.parse("2025-06-23");
+            Date date = Date.from(localDate.atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
+            long count = laldDao.countLendingApplicationLenderDetailsByRearchFlowAndCreatedAtGreaterThanAndLender(
+                    true, date, "CREDITSAISON");
+            log.info("CreditSaison New flow for Merchant:{} has count: {}", merchantId, count);
+            if (count >= lendingPlatformCsNbfcApplicationLimit) {
+                log.info("CreditSaison New flow for Merchant:{} is not eligible due to application limit", merchantId);
+                return false;
+            }
+        }
+
+        log.info("CreditSaison Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
+        return true;
+    }
+
 }

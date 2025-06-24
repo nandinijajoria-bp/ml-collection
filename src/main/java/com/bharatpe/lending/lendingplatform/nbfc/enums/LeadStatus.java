@@ -8,10 +8,11 @@ public enum LeadStatus {
     CKYC,
     KYC_DOCUMENT,
     DIGI_SIGN,
-    LOAN_DOCUMENT,
+    LOAN_DOCUMENT,  // loanDocumentUpload
+    LOAN_DOCUMENT_DOWNLOAD, // loanDocumentDownload
     LOAN_SANCTION,
     UPDATE_LEAD,
     NACH,
     LOAN_DISBURSAL,
-    LOAN_DOCUMENT_DOWNLOAD
+    PENNY_DROP
 }

@@ -71,6 +71,19 @@ public class StageUtil {
                 }
                 break;
             }
+            case PENNY_DROP: {
+                switch (lald.getLeadSubStatus()) {
+                    case PENDING:
+                    case CALLBACK_PENDING:
+                        return LenderAssociationStatus.PENNY_DROP_PENDING;
+                    case FAILED:
+                    case REQUEST_CREATION_FAILED:
+                        return LenderAssociationStatus.PENNY_DROP_FAILED;
+                    case SUCCESS:
+                        return LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED;
+                }
+                break;
+            }
             case LOAN_DOCUMENT:
                 return LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED;
         }
@@ -100,6 +113,17 @@ public class StageUtil {
             case EKYC:
             case CKYC:
                 return LenderAssociationStages.EKYC;
+            case PENNY_DROP:
+                switch (lald.getLeadSubStatus()) {
+                    case PENDING:
+                    case FAILED:
+                    case REQUEST_CREATION_FAILED:
+                    case CALLBACK_PENDING:
+                        return LenderAssociationStages.PENNY_DROP;
+                    case SUCCESS:
+                        return LenderAssociationStages.COMPLETED;
+                }
+                break;
             case LOAN_DOCUMENT:
                 return LenderAssociationStages.COMPLETED;
         }
