@@ -37,6 +37,7 @@ public class CustomerShopDetailsBuilder {
 				.address2(lendingApplication.getStreetAddress())
 				.landmark(lendingApplication.getLandmark())
 				.pincode(lendingApplication.getPincode())
+				.area(lendingApplication.getArea())
 				.city(lendingApplication.getCity())
 				.state(lendingApplication.getState())
 				.stateCode(Objects.nonNull(StateMapping.getStateEnum(lendingApplication.getState())) ?

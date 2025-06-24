@@ -22,4 +22,5 @@ public class AddressDetails {
     private String city;
     private String state;
     private String stateCode;
+    private String area;
 }

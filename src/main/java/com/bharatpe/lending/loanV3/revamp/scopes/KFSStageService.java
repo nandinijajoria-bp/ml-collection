@@ -3,7 +3,6 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
-import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -20,6 +19,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.AutoPayUPIService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +64,9 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
     @Value("${merchant.plugin.rollout.percent:0}")
     Integer merchantPluginRolloutPercent;
 
+    @Autowired
+    VKycService vkycService;
+
     @Override
     public LendingStateDTO<KFSStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<KFSStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
@@ -88,7 +91,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
               (Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication()) &&
                             Objects.nonNull(lendingStateDTO.getData().getTopupLoanApplication().getEnachDone()) &&
                             lendingStateDTO.getData().getTopupLoanApplication().getEnachDone())) {
-                lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
+                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
             }
         }
         loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
@@ -219,7 +222,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
             openApplication.setNachType("ENACH");
             openApplication.setNachLender(loanUtil.enachServiceLenderMapper(openApplication.getLender()));
             lendingApplicationDao.save(openApplication);
-            loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender()));
         }
         applicationDetails.setSkipEnach(loanUtil.isEligibleForNachSkip(openApplication, openApplication.getLender()));
         if (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus())) {

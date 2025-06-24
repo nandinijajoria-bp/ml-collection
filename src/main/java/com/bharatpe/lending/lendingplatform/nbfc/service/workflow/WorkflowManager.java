@@ -5,6 +5,8 @@ import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.PENNY_DROP;
+
 @Slf4j
 public class WorkflowManager {
 
@@ -18,7 +20,9 @@ public class WorkflowManager {
 					return getNextStageForCommonLenders(leadStatusEnum);
 				case OXYZO:
 					return getNextStageForOxyzoLenders(leadStatusEnum);
-				default:
+                case CREDITSAISON:
+                    return getNextStageForCsLenders(leadStatusEnum);
+                    default:
 					log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
 					return null;
 			}
@@ -41,6 +45,25 @@ public class WorkflowManager {
 				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
 			default:
 				log.warn("No next workflow stage found for invalid lead status: {}", leadStatus);
+				return null;
+		}
+	}
+
+	private static WorkflowStage getNextStageForCsLenders(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case KYC_DOCUMENT:
+			case KYC:
+			case CKYC:
+			case EKYC:
+				return WorkflowStage.BRE;
+			case BRE:
+				return PENNY_DROP;
+			case PENNY_DROP:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
+			default:
+				log.error("No next workflow stage found for invalid lead status for cs: {}", leadStatus);
 				return null;
 		}
 	}
@@ -69,6 +92,8 @@ public class WorkflowManager {
 				case TRILLIONLOANS:
 				case OXYZO:
 					return getCurrentStageForCommonLenders(leadStatusEnum);
+				case CREDITSAISON:
+					return getCurrentStageForCommonLendersForCs(leadStatusEnum);
 				default:
 					log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
 					return null;
@@ -83,10 +108,26 @@ public class WorkflowManager {
 		switch (leadStatus) {
 			case LOAN_DISBURSAL:
 				return WorkflowStage.DISBURSAL;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
 			case LOAN_DOCUMENT:
 				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
 			case NACH:
 				return WorkflowStage.NACH_REGISTRATION;
+			default:
+				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
+				return null;
+		}
+	}
+
+	private static WorkflowStage getCurrentStageForCommonLendersForCs(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case LOAN_DISBURSAL:
+				return WorkflowStage.DISBURSAL;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case LOAN_DOCUMENT:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
 			default:
 				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
 				return null;

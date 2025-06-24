@@ -29,6 +29,7 @@ import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactoryV2;
 import com.bharatpe.lending.loanV3.revamp.enums.NachStatus;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalAdditionalDocUploadService;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
@@ -158,6 +159,9 @@ public class ENachService {
     @Autowired
     private ENachRegister eNachRegister;
 
+    @Autowired
+    VKycService vkycService;
+
 
     private final List<String> preFinalNachStatus = Arrays.asList(NachStatus.INPROCESS.name(), NachStatus.PENDING.name(),NachStatus.PENDING_VERIFICATION.name());
     private final List<String> nachCancellationInProgressStatus = Arrays.asList(NachStatus.CANCEL_INIT.name(), NachStatus.CANCEL_PENDING.name());
@@ -274,7 +278,7 @@ public class ENachService {
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
                 loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.AGREEMENT_PAGE);
             }
-            else loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            else loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
             logger.info("nach status for {}, {}, {}", lendingApplication.getId(), lendingApplication.getMerchantId(), lendingApplication.getNachStatus());
             lendingApplication.setNachReferenceNumber(bharatPeEnach.getProviderUmrn());
 //            lendingApplicationDao.save(lendingApplication);
@@ -360,6 +364,7 @@ public class ENachService {
                 verifyOTPService.sendDetailsForContactsVerification(merchant.getId(), lendingApplication.getId());
             }
         } else {
+            logger.info("Enach failed for merchant:{}", merchant.getId());
             funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
                     FunnelEnums.StageId.NACH, FunnelEnums.StageEvent.FAILED, bharatPeEnach.getMode());
         }

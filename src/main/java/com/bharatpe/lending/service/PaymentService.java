@@ -977,7 +977,7 @@ public class PaymentService {
                                 handleUpiAutoPaySucessOrder(request, lendingPullPayment);
                                 lendingPullPayment.setStatus(request.getPaymentStatus());
                                 lendingPullPaymentDao.save(lendingPullPayment);
-                                if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                                //if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             } else {
                                 log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
                                 return "OK";
@@ -1396,6 +1396,7 @@ public class PaymentService {
             double finalAmount = amount;
             // Todo: fix when opening  for roll out
             notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, false));
+            lendingCollectionAuditService.sendReceiptPosting(activeLoan.getId());
             log.info("NewSettlement# completed the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             return;
         }

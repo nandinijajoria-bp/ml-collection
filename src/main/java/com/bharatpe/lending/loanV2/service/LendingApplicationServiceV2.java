@@ -61,6 +61,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
@@ -402,6 +403,11 @@ public class LendingApplicationServiceV2 {
     @Value("${lender.vernac.lang.rollout.percent:1}")
     Integer lenderVernacLangRolloutPercent;
 
+    @Autowired
+    VKycService vkycService;
+
+    @Autowired
+    LendingApplicationVkycDetailsDao lendingApplicationVkycDetailsDao;
 
     @Value("${skip.picture.threshold:0}")
     private int skipPictureThreshold;
@@ -1116,10 +1122,6 @@ public class LendingApplicationServiceV2 {
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(applicationRequest.getCurrentAddressSameAsPermanentAddress());
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            // invoke bre for piramal
-//            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-//                invokeBreForPiramal(lendingGstDetail, lendingApplication);
-//            }
 
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
@@ -1520,6 +1522,22 @@ public class LendingApplicationServiceV2 {
             }
             applicationDTO.add(kycDTO);
             applicationDTO.add(applicationDTO2);
+
+            if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
+                LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
+                String status = "PENDING";
+                if (!ObjectUtils.isEmpty(vkycDetails) && VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
+                    status = VkycStatus.getSuccessVkycStatusList().contains(vkycDetails.getStatus()) ? "APPROVED" : "REJECTED";
+                }
+                if (!ObjectUtils.isEmpty(vkycDetails)) {
+                    ApplicationDTO vKycDTO = new ApplicationDTO();
+                    vKycDTO.setText("VKYC Verification");
+                    vKycDTO.setDisabled(enachMandatory);
+                    vKycDTO.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
+                    vKycDTO.setStatus(status);
+                    applicationDTO.add(vKycDTO);
+                }
+            }
 
             if(udyamRegistrationRequiredLenders.contains(lendingApplication.getLender())) {
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
@@ -2447,7 +2465,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
-                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
 
                 // update tat start time on resubmit
                 LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());

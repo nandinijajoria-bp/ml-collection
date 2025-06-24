@@ -271,6 +271,13 @@ public class LoanDetailsV3Service {
                 case UDYAM_REGISTRATION_PAGE:
                     setUdyamRegistrationPageResponse((UdyamRegistrationStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+
+                case LENDER_VKYC_PAGE:
+                    setLenderVKycResponse((LenderVKycStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+
                 default:
 
             }
@@ -1441,6 +1448,16 @@ public class LoanDetailsV3Service {
                     audit);
         }
 
+    }
+
+    private static void setLenderVKycResponse(LenderVKycStateDTO lenderVKycStateDTO, LoanDetailsV3Response loanDetailsV3Response) {
+        loanDetailsV3Response.setLender(lenderVKycStateDTO.getLender());
+        loanDetailsV3Response.setVkycCompleted(lenderVKycStateDTO.getVkycCompleted());
+        loanDetailsV3Response.setVkycStatus(lenderVKycStateDTO.getVKycStatus());
+        loanDetailsV3Response.setVkycEligible(lenderVKycStateDTO.getVkycEligible());
+        loanDetailsV3Response.setDkycEligible(lenderVKycStateDTO.getDkycEligible());
+        loanDetailsV3Response.setApplicationId(lenderVKycStateDTO.getApplicationId());
+        loanDetailsV3Response.setRejectReason(lenderVKycStateDTO.getRejectReason());
     }
 
 }
