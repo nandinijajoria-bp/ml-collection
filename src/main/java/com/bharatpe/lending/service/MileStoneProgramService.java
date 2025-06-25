@@ -826,7 +826,7 @@ public class MileStoneProgramService {
         return new ApiResponse<>(rteProgramDetailsDto);
     }
 
-    private static Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse, RTEProgramDetailsDto rteProgramDetailsDto) {
+    private Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse, RTEProgramDetailsDto rteProgramDetailsDto) {
         Map<String, String> cleverTapEvtData = new HashMap<>();
         cleverTapEvtData.put("rte_program_type", "RTE V3");
         cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
