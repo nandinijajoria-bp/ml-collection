@@ -24,12 +24,11 @@ public class PaymentBankService {
 
     private final LoanUtil loanUtil;
 
-
     public boolean changePaymentAccount(LendingApplication lendingApplication, BankAccountDetails accDetails ) {
         log.info("Entering into the changePaymentAccount method with lendingApplication: {}",
                 lendingApplication != null ? lendingApplication.getId() : "null");
         if(accDetails == null){
-            log.info("Account details are null for merchant {}", lendingApplication.getMerchantId()));
+            log.info("Account details are null for merchant {}", lendingApplication.getMerchantId());
             return false;
         }
         Long merchantId = lendingApplication.getMerchantId();
