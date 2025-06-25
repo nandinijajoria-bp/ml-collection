@@ -61,11 +61,6 @@ public class PayUUpdateLeadService {
             log.info("Payu inside updateAddress {} {}", lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadStatus());
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getLendingApplication().getId(), lenderAssociationDetailsRequestDto.getLendingApplication().getLender());
 
-            if (!Arrays.asList(LenderAssociationStatus.LOAN_DOCS.name(), LenderAssociationStatus.UPDATE_ADDRESS_FAILED.name(), LenderAssociationStatus.UPDATE_ADDRESS_PAYLOAD_FAILED.name()).contains(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getLeadStatus())) {
-                log.info("Payu: Incorrect lead status for updateAddress");
-                return Boolean.FALSE;
-            }
-
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.UPDATE_ADDRESS.name());
             lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_ADDRESS_PENDING.name());
             commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
@@ -180,11 +175,6 @@ public class PayUUpdateLeadService {
         try {
             log.info("Payu inside bankAccountUpdation {} {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus());
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
-
-            if (!Arrays.asList(LenderAssociationStatus.UPDATE_ADDRESS_SUCCESS.name(), LenderAssociationStatus.BANK_UPDATION_FAILED.name(), LenderAssociationStatus.BANK_UPDATION_PAYLOAD_FAILED.name()).contains(lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus())) {
-                log.info("Payu: Incorrect lead status for bankAccountUpdation");
-                return Boolean.FALSE;
-            }
 
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.UPDATE_BANK_DETAILS.name());
             lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.BANK_UPDATION_PENDING.name());
