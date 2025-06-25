@@ -310,6 +310,10 @@ public class NbfcUtils {
                 return associationServiceUtil.invokeUpdateLoan(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             case "SKIP_VKYC":
                 return associationServiceUtil.invokeSkipVkyc(lenderAssociationDetailsDto);
+            case "UPDATE_ADDRESS":
+                return associationServiceUtil.invokeAddressUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "UPDATE_BANK_DETAILS":
+                return associationServiceUtil.invokeBankAccountUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }
