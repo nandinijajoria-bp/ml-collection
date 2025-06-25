@@ -33,6 +33,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static com.bharatpe.lending.common.Constants.AutoPayCheckoutEnum.*;
 import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.REVOKED;
 
 
@@ -64,7 +65,10 @@ public class AutoPayUPIService {
     LoanUtil loanUtil;
 
     @Value(("${pg.android.version.merchant.plugin:7.1.9}"))
-    String androidVersion;
+    String androidVersionMerchantPlugin;
+
+    @Value(("${pg.android.version.direct.cashfree:7.1.9}"))
+    String androidVersionDirectCashfree;
 
     @Value(("${pg.ios.version:254}"))
     Long iosVersion;
@@ -86,6 +90,12 @@ public class AutoPayUPIService {
 
     @Value("${auto.pay.upi.mandate.plugin.enabled:false}")
     private boolean autoPayUPIMandatePluginEnabled;
+
+    @Value("${auto.pay.upi.mandate.direct.cashfree.enabled:false}")
+    private boolean autoPayUPIMandateDirectCashfreeEnabled;
+
+    @Value("${allowed.lenders.for.direct.cashfree:false}")
+    private String allowedLendersForDirectCashfree;
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -340,7 +350,7 @@ public class AutoPayUPIService {
         return new UPIRegisterResponseDto(data);
     }
 
-    public UPIRegisterResponseDto registerUPIForNewApplication(BasicDetailsDto merchantBasicDetails, AutoUPIMandateRegisterRequestDto requestDto, LendingApplication lendingApplication) {
+    public UPIRegisterResponseDto registerUPIForNewApplication(BasicDetailsDto merchantBasicDetails, AutoUPIMandateRegisterRequestDto requestDto, LendingApplication lendingApplication,String checkoutType) {
         log.info("Received initiate UPI Register request for new Application  for merchant {} : {}", merchantBasicDetails.getId(), requestDto);
 
         //Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(requestDto.getApplicationId());
@@ -380,7 +390,7 @@ public class AutoPayUPIService {
                 autoPayUPI.setLender(lendingApplication.getLender());
                 autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
                 autoPayUPI.setApplicationId(lendingApplication.getId());
-                autoPayUPI.setGateway("CASHFREE");
+                autoPayUPI.setGateway(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : "CASHFREE");
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
                 autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
@@ -397,7 +407,7 @@ public class AutoPayUPIService {
 
                 registerPgRequest.setNarration("Register mandate with orderId" + autoPayUPI.getOrderId());
                 registerPgRequest.setOrderId(autoPayUPI.getOrderId());
-                registerPgRequest.setCheckout("JUSPAY");
+                registerPgRequest.setCheckout(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? "CASHFREE" : "JUSPAY");
                 registerPgRequest.setAccountNumber(merchantBankDetail.get().getAccountNumber());
                 registerPgRequest.setIfscCode(merchantBankDetail.get().getIfsc());
 
@@ -531,11 +541,11 @@ public class AutoPayUPIService {
         return new UPIRegisterResponseDto(data);
     }
 
-    public List<String> getAllowedLenderForUPIAutoPayMerchantPlugin() {
+    public List<String> getAllowedLenderForUPIAutoPay(String autoPaayUpiAllowedLender) {
         List<String> allowedLender = new ArrayList<>();
-        if (StringUtils.hasLength(autoPayUPIMandatePluginLenders)) {
+        if (StringUtils.hasLength(autoPaayUpiAllowedLender)) {
             try {
-                allowedLender = Arrays.asList(autoPayUPIMandatePluginLenders.split(","));
+                allowedLender = Arrays.asList(autoPaayUpiAllowedLender.split(","));
             } catch (Exception e) {
                 log.error("Error in parsing allowedAutoPayUpiLender ",e);
             }
@@ -558,12 +568,19 @@ public class AutoPayUPIService {
 
         // overriding data with realtime data
         requestDto.getPayload().setLender(lendingApplicationOptional.get().getLender());
-
-        if(autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
-                getAllowedLenderForUPIAutoPayMerchantPlugin().contains(requestDto.getPayload().getLender()) && isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersion)) {
-            return registerUPIForNewApplicationMandatePlugin(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
-        }
-        return registerUPIForNewApplication(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
+         switch (determineCheckoutType(requestDto)){
+             case  "UNITY":
+             return registerUPIForNewApplicationMandatePlugin(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
+             case  "DR_CASHFREE":
+             return registerUPIForNewApplication(merchant, requestDto.getPayload(), lendingApplicationOptional.get(), DR_CASHFREE.name());
+             default:
+                 return registerUPIForNewApplication(merchant, requestDto.getPayload(), lendingApplicationOptional.get(),JS_CASHFREE.name());
+         }
+//        if(autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+//                getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) && isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
+//            return registerUPIForNewApplicationMandatePlugin(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
+//        }
+//        return registerUPIForNewApplication(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
     }
 
     public void revokeMandate(LendingApplication loanApplicatioj, AutoPayUPI autoPayUpi) {
@@ -603,5 +620,21 @@ public class AutoPayUPIService {
             }
         }
         return true;
+    }
+
+    public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto) {
+        if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) &&
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
+            return UNITY.name();
+        }
+
+        if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
+                getAllowedLenderForUPIAutoPay(allowedLendersForDirectCashfree).contains(requestDto.getPayload().getLender()) &&
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree)) {
+            return DR_CASHFREE.name();
+        }
+
+        return JS_CASHFREE.name();
     }
 }
