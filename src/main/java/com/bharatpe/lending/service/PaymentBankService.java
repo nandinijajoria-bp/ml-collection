@@ -29,6 +29,7 @@ public class PaymentBankService {
         log.info("Entering into the changePaymentAccount method with lendingApplication: {}",
                 lendingApplication != null ? lendingApplication.getId() : "null");
         if(accDetails == null){
+            log.info("Account details are null for merchant {}", lendingApplication.getMerchantId()));
             return false;
         }
         Long merchantId = lendingApplication.getMerchantId();
