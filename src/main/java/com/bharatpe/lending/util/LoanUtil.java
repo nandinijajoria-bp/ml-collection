@@ -1962,9 +1962,12 @@ public class LoanUtil {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
-
+		BankAccountDetails accountDetails = getAccountDetails(lendingApplication.getMerchantId());
+		if (accountDetails == null) {
+			logger.error("Account details are null for merchant {}", lendingApplication.getMerchantId()));
+		}
 		if(isPaymentBankChangeFlowApplicable){
-			if (paymentBankService.changePaymentAccount(lendingApplication) || paymentBankService.isPaymentBank(lendingApplication.getMerchantId())) {
+			if (paymentBankService.changePaymentAccount(lendingApplication, accountDetails) || paymentBankService.isPaymentBank(lendingApplication.getMerchantId(),accountDetails)) {
 				logger.info("Merchant {} using Payments Bank with loan amount threshold – skip NACH", lendingApplication.getMerchantId());
 				return Boolean.FALSE;
 			}
