@@ -38,9 +38,9 @@ public class PaymentBankService {
         boolean repeatLoan = loanUtil.isRepeatLoan(merchantId);
         log.info("Repeat loan status for merchantId {} is: {}", merchantId, repeatLoan);
         if (repeatLoan || "TOPUP".equalsIgnoreCase(loanType)) {
-            return lendingApplication.getLoanAmount() >= 150000;
+            return lendingApplication.getLoanAmount() > 150000;
         } else {
-            return lendingApplication.getLoanAmount() >= 50000;
+            return lendingApplication.getLoanAmount() > 50000;
         }
     }
 
