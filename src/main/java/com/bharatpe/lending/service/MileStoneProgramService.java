@@ -614,7 +614,7 @@ public class MileStoneProgramService {
             log.info("Weekly targets empty for {}", merchant.getId());
             return false;
         }
-        if(weekAchievements.getActive_days() == weeklyTargets.getActive_days() && weekAchievements.getUnq_payer() == weeklyTargets.getUnq_payer()) {
+        if(weekAchievements.getActive_days() >= weeklyTargets.getActive_days() && weekAchievements.getUnq_payer() >= weeklyTargets.getUnq_payer()) {
             log.info("Merchant: {} eligible for weekly cashback: {}", merchant.getId(), weeklyTargets.getCashback());
             return true;
         }
