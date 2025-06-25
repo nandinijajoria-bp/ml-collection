@@ -7,9 +7,11 @@ import com.bharatpe.common.entities.Experian;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.LendingEligibleLoanDao;
 import com.bharatpe.lending.common.dao.LendingPincodesDao;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.LendingPincodes;
+import com.bharatpe.lending.common.entity.LendingRiskVariables;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.MileStoneDaoSlave;
 import com.bharatpe.lending.common.query.dao.MileStoneRewardDaoSlave;
@@ -77,6 +79,9 @@ public class MileStoneProgramService {
 
     @Autowired
     MileStoneRewardDaoSlave mileStoneRewardDaoSlave;
+
+    @Autowired
+    private LendingRiskVariablesDao lendingRiskVariablesDao;
 
 
     @Value("${bureau.milestone.score.pull.Days}")
@@ -634,7 +639,7 @@ public class MileStoneProgramService {
             return new ApiResponse<>(false, "400", "entity not found");
         }
         if (!entity.getMilestoneOffer()) {
-            boolean flag = mileStoneHelperService.updateEntity(request, entity);
+            boolean flag = mileStoneHelperService.updateEntity(request, entity, merchant);
             if (flag) {
                 return new ApiResponse<>(true, "200", "entity  updated in db");
             }
@@ -803,28 +808,37 @@ public class MileStoneProgramService {
                 rteProgramDetailsDto.getLoanEligibility().equals(Boolean.TRUE) &&
                  !ObjectUtils.isEmpty(entity)
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
-            if(!RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+            if(RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+                rteProgramDetailsDto.setTargetLoanAmount(Double.parseDouble(mileStoneResponse.getLoan_amount()));
+                LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
+                Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse, rteProgramDetailsDto);
+                pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
+            } else {
                 //responseDto.setShowRTELoansFlow(false);
                 responseDto.setSessionStatus(RTESessionStatus.CLOSED.name());
                 responseDto.setEnrollState(false);
                 rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
                 updateEntity(merchant);
-            } else {
-                rteProgramDetailsDto.setTargetLoanAmount(Double.parseDouble(mileStoneResponse.getLoan_amount()));
-                LocalDate expiryDate = entity.getExpiryDate().toInstant()
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDate();
-                LocalDate currentDate = LocalDate.now();
-                long daysLeft = ChronoUnit.DAYS.between(currentDate, expiryDate);
-                if (daysLeft < 0) {
-                    daysLeft = 0;
-                }
-                rteProgramDetailsDto.setDaysUntilExpiration(daysLeft);
             }
         }
 
         cacheLoanDetailsData(rteProgramDetailsDto, merchant.getId());
         return new ApiResponse<>(rteProgramDetailsDto);
+    }
+
+    private static Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse, RTEProgramDetailsDto rteProgramDetailsDto) {
+        Map<String, String> cleverTapEvtData = new HashMap<>();
+        cleverTapEvtData.put("rte_program_type", "RTE V3");
+        cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
+        if(rteProgramDetailsDto.getLoanAmount() == Double.parseDouble(mileStoneResponse.getLoan_amount())){
+            cleverTapEvtData.put("eligility_type", "current offer is same as target amount");
+        } else if (rteProgramDetailsDto.getLoanAmount() < Double.parseDouble(mileStoneResponse.getLoan_amount())) {
+            cleverTapEvtData.put("eligility_type", "current offer is lower than the target amount");
+        } else {
+            cleverTapEvtData.put("eligility_type", "current offer is higher than the target amount");
+        }
+        cleverTapEvtData.put("user_type", lendingRiskVariables.getRiskSegment());
+        return cleverTapEvtData;
     }
 
     private void pushEventToFunnelService(String clearTapEvent, FunnelEnums.StageEvent stageEvent, BasicDetailsDto merchant, Map<String, String> cleverTapEvtData , DSMileStoneResponse mileStoneResponse ) {

@@ -9,8 +9,10 @@ import com.bharatpe.lending.common.dao.LendingPincodesDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesDao;
 import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.MileStoneDaoSlave;
 import com.bharatpe.lending.common.query.entity.MileStoneSlave;
+import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.common.util.MapperUtil;
@@ -19,6 +21,7 @@ import com.bharatpe.lending.dao.MileStoneRewardDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.entity.MileStoneReward;
+import com.bharatpe.lending.enums.CleverTapEvents;
 import com.bharatpe.lending.enums.RTEProgramType;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
@@ -34,6 +37,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static com.bharatpe.lending.constant.LendingConstants.*;
@@ -62,6 +67,14 @@ public class MileStoneHelperService {
 
     @Autowired
     LoanUtil loanUtil;
+
+    @Autowired
+    FunnelService funnelService;
+
+    @Autowired
+    CleverTapEventService cleverTapEventService;
+
+    ExecutorService executorService = Executors.newFixedThreadPool(10);
 
     @Value("${milestone.deeplink}")
     private String deepLink;
@@ -789,15 +802,42 @@ public class MileStoneHelperService {
 
     }
 
-    public boolean updateEntity(MileStoneOfferRequest request, MileStoneEntity entity) {
+    public boolean updateEntity(MileStoneOfferRequest request, MileStoneEntity entity, BasicDetailsDto merchant) {
         if (Boolean.TRUE.equals(request.getIsOfferAchieved())) {
             entity.setMilestoneOffer(true);
             entity.setSessionStatus("CLOSED");
             mileStoneDao.save(entity);
             log.info("Updated the entity {}", entity);
+            DSMileStoneResponse mileStoneResponse = fetchTarget(entity);
+            if (RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+                LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
+                Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse);
+                pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
+            }
             return true;
         }
         return false;
+    }
+
+    private Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse) {
+        Map<String, String> cleverTapEvtData = new HashMap<>();
+        cleverTapEvtData.put("rte_program_type", "RTE V3");
+        cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
+        if(lendingRiskVariables.getFinalOffer() == Double.parseDouble(mileStoneResponse.getLoan_amount())){
+            cleverTapEvtData.put("eligility_type", "current offer is same as target amount");
+        } else if (lendingRiskVariables.getFinalOffer() < Double.parseDouble(mileStoneResponse.getLoan_amount())) {
+            cleverTapEvtData.put("eligility_type", "current offer is lower than the target amount");
+        } else {
+            cleverTapEvtData.put("eligility_type", "current offer is higher than the target amount");
+        }
+        cleverTapEvtData.put("user_type", lendingRiskVariables.getRiskSegment());
+        return cleverTapEvtData;
+    }
+
+    private void pushEventToFunnelService(String clearTapEvent, FunnelEnums.StageEvent stageEvent, BasicDetailsDto merchant, Map<String, String> cleverTapEvtData , DSMileStoneResponse mileStoneResponse ) {
+        executorService.execute(() -> cleverTapEventService.sendClevertapEvent(clearTapEvent, cleverTapEvtData, merchant.getMid()));
+        funnelService.submitEvent(merchant.getId(), null, null,
+                FunnelEnums.StageId.RTE, stageEvent, mileStoneResponse.getProgram_type());
     }
 
     public Boolean rewardClaim(Long merchantId, MileStoneSlave entity, String rewardName, Boolean rewardStatus, MileStoneRewardDao mileStoneRewardDao) {

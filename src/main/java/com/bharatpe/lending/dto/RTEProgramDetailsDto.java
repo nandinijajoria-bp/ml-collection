@@ -12,6 +12,5 @@ public class RTEProgramDetailsDto {
     private Boolean loanEligibility;
     private double loanAmount;
     private String ineligible;
-    private long daysUntilExpiration;
     private double targetLoanAmount;
 }
