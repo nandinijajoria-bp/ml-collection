@@ -385,7 +385,7 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 									UploadDocumentResponseDTO uploadDocumentResponse,
 									LendingApplication lendingApplication) {
 
-		if (merchantBasicDetails.getId() % 10 != 0 || lendingShopDocuments == null) return;
+		if (merchantBasicDetails.getId() % 100 >= 1 || lendingShopDocuments == null) return;
 
 		String proofType = lendingShopDocuments.getProofType();
 		boolean isShopFront = LendingConstants.SHOP_FRONT.equalsIgnoreCase(proofType);
