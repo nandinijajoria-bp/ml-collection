@@ -812,7 +812,7 @@ public class MileStoneHelperService {
             if (RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse);
-                pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
+                pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED, merchant, cleverTapEvtData, mileStoneResponse);
             }
             return true;
         }
