@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PaymentBankService {
 
-    @Value("${minimum.threshold.fresher:10}")
+    @Value("${minimum.threshold.fresher:50000}")
     Integer minimumThresholdForFreshUser;
 
-    @Value("${minimum.threshold.repeat.topup.loan:10}")
+    @Value("${minimum.threshold.repeat.topup.loan:150000}")
     Integer minimumThresholdForRepeatAndTopupLoan;
 
     private final LoanUtil loanUtil;
