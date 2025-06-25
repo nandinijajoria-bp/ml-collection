@@ -809,7 +809,7 @@ public class MileStoneHelperService {
             mileStoneDao.save(entity);
             log.info("Updated the entity {}", entity);
             DSMileStoneResponse mileStoneResponse = fetchTarget(entity);
-            if (RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+            if (!ObjectUtils.isEmpty(mileStoneResponse) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse);
                 pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED, merchant, cleverTapEvtData, mileStoneResponse);
