@@ -206,9 +206,6 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
         BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setBankDetails(accountDetails);
-        String bankName = accountDetails.getBankName();
-
-        log.info("Bank Name for merchantId {} is: {}", scopeDataArgs.getMerchant().getId(), bankName);
         if(isPaymentBankChangeFlowApplicable){
             if(paymentBankService.isPaymentBank(openApplication.getMerchantId(), accountDetails)){
                 enachStateDTO.setHasLinkedPaymentBank(true);
