@@ -723,6 +723,7 @@ public class LendingApplicationServiceV2 {
             }
             //pre-apprved repeat loan is now disabled
             //Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
+            Boolean isPreApproved = false;
             AddressValidationDto  addressValidationDto = null;
             Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
 //            if ((!isApplicableForAggregationFlow || isPreApproved) && applicationRequest != null && applicationRequest.getAddressDetails() != null){
