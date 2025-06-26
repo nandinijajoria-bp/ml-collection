@@ -810,8 +810,9 @@ public class MileStoneProgramService {
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             if(RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
                 String loanAmountStr = mileStoneResponse.getLoan_amount();
-                double amount = Double.parseDouble(loanAmountStr.substring(0, loanAmountStr.length() - 1));
-                rteProgramDetailsDto.setTargetLoanAmount(amount * 1000);
+                String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
+                double amount = Double.parseDouble(numberPart) * 1000;
+                rteProgramDetailsDto.setTargetLoanAmount(amount);
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse, rteProgramDetailsDto);
                 pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
