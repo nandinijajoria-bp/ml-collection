@@ -421,8 +421,7 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
 
     private boolean isDisbursalAmountMismatch(LendingApplication application, PostPayoutRequestDto request) {
         return Math.abs(application.getDisbursalAmount() - Math.ceil(request.getDisbursedAmount())) > 10 &&
-                !(LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()) &&
-                        Lender.TRILLIONLOANS.name().equalsIgnoreCase(application.getLender()));
+                !(LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()));
     }
 
     private void updateLendingApplicationForDisbursal(LendingApplication application, PostPayoutRequestDto request) {
@@ -442,7 +441,7 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
     }
 
     private static final List<String> EXCLUDED_LENDERS = Arrays.asList(
-            "TRILLIONLOANS"
+            Lender.TRILLIONLOANS.name(), Lender.UGRO.name()
     );
 
     private LendingPaymentSchedule createLendingPaymentSchedule(LendingApplication lendingApplication, BasicDetailsDto basicDetailsDto) {
