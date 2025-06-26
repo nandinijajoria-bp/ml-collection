@@ -819,13 +819,18 @@ public class MileStoneHelperService {
         return false;
     }
 
+    private double parseLoanAmount(String loanAmountStr) {
+        String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
+        return Double.parseDouble(numberPart) * 1000;
+    }
+
     private Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse) {
         Map<String, String> cleverTapEvtData = new HashMap<>();
         cleverTapEvtData.put("rte_program_type", "RTE V3");
         cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
-        if(lendingRiskVariables.getFinalOffer() == Double.parseDouble(mileStoneResponse.getLoan_amount())){
+        if(lendingRiskVariables.getFinalOffer() == parseLoanAmount(mileStoneResponse.getLoan_amount())){
             cleverTapEvtData.put("eligility_type", "current offer is same as target amount");
-        } else if (lendingRiskVariables.getFinalOffer() < Double.parseDouble(mileStoneResponse.getLoan_amount())) {
+        } else if (lendingRiskVariables.getFinalOffer() < parseLoanAmount(mileStoneResponse.getLoan_amount())) {
             cleverTapEvtData.put("eligility_type", "current offer is lower than the target amount");
         } else {
             cleverTapEvtData.put("eligility_type", "current offer is higher than the target amount");

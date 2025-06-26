@@ -809,10 +809,7 @@ public class MileStoneProgramService {
                  !ObjectUtils.isEmpty(entity)
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             if(RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
-                String loanAmountStr = mileStoneResponse.getLoan_amount();
-                String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
-                double amount = Double.parseDouble(numberPart) * 1000;
-                rteProgramDetailsDto.setTargetLoanAmount(amount);
+                rteProgramDetailsDto.setTargetLoanAmount(parseLoanAmount(mileStoneResponse.getLoan_amount()));
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse, rteProgramDetailsDto);
                 pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
@@ -829,13 +826,21 @@ public class MileStoneProgramService {
         return new ApiResponse<>(rteProgramDetailsDto);
     }
 
+    private double parseLoanAmount(String loanAmountStr) {
+        log.info("Loan amount string received: {}", loanAmountStr);
+        String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
+        log.info("number part: {}", numberPart);
+        return Double.parseDouble(numberPart) * 1000;
+    }
+
     private Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse, RTEProgramDetailsDto rteProgramDetailsDto) {
         Map<String, String> cleverTapEvtData = new HashMap<>();
         cleverTapEvtData.put("rte_program_type", "RTE V3");
         cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
-        if(rteProgramDetailsDto.getLoanAmount() == Double.parseDouble(mileStoneResponse.getLoan_amount())){
+        double loanAmount = parseLoanAmount(mileStoneResponse.getLoan_amount());
+        if(rteProgramDetailsDto.getLoanAmount() == loanAmount){
             cleverTapEvtData.put("eligility_type", "current offer is same as target amount");
-        } else if (rteProgramDetailsDto.getLoanAmount() < Double.parseDouble(mileStoneResponse.getLoan_amount())) {
+        } else if (rteProgramDetailsDto.getLoanAmount() < loanAmount) {
             cleverTapEvtData.put("eligility_type", "current offer is lower than the target amount");
         } else {
             cleverTapEvtData.put("eligility_type", "current offer is higher than the target amount");
