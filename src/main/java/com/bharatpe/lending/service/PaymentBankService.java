@@ -36,7 +36,6 @@ public class PaymentBankService {
             log.info("MerchantId {} is not using a payment bank", merchantId);
             return false;
         }
-        log.info("MerchantId {} is using a valid payment bank", merchantId);
         String loanType = lendingApplication.getLoanType();
         if (loanType != null && LoanType.TOPUP.name().equalsIgnoreCase(loanType)) {
             log.info("Loan type is TOPUP for lending application: {}", lendingApplication.getId());
