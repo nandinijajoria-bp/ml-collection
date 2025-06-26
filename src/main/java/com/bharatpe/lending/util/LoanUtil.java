@@ -2751,6 +2751,7 @@ public class LoanUtil {
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
 		try{
 			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				if(!ObjectUtils.isEmpty(applicationId)){

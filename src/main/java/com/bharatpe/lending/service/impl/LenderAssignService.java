@@ -1513,16 +1513,18 @@ public class LenderAssignService implements ILenderAssignService {
 
     public String getPropensityMatrix(Lender lender) {
         Map<Lender, String> propensityMap = new HashMap<Lender, String>() {{
-            put(ABFL, "HIGH");
+            put(ABFL, "MEDIUM");
             put(MUTHOOT, "MEDIUM");
             put(CAPRI, "MEDIUM");
             put(CREDITSAISON, "LOW");
             put(PIRAMAL, "LOW");
+            put(UGRO, "LOW");
+            put(OXYZO, "LOW");
             put(SMFG, "LOW");
+            put(PAYU, "HIGH");
             put(TRILLIONLOANS, "HIGH");
             put(LIQUILOANS_P2P, "HIGH");
-            put(PAYU, "MEDIUM");
-
+            put(LIQUILOANS_NBFC, "HIGH");
         }};
 
         return propensityMap.getOrDefault(lender, "LOW");

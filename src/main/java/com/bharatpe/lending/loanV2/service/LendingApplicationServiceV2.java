@@ -721,18 +721,19 @@ public class LendingApplicationServiceV2 {
                 log.error("application already exist for this merchant id {}",inProgressLoanApplication);
                 return new ApiResponse<>(true,"Application already exist for this merchant id");
             }
-            Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
+            //pre-apprved repeat loan is now disabled
+            //Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
             AddressValidationDto  addressValidationDto = null;
             Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
-            if ((!isApplicableForAggregationFlow || isPreApproved) && applicationRequest != null && applicationRequest.getAddressDetails() != null){
-                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
-                String error = baseChecks(merchant, applicationRequest.getAddressDetails());
-                if (error != null) return new ApiResponse<>(false, error);
-                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
-                    log.info("address quality score less than 20");
-                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
-                }
-            }
+//            if ((!isApplicableForAggregationFlow || isPreApproved) && applicationRequest != null && applicationRequest.getAddressDetails() != null){
+//                addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
+//                String error = baseChecks(merchant, applicationRequest.getAddressDetails());
+//                if (error != null) return new ApiResponse<>(false, error);
+//                if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
+//                    log.info("address quality score less than 20");
+//                    return new ApiResponse<>(ApplicationAddressValidation.builder().hasAValidAddress(false).build());
+//                }
+//            }
             LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTopByMerchantIdAndOfferTypeOrderByIdDesc(merchant.getId(), "CUSTOM");
 //            LendingCategories lendingCategory = lendingCategoryDao.getByCategory(applicationRequest.getCategory());
             if (Objects.isNull(eligibleLoan)) {
