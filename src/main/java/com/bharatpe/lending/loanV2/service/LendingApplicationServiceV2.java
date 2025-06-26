@@ -79,6 +79,8 @@ import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.util.pdf.HTMLEdittor.HTMLEditor;
+import com.bharatpe.util.pdf.PdfGeneratorUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.html2pdf.ConverterProperties;
@@ -423,6 +425,12 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     private EdiUtil ediUtil;
+
+    @Autowired
+    PdfGeneratorUtil pdfGeneratorUtil;
+
+    @Autowired
+    HTMLEditor htmlEditor;
 
     @Autowired
     InsuranceService insuranceService;
@@ -3119,7 +3127,17 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
             }
             s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-        } else {
+        }else if(Lender.OXYZO.name().equalsIgnoreCase(lendingApplication.getLender())){
+            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                log.info("Add header in sanction letter doc for applicationId:" + lendingApplication.getId());
+                sanctionCumLoanAgreementHtml = htmlEditor.addHeaderToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC), null);
+                log.info("Sanction Loan Agreement Doc getting generated for applicationId:"+lendingApplication.getId());
+                byte[] pdfByteArray = pdfGeneratorUtil.generate(sanctionCumLoanAgreementHtml);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            }
+        }else {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
@@ -3383,7 +3401,18 @@ public class LendingApplicationServiceV2 {
                     throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
                 }
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            } else {
+            }
+            else if(Lender.OXYZO.name().equalsIgnoreCase(lendingApplication.getLender())){
+                fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
+                    log.info("Add header in kfs doc for applicationId:" + lendingApplication.getId());
+                    kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC),null);
+                    log.info("Kfs Doc getting generated for applicationId:"+lendingApplication.getId());
+                    byte[] pdfByteArray = pdfGeneratorUtil.generate(kfsHtml);
+                    ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                    s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+                }
+            }else {
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
                 PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
