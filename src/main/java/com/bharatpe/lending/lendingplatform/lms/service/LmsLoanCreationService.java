@@ -259,8 +259,8 @@ public class LmsLoanCreationService {
                                                                  LendingApplicationKycDetails lendingApplicationKycDetails) {
 
         String formattedDob = null;
+        PanFetchKYCResponseDto panFetchKYCResponse = kycHandler.panFetch(cKycResponseDto.getPanNumber(), lendingApplication.getMerchantId());
         try {
-            PanFetchKYCResponseDto panFetchKYCResponse = kycHandler.panFetch(cKycResponseDto.getPanNumber(), lendingApplication.getMerchantId());
             String panDob = panFetchKYCResponse.getData().getVerifiedDob();
             String cKycDob = cKycResponseDto.getDob();
             log.info("cKycDob: {}, panDob: {}", cKycDob, panDob);
@@ -273,14 +273,22 @@ public class LmsLoanCreationService {
 
         String customerCity = cKycResponseDto.getCity();
         String customerState = cKycResponseDto.getState();
-        String customerPinCode = cKycResponseDto.getPincode();
+        String customerPinCode = ObjectUtils.isEmpty(cKycResponseDto.getPincode())
+                ? panFetchKYCResponse.getData().getNonNsdladdress().getPincode()
+                : cKycResponseDto.getPincode();
 
         if (Objects.nonNull(customerPinCode) && !customerPinCode.trim().isEmpty()) {
-            LendingPincodes lendingPincodes = lmsLoandetailsservice.getCustomerAddressDetails(Integer.parseInt(customerPinCode.trim()));
-            if (!ObjectUtils.isEmpty(lendingPincodes)) {
-                log.info("Pincode available in lending_pincodes table for bpLoanId: {}", lendingApplication.getExternalLoanId());
-                customerCity = lendingPincodes.getCity();
-                customerState = lendingPincodes.getState();
+            try {
+                LendingPincodes lendingPincodes = lmsLoandetailsservice.getCustomerAddressDetails(Integer.parseInt(customerPinCode.trim()));
+                if (!ObjectUtils.isEmpty(lendingPincodes)) {
+                    log.info("Pincode available in lending_pincodes table for bpLoanId: {}", lendingApplication.getExternalLoanId());
+                    customerCity = lendingPincodes.getCity();
+                    customerState = lendingPincodes.getState();
+                }
+            } catch (NumberFormatException e) {
+                log.error("Invalid customerPinCode: {}", customerPinCode, e);
+            } catch (Exception e) {
+                log.error("Error fetching customer address details for pinCode: {}", customerPinCode, e);
             }
         }
 

@@ -611,7 +611,7 @@ public class LendingMerchantLoansResponseDTO {
         LendingApplication application = oneLmsLoan.getLoanApplication();
         if (ObjectUtils.isEmpty(application)) {
             log.error("LendingApplicationSlave is null for LendingPaymentScheduleSlave with ID: {}", oneLmsLoan.getId());
-            throw new NullPointerException("An unexpected error occurred while processing your request");
+            throw new RuntimeException("An unexpected error occurred while processing your request");
         }
 
         Long applicationId = application.getId();
