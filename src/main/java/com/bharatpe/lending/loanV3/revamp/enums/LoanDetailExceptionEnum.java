@@ -32,7 +32,12 @@ public enum LoanDetailExceptionEnum {
 
     PREVIOUS_APPLICATION_NOT_FOUND_FOR_TOPUP("LEN0009", "Previous disbursed application not found"),
 
-    INVALID_REQUEST("LEN0010", "Request conflicting application status");
+    INVALID_REQUEST("LEN0010", "Request conflicting application status"),
+
+    LENDER_DETAILS_NOT_FOUND("LEN00011", "lender details not found"),
+
+    INVALID_LENDER_STAGE_FOR_VKYC("LEN00012", "Invalid lender stage for VKYC");
+
 
 
 

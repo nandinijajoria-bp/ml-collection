@@ -68,7 +68,7 @@ public class SancWrapperRequestKafka {
     @KafkaListener(
             topics="${abfl.sanction.topic:invoke_sanction}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void sanctionRequestInvoke(String request) {
         MDC.put("requestId", UUID.randomUUID().toString());
@@ -139,7 +139,7 @@ public class SancWrapperRequestKafka {
     @KafkaListener(
             topics="${abfl.sanction.callback.topic:sanction-callback}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void sanctionCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();

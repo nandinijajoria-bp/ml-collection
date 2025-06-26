@@ -30,6 +30,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -75,6 +76,9 @@ public class TLUpdateLeadService {
     @Autowired
     MerchantService merchantService;
 
+    @Value("${trillion.updateLead.timeout.threshold:200000}")
+    Integer trillionUpdateLeadTimeoutThreshold;
+
     @Transactional
     public boolean invokeUpdateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
@@ -90,7 +94,7 @@ public class TLUpdateLeadService {
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return false;
             }
-            NBFCResponseDTO updateLeadResponseDTO = lenderAPIGateway.invokeStage(updateLeadRequestDto, LenderAssociationStages.UPDATE_LEAD);
+            NBFCResponseDTO updateLeadResponseDTO = lenderAPIGateway.invokeStage(updateLeadRequestDto, LenderAssociationStages.UPDATE_LEAD, trillionUpdateLeadTimeoutThreshold);
             log.info("update lead response of TrillionLoans from nbfc: {} with applicationId: {}", updateLeadResponseDTO, lenderAssociationDetailsRequestDto.getApplicationId());
             if (Objects.nonNull(updateLeadResponseDTO) && updateLeadResponseDTO.getSuccess() && Objects.nonNull(updateLeadResponseDTO.getData())) {
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_COMPLETED.name());

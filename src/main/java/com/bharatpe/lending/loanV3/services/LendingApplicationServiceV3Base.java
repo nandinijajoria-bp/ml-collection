@@ -24,6 +24,7 @@ import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +61,7 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     LendingAuditTrialDao lendingAuditTrialDao;
 
+    @Lazy
     @Autowired
     LendingApplicationServiceV2 lendingApplicationServiceV2;
 
@@ -117,6 +119,9 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
+
+    @Autowired
+    private EdiUtil ediUtil;
 
     @Value("${pricing.experiment.enable:false}")
     boolean pricingExpEnabled;
@@ -210,7 +215,6 @@ public abstract class LendingApplicationServiceV3Base {
                                 .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                                 .stage(LenderAssociationStages.COMPLETED)
                                 .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                                .lender(currentDraftApplication.getLender())
                                 .build());
                     }
                 }
@@ -223,8 +227,20 @@ public abstract class LendingApplicationServiceV3Base {
                             .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
                             .stage(LenderAssociationStages.COMPLETED)
                             .ediModelModified(lendingApplicationDetails.getEdiModelModified())
-                            .lender(currentDraftApplication.getLender())
                             .build());
+                }
+                if (!ObjectUtils.isEmpty(lendingApplicationDetails.getOfferId()) && loanUtil.isLenderPricingApplicableMerchant(merchantId)) {
+                    Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
+                    if (eligibleLoan.isPresent() && currentDraftApplication.getProcessingFee().intValue() != eligibleLoan.get().getProcessingFee()) {
+                        log.info("Processing fee changed for applicationId {}", currentDraftApplication.getId());
+                        return new ApiResponse<>(LenderAssociationStatusResponse.builder()
+                                .isRoiDecreased(true)
+                                .lender(currentDraftApplication.getLender())
+                                .status(LenderAssociationStatus.LENDER_ASSOCIATION_COMPLETED)
+                                .stage(LenderAssociationStages.COMPLETED)
+                                .ediModelModified(lendingApplicationDetails.getEdiModelModified())
+                                .build());
+                    }
                 }
 
                 log.info("Lender assoc completed but EDI not decreased for applicationId {}", currentDraftApplication.getId());
@@ -395,7 +411,7 @@ public abstract class LendingApplicationServiceV3Base {
                     lendingApplicationLenderDetails.get().setAnnualRoi(null);
                     lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails.get());
                     DecimalFormat df = new DecimalFormat("#.##");
-                    df.setRoundingMode(RoundingMode.DOWN);
+                    df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                     if (Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.get().getLender())) {
                         df = new DecimalFormat("#.######");
                     }
@@ -669,7 +685,7 @@ public abstract class LendingApplicationServiceV3Base {
             if(Lender.TRILLIONLOANS.name().equals(lendingApplication.getLender())){
                 ApiResponse<?> response = invokeStageForLender(new InvokeStageRequestDTO(lendingApplication.getId(), lendingApplication.getLender(), "UPDATE_LOAN"));
                 if(ObjectUtils.isEmpty(response) || !response.success){
-                    log.error("Update Lead failed for application:{}", lendingApplication.getId());
+                    log.error("Update Loan failed for application:{}", lendingApplication.getId());
                     return new ApiResponse<>(false, createResponse("false", "Please try again later"), "Please try again later");
                 }
             }
@@ -687,7 +703,8 @@ public abstract class LendingApplicationServiceV3Base {
 
             Double interestAmt = (lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100);
             Long payableDays = lendingApplication.getPayableDays();
-            Double ediAmount = Math.ceil((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            double ediAmount = ((lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() + interestAmt) / payableDays);
+            ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
 //            double initialDisbursalAmountWithoutProcessingFee = lendingApplication.getDisbursalAmount() + lendingApplication.getProcessingFee();
 //            double processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
 //            double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
@@ -806,7 +823,8 @@ public abstract class LendingApplicationServiceV3Base {
 
                         Double processingFee = Math.ceil((pfRate * approvedLoanOfferAmount) / 100);
                         Double interestAmt = (approvedLoanOfferAmount * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                        Double ediAmount = Math.ceil((approvedLoanOfferAmount + interestAmt) / lendingApplication.getPayableDays());
+                        double ediAmount = ((approvedLoanOfferAmount + interestAmt) / lendingApplication.getPayableDays());
+                        ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
                         Double repayment = ediAmount * lendingApplication.getPayableDays();
 
                         newOfferDetails = new ModifiedOfferResponseDto.OfferDetails(
@@ -847,42 +865,5 @@ public abstract class LendingApplicationServiceV3Base {
             log.error("Exception occurred:{}, {} for application:{}", ex.getMessage(), Arrays.asList(ex.getStackTrace()), applicationId);
         }
         return null;
-    }
-
-    public NBFCResponseDTO<?> getStageDetails(InvokeStageRequestDTO invokeStageRequest) {
-        try {
-            Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(invokeStageRequest.getApplicationId());
-            if (ObjectUtils.isEmpty(lendingApplication.get())) {
-                log.error("No application found for {}", invokeStageRequest.getApplicationId());
-                return NBFCResponseDTO.builder()
-                        .applicationId(invokeStageRequest.getApplicationId().toString())
-                        .lender(invokeStageRequest.getLender()).productName("LENDING")
-                        .success(Boolean.FALSE).error("No application found").build();
-            }
-            LenderAssociationDetailsRequestDto lenderAssociationDetailsDto = new LenderAssociationDetailsRequestDto();
-            lenderAssociationDetailsDto.setApplicationId(lendingApplication.get().getId());
-            lenderAssociationDetailsDto.setLendingApplication(lendingApplication.get());
-            lenderAssociationDetailsDto.setMerchantId(lendingApplication.get().getMerchantId());
-            lenderAssociationDetailsDto.setManageState(Boolean.TRUE);
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao
-                    .findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.get().getId(), Status.ACTIVE.name(), lendingApplication.get().getLender());
-            if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
-                log.error("Lending application lender details not found for applicationId: {}", lenderAssociationDetailsDto.getApplicationId());
-                return NBFCResponseDTO.builder()
-                        .applicationId(lendingApplication.get().getId().toString())
-                        .lender(invokeStageRequest.getLender()).productName("LENDING")
-                        .success(Boolean.FALSE).error("Lending application lender details not found").build();
-            }
-            lenderAssociationDetailsDto.setLendingApplicationLenderDetails(lendingApplicationLenderDetails);
-
-            LenderAssociationStages stage = LenderAssociationStages.valueOf(invokeStageRequest.getStage());
-            return nbfcUtils.getStageDetails(lendingApplication.get().getLender(), lenderAssociationDetailsDto, stage);
-        } catch (Exception e) {
-            log.error("Exception in stage details {} of {} for applicationId {} {}", invokeStageRequest.getStage(), invokeStageRequest.getLender(), invokeStageRequest.getApplicationId(), Arrays.asList(e.getStackTrace()));
-        }
-        return NBFCResponseDTO.builder()
-                .applicationId(invokeStageRequest.getApplicationId().toString())
-                .lender(invokeStageRequest.getLender()).productName("LENDING")
-                .success(Boolean.FALSE).error("Something went wrong").build();
     }
 }

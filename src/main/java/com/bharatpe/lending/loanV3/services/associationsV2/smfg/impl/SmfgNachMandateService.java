@@ -20,6 +20,7 @@ import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgAppPushRequest;
 import com.bharatpe.lending.loanV3.dto.response.smfg.SmfgAppPushResponseDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -28,9 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
@@ -65,6 +64,19 @@ public class SmfgNachMandateService {
 
     @Autowired
     KycUtils kycUtils;
+
+    @Autowired
+    ConverterUtils converterUtils;
+
+    private static final Map<String, String> allowedRegexMap;
+
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("ACCOUNT_HOLDER_NAME", "a-zA-Z0-9 \\-\\.\\#/,");
+        map.put("ACCOUNT_NO", "0-9");
+        map.put("FATHER_NAME", "a-zA-Z ");
+        allowedRegexMap = Collections.unmodifiableMap(map);
+    }
 
     @Transactional
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -133,11 +145,11 @@ public class SmfgNachMandateService {
                         .leaddetails(SmfgAppPushRequest.LeadDetails.builder()
                                 .emailaddress(lendingApplicationKycDetails.getEmail()).build())
                         .additionaldetails(SmfgAppPushRequest.AdditionalDetails.builder()
-                                .fathersName(lendingApplicationKycDetails.getFatherName()).build())
+                                .fathersName(converterUtils.sanitizeByRegex(lendingApplicationKycDetails.getFatherName(), allowedRegexMap.getOrDefault("FATHER_NAME", null))).build())
                         .repaymentdisbbankdetails(SmfgAppPushRequest.RepaymentDisbBankDetails.builder()
-                                .accountholdername(merchantNachDetailsResponseDTO.getBeneficiaryName())
+                                .accountholdername(converterUtils.sanitizeByRegex(merchantNachDetailsResponseDTO.getBeneficiaryName(), allowedRegexMap.getOrDefault("ACCOUNT_HOLDER_NAME", null)))
                                 .bankname(merchantNachDetailsResponseDTO.getBankName())
-                                .accountno(merchantNachDetailsResponseDTO.getAccountNumber())
+                                .accountno(converterUtils.sanitizeByRegex(merchantNachDetailsResponseDTO.getAccountNumber(), allowedRegexMap.getOrDefault("ACCOUNT_NO", null)))
                                 .accounttype("CURRENT".equalsIgnoreCase(merchantNachDetailsResponseDTO.getAccountType()) ? smfgConfig.getCurrentAccountType() : smfgConfig.getSavingAccountType())
                                 .ifsccode(merchantNachDetailsResponseDTO.getIfscCode()).build())
                         .mandatedetails(SmfgAppPushRequest.MandateDetails.builder()

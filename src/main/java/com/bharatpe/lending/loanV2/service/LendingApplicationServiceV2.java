@@ -26,6 +26,7 @@ import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.ReqAddAddress;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
@@ -52,12 +53,15 @@ import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.dto.EmiDashboardResponse;
+import com.bharatpe.lending.loanV3.revamp.dto.LoanDetailsV3Response;
+import com.bharatpe.lending.loanV3.revamp.dto.ShopPicturesStateDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.EmiDashboardService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.wrapper.InvokeCreateLeadAndDocUploadWraperService;
@@ -70,6 +74,7 @@ import com.bharatpe.lending.loanV3.utils.OfferUtils;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.CommonUtil;
+import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -112,13 +117,17 @@ import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
@@ -150,6 +159,7 @@ public class LendingApplicationServiceV2 {
     LendingResubmitTaskDao lendingResubmitTaskDao;
 
     @Autowired
+    @Lazy
     LoanUtil loanUtil;
 
     @Autowired
@@ -297,6 +307,12 @@ public class LendingApplicationServiceV2 {
     @Value("${shop.photo.sync.rollout:0}")
     private Integer shopPhotoSyncRollout;
 
+    @Value("${shop.picture.skip.enabled:false}")
+    private boolean shouldSkipShopPicture;
+
+    @Value("${lenders.skip.shop.picture:}")
+    private List<String> lendersToSkipShopPicture;
+
     @Lazy
     @Autowired
     InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
@@ -387,6 +403,22 @@ public class LendingApplicationServiceV2 {
     @Value("${lender.vernac.lang.rollout.percent:1}")
     Integer lenderVernacLangRolloutPercent;
 
+    @Autowired
+    VKycService vkycService;
+
+    @Autowired
+    LendingApplicationVkycDetailsDao lendingApplicationVkycDetailsDao;
+
+    @Value("${skip.picture.threshold:0}")
+    private int skipPictureThreshold;
+
+    @Autowired
+    private EdiUtil ediUtil;
+
+    @Autowired
+    InsuranceService insuranceService;
+
+    private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
         try {
@@ -641,6 +673,10 @@ public class LendingApplicationServiceV2 {
                         log.info("Application not found for id:{}", applicationRequest.getApplicationId());
                     }
                     lendingApplication.setBusinessName(applicationRequest.getBusinessName());
+                    BusinessDetailsDTO businessDetailsDTO = BusinessDetailsDTO.builder().businessCategory(applicationRequest.getCategory()).
+                            businessName(applicationRequest.getBusinessName()).build();
+                    addBusinessDetails(businessDetailsDTO,merchant);
+                    merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), applicationRequest.getBusinessName());
                     if (applicationRequest.getAddressDetails() != null) {
                         AddressDetails addressDetails = applicationRequest.getAddressDetails();
                         lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
@@ -662,7 +698,7 @@ public class LendingApplicationServiceV2 {
                 return new ApiResponse<>(false, "Draft application not found");
             }
             AddressValidationDto addressValidationDto = null;
-            if (isAddressUpdated(lendingApplication,applicationRequest)) {
+            if (applicationRequest != null && applicationRequest.getAddressDetails() != null && isAddressUpdated(lendingApplication, applicationRequest)) {
                 addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
                 if (addressQltyScoreLessThanThreshold(addressValidationDto)) {
                     log.info("address quality score less than 20");
@@ -688,7 +724,7 @@ public class LendingApplicationServiceV2 {
             Boolean isPreApproved = checkForPreapprovedRepeatLoan(merchant.getId(), applicationRequest);
             AddressValidationDto  addressValidationDto = null;
             Boolean isApplicableForAggregationFlow = loanUtil.isApplicableForAggregationFlow(merchant.getId(), null);
-            if (!isApplicableForAggregationFlow || isPreApproved){
+            if ((!isApplicableForAggregationFlow || isPreApproved) && applicationRequest != null && applicationRequest.getAddressDetails() != null){
                 addressValidationDto = getAddressValidationScore(applicationRequest.getAddressDetails());
                 String error = baseChecks(merchant, applicationRequest.getAddressDetails());
                 if (error != null) return new ApiResponse<>(false, error);
@@ -814,10 +850,8 @@ public class LendingApplicationServiceV2 {
 
         }
         if (!ObjectUtils.isEmpty(maxPricingValuesDTO)){
-            loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount());
+            loanUtil.setEligibleLoan(eligibleLoan, maxPricingValuesDTO.getMaxInterestRate(), processingFee, eligibleLoan.getAmount(), null);
         }
-
-//        Merchant merchant = merchantDao.getById(merchantBasicDetails.getId());
 
         lendingApplication.setMerchantName(merchantBasicDetails.getBeneficiaryName());
         lendingApplication.setEdi(Double.valueOf(eligibleLoan.getEdi()));
@@ -842,10 +876,25 @@ public class LendingApplicationServiceV2 {
         lendingApplication.setCkycId(String.valueOf(merchantBasicDetails.getId()));
         lendingApplication.setLatitude(!StringUtils.isEmpty(lendingApplicationRequest.getLatitude()) ? lendingApplicationRequest.getLatitude() : null);
         lendingApplication.setLongitude(!StringUtils.isEmpty(lendingApplicationRequest.getLongitude()) ? lendingApplicationRequest.getLongitude() : null);
-        lendingApplication.setBusinessName(lendingApplicationRequest.getBusinessName());
+        lendingApplication.setBusinessName(!StringUtils.isEmpty(lendingApplicationRequest.getBusinessName()) ? lendingApplicationRequest.getBusinessName() : null);
         lendingApplication.setEdiFreeDays(eligibleLoan.getEdiCount() % 30 == 0 ? 0 : 1);
         lendingApplication.setIp(Optional.ofNullable(lendingApplication.getIp()).orElse(lendingApplicationRequest.getIp()));
         lendingApplication = lendingApplicationDao.save(lendingApplication);
+
+        if (lendingApplicationRequest != null) {
+            BusinessDetailsDTO businessDetailsDTO = BusinessDetailsDTO.builder()
+                    .businessCategory(lendingApplicationRequest.getCategory())
+                    .businessName(lendingApplicationRequest.getBusinessName())
+                    .build();
+
+            if (businessDetailsDTO != null) {
+                addBusinessDetails(businessDetailsDTO, merchantBasicDetails);
+            }
+
+            if (lendingApplication != null && lendingApplication.getMerchantId() != null && lendingApplication.getBusinessName() != null) {
+                merchantService.updateMerchantBusinessName(lendingApplication.getMerchantId(), lendingApplication.getBusinessName());
+            }
+        }
 
         if (loanUtil.isInternalMerchant(merchantBasicDetails.getId()) || (eligibleLoan.getEdiCount() % 30 == 0)) {
             DateFormat df = new SimpleDateFormat("ddMMyy");
@@ -881,11 +930,9 @@ public class LendingApplicationServiceV2 {
             rejectApplicationForIncorrectLender(lendingApplication);
             return lendingApplication;
         }
-//        log.info("existing lender {} now changed to ABFL for {}", lendingApplication.getLender(), lendingApplication.getId());
-//        lendingApplication.setLender("ABFL");
-//        lendingApplication = lendingApplicationDao.save(lendingApplication);
+
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
-        replicateApplicationData(lendingApplication, isPreApproved);
+        replicateApplicationData(merchantBasicDetails,lendingApplication, isPreApproved);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
@@ -895,10 +942,11 @@ public class LendingApplicationServiceV2 {
                 loanUtil.publishSmsAnalysisData(merchantBasicDetails);
             }
         });
+        loanUtil.createLendingAuditTrailDTO(lendingApplication);
         return lendingApplication;
     }
 
-    private void replicateApplicationData(LendingApplication lendingApplication, Boolean isPreApproved) {
+    private void replicateApplicationData(BasicDetailsDto merchant, LendingApplication lendingApplication, Boolean isPreApproved) {
         try {
             LendingApplication prevApplication = lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
             if (prevApplication != null) {
@@ -925,9 +973,110 @@ public class LendingApplicationServiceV2 {
                     replicateGst.setCurrentAddress(lendingGstDetail.getCurrentAddress());
                     lendingGstDao.save(replicateGst);
                 }
-                List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                if (!lendingShopDocuments.isEmpty()) {
-                    for (LendingShopDocuments shopDocuments : lendingShopDocuments) {
+
+                if (shouldSkipShopPicture && lendingApplication != null &&
+                        lendersToSkipShopPicture.contains(lendingApplication.getLender())) {
+
+                    loanUtil.createRiskVariablesSnapshot(lendingApplication);
+
+                    LocalDate today = LocalDate.now();
+                    LocalDateTime startOfDay = today.atStartOfDay();
+                    Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
+
+                    List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
+                            lendersToSkipShopPicture, startOfDate);
+
+                    int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
+                    log.info("Found {} applications for lender {} created today for merchantId: {}",
+                            todayApplicationsCount, lendersToSkipShopPicture, lendingApplication.getMerchantId());
+                    if(todayApplicationsCount <= skipPictureThreshold) {
+                        ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
+                        shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
+                        shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
+                        LoanDetailsV3Response loanDetailsV3Response = new LoanDetailsV3Response();
+                        log.info("Skipping shop picture replication for lender: {} and merchant: {}",
+                                lendingApplication.getLender(), lendingApplication.getMerchantId());
+                        if (Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
+                            log.info("Shop picture replication skipped for lender: {} and merchant: {}",
+                                    lendingApplication.getLender(), lendingApplication.getMerchantId());
+                            loanDetailsV3Response.setSkipShopPicture(true);
+                            loanDetailsV3Response.setImageExist(false);
+                            loanDetailsV3Service.updateLendingShopDocumentsIsSkipped(lendingApplication.getMerchantId(), lendingApplication.getId(), loanDetailsV3Response);
+                        }
+                        else {
+                            {
+                                log.error("Error while skipping shop picture replication for lender: {} and merchant: {}",
+                                        lendingApplication.getLender(), lendingApplication.getMerchantId());
+                                List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
+                                List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
+                                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
+                                        .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+                                        .values().stream()
+                                        .flatMap(docs -> docs.stream().limit(1))
+                                        .collect(Collectors.toList());
+                                if (!filteredDocuments.isEmpty() && filteredDocuments.size() >= 2) {
+                                    for (LendingShopDocuments shopDocuments : filteredDocuments) {
+                                        LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+                                        replicateShopDocument.setApplicationId(lendingApplication.getId());
+                                        replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
+                                        replicateShopDocument.setIp(shopDocuments.getIp());
+                                        replicateShopDocument.setProofType(shopDocuments.getProofType());
+                                        replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
+                                        replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
+                                        replicateShopDocument.setLongitude(shopDocuments.getLongitude());
+                                        replicateShopDocument.setLatitude(shopDocuments.getLatitude());
+                                        replicateShopDocument.setStatus(shopDocuments.getStatus());
+                                        if (isPreApproved) {
+                                            replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
+                                        }
+                                        lendingShopDocumentsDao.save(replicateShopDocument);
+                                    }
+                                }
+                            }
+                        }
+                    }else {
+                        log.error("Error while skipping shop picture replication for lender: {} and merchant: {}",
+                                lendingApplication.getLender(), lendingApplication.getMerchantId());
+                        List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
+                        List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
+                                .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
+                                .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+                                .values().stream()
+                                .flatMap(docs -> docs.stream().limit(1))
+                                .collect(Collectors.toList());
+                        if (!filteredDocuments.isEmpty() && filteredDocuments.size() >= 2) {
+                            for (LendingShopDocuments shopDocuments : filteredDocuments) {
+                                LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+                                replicateShopDocument.setApplicationId(lendingApplication.getId());
+                                replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
+                                replicateShopDocument.setIp(shopDocuments.getIp());
+                                replicateShopDocument.setProofType(shopDocuments.getProofType());
+                                replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
+                                replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
+                                replicateShopDocument.setLongitude(shopDocuments.getLongitude());
+                                replicateShopDocument.setLatitude(shopDocuments.getLatitude());
+                                replicateShopDocument.setStatus(shopDocuments.getStatus());
+                                if (isPreApproved) {
+                                    replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
+                                }
+                                lendingShopDocumentsDao.save(replicateShopDocument);
+                            }
+                        }
+                    }
+                }
+                else{
+                    log.info("Replicating shop pictures for merchant: {} and previous application:{}", lendingApplication.getMerchantId(), prevApplication.getId());
+                    List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
+                    List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
+                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
+                        .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+                        .values().stream()
+                        .flatMap(docs -> docs.stream().limit(1))
+                        .collect(Collectors.toList());
+
+                log.info("Filtered shop documents for replication: {} for applicationId: {}", filteredDocuments, lendingApplication.getId());
+                if (!filteredDocuments.isEmpty() && filteredDocuments.size() >=2) {
+                        for (LendingShopDocuments shopDocuments : filteredDocuments) {
                         LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
                         replicateShopDocument.setApplicationId(lendingApplication.getId());
                         replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
@@ -938,10 +1087,8 @@ public class LendingApplicationServiceV2 {
                         replicateShopDocument.setLongitude(shopDocuments.getLongitude());
                         replicateShopDocument.setLatitude(shopDocuments.getLatitude());
                         replicateShopDocument.setStatus(shopDocuments.getStatus());
-                        if(isPreApproved) {
-                            replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
+                            lendingShopDocumentsDao.save(replicateShopDocument);
                         }
-                        lendingShopDocumentsDao.save(replicateShopDocument);
                     }
                 }
                 lendingApplication.setEmail(prevApplication.getEmail());
@@ -971,6 +1118,8 @@ public class LendingApplicationServiceV2 {
         try {
             if (applicationRequest.getAddressDetails() != null) {
                 AddressDetails addressDetails = applicationRequest.getAddressDetails();
+                //ReqAddAddress reqAddAddress = new ReqAddAddress();
+                //boolean isMismatch = checkAndUpdateAddressMismatch(lendingApplication, addressDetails, reqAddAddress);
                 lendingApplication.setPincode(!StringUtils.isEmpty(addressDetails.getPincode()) ? Long.valueOf(addressDetails.getPincode()) : lendingApplication.getPincode());
                 lendingApplication.setArea(!StringUtils.isEmpty(addressDetails.getArea()) ? addressDetails.getArea() : lendingApplication.getArea());
                 lendingApplication.setCity(!StringUtils.isEmpty(addressDetails.getCity()) ? addressDetails.getCity() : lendingApplication.getCity());
@@ -980,6 +1129,10 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setStreetAddress(!StringUtils.isEmpty(addressDetails.getAddress2()) ? addressDetails.getAddress2() : lendingApplication.getStreetAddress());
                 lendingApplication.setLandmark(!StringUtils.isEmpty(addressDetails.getLandmark()) ? addressDetails.getLandmark() : lendingApplication.getLandmark());
                 log.info("shop number getting saved in lending_application: {}", !StringUtils.isEmpty(addressDetails.getAddress1()) ? addressDetails.getAddress1() : lendingApplication.getShopNumber());
+//                if (isMismatch) {
+//                    log.info("Address mismatch found. Saving updated address details.");
+//                    merchantService.addAddress(lendingApplication.getMerchantId(),reqAddAddress);
+//                }
             }
             if (applicationRequest.getAdditionalDetails() != null) {
                 AdditionalDetails additionalDetails = applicationRequest.getAdditionalDetails();
@@ -991,19 +1144,58 @@ public class LendingApplicationServiceV2 {
                 lendingGstDetail = saveGstDetails(lendingApplication, applicationRequest.getProfessionalDetails());
             }
             saveAddressQltyDetails(lendingApplication,addressValidationDto);
-            lendingApplication.setBusinessName(!StringUtils.isEmpty(applicationRequest.getBusinessName()) ? applicationRequest.getBusinessName() : lendingApplication.getBusinessName());
+            lendingApplication.setBusinessName(
+                    !StringUtils.isEmpty(applicationRequest.getBusinessName()) ?
+                            applicationRequest.getBusinessName() :
+                            (StringUtils.isEmpty(lendingApplication.getBusinessName()) ? null : lendingApplication.getBusinessName())
+            );
             lendingApplicationDao.save(lendingApplication);
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
             lendingApplicationDetails.setCurrentAddressSameAsPermanentAddress(applicationRequest.getCurrentAddressSameAsPermanentAddress());
             lendingApplicationDetailsDao.save(lendingApplicationDetails);
-            // invoke bre for piramal
-//            if (lendingApplication.getLender().equals(Lender.PIRAMAL.name())) {
-//                invokeBreForPiramal(lendingGstDetail, lendingApplication);
-//            }
 
         } catch (Exception e) {
             log.error("Exception in updateApplicationData for application:{} , {} {} {}", lendingApplication.getId(), applicationRequest, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+    }
+
+    private boolean checkAndUpdateAddressMismatch(LendingApplication lendingApplication, AddressDetails addressDetails, ReqAddAddress reqAddAddress) {
+        boolean isMismatch = false;
+        log.info("Checking and updating address mismatch for application: {}", lendingApplication.getId());
+
+        reqAddAddress.setPincode(String.valueOf(addressDetails.getPincode()));
+        reqAddAddress.setArea(addressDetails.getArea());
+        reqAddAddress.setCity(addressDetails.getCity());
+        reqAddAddress.setState(addressDetails.getState());
+        reqAddAddress.setAddress1(addressDetails.getAddress1());
+        reqAddAddress.setAddress2(addressDetails.getAddress2());
+        reqAddAddress.setLandmark(addressDetails.getLandmark());
+        reqAddAddress.setType("Shop/Office");
+
+        if (!StringUtils.equals(String.valueOf(lendingApplication.getPincode()), addressDetails.getPincode())) {
+            isMismatch = true;
+        }
+        if (!StringUtils.equals(lendingApplication.getArea(), addressDetails.getArea())) {
+            isMismatch = true;
+        }
+        if (!StringUtils.equals(lendingApplication.getCity(), addressDetails.getCity())) {
+            isMismatch = true;
+        }
+        if (!StringUtils.equals(lendingApplication.getState(), addressDetails.getState())) {
+            isMismatch = true;
+        }
+        if (!StringUtils.equals(lendingApplication.getShopNumber(), addressDetails.getAddress1())) {
+            isMismatch = true;
+        }
+        if (!StringUtils.equals(lendingApplication.getStreetAddress(), addressDetails.getAddress2())) {
+            isMismatch = true;
+        }
+        if (!StringUtils.equals(lendingApplication.getLandmark(), addressDetails.getLandmark())) {
+            isMismatch = true;
+        }
+
+        log.info("Address details set in reqAddAddress: {}", reqAddAddress);
+        return isMismatch;
     }
 
     private void invokeBreForPiramal(LendingGstDetail lendingGstDetail, LendingApplication lendingApplication) {
@@ -1106,7 +1298,7 @@ public class LendingApplicationServiceV2 {
         log.info("pincode:{} for merchant:{}",addressDetails.getPincode(), merchant.getId());
         log.info("address details:{} for merchant:{}", addressDetails, merchant.getId());
         if (Objects.isNull(addressDetails) || Objects.isNull(addressDetails.getPincode())) {
-            log.info("pincode not found in address deatils ;{} for merchant:{}", merchant.getId(), addressDetails);
+            log.info("pincode not found in address details ;{} for merchant:{}", merchant.getId(), addressDetails);
             return "pincode not found";
         }
        /* LendingApplication openApplication = lendingApplicationDao.getLatestPendingApplication(merchant.getId());
@@ -1362,6 +1554,22 @@ public class LendingApplicationServiceV2 {
             applicationDTO.add(kycDTO);
             applicationDTO.add(applicationDTO2);
 
+            if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
+                LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
+                String status = "PENDING";
+                if (!ObjectUtils.isEmpty(vkycDetails) && VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
+                    status = VkycStatus.getSuccessVkycStatusList().contains(vkycDetails.getStatus()) ? "APPROVED" : "REJECTED";
+                }
+                if (!ObjectUtils.isEmpty(vkycDetails)) {
+                    ApplicationDTO vKycDTO = new ApplicationDTO();
+                    vKycDTO.setText("VKYC Verification");
+                    vKycDTO.setDisabled(enachMandatory);
+                    vKycDTO.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
+                    vKycDTO.setStatus(status);
+                    applicationDTO.add(vKycDTO);
+                }
+            }
+
             if(udyamRegistrationRequiredLenders.contains(lendingApplication.getLender())) {
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusAndLenderOrderByIdDesc(lendingApplication.getId(), Status.ACTIVE.name(), lendingApplication.getLender());
                 if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus())) {
@@ -1369,7 +1577,7 @@ public class LendingApplicationServiceV2 {
                     udyamRegistrationDto.setText("Udyam Registration");
                     udyamRegistrationDto.setDisabled(enachMandatory);
                     udyamRegistrationDto.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
-                    udyamRegistrationDto.setStatus(docUploadUtils.isUdyamRegistrationRequired(lendingApplicationLenderDetails, lendingApplication) ? "PENDING" : "APPROVED");
+                    udyamRegistrationDto.setStatus(udyamSuccessStatus.contains(lendingApplicationLenderDetails.getDataUploadStatus()) ? "APPROVED" : "PENDING" );
                     applicationDTO.add(udyamRegistrationDto);
                 }
             }
@@ -2141,10 +2349,11 @@ public class LendingApplicationServiceV2 {
             else{
                 throw new NullPointerException("processing Fee can not be null for lending application");
             }
-            Integer edi,repayment;
-            edi = (int) Math.ceil(((loanAmount + (loanAmount * (lendingApplication.getInterestRate() / 100) * lendingApplication.getTenureInMonths()))) / lendingApplication.getPayableDays());
-            repayment = (int) Math.round(lendingApplication.getPayableDays() * edi);
-            lendingApplication.setEdi(Double.valueOf(edi));
+            double interestAmount = (loanAmount * lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths() / 100);
+            double ediAmount = ((loanAmount + interestAmount) / lendingApplication.getPayableDays());
+            ediAmount = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
+            Integer repayment = Math.round(lendingApplication.getPayableDays() * (int)ediAmount);
+            lendingApplication.setEdi(ediAmount);
             lendingApplication.setRepayment(Double.valueOf(repayment));
             lendingApplication.setProcessingFee(processingFee.doubleValue());
             lendingApplication.setDisbursalAmount(loanAmount - processingFee.intValue());
@@ -2287,7 +2496,7 @@ public class LendingApplicationServiceV2 {
                 lendingApplication.setLmsStage("PENDING_QC_ASSIGNMENT");
                 lendingApplicationDao.save(lendingApplication);
 
-                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
 
                 // update tat start time on resubmit
                 LendingApplicationPriority lendingApplicationPriority = lendingApplicationPriorityDao.findByApplicationId(lendingApplication.getId());
@@ -2793,14 +3002,8 @@ public class LendingApplicationServiceV2 {
     }
 
     public Double getInsurancePremium(LendingApplication lendingApplication) {
-        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
-                lendingApplication.getId(),
-                lendingApplication.getLender(),
-                "SELECTED");
-        if (Objects.nonNull(lendingLoanInsurance))
-            return lendingLoanInsurance.getInsurancePremium();
-        else
-            return 0D;
+        LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(lendingApplication.getId(), lendingApplication.getLender(), SELECTED);
+        return Objects.nonNull(lendingLoanInsurance) ? lendingLoanInsurance.getInsurancePremium() : 0D;
     }
 
     public void storeApplicationDocs(Long applicationId, LendingApplication lendingApplication, BasicDetailsDto merchant) throws Exception {
@@ -3054,11 +3257,11 @@ public class LendingApplicationServiceV2 {
             //Get Lender pricing config for APR calculation
             Double edi = loanApplicationDetailsDto.getEdi();
             log.info("Edi of loan id : {} is {}", loanApplicationDetailsDto.getId(), edi);
-
             Long payableDays = (long) OfferUtils.getEdiDays(loanApplicationDetailsDto.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
             Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (interestRate * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
-            edi = Math.ceil((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
-            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), interestRate, edi, interestRate);
+            double ediAmount = ((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
+            edi = ediUtil.getEdiAfterRoundingLogic(loanApplicationDetailsDto.getId(), ediAmount, lender);
+            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), lenderPricing.getInterestRate(), edi, lenderPricing.getInterestRate());
 
 
             CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(applicationId, edi, loanApplicationDetailsDto);
@@ -3928,11 +4131,7 @@ public class LendingApplicationServiceV2 {
 
         data.put("personal_loan_amount", kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee());
         data.put("personal_loan_amount_in_words", getAmountInWords(String.valueOf(kfsDto.getDisbursalAmount() + kfsDto.getProcessingFee())));
-        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
-                applicationId,
-                kfsDto.getLender(),
-                "SELECTED"
-                );
+        LendingLoanInsurance lendingLoanInsurance = insuranceService.getInsuranceDetails(applicationId, kfsDto.getLender(), SELECTED);
         if(ObjectUtils.isEmpty(lendingLoanInsurance)) {
             data.put("insurance_na_display", "block");
             data.put("insurance_display", "none");

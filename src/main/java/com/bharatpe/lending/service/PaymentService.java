@@ -505,6 +505,7 @@ public class PaymentService {
                 penaltyFee += pendingNachCharges.intValue();
                 data.setPrincipalDueAmount(data.getPrincipalDueAmount()+pendingNachCharges.intValue());
                 data.setForeClosureAmount(data.getForeClosureAmount()+pendingNachCharges.intValue());
+                data.setForeClosureAmountAtBp(data.getForeClosureAmountAtBp() + pendingNachCharges.intValue());
             }
 
             data.setForeclosurePenaltyFee(0.0);
@@ -585,7 +586,7 @@ public class PaymentService {
                 return new InitiatePaymentResponseDTO("Previous transaction is pending.");
             }
 
-            Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
+            Long appVersion = getAppVersion(request);
             logger.info("app version and client name in pg flow: {} {}",appVersion, request.getMeta().getClient());
             if (Objects.equals(request.getMeta().getClient(), "android")) {
                 if (appVersion < androidVersion) {
@@ -707,6 +708,37 @@ public class PaymentService {
             logger.error("Exception while initiating payment for merchant id {} {} {}", merchantBasicDetails.getId(), ex.getMessage(), Arrays.asList(ex.getStackTrace()));
         }
         return new InitiatePaymentResponseDTO("Something went wrong.");
+    }
+
+    // equivalent to with error handling
+    // Long appVersion = Objects.nonNull(request.getMeta().getDeviceInfo().getAppVersion()) ? Long.parseLong(request.getMeta().getDeviceInfo().getAppVersion()) : 100L;
+    public long getAppVersion(RequestDTO<InitiatePaymentRequestDTO> request) {
+        try {
+            if (request == null || request.getMeta() == null
+                || request.getMeta().getDeviceInfo() == null
+                || StringUtils.isEmpty(request.getMeta().getDeviceInfo().getAppVersion())
+            ) return 100L; // default version if meta or device info is not present
+
+            String appVersion = request.getMeta().getDeviceInfo().getAppVersion();
+            try {
+                return Long.parseLong(appVersion);
+            } catch (NumberFormatException numberFormatException) {
+                log.error("numberFormatException for {}", request.getMeta());
+                return Long.parseLong(convertVersionCode(appVersion));
+            }
+        } catch (Exception e) {
+            log.error("getAppVersion for {}", request);
+        }
+        return 100L; // default version if not provided or parsing fails
+    }
+
+    public String convertVersionCode(String appVersion) {
+        if (StringUtils.isEmpty(appVersion)) {
+            return "100";
+        }
+        String finalVersionResult = appVersion.replace(".", "");
+        log.info("Converted version:{} for version {} ",appVersion, finalVersionResult);
+        return finalVersionResult;
     }
 
     private void saveLoanForeClosureCharges(BasicDetailsDto merchantBasicDetails, long orderId, long loanId, ForeClosureDetailDTO foreClosureDetail) {
@@ -945,7 +977,7 @@ public class PaymentService {
                                 handleUpiAutoPaySucessOrder(request, lendingPullPayment);
                                 lendingPullPayment.setStatus(request.getPaymentStatus());
                                 lendingPullPaymentDao.save(lendingPullPayment);
-                                if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
+                                //if(autoPayUpiDpdPenaltyEnabled)  confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             } else {
                                 log.info("lock could not be acquired on lockKey {} , loanId {}",lockKey,loanId);
                                 return "OK";
@@ -1358,12 +1390,13 @@ public class PaymentService {
                     .updateGlobalTxnlimit(true)
                     .build());
 
-            if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
-                redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
-            }
+//            if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+//                redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
+//            }
             double finalAmount = amount;
             // Todo: fix when opening  for roll out
             notificationExecutor.execute(() -> sendSMS(activeLoan, finalAmount, false));
+            lendingCollectionAuditService.sendReceiptPosting(activeLoan.getId());
             log.info("NewSettlement# completed the settlement of order : {} loanId :{}", orderId, activeLoan.getId());
             return;
         }
@@ -1661,9 +1694,9 @@ public class PaymentService {
             }
         }
 
-        if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
-            redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
-        }
+//        if (activeLoan.getLoanApplication() != null && activeLoan.getLoanApplication().getProcessingFee() != null && activeLoan.getLoanApplication().getProcessingFee() > 0) {
+//            redisNotificationService.sendRepaymentNudge(activeLoan.getMerchantId(), activeLoan.getLoanApplication().getProcessingFee());
+//        }
         boolean isLoanClosed = "CLOSED".equalsIgnoreCase(activeLoan.getStatus());
 
         Double finalAmount = amount;
@@ -2954,6 +2987,7 @@ public class PaymentService {
                     lendingCollectionExcess.setStatus("ACTIVE");
                     lendingCollectionExcess.setMode(UPI_AUTO_PAY);
                     lendingCollectionExcessDao.save(lendingCollectionExcess);
+                    if(lendingPaymentSchedule != null && "PAYU".equalsIgnoreCase(lendingPaymentSchedule.getNbfc())) loanPaymentLedgerAdjustmentService.createAutoPayUpiExcessCreditAuditEntry(lendingCollectionExcess, lendingPaymentSchedule, refundAmount);
 
                 }
             }
@@ -3010,12 +3044,17 @@ public class PaymentService {
     }
 
     private void imposePenalCharges(Long orderId, LendingPaymentSchedule activeLoan) {
+        log.info("Imposing real time penal charges for orderId:{} and loanId: {}", orderId, activeLoan.getId());
         try {
             Optional<LoanPaymentOrder> optionalLoanPaymentOrder = loanPaymentOrderDao.findById(orderId);
             LoanPaymentOrder loanPaymentOrder = optionalLoanPaymentOrder.orElse(null);
+            log.info("Loan Payment Order for orderId {} and loanId: {} is: {}", orderId, activeLoan.getId(), loanPaymentOrder);
             if (loanPaymentOrder != null && "FORECLOSURE".equalsIgnoreCase(loanPaymentOrder.getDescription()) && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) && !loanUtil.checkLoanCoolOffPeriod(activeLoan.getStartDate())) {
+                log.info("Imposing real time penal charges for orderId:{} and loanId: {} for PIRAMAL", orderId, activeLoan.getId());
                 double penaltyFee = loanUtil.calculatePiramalPenalty(activeLoan);
+                log.info("Calculated penalty fee for PIRAMAL loan: {} is: {}", activeLoan.getId(), penaltyFee);
                 if (penaltyFee > 0) {
+                    log.info("Creating penalty ledger for PIRAMAL loan: {} with penalty fee: {}", activeLoan.getId(), penaltyFee);
                     loanPaymentLedgerAdjustmentService.creatingPenaltyInPenaltyLedger(activeLoan, penaltyFee, "Penalty Fee", false);
                     loanPaymentLedgerAdjustmentService.createPenaltyLedger(activeLoan, penaltyFee, "PENALTY FEE");
                     loanUtil.savePenalCharges(activeLoan, false, penaltyFee, 0);

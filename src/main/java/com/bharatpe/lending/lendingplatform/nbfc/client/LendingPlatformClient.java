@@ -16,6 +16,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.ErrorStatusCode.*;
+import static com.bharatpe.lending.lendingplatform.nbfc.constants.LendingPlatformOperation.*;
 
 @Service
 @Slf4j
@@ -37,7 +38,7 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getBreUrl(),
                 breRequest,
-                "BRE",
+                BRE,
                 breRequest.getData().getApplicationDetails().getApplicationId(),
                 BREResponse.class);
     }
@@ -46,7 +47,7 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getCreateLeadUrl(),
                 createLeadRequest,
-                "Create Lead",
+                CREATE_LEAD,
                 createLeadRequest.getData().getApplicationDetails().getApplicationId(),
                 CreateLeadResponse.class);
     }
@@ -55,7 +56,7 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getUploadKycDocumentUrl(),
                 kycDocumentUploadRequest,
-                "KYC Document Upload",
+                KYC_DOCUMENT_UPLOAD,
                 kycDocumentUploadRequest.getData().getApplicationDetails().getApplicationId(),
                 KYCDocumentUploadResponse.class);
     }
@@ -64,7 +65,7 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getPerformKycUrl(),
                 kycRequest,
-                "KYC",
+                KYC,
                 kycRequest.getData().getApplicationDetails().getApplicationId(),
                 KYCResponse.class);
     }
@@ -73,7 +74,7 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getSignLoanDocumentUrl(),
                 loanDocumentDigiSignRequest,
-                "DigiSign",
+                DIGISIGN,
                 loanDocumentDigiSignRequest.getData().getApplicationDetails().getApplicationId(),
                 LoanDocumentDigiSignResponse.class);
     }
@@ -83,7 +84,7 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getSanctionLoanUrl(),
                 loanSanctionRequest,
-                "Loan Sanction",
+                LOAN_SANCTION,
                 loanSanctionRequest.getData().getApplicationDetails().getApplicationId(),
                 Boolean.class);
     }
@@ -92,16 +93,25 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getRegisterNachUrl(),
                 nachRegistrationRequest,
-                "Nach Registration",
+                NACH_REGISTRATION,
                 nachRegistrationRequest.getData().getApplicationDetails().getApplicationId(),
                 NachRegistrationResponse.class);
+    }
+
+    public LenderApiResponse<PennyDropRegistrationResponse> initiatePennyDrop(LenderBaseRequest<PennyDropRegistrationRequest> pennyDropRegistrationRequest) {
+        return sendPostRequest(
+                lendingPlatformConfiguration.getPennyDropUrl(),
+                pennyDropRegistrationRequest,
+                PENNY_DROP,
+                pennyDropRegistrationRequest.getData().getApplicationDetails().getApplicationId(),
+                PennyDropRegistrationResponse.class);
     }
 
     public LenderApiResponse<UpdateLeadResponse> initiateUpdateLead(LenderBaseRequest<UpdateLeadRequest> updateLeadRequest) {
         return sendPostRequest(
                 lendingPlatformConfiguration.getUpdateLeadUrl(),
                 updateLeadRequest,
-                "Update Lead",
+                UPDATE_LEAD,
                 updateLeadRequest.getData().getApplicationDetails().getApplicationId(),
                 UpdateLeadResponse.class);
     }
@@ -110,16 +120,24 @@ public class LendingPlatformClient {
         return sendPostRequest(
                 lendingPlatformConfiguration.getUploadLoanDocumentUrl(),
                 loanDocumentUploadRequest,
-                "Loan Document Upload",
+                LOAN_DOCUMENT_UPLOAD,
                 loanDocumentUploadRequest.getData().getApplicationDetails().getApplicationId(),
                 LoanDocumentUploadResponse.class);
+    }
+    public LenderApiResponse<LoanDocumentDownloadResponse> initateLoanDocDownload(LenderBaseRequest<LoanDocumentDownloadRequest> downloadRequestLenderBaseRequest) {
+        return sendPostRequest(
+                lendingPlatformConfiguration.getDownloadLoanDocumentUrl(),
+                downloadRequestLenderBaseRequest,
+                LOAN_DOCUMENT_DOWNLOAD,
+                downloadRequestLenderBaseRequest.getData().getApplicationDetails().getApplicationId(),
+                LoanDocumentDownloadResponse.class);
     }
 
     public LenderApiResponse<LoanDisbursalResponse> initiateLoanDisbursal(LenderBaseRequest<LoanDisbursalRequest> loanDisbursalRequest){
         return sendPostRequest(
                 lendingPlatformConfiguration.getDisburseLoanUrl(),
                 loanDisbursalRequest,
-                "Loan Disbursal",
+                LOAN_DISBURSAL,
                 loanDisbursalRequest.getData().getApplicationDetails().getApplicationId(),
                 LoanDisbursalResponse.class);
     }

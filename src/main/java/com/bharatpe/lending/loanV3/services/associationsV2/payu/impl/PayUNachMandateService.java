@@ -78,7 +78,8 @@ public class PayUNachMandateService {
         try {
 
             log.info("Payu inside nach {} {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus());
-
+            lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.NACH_MANDATE.name());
+            commonService.manageApplicationState(lenderAssociationDetailsRequest);
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequest.getLendingApplication().getId(), lenderAssociationDetailsRequest.getLendingApplication().getLender());
 
             if ((Arrays.asList(LenderAssociationStatus.LOAN_DOCS.name(), LenderAssociationStatus.UPDATE_ADDRESS_FAILED.name()).contains(lendingApplicationLenderDetails.getLeadStatus()))) {
@@ -132,7 +133,7 @@ public class PayUNachMandateService {
                 if ("SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus())) {
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadId(nachMandateResponseDTO.getApplicationId());
                     lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.NACH_MANDATE_SUCCESS.name());
-                    commonService.manageApplicationStateAndPushToNextStage(lenderAssociationDetailsRequest);
+                    commonService.manageApplicationState(lenderAssociationDetailsRequest);
                     return true;
                 }
             }

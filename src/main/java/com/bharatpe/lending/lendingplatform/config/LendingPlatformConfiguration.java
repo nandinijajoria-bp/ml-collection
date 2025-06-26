@@ -32,8 +32,10 @@ public class LendingPlatformConfiguration {
     private String uploadKycDocumentUrl = "/lender/v1/upload_kyc_document";
     private String updateLeadUrl = "/lender/v1/update_lead";
     private String uploadLoanDocumentUrl = "/lender/v1/upload_loan_document";
+    private String downloadLoanDocumentUrl = "/lender/v1/download/loan_document";
     private String signLoanDocumentUrl = "/lender/v1/loan_document_digi_sign";
     private String registerNachUrl = "/lender/v1/register_nach";
+    private String pennyDrop = "/lender/v1/penny_drop";
     private String eligibilityUrl = "/underwriting/v1/eligibility";
     private String bureauConsentUrl = "/underwriting/v1/bureau_consent";
 
@@ -74,12 +76,20 @@ public class LendingPlatformConfiguration {
         return baseUrl + uploadLoanDocumentUrl;
     }
 
+    public String getDownloadLoanDocumentUrl() {
+        return baseUrl + downloadLoanDocumentUrl;
+    }
+
     public String getSignLoanDocumentUrl() {
         return baseUrl + signLoanDocumentUrl;
     }
 
     public String getRegisterNachUrl() {
         return baseUrl + registerNachUrl;
+    }
+
+    public String getPennyDropUrl() {
+        return baseUrl + pennyDrop;
     }
 
     public String getEligibilityUrl() {

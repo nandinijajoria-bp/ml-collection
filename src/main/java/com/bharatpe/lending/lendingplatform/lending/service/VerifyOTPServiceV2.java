@@ -41,6 +41,7 @@ import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
@@ -89,6 +90,7 @@ public class VerifyOTPServiceV2 {
 	@Autowired
 	private CleverTapEventService cleverTapEventService;
 
+	@Lazy
 	@Autowired
 	private LendingApplicationServiceV2 lendingApplicationServiceV2;
 

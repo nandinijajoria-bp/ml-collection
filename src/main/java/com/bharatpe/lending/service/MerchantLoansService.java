@@ -130,6 +130,8 @@ public class MerchantLoansService {
 
     @Value("${renach.rollout.date}")
     String renachRolloutDate;
+    @Value("${round.down.eligible.lenders:TRILLIONLOANS}")
+    private List<String> roundDownEligibleLenders;
 
     @Autowired
     LoanPaymentOrderDao loanPaymentOrderDao;
@@ -641,6 +643,7 @@ public class MerchantLoansService {
                         case "TRILLIONLOANS":
                         case "LIQUILOANS_NBFC":
                         case "PAYU":
+                        case "OXYZO":
                             nachBounce = 500.0;
                             break;
                         case "LIQUILOANS_P2P_OF":
@@ -1215,9 +1218,11 @@ public class MerchantLoansService {
                 List<LendingEligibleLoan> eligibleLoanList = eligibleLoanDao.
                   findByMerchantIdAndLoanTypeAndPayableDays(lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
 
-
-                LendingEligibleLoan internalMerchantLoan = new LendingEligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 200000D, "12 Months", "ACTIVE", null, 0, 0, null, 665, 0, 239400, null, "TOPUP", null);
-                internalMerchantLoan.setEdiCount(360);
+                String lender = lendingApplication.getLender();
+                int ediAmount = roundDownEligibleLenders.contains(lender) ? 664 : 665;
+                int ediCount = 360;
+                LendingEligibleLoan internalMerchantLoan = new LendingEligibleLoan(lendingPaymentSchedule.getMerchantId(), experianId, 200000D, "12 Months", "ACTIVE", null, 0, 0, null, ediAmount, 0, ediAmount * ediCount, null, "TOPUP", null);
+                internalMerchantLoan.setEdiCount(ediCount);
                 internalMerchantLoan.setRateOfInterest(1.63);
                 internalMerchantLoan.setProcessingFee(9420);
                 internalMerchantLoan.setProcessingFeeRate(0.0471);
@@ -1261,7 +1266,7 @@ public class MerchantLoansService {
                                 .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                         BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                         eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                        loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingFee, eligibleLoan.getAmount());
+                        loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingFee, eligibleLoan.getAmount(), lendingApplication.getLender());
                     } else if(eligibleLoan.getAmount() != null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD != null){
                         BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
                         BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate());
@@ -1505,7 +1510,7 @@ public class MerchantLoansService {
                             .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                     BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                     eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                    loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingfee, eligibleLoan.getAmount());
+                    loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingfee, eligibleLoan.getAmount(), lendingApplication.getLender());
                 } else if(eligibleLoan.getAmount() != null && prevLoanUnpaidAmountBD != null && eligibleLoan.getProcessingFeeRate() != null){
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
                     BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate());
@@ -1707,7 +1712,7 @@ public class MerchantLoansService {
                             .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                     BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                     eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                    loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingfee, eligibleLoan.getAmount());
+                    loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingfee, eligibleLoan.getAmount(), lendingApplication.getLender());
                 } else if(eligibleLoan.getAmount() !=null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD !=null){
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
                     BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFeeRate());
@@ -1992,7 +1997,7 @@ public class MerchantLoansService {
                             .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                     BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                     eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                    loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingFee, eligibleLoan.getAmount());
+                    loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(), processingFee, eligibleLoan.getAmount(), lendingApplication.getLender());
                 } else if(eligibleLoan.getAmount() != null && eligibleLoan.getProcessingFeeRate() != null && prevLoanUnpaidAmountBD != null){
                     BigDecimal amountBD = BigDecimal.valueOf(eligibleLoan.getAmount());
                     BigDecimal processingFeeRateBD = BigDecimal.valueOf(eligibleLoan.getProcessingFee());

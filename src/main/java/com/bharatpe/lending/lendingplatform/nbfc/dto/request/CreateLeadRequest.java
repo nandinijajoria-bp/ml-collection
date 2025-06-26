@@ -4,7 +4,9 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.ApplicationDetails;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.BankDetails;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerAddressDetails;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerPersonalDetails;
+import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerShopDetails;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.KYCDocuments;
+import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.LoanRiskVariables;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.KycDocType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,4 +31,6 @@ public class CreateLeadRequest {
     private CustomerPersonalDetails customerPersonalDetails;
     @NotNull
     private Map<KycDocType, KYCDocuments> kycDocuments;
+    private LoanRiskVariables loanRiskVariables;
+    private CustomerShopDetails customerShopDetails;
 }

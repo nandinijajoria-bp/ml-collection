@@ -8,6 +8,7 @@ import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.entity.LendingPancardDetails;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerPersonalDetails;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -25,14 +26,20 @@ public class CustomerPersonalDetailsBuilder {
 
 	@Autowired
 	LendingPancardDetailsDao lendingPancardDetailsDao;
+	@Autowired
+	KycUtils kycUtils;
 
 	public static String getFatherName(String careOf) {
 		try {
-			if (ObjectUtils.isEmpty(careOf) || !careOf.contains("S/O")) {
+			if (ObjectUtils.isEmpty(careOf) || (!careOf.contains("S/O") && !careOf.contains("D/O"))) {
 				return null;
 			}
 			careOf = careOf.toUpperCase();
-			careOf = careOf.replaceAll("S/O", "").replaceAll("\\.", "").replaceAll(":", "").replaceFirst(" ", "");
+			careOf = careOf.replaceAll("S/O", "")
+					.replaceAll("D/O", "")
+					.replaceAll("\\.", "")
+					.replaceAll(":", "")
+					.replaceFirst(" ", "");
 			return careOf.substring(0, careOf.indexOf(","));
 		} catch (Exception e) {
 			log.info("Exception in fetching father name from kyc address {}", Arrays.asList(e.getStackTrace()));
@@ -99,11 +106,30 @@ public class CustomerPersonalDetailsBuilder {
 	}
 
 	private CustomerPersonalDetails.AadhaarDetails fetchAadhaarDetails(KycDoc doc) {
+		String careOf = doc.getAddress();
+		careOf += ",";
+
+		String sonOfDaughterOf = "";
+		String wifeOf = "";
+		String careOfGuardian = "";
+
+
+		if (careOf.contains("S/O") || careOf.contains("D/O")) {
+			String relation = careOf.contains("S/O") ? "S/O" : "D/O";
+			sonOfDaughterOf = kycUtils.getCareOfName(careOf, relation);
+		} else if (careOf.contains("W/O")) {
+			wifeOf = kycUtils.getCareOfName(careOf, "W/O");
+		} else if (careOf.contains("C/O")) {
+			careOfGuardian = kycUtils.getCareOfName(careOf, "C/O");
+		}
 		return CustomerPersonalDetails.AadhaarDetails.builder()
 				.aadhaar(doc.getDocIdentifier())
 				.gender(doc.getGender())
 				.fatherName(getFatherName(doc.getAddress()))
 				.nameDobDetails(getAadhaarNameDobDetails(doc))
+				.sonOfDaughterOf(sonOfDaughterOf)
+				.wifeOf(wifeOf)
+				.careOf(careOfGuardian)
 				.build();
 	}
 
@@ -141,6 +167,8 @@ public class CustomerPersonalDetailsBuilder {
 		nameDobDetails.setFirstName(firstName);
 		nameDobDetails.setMiddleName(middleName);
 		nameDobDetails.setLastName(lastName);
+		nameDobDetails.setFullName(fullname);
+
 		return nameDobDetails;
 	}
 
@@ -170,6 +198,7 @@ public class CustomerPersonalDetailsBuilder {
 		nameDobDetails.setFirstName(firstName);
 		nameDobDetails.setMiddleName(middleName);
 		nameDobDetails.setLastName(lastName);
+		nameDobDetails.setFullName(fullname);
 		return nameDobDetails;
 	}
 }

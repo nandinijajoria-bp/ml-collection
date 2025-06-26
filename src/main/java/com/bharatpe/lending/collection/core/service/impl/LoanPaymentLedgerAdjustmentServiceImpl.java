@@ -16,6 +16,7 @@ import com.bharatpe.lending.common.entity.LendingPrepayment;
 import com.bharatpe.lending.common.entity.PenalCharges;
 import com.bharatpe.lending.common.entity.PenaltyFeeLedger;
 import com.bharatpe.lending.common.enums.CollectionTransferTypeEnum;
+import com.bharatpe.lending.common.enums.TransferTypeModes;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingLedgerDao;
@@ -24,7 +25,6 @@ import com.bharatpe.lending.entity.LoanPaymentOrder;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.service.LendingCollectionAuditService;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -37,6 +37,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
+import static com.bharatpe.lending.constant.PaymentConstants.UPI_AUTOPAY_EXCESS_CREDIT_MODE;
 import static com.bharatpe.lending.enums.SettlementDetailsStatus.INIT;
 
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
@@ -85,6 +86,8 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
     @Autowired
     private EasyLoanUtil easyLoanUtil;
+    @Autowired
+    LendingCollectionAuditDao lendingCollectionAuditDao;
 
     @Value("${whitelisted.real.time.reciept.posting.lenders:TRILLIONLOANS}")
     String realTimeRecieptPostingWhitelistedLenders;
@@ -123,25 +126,6 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         log.info("inside creating lending ledger and audit for loan {} and order {}",loan,order);
         LendingLedger lendingLedger = createLendingLedger(loan, paymentAdjustment, desc, adjustmentMode, transferType, bankReferenceNo);
         updateCollectionAuditAndOrder(lendingLedger, order);
-        if(("UPI_AUTOPAY".equalsIgnoreCase(adjustmentMode) || "AUTO_PAY_UPI_EXCESS_ADJUSTED".equalsIgnoreCase(adjustmentMode)) && paymentAdjustment.getUsed() > 0){
-            //push loanId to kafka
-            if(lendingLedger!= null) confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
-        }
-        try {
-            if(lendingLedger != null){
-            log.info("inside sending upi-real-time-posting for loanId: {} and ledgerId: {}", loan.getId(), lendingLedger.getId());
-            LendingPaymentScheduleLendingCommon lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(loan.getId()).orElse(null);
-
-            if (adjustmentMode != null && realTimeRecieptPostingWhitelistedPgModes.contains(adjustmentMode) && easyLoanUtil.percentScaleUp(loan.getMerchantId(), realTimeRecieptPostingPercentScaleUp)
-                    && loan.getNbfc() != null   && realTimeRecieptPostingWhitelistedLenders.contains(loan.getNbfc()) && lendingPaymentScheduleLendingCommon != null
-                    && !"Y".equalsIgnoreCase(lendingPaymentScheduleLendingCommon.getPerpetualDpdAdjusted())) {
-                log.info("Real time reciept posting for UPI {}", lendingLedger);
-                confluentKafkaTemplate.send("autopayupi-posting", lendingLedger.getId());
-            }
-            }
-        }catch (Exception ex){
-            log.error("Error while sending autopayupi-posting for loanId: {} and ledgerId: {}", loan, lendingLedger, ex);
-        }
         return lendingLedger;
     }
     @Override
@@ -304,8 +288,18 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
 
     @Override
-    public void adjustPenaltyLedger(LendingPaymentSchedule loan, double amount, String source, boolean waveOff) {
-        if (amount > 0.5) {
+    public void adjustPenaltyLedger(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation, String source, boolean waveOff) {
+        double amount = paymentCalculation.getPenaltySettled();
+
+        // New flow Save PenaltyFeeLedger and penal charges with apportionment
+        if (paymentCalculation.isChargeApportioned() && amount > 0.5) {
+            PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), amount, source,
+                    waveOff, loan.getNbfc(), paymentCalculation.getNachBounceSettled(), paymentCalculation.getPenalChargesSettled());
+            penaltyFeeLedgerDao.save(penaltyFeeLedger);
+            savePenalChargesWithApportionment(loan, paymentCalculation);
+        } else if (amount > 0.5) {
+            // Old flow Save PenaltyFeeLedger and penal charges without apportionment
+
             PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), amount, source, waveOff, loan.getNbfc());
             penaltyFeeLedgerDao.save(penaltyFeeLedger);
             savePenalCharges(loan, amount);
@@ -357,6 +351,38 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
     }
 
     @Override
+    public void createAutoPayUpiExcessCreditAuditEntry(LendingCollectionExcess lendingCollectionExcess, LendingPaymentSchedule lendingPaymentSchedule, Double refundAmount) {
+        try {
+            log.info("Creating AUTO PAY UPI excess credit entry for PAYU for excess entry {} , for loan {} , for amount {} ", lendingCollectionExcess, lendingPaymentSchedule, refundAmount);
+            LendingCollectionAudit lendingCollectionAudit = LendingCollectionAudit.builder()
+                    .merchantId(lendingPaymentSchedule.getMerchantId())
+                    .merchantStoreId(lendingPaymentSchedule.getMerchantStoreId())
+                    .loanId(lendingPaymentSchedule.getId())
+                    .applicationId(lendingPaymentSchedule.getLoanApplication().getId())
+                    .bpLoanId(lendingPaymentSchedule.getLoanApplication().getExternalLoanId())
+                    .nbfcId(lendingPaymentSchedule.getLoanApplication().getNbfcId())
+                    .txnType("EDI")
+                    .description(lendingCollectionExcess.getTerminalOrderId())
+                    .transferType(TransferTypeModes.DIRECT_TRANSFER_LENDER.name())
+                    .status("PENDING")
+                    .amount(refundAmount)
+                    .otherCharges(0D)
+                    .penalty(0D)
+                    .adjustmentMode(UPI_AUTOPAY_EXCESS_CREDIT_MODE)
+                    .transferDate(DateTimeUtil.getCurrentDayStartTime())
+                    .terminalOrderId(lendingCollectionExcess.getTerminalOrderId())
+                    .lender(lendingPaymentSchedule.getNbfc())
+                    .loanStatus(lendingPaymentSchedule.getStatus())
+                    .mobile(lendingPaymentSchedule.getMobile())
+                    .ledgerId(lendingCollectionExcess.getId())
+                    .build();
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+            if(lendingPaymentSchedule.getClosingDate() != null) lendingCollectionAudit.setLoanClosingDate(lendingPaymentSchedule.getClosingDate());
+        } catch (Exception e) {
+            log.error("Error in creating collection audit for excess credit entry for ledger id {}, {}", lendingCollectionExcess, Arrays.asList(e.getStackTrace()));
+        }
+    }
+
     public void creatingPenaltyInPenaltyLedger(LendingPaymentSchedule loan, double penaltyFee, String description, boolean isWaiveOff) {
         PenaltyFeeLedger penaltyFeeLedger = new PenaltyFeeLedger(loan.getMerchantId(), loan.getId(), -penaltyFee, description, isWaiveOff, loan.getNbfc(),false);
         penaltyFeeLedgerDao.save(penaltyFeeLedger);
@@ -382,5 +408,37 @@ public class LoanPaymentLedgerAdjustmentServiceImpl implements LoanPaymentLedger
         lendingLedger.setDescription(penaltyDescription);
         lendingLedgerDao.save(lendingLedger);
         return lendingLedger;
+    }
+
+    private void savePenalChargesWithApportionment(LendingPaymentSchedule loan, PaymentCalculation paymentCalculation) {
+        try {
+            log.info("In savePenalChargesWithAportionment with loanId: {} and paymentCalculation: {}", loan.getId(), paymentCalculation);
+            PenalCharges penalCharge = penalChargesDao.findByLoanId(loan.getId());
+            if (ObjectUtils.isEmpty(penalCharge)) {
+                return;
+            }
+            double nachBounceAdjusted = paymentCalculation.getNachBounceSettled();
+            double netPenaltyAdjusted = paymentCalculation.getPenalChargesSettled();
+            if (Objects.nonNull(penalCharge.getDueNachBounce()) && nachBounceAdjusted > 0) {
+
+                double paidNachBounce = Objects.nonNull(penalCharge.getPaidNachBounce()) ? penalCharge.getPaidNachBounce() + nachBounceAdjusted : nachBounceAdjusted;
+                Double due = penalCharge.getDueNachBounce() - nachBounceAdjusted;
+                penalCharge.setDueNachBounce((double) Math.round(due));
+                penalCharge.setPaidNachBounce((double) Math.round(paidNachBounce));
+            }
+
+            if (Objects.nonNull(penalCharge.getDuePenalty()) && netPenaltyAdjusted > 0) {
+                double paidPenalty = Objects.nonNull(penalCharge.getPaidPenalty()) ? penalCharge.getPaidPenalty() + netPenaltyAdjusted : netPenaltyAdjusted;
+
+                penalCharge.setPaidPenalty((double) Math.round(paidPenalty));
+                Double due = penalCharge.getDuePenalty() - netPenaltyAdjusted;
+                penalCharge.setDuePenalty((double) Math.round(due));
+            }
+            penalChargesDao.save(penalCharge);
+            log.info("Penal Charges table updated for loanId: {} , dueNachBounce: {}, paidNachBounce: {}, duePenalty: {}, paidPenalty: {}",
+                    loan.getId(), penalCharge.getDueNachBounce(), penalCharge.getPaidNachBounce(), penalCharge.getDuePenalty(), penalCharge.getPaidPenalty());
+        } catch (Exception e) {
+            log.error("Exception occured while saving penal charge for loan: {} {} Stack: {}", loan.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        }
     }
 }

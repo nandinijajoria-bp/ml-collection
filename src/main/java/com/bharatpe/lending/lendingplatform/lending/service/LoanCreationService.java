@@ -16,8 +16,8 @@ import org.springframework.util.ObjectUtils;
 
 import java.util.List;
 
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.CREATE_LEAD;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.KYC_DOCUMENT_UPLOAD;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.OXYZO;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.*;
 
 @Slf4j
 @Service
@@ -42,9 +42,18 @@ public class LoanCreationService {
         //Create lead workflow completed invoke KYC Document upload workflow
         if (!ObjectUtils.isEmpty(lald) && lald.getLeadStatus().equals(CREATE_LEAD.name()) &&
                 lald.getLeadSubStatus().equals(LeadSubStatus.SUCCESS)) {
-            workflows = workflowRegistryFactory
-                    .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender())).getStageWorkflow(KYC_DOCUMENT_UPLOAD);
+            if (lendingApplication.getLender().equals(OXYZO.name())) {
+                workflows = workflowRegistryFactory
+                        .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender())).getStageWorkflow(KYC);
+                log.info("Invoking KYC workflow for OXYZO lender, applicationId={}", applicationId);
+            } else {
+                workflows = workflowRegistryFactory
+                        .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender())).getStageWorkflow(KYC_DOCUMENT_UPLOAD);
+                log.info("Invoking KYC_DOCUMENT_UPLOAD workflow for applicationId={}", applicationId);
+
+            }
         }
         WorkflowUtil.invokeWorkflows(workflows, applicationId);
     }
+
 }

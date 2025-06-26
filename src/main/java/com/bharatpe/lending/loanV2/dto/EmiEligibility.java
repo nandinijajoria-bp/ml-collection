@@ -7,4 +7,5 @@ public class EmiEligibility {
     private Double emiLoanAmount;
     private Boolean emiRejected;
     private String rejectReason;
+    private Integer emiEligibleIn;
 }

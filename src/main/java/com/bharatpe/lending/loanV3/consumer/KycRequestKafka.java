@@ -24,6 +24,7 @@ import com.bharatpe.lending.loanV3.services.associationsV2.AbflDocGenerateServic
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -89,6 +90,9 @@ public class KycRequestKafka {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    private EdiUtil ediUtil;
+
     @Value("${abfl.eKyc.retry.count:2}")
     Integer abflEKycRetryCount;
 
@@ -109,7 +113,7 @@ public class KycRequestKafka {
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void kycRequestListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -139,7 +143,7 @@ public class KycRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
@@ -174,7 +178,7 @@ public class KycRequestKafka {
 
     @KafkaListener(
             topics="${abfl.kyc.callback.topic:kyc-callback}",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void kycCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -381,7 +385,7 @@ public class KycRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));

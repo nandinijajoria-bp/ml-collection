@@ -18,4 +18,5 @@ public class InsuranceEligibilityRequestDTO {
     private Long pinCode;
     private String businessCategory;
     private String businessSubCategory;
+    private String client;
 }

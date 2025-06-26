@@ -14,11 +14,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.IntStream;
@@ -159,6 +164,28 @@ public class CommonUtil {
             }
         }
         return  0D;
+    }
+
+
+    public String getBase64FromImageURL(String url) {
+        try {
+            URL imageUrl = new URL(url);
+            URLConnection urlCon = imageUrl.openConnection();
+            InputStream inputStream = urlCon.getInputStream();
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+
+            byte[] buffer = new byte[1024];
+            int read = 0;
+            while ((read = inputStream.read(buffer, 0, buffer.length)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, read);
+            }
+            byteArrayOutputStream.flush();
+
+            return Base64.getEncoder().encodeToString(byteArrayOutputStream.toByteArray());
+        } catch (Exception e) {
+            log.error("Unable to convert Image from URL to Base64: {}", e.toString());
+        }
+        return null;
     }
 
 

@@ -67,5 +67,10 @@ public class LoanDetailsConstant {
 
     public static String UNDERWRITING_MASKED_MOBILE_EXCEPTION="CALL_MASKED_MOBILE_FLOW";
 
+    public static double EMI_DEFAULT_LOAN_AMOUNT = 1500000;
+
+    public static final String LENDER_CHECKS_FAILED = "LENDER_CHECKS_FAILED";
+
+
 }
 

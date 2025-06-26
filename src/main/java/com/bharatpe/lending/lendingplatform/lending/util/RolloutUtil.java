@@ -1,13 +1,17 @@
 package com.bharatpe.lending.lendingplatform.lending.util;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
+import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LmsLoanStatusDao;
+import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LmsLoanStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,10 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.CREDITSAISON;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.OXYZO;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.TRILLIONLOANS;
+
 
 @Component
 @Slf4j
@@ -29,22 +37,27 @@ public class RolloutUtil {
 
 	private List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(), LoanType.IO_TOPUP.name());
 
-	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS}")
+	@Value("${lending.platform.nbfc.eligible.lenders:TRILLIONLOANS,OXYZO}")
 	private List<String> eligibleLenders;
 	@Value("${lending.platform.nbfc.eligible.merchants:20000100}")
 	private List<Long> eligibleMerchants;
 	@Value("${lending.platform.nbfc.enable:false}")
 	private boolean nbfcFlowEnable;
-	@Value("${lending.platform.nbfc.merchant.rollout:0}")
-	private int eligibleLendingPlatformNbfcMerchantRollout;
-	@Value("${lending.platform.nbfc.application.limit:2}")
-	private int lendingPlatformNbfcApplicationLimit;
 	@Value("${lending.platform.underwriting.flow.enabled:false}")
     private boolean isNewUnderwritingFlowEnabled;
     @Value("${lending.platform.underwriting.flow.eligible.merchants:20000100}")
     private List<Long> eligibleUnderwritingMerchants;
     @Value("${lending.platform.underwriting.flow.merchant.rollout:0}")
     private int eligibleUnderwritingMerchantRollout;
+    // CreditSaison specific configurations
+    @Value("${lending.platform.cs.nbfc.merchant.rollout:0}")
+    private int eligibleLendingPlatformCsNbfcMerchantRollout;
+
+    @Value("${lending.platform.cs.nbfc.application.limit:2}")
+    private int lendingPlatformCsNbfcApplicationLimit;
+
+    @Value("${lending.platform.cs.nbfc.enable:false}")
+    private boolean csNbfcFlowEnable;
 
     @Value("${new.flow.eligible.lenders.onelms:TRILLIONLOANS}")
     private List<String> eligibleLendersForOneLms;
@@ -57,12 +70,25 @@ public class RolloutUtil {
 
     @Value("${new.oneLms.flow.enable:false}")
     private boolean oneLmsFlowEnable;
+    @Value("${lending.platform.oxyzo.enable:false}")
+    private boolean lendingPlatformOxyzoEnable;
+    @Value("${lending.platform.oxyzo.merchant.rollout:0}")
+    private int eligibleLendingPlatformOxyzoMerchantRollout;
+    @Value("${lending.platform.oxyzo.application.limit:0}")
+    private int lendingPlatformOxyzoApplicationLimit;
+    @Value("${lending.platform.trillion.enable:false}")
+    private boolean lendingPlatformTrillionloansEnable;
+    @Value("${lending.platform.trillion.merchant.rollout:0}")
+    private int eligibleLendingPlatformTrillionloansMerchantRollout;
+    @Value("${lending.platform.trillion.application.limit:0}")
+    private int lendingPlatformTrillionloansApplicationLimit;
     private final LmsLoanStatusDao lmsLoanStatusDao;
 
 
 	private final LendingApplicationLenderDetailsDao laldDao;
     private final LendingApplicationDao lendingApplicationDao;
     private final KycUtils kycUtils;
+    private final AutoPayUPIDao autoPayUPIDao;
 
     public boolean lendingPlatformUnderwritingFLowApplicable(Long merchantId) {
         //config for internal merchants
@@ -113,49 +139,54 @@ public class RolloutUtil {
 			log.info("Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
 			return true;
 		}
-
-		if (!nbfcFlowEnable) {
-			log.info("Merchant not eligible for new flow due to flag config, application: {}", lendingApplication.getId());
-			return false;
-		}
-
-		int merchantIdPercentage = merchantId.intValue() % 100;
-		if (merchantIdPercentage > eligibleLendingPlatformNbfcMerchantRollout) {
-			log.info("New flow for Merchant:{} is not eligible due to rollout percent", merchantId);
-			return false;
-		}
-
+        if (!nbfcFlowEnable) {
+            log.info("Merchant not eligible for new flow due to flag config, application: {}", lendingApplication.getId());
+            return false;
+        }
         if (Boolean.TRUE.equals(kycUtils.isELigibleForLenderKyc(
                 lendingApplication.getLender(), lendingApplication.getMerchantId(), false))) {
             log.info("New flow for Merchant:{} is not eligible due to EKYC", merchantId);
             return false;
         }
-
-		if (lendingPlatformNbfcApplicationLimit != -1){
-			LocalDate localDate = LocalDate.parse("2025-04-23");
-			Date date = Date.from(localDate.atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
-			long count = laldDao.countLendingApplicationLenderDetailsByRearchFlowAndCreatedAtGreaterThan(
-					true, date);
-			if (count >= lendingPlatformNbfcApplicationLimit) {
-				log.info("New flow for Merchant:{} is not eligible due to application limit", merchantId);
-				return false;
-			}
-		}
-
-		log.info("Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
-		return true;
+        return checkLenderSpecificEligibility(lendingApplication, merchantId);
 	}
+
+    private boolean checkLenderSpecificEligibility(LendingApplication lendingApplication, Long merchantId) {
+        String lender = lendingApplication.getLender();
+        if (ObjectUtils.isEmpty(lender)) {
+            log.info("Lender is null for applicationId: {}", lendingApplication.getId());
+            return false;
+        }
+
+        switch (Lender.valueOf(lender)) {
+            case CREDITSAISON:
+                return isEligibleForCreditSaison(lendingApplication, merchantId);
+            case OXYZO:
+                return isEligibleForOxyzo(lendingApplication, merchantId);
+            case TRILLIONLOANS:
+                return isEligibleForTrillionloans(lendingApplication, merchantId);
+            default:
+                log.info("Lender not applicable for new flow: {}", lendingApplication.getId());
+                return false;
+        }
+    }
 
     public boolean checkEligibilityForOneLmsLoans(String bpLoanId) {
         LendingApplication lendingApplication = lendingApplicationDao.findByExternalLoanId(bpLoanId);
         LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLoanByBpLoanIdAndStatus(lendingApplication.getExternalLoanId(), "FAILED");
         Long lmsLoanStatusCount = lmsLoanStatusDao.countAllLoanStatusRecords();
 
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(),
+                lendingApplication.getLender(), Arrays.asList(AutoPayStatusEnum.ACTIVE.name()));
+
         if (ObjectUtils.isEmpty(lendingApplication)) {
             return false;
         }
         if (topupLoans.contains(lendingApplication.getLoanType())) {
-            log.info("Application: {} not eligible for new flow due to Topup loan", lendingApplication.getId());
+            log.info("Application: {} not eligible for new lms flow due to Topup loan", lendingApplication.getId());
+            return false;
+        }
+        if(!ObjectUtils.isEmpty(autoPayUPI)){
             return false;
         }
         if (!ObjectUtils.isEmpty(lmsLoanStatus)) {
@@ -188,4 +219,87 @@ public class RolloutUtil {
         log.info("New flow applicable for LMS");
         return true;
     }
+
+    private boolean isEligibleForCreditSaison(LendingApplication lendingApplication, Long merchantId) {
+
+        if (!csNbfcFlowEnable) {
+            log.info("Merchant not eligible for new flow due to cs flag config, application: {}", lendingApplication.getId());
+            return false;
+        }
+
+        int merchantIdPercentage = merchantId.intValue() % 100;
+        if (merchantIdPercentage > eligibleLendingPlatformCsNbfcMerchantRollout) {
+            log.info("CreditSaison New flow for Merchant:{} is not eligible due to rollout percent", merchantId);
+            return false;
+        }
+
+        if (lendingPlatformCsNbfcApplicationLimit != -1) {
+            LocalDate localDate = LocalDate.parse("2025-06-23");
+            Date date = Date.from(localDate.atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
+            long count = laldDao.countLendingApplicationLenderDetailsByRearchFlowAndCreatedAtGreaterThanAndLender(
+                    true, date, "CREDITSAISON");
+            log.info("CreditSaison New flow for Merchant:{} has count: {}", merchantId, count);
+            if (count >= lendingPlatformCsNbfcApplicationLimit) {
+                log.info("CreditSaison New flow for Merchant:{} is not eligible due to application limit", merchantId);
+                return false;
+            }
+        }
+
+        log.info("CreditSaison Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
+        return true;
+    }
+    private boolean isEligibleForOxyzo(LendingApplication lendingApplication, Long merchantId) {
+        if (!lendingPlatformOxyzoEnable) {
+            log.info("Merchant not eligible for Oxyzo new flow due to flag config, application: {}", lendingApplication.getId());
+            return false;
+        }
+        int merchantIdPercentage = merchantId.intValue() % 100;
+        if (merchantIdPercentage > eligibleLendingPlatformOxyzoMerchantRollout) {
+            log.info("Oxyzo New flow for Merchant:{} is not eligible due to rollout percent", merchantId);
+            return false;
+        }
+
+        if (lendingPlatformOxyzoApplicationLimit != -1) {
+            LocalDate localDate = LocalDate.parse("2025-06-23");
+            Date date = Date.from(localDate.atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
+            long count = laldDao.countLendingApplicationLenderDetailsByRearchFlowAndCreatedAtGreaterThanAndLender(
+                    true, date, "OXYZO");
+            log.info("Oxyzo New flow for Merchant:{} has count: {}", merchantId, count);
+            if (count >= lendingPlatformOxyzoApplicationLimit) {
+                log.info("Oxyzo New flow for Merchant:{} is not eligible due to application limit", merchantId);
+                return false;
+            }
+        }
+
+        log.info("Oxyzo Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
+        return true;
+    }
+    private boolean isEligibleForTrillionloans(LendingApplication lendingApplication, Long merchantId) {
+        if (!lendingPlatformTrillionloansEnable) {
+            log.info("Merchant not eligible for Trillionloans new flow due to flag config, application: {}", lendingApplication.getId());
+            return false;
+        }
+
+        int merchantIdPercentage = merchantId.intValue() % 100;
+        if (merchantIdPercentage > eligibleLendingPlatformTrillionloansMerchantRollout) {
+            log.info("Trillionloans New flow for Merchant:{} is not eligible due to rollout percent", merchantId);
+            return false;
+        }
+
+        if (lendingPlatformTrillionloansApplicationLimit != -1) {
+            LocalDate localDate = LocalDate.parse("2025-06-23");
+            Date date = Date.from(localDate.atStartOfDay(ZoneId.of("Asia/Kolkata")).toInstant());
+            long count = laldDao.countLendingApplicationLenderDetailsByRearchFlowAndCreatedAtGreaterThanAndLender(
+                    true, date, "TRILLIONLOANS");
+            log.info("Trillionloans New flow for Merchant:{} has count: {}", merchantId, count);
+            if (count >= lendingPlatformTrillionloansApplicationLimit) {
+                log.info("Trillionloans New flow for Merchant:{} is not eligible due to application limit", merchantId);
+                return false;
+            }
+        }
+
+        log.info("Trillionloans Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
+        return true;
+    }
+
 }

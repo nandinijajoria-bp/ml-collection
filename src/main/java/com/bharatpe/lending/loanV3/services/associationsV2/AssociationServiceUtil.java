@@ -2,19 +2,19 @@ package com.bharatpe.lending.loanV3.services.associationsV2;
 
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingLedger;
+import com.bharatpe.lending.dto.LoanInsuranceDTO;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
-import com.bharatpe.lending.loanV3.dto.DisbursalCallbackCommonDTO;
-import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
-import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
-import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.oxyzo.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.payu.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.EKycService;
+import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalInsuranceService;
 import com.bharatpe.lending.loanV3.services.associationsV2.smfg.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.ugro.impl.*;
@@ -22,6 +22,8 @@ import com.bharatpe.lending.loanV3.services.associationsV2.usfb.impl.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class AssociationServiceUtil {
@@ -152,10 +154,6 @@ public class AssociationServiceUtil {
     @Autowired
     CreditSaisonDocUploadService creditSaisonDocUploadService;
 
-    @Autowired
-    CreditSaisonFetchSignedDocService creditSaisonFetchSignedDocService;
-
-
     @Lazy
     @Autowired
     KycRequestKafka kycRequestKafka;
@@ -276,6 +274,15 @@ public class AssociationServiceUtil {
 
     @Autowired
     OxyzoForeclosureService oxyzoForeclosureService;
+
+    @Autowired
+    MFUdyamService mfUdyamService;
+
+    @Autowired
+    PiramalInsuranceService piramalInsuranceService;
+
+    @Autowired
+    VKycService vKycService;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -708,21 +715,25 @@ public class AssociationServiceUtil {
         }
     }
 
-    public NBFCResponseDTO<?> getDocsGenerateService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+    public String invokeUdyamFlowService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         switch (lender) {
             case "UGRO":
                 return ugroDocumentGenerationService.getUdyamRegistrationResponse(lenderAssociationDetailsRequestDto);
+            case "MUTHOOT":
+                return mfUdyamService.initiateUdyamFlow(lenderAssociationDetailsRequestDto);
             default:
-                return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
+                return null;
         }
     }
 
-    public boolean invokeUdyamStatusCheckService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+    public UdyamStatusCheckResponseDTO invokeUdyamStatusCheckService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         switch (lender) {
             case "UGRO":
                 return ugroGetLeadService.invokeUdyamStatusCheck(lenderAssociationDetailsDto);
+            case "MUTHOOT":
+                return mfUdyamService.udyamStatusCheck(lenderAssociationDetailsDto);
             default:
-                return false;
+                return UdyamStatusCheckResponseDTO.builder().isUdyamRequired(Boolean.FALSE).build();
         }
     }
 
@@ -741,5 +752,18 @@ public class AssociationServiceUtil {
                 return tlUpdateLeadService.invokeUpdateLoan(lenderAssociationDetailsRequestDto);
             default:return false;
         }
+    }
+
+    public LoanInsuranceDTO fetchInsurancePremiums(LendingApplication lendingApplication) {
+        switch (lendingApplication.getLender()) {
+            case "PIRAMAL" :
+                return piramalInsuranceService.getInsurancePremiums(lendingApplication);
+            default:
+                return null;
+        }
+    }
+
+    public boolean invokeSkipVkyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto.getMerchantId(),  lenderAssociationDetailsRequestDto.getApplicationId(), lender);
     }
 }

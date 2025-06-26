@@ -4,7 +4,6 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LeadSubStatus;
-import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.lendingplatform.nbfc.client.LendingPlatformClient;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.request.CreateLeadRequest;
@@ -12,12 +11,15 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.request.LenderBaseRequest;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.CreateLeadResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
 import com.bharatpe.lending.lendingplatform.nbfc.service.builder.request.CreateLeadRequestBuilder;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationLenderDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
@@ -47,7 +49,10 @@ public class CreateLeadWorkflow implements Workflow {
     @Lazy
     private final NbfcUtils nbfcUtils;
     private final WorkflowUtil workflowUtil;
+    private final EdiUtil ediUtil;
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
+    @Lazy
+    private final WorkflowRegistryFactory workflowRegistryFactory;
 
 
     @Override
@@ -65,14 +70,16 @@ public class CreateLeadWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
             return;
         }
-        updateLad(applicationId);
+        WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+        updateLad(applicationId, workflowRegistry);
         invokeCreateLead(applicationId, lendingApplication, lald, createLeadRequest);
     }
 
-    private void updateLad(String applicationId) {
+    private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
         lendingApplicationDetails.setLenderAssc(true);
-        lendingApplicationDetails.setStage(LenderAssociationStages.KYC.name());
+        lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationDetailsService.save(lendingApplicationDetails);
     }
 
@@ -95,6 +102,20 @@ public class CreateLeadWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
             return;
         }
+
+        if (response.getLender() == Lender.CREDITSAISON) {
+            CreateLeadResponse data = response.getData();
+            boolean isNoExposureAndNoMatch = (data != null && ObjectUtils.isEmpty(data.getAllowableExposure()) && "No Match".equalsIgnoreCase(data.getDedupeStatus()));
+            boolean isPositiveExposureAndEntityExists = (data != null && !ObjectUtils.isEmpty(data.getAllowableExposure()) && data.getAllowableExposure().doubleValue() > 0.0 && "Entity Exists".equalsIgnoreCase(data.getDedupeStatus()));
+
+            if (!(isNoExposureAndNoMatch || isPositiveExposureAndEntityExists)) {
+                log.info("Create lead failed for application id {} due to Credit Saison dedupe/exposure logic", applicationId);
+                lald.setLeadSubStatus(LeadSubStatus.FAILED);
+                nbfcUtils.modifyLender(lendingApplication, lald, LEAD_CREATION_FAILED);
+                return;
+            }
+        }
+
         log.info("Create lead successful for application id {}", applicationId);
         try {
             lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
@@ -122,7 +143,7 @@ public class CreateLeadWorkflow implements Workflow {
         lendingApplicationLenderDetails.setLeadSubStatus(LeadSubStatus.PENDING);
         lendingApplicationLenderDetails.setAccountId(lendingApplication.getExternalLoanId());
         DecimalFormat df = new DecimalFormat("#.##");
-        df.setRoundingMode(RoundingMode.DOWN);
+        df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
         if (com.bharatpe.lending.enums.Lender.UGRO.name().equalsIgnoreCase(lendingApplicationLenderDetails.getLender())) {
             df = new DecimalFormat("#.######");
         }

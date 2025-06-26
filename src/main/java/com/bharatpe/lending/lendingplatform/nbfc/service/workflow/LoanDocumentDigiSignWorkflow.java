@@ -82,8 +82,15 @@ public class LoanDocumentDigiSignWorkflow implements Workflow {
     }
 
     private LenderBaseRequest<LoanDocumentDigiSignRequest> getLoanDocumentDigiSignRequest(LendingApplication lendingApplication) {
-        LoanDocumentDigiSignRequest loanDocumentDigiSignRequest = loanDocumentDigiSignRequestBuilder
-                .buildRequest(lendingApplication);
+        LoanDocumentDigiSignRequest loanDocumentDigiSignRequest = null;
+        try {
+            loanDocumentDigiSignRequest = loanDocumentDigiSignRequestBuilder
+                    .buildRequest(lendingApplication);
+        } catch (Exception e) {
+            log.error("Error while creating Digisign request for applicationId={}, error:{}",
+                    lendingApplication.getId(), e.getMessage(), e);
+            return null;
+        }
         return LenderBaseRequest.<LoanDocumentDigiSignRequest>builder()
                 .applicationId(String.valueOf(lendingApplication.getId()))
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))

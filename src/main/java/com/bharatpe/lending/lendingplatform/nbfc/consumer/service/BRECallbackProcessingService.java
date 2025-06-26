@@ -10,6 +10,12 @@ import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.callback.BRECallback;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.BRERiskDecision;
+import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
+import com.bharatpe.lending.lendingplatform.nbfc.service.workflow.Workflow;
+import com.bharatpe.lending.lendingplatform.nbfc.service.workflow.WorkflowManager;
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -18,7 +24,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static com.bharatpe.lending.common.enums.LenderAssociationStages.ASSC_COMPLETED;
 import static com.bharatpe.lending.common.enums.LenderAssociationStatus.RISK_FAILED;
@@ -32,6 +40,8 @@ public class BRECallbackProcessingService {
     private final WorkflowUtil workflowUtil;
     private final ObjectMapper objectMapper;
     private final LendingApplicationDetailsDao lendingApplicationDetailsDao;
+    private final WorkflowRegistryFactory workflowRegistryFactory;
+
 
     public void processBRECallback(String message) {
         LenderApiResponse<BRECallback> breCallbackResponse = null;
@@ -55,7 +65,16 @@ public class BRECallbackProcessingService {
 
             if (isApproved) {
                 updateLaldForSuccessCallback(breCallbackResponse, lald);
-                updateLad(lendingApplication.getId());
+                if (lendingApplication.getLender() != null && lendingApplication.getLender().equals("CREDITSAISON")) {
+                    log.info("Proceeding to the next workflow stage for lender CREDITSAISON after successful BRE approval, lald lead status: {}", lald.getLeadStatus());
+                    WorkflowStage nextStage = WorkflowManager.getNextWorkflowStage(lendingApplication.getLender(), lald.getLeadStatus());
+                    WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                            .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+                    List<Workflow> workflows = workflowRegistry.getStageWorkflow(nextStage);
+                    WorkflowUtil.invokeWorkflows(workflows, lendingApplication.getId());
+                } else {
+                    updateLad(lendingApplication.getId());
+                }
             } else {
                 updateLaldForFailedCallback(breCallbackResponse, lald, lendingApplication);
             }
@@ -86,6 +105,8 @@ public class BRECallbackProcessingService {
         lald.setBreStatus(LenderAssociationStatus.RISK_COMPLETED.name());
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lald.setStage(ASSC_COMPLETED.name());
+        Optional.ofNullable(breCallbackResponse.getData().getLeadId())
+                .ifPresent(lald::setLeadId);
         laldDao.save(lald);
     }
 

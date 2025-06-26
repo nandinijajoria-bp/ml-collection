@@ -22,6 +22,7 @@ public class CustomerShopDetailsBuilder {
 		CustomerShopDetails customerShopDetails = CustomerShopDetails.builder()
 				.addressDetails(addressDetails)
 				.pincode(lendingApplication.getPincode().intValue())
+				.businessName(lendingApplication.getBusinessName())
 				.build();
 
 		log.debug("Customer Shop Details for merchant: {} is {}", lendingApplication.getMerchantId(), customerShopDetails);
@@ -36,6 +37,7 @@ public class CustomerShopDetailsBuilder {
 				.address2(lendingApplication.getStreetAddress())
 				.landmark(lendingApplication.getLandmark())
 				.pincode(lendingApplication.getPincode())
+				.area(lendingApplication.getArea())
 				.city(lendingApplication.getCity())
 				.state(lendingApplication.getState())
 				.stateCode(Objects.nonNull(StateMapping.getStateEnum(lendingApplication.getState())) ?

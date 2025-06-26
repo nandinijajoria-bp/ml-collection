@@ -85,20 +85,31 @@ public class LendingApplicationController {
 //		return lendingApplicationResponse;
 //	}
 
-	@RequestMapping(value="/uploadDocument", method = RequestMethod.POST, consumes="application/json", produces="application/json")
-	public UploadDocumentResponseDTO uploadDocument(@RequestAttribute BasicDetailsDto merchant, @RequestAttribute String clientIp,
-													HttpServletResponse response, @RequestBody RequestDTO<UploadDocumentRequestDTO> requestDTO) {
-		logger.info("UploadDocument request : {}",requestDTO);
-		if(requestDTO.getPayload() == null) {
+	@RequestMapping(value = "/uploadDocument", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
+	public ResponseEntity<com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<UploadDocumentResponseDTO>> uploadDocument(
+			@RequestAttribute BasicDetailsDto merchant,
+			@RequestAttribute String clientIp,
+			@RequestBody RequestDTO<UploadDocumentRequestDTO> requestDTO) {
+
+		logger.info("UploadDocument request : {}", requestDTO);
+
+		if (requestDTO == null || requestDTO.getPayload() == null) {
 			logger.info("Invalid request parameters : {}", requestDTO);
-			response.setStatus(Integer.parseInt(ResponseCode.BAD_REQUEST));
-			return null;
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body(com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse.error(String.valueOf(HttpStatus.BAD_REQUEST.value()), "Invalid request parameters", null));
 		}
-		requestDTO.getMeta().setIp(clientIp);
-		UploadDocumentResponseDTO uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO);
+
+		if (requestDTO.getMeta() != null) {
+			requestDTO.getMeta().setIp(clientIp);
+		}
+
+		com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiResponse<UploadDocumentResponseDTO> uploadDocumentResponse = uploadDocumentService.uploadDocument(merchant, requestDTO, false);
 
 		logger.info("UploadDocument response : {}", uploadDocumentResponse);
-		return uploadDocumentResponse;
+
+		HttpStatus status = uploadDocumentResponse.isSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
+
+		return ResponseEntity.status(status).body(uploadDocumentResponse);
 	}
 
 	@RequestMapping(value="/signAgreement", method = RequestMethod.POST, consumes="application/json", produces="application/json")

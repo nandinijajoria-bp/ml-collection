@@ -72,6 +72,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -259,6 +260,7 @@ public class LoanUtil {
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	@Autowired
+	@Lazy
 	LendingApplicationServiceV2 lendingApplicationServiceV2;
 
 	@Autowired
@@ -275,9 +277,6 @@ public class LoanUtil {
 
     @Autowired
 	ForeClosureConfigDao foreClosureDao;
-
-	@Autowired
-	LendingLoanInsuranceDao lendingLoanInsuranceDao;
 
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
@@ -333,6 +332,8 @@ public class LoanUtil {
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
+	@Value("${round.down.eligible.lenders:TRILLIONLOANS}")
+	private List<String> roundDownEligibleLenders;
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
@@ -1171,10 +1172,11 @@ public class LoanUtil {
 		dsHandler.pushKafkaAudit(kafkaAudit);
 	}
 
-	private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
+	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			if (lendingRiskVariables != null) {
+			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
@@ -2685,16 +2687,6 @@ public class LoanUtil {
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
-	public LendingLoanInsurance getInsuranceDetails(Long applicationId, String lender, String status) {
-		if (ObjectUtils.isEmpty(applicationId) || ObjectUtils.isEmpty(lender) || ObjectUtils.isEmpty(status)) {
-			return null;
-		}
-
-		return lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
-				applicationId,
-				lender,
-				status);
-	}
 	public List<EnachModeDTO> getEnachModes(Long merchantId) {
 		LendingNachBankResponseDTO lendingNachBankResponse = getEnachBankMode(merchantId);
 
@@ -2824,35 +2816,38 @@ public class LoanUtil {
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
 
 		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
-		PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
-		if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
-			logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
-			maxPricingValuesDTO.setMaxProcessingFeeRate(pricingExperiment.getProcessingFeeRate());
-			maxPricingValuesDTO.setMaxApr(pricingExperiment.getApr());
-			maxPricingValuesDTO.setMaxIrr(pricingExperiment.getIrr());
-			maxPricingValuesDTO.setMaxInterestRate(pricingExperiment.getInterestRate());
-		}else {
-			if (StringUtils.isEmpty(rejectedLenders)) {
-				//fetch only active max pricing here.
-				maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
-			} else {
-				Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
-				maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
 
-			}
-			if (ObjectUtils.isEmpty(maxValuesDto)
-					|| ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
-					|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
-					|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
-					|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())) {
-				logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
-				return null;
-			}
-			maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
-			maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
-			maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
-			maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
-		}
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
+        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+            logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
+            maxPricingValuesDTO.setMaxProcessingFeeRate(pricingExperiment.getProcessingFeeRate());
+            maxPricingValuesDTO.setMaxApr(pricingExperiment.getApr());
+            maxPricingValuesDTO.setMaxIrr(pricingExperiment.getIrr());
+            maxPricingValuesDTO.setMaxInterestRate(pricingExperiment.getInterestRate());
+        }
+        else {
+            if (StringUtils.isEmpty(rejectedLenders)) {
+                //fetch only active max pricing here.
+                maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
+            } else {
+                Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
+                maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
+
+            }
+            if(ObjectUtils.isEmpty(maxValuesDto)
+            || ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
+                logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
+                return null;
+            }
+            MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
+            maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
+            maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
+            maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
+            maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
+        }
 		logger.info("fetched max pricing values -> {}", maxPricingValuesDTO);
 		return maxPricingValuesDTO;
 	}
@@ -2880,14 +2875,21 @@ public class LoanUtil {
 		return 0D;
 	}
 
-	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount){
+	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
 		eligibleLoan.setRateOfInterest(interestRate);
 		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
-		Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		if(!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)){
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		}else{
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
 		Double repayment = ediAmount * eligibleLoan.getEdiCount();
 		eligibleLoan.setProcessingFee(processingFee.intValue());
 		eligibleLoan.setRepayment(repayment.intValue());
-		eligibleLoan.setEdi(ediAmount.intValue());
+		eligibleLoan.setEdi((int) ediAmount);
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
@@ -2959,6 +2961,8 @@ public class LoanUtil {
 				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 			}
 			else {
+				penaltyFeeLedger.setPostingStatus("FAILED");
+				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 				logger.info("Piramal: penalty  posting failed to request {} response {}",piramalForeclosureChargesRequestDto, nbfcResponseDto);
 			}
 		} catch (JsonProcessingException e) {
@@ -3097,6 +3101,43 @@ public class LoanUtil {
 			logger.error("Exception in checking BT application for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 		return false;
+	}
+
+	public void createLendingAuditTrailDTO(LendingApplication lendingApplication) {
+
+		LendingAuditTrailDTO lendingAuditTrailDTO = LendingAuditTrailDTO.builder()
+				.applicationId(lendingApplication.getId())
+				.merchantId(lendingApplication.getMerchantId())
+				.shopNumber(lendingApplication.getShopNumber())
+				.streetAddress(lendingApplication.getStreetAddress())
+				.area(lendingApplication.getArea())
+				.landmark(lendingApplication.getLandmark())
+				.pincode(String.valueOf(lendingApplication.getPincode()))
+				.city(lendingApplication.getCity())
+				.state(lendingApplication.getState())
+				.businessName(lendingApplication.getBusinessName())
+				.createdAt(new Date())
+				.updatedAt(new Date())
+				.source("LENDING")
+				.remarks("Audit trail created for SHOP_DETAILS")
+				.build();
+		saveLendingAuditTrailToBQ(lendingAuditTrailDTO);
+	}
+
+	public void saveLendingAuditTrailToBQ(LendingAuditTrailDTO lendingAuditTrailDTO) {
+		try {
+			if (lendingAuditTrailDTO == null) {
+				logger.warn("AuditTrailDTO is null, skipping BQ save.");
+				return;
+			}
+			Map<String, Object> auditTrailData = objectMapper.convertValue(lendingAuditTrailDTO, Map.class);
+			bqPublisherUtil.publish("lending","lending_audit_trail", auditTrailData);
+			logger.info("Successfully saved AuditTrailDTO to BQ: {}", lendingAuditTrailDTO);
+		}
+		catch (Exception e) {
+			logger.error("Error while saving lending audit trail to BQ for applicationId: {}, error: {}",
+					lendingAuditTrailDTO.getApplicationId(), e.getMessage(), e);
+		}
 	}
 }
 

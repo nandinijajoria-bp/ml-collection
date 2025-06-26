@@ -4,9 +4,7 @@ import com.bharatpe.common.dao.LendingEDIScheduleDao;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.common.entities.LendingPaymentSchedule;
 import com.bharatpe.lending.common.dao.LendingPrepaymentDao;
-import com.bharatpe.lending.dto.ForeClosureDetailDTO;
-import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
-import com.bharatpe.lending.dto.PaymentDetailsResponseDTO;
+import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
@@ -14,10 +12,12 @@ import com.bharatpe.lending.loanV3.services.stages.ForeClosureAmtStageSvcFactory
 import com.bharatpe.lending.util.LoanUtil;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.MockitoJUnitRunner;
 
 import java.util.Date;
@@ -49,10 +49,12 @@ public class PaymentServiceTest {
 
     LendingPaymentSchedule activeLoan;
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.initMocks(this);
         activeLoan = createStandardActiveLoan();
     }
+
     @Test
     @DisplayName("Payment details without foreclosure details")
     public void testGetPaymentDetailsForActiveLoan_ForeClosureDetailsNotIncluded() {
@@ -167,6 +169,93 @@ public class PaymentServiceTest {
         activeLoan.setNbfc("ABFL");
         activeLoan.setLoanApplication(lendingApplication);
         return activeLoan;
+    }
+
+    @Test
+    public void testGetAppVersion_NullRequest() {
+        RequestDTO<InitiatePaymentRequestDTO> request = null;
+        long result = paymentService.getAppVersion(request);
+        assertEquals(100L, result);
+    }
+
+    @Test
+    public void testGetAppVersion_NullMeta() {
+        RequestDTO<InitiatePaymentRequestDTO> request = new RequestDTO<>();
+        request.setMeta(null);
+        long result = paymentService.getAppVersion(request);
+        assertEquals(100L, result);
+    }
+
+    @Test
+    public void testGetAppVersion_NullDeviceInfo() {
+        MetaDTO meta = new MetaDTO();
+        meta.setDeviceInfo(null);
+
+        RequestDTO<InitiatePaymentRequestDTO> request = new RequestDTO<>();
+        request.setMeta(meta);
+
+        long result = paymentService.getAppVersion(request);
+        assertEquals(100L, result);
+    }
+
+    @Test
+    public void testGetAppVersion_EmptyAppVersion() {
+        DeviceInfoDTO deviceInfo = new DeviceInfoDTO();
+        deviceInfo.setAppVersion("");
+
+        MetaDTO meta = new MetaDTO();
+        meta.setDeviceInfo(deviceInfo);
+
+        RequestDTO<InitiatePaymentRequestDTO> request = new RequestDTO<>();
+        request.setMeta(meta);
+
+        long result = paymentService.getAppVersion(request);
+        assertEquals(100L, result);
+    }
+
+    @Test
+    public void testGetAppVersion_ValidAppVersion() {
+        DeviceInfoDTO deviceInfo = new DeviceInfoDTO();
+        deviceInfo.setAppVersion("324");
+
+        MetaDTO meta = new MetaDTO();
+        meta.setDeviceInfo(deviceInfo);
+
+        RequestDTO<InitiatePaymentRequestDTO> request = new RequestDTO<>();
+        request.setMeta(meta);
+
+        long result = paymentService.getAppVersion(request);
+        assertEquals(324L, result);
+    }
+
+    @Test
+    public void testGetAppVersion_InvalidAppVersion() {
+        DeviceInfoDTO deviceInfo = new DeviceInfoDTO();
+        deviceInfo.setAppVersion("8.1.0");
+
+        MetaDTO meta = new MetaDTO();
+        meta.setDeviceInfo(deviceInfo);
+
+        RequestDTO<InitiatePaymentRequestDTO> request = new RequestDTO<>();
+        request.setMeta(meta);
+
+        long result = paymentService.getAppVersion(request);
+        assertEquals(810L, result);
+    }
+
+    @Test
+    public void testGetAppVersion_NumberFormatException() {
+        DeviceInfoDTO deviceInfo = new DeviceInfoDTO();
+        deviceInfo.setAppVersion("abc");
+
+        MetaDTO meta = new MetaDTO();
+        meta.setDeviceInfo(deviceInfo);
+
+        RequestDTO<InitiatePaymentRequestDTO> request = new RequestDTO<>();
+        request.setMeta(meta);
+
+        long result = paymentService.getAppVersion(request);
+        assertEquals(100L, result);
     }
 
 }

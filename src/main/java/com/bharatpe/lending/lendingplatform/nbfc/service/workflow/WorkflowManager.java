@@ -5,46 +5,131 @@ import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage;
 import lombok.extern.slf4j.Slf4j;
 
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.*;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.PENNY_DROP;
+
 @Slf4j
 public class WorkflowManager {
 
 	public static WorkflowStage getNextWorkflowStage(String lender, String currentStage) {
+		try {
+			Lender lenderEnum = Lender.valueOf(lender);
+			LeadStatus leadStatusEnum = LeadStatus.valueOf(currentStage);
 
-		switch (Lender.valueOf(lender)) {
-			case TRILLIONLOANS:
-				switch (LeadStatus.valueOf(currentStage)) {
-					case LOAN_DOCUMENT:
-						return NACH_REGISTRATION;
-					case KYC_DOCUMENT:
-					case KYC:
-					case CKYC:
-					case EKYC:
-						return BRE;
-					case BRE:
-						return LOAN_DOCUMENT_UPLOAD;
-				}
+			switch (lenderEnum) {
+				case TRILLIONLOANS:
+					return getNextStageForCommonLenders(leadStatusEnum);
+				case OXYZO:
+					return getNextStageForOxyzoLenders(leadStatusEnum);
+                case CREDITSAISON:
+                    return getNextStageForCsLenders(leadStatusEnum);
+                    default:
+					log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
+					return null;
+			}
+		} catch (IllegalArgumentException e) {
+			log.warn("Invalid lender or current stage: lender={}, currentStage={}", lender, currentStage, e);
+			return null;
+		}
+	}
+
+	private static WorkflowStage getNextStageForCommonLenders(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case LOAN_DOCUMENT:
+				return WorkflowStage.NACH_REGISTRATION;
+			case KYC_DOCUMENT:
+			case KYC:
+			case CKYC:
+			case EKYC:
+				return WorkflowStage.BRE;
+			case BRE:
+				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
 			default:
-				log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
+				log.warn("No next workflow stage found for invalid lead status: {}", leadStatus);
 				return null;
 		}
 	}
-	public static WorkflowStage getCurrentWorkflowStage(String lender, String currentStage) {
-		switch (Lender.valueOf(lender)) {
-			case TRILLIONLOANS:
-				switch (LeadStatus.valueOf(currentStage)) {
-					case LOAN_DISBURSAL:
-						return DISBURSAL;
-					case LOAN_DOCUMENT:
-						return LOAN_DOCUMENT_UPLOAD;
-					case NACH:
-						return NACH_REGISTRATION;
-					default:
-						log.error("No workflow stage found for invalid current stage:{}", currentStage);
-						return null;
-				}
+
+	private static WorkflowStage getNextStageForCsLenders(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case KYC_DOCUMENT:
+			case KYC:
+			case CKYC:
+			case EKYC:
+				return WorkflowStage.BRE;
+			case BRE:
+				return PENNY_DROP;
+			case PENNY_DROP:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
 			default:
-				log.warn("No workflow stage found for invalid lender:{}", lender);
+				log.error("No next workflow stage found for invalid lead status for cs: {}", leadStatus);
+				return null;
+		}
+	}
+
+	private static WorkflowStage getNextStageForOxyzoLenders(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case KYC:
+			case KYC_DOCUMENT:
+			case CKYC:
+			case EKYC:
+				return WorkflowStage.BRE;
+			case BRE:
+				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
+			default:
+				log.warn("No next workflow stage found for invalid lead status for cs: {}", leadStatus);
+				return null;
+		}
+	}
+
+	public static WorkflowStage getCurrentWorkflowStage(String lender, String currentStage) {
+		try {
+			Lender lenderEnum = Lender.valueOf(lender);
+			LeadStatus leadStatusEnum = LeadStatus.valueOf(currentStage);
+
+			switch (lenderEnum) {
+				case TRILLIONLOANS:
+				case OXYZO:
+					return getCurrentStageForCommonLenders(leadStatusEnum);
+				case CREDITSAISON:
+					return getCurrentStageForCommonLendersForCs(leadStatusEnum);
+				default:
+					log.warn("Invalid lender: {}. Returning an empty workflow stage", lender);
+					return null;
+			}
+		} catch (IllegalArgumentException e) {
+			log.warn("Invalid lender or current stage: lender={}, currentStage={}", lender, currentStage, e);
+			return null;
+		}
+	}
+
+	private static WorkflowStage getCurrentStageForCommonLenders(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case LOAN_DISBURSAL:
+				return WorkflowStage.DISBURSAL;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case LOAN_DOCUMENT:
+				return WorkflowStage.LOAN_DOCUMENT_UPLOAD;
+			case NACH:
+				return WorkflowStage.NACH_REGISTRATION;
+			default:
+				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
+				return null;
+		}
+	}
+
+	private static WorkflowStage getCurrentStageForCommonLendersForCs(LeadStatus leadStatus) {
+		switch (leadStatus) {
+			case LOAN_DISBURSAL:
+				return WorkflowStage.DISBURSAL;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			case LOAN_DOCUMENT:
+				return WorkflowStage.LOAN_DOCUMENT_DOWNLOAD;
+			default:
+				log.warn("No workflow stage found for invalid lead status: {}", leadStatus);
 				return null;
 		}
 	}
