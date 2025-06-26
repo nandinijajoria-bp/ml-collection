@@ -2359,19 +2359,19 @@ public class SupportService {
                     String sanctionAndLoanAgreementFileName= ObjectUtils.isEmpty(lendingKfs.getSanctionLoanAgreementDocFile()) ? SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + applicationId : lendingKfs.getSanctionLoanAgreementDocFile();
                     String authorizationLetterFileName = ObjectUtils.isEmpty(lendingKfs.getAuthorizationLetterDocFile()) ? AUTHORIZATION_S3_KEY_PREFIX + applicationId : lendingKfs.getAuthorizationLetterDocFile();
 
-                    if (s3BucketHandler.doesS3ObjectExist(bucket, kfsFileName)) {
-                        String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get().getId(), kfsFileName);
-                        lendingKfs.setKfsDocUrl(kfsShorturl);
-                    } else {
+//                    if (s3BucketHandler.doesS3ObjectExist(bucket, kfsFileName)) {
+//                        String kfsShorturl = lendingApplicationServiceV2.fetchKfsFromS3andGenerateShortUrl(lendingApplication.get().getId(), kfsFileName);
+//                        lendingKfs.setKfsDocUrl(kfsShorturl);
+//                    } else {
                         lendingApplicationServiceV2.generateKfsDocument(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getKfsSignedAt());
-                    }
+//                    }
 
-                    if (s3BucketHandler.doesS3ObjectExist(bucket, sanctionAndLoanAgreementFileName)) {
-                        String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get().getId(), sanctionAndLoanAgreementFileName);
-                        lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
-                    } else {
+//                    if (s3BucketHandler.doesS3ObjectExist(bucket, sanctionAndLoanAgreementFileName)) {
+//                        String sanctionAndLoanAgreementShorturl = lendingApplicationServiceV2.fetchSanctionAndLoanAgreementFromS3andGenerateShortUrl(lendingApplication.get().getId(), sanctionAndLoanAgreementFileName);
+//                        lendingKfs.setSanctionLoanAgreementDocUrl(sanctionAndLoanAgreementShorturl);
+//                    } else {
                         lendingApplicationServiceV2.generateSanctionCumLoanAgreementDoc(lendingApplication.get(), basicDetailsDto.get(), lendingKfs, lendingKfs.getSanctionLoanAgreementSignedAt());
-                    }
+//                    }
                     if (Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.LIQUILOANS_NBFC.name(), Lender.LIQUILOANS_P2P.name(), Lender.LIQUILOANS_P2P_OF.name(), Lender.UGRO.name()).contains(lendingApplication.get().getLender())) {
                         if (s3BucketHandler.doesS3ObjectExist(bucket, authorizationLetterFileName)) {
                             String authorizationLetterUrl = lendingApplicationServiceV2.fetchAuthorizationLetterFromS3andGenerateShortUrl(lendingApplication.get().getId(), authorizationLetterFileName);
