@@ -129,6 +129,8 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
 import static com.bharatpe.lending.constant.InsuranceConstant.SELECTED;
 import static com.bharatpe.lending.constant.KfsConstants.*;
+import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
+import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.DUMMY_MERCHANT_TRANSFER_DAYS_TEXT;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.F_TPV_PILOT_IDENTIFIER;
 
@@ -4161,12 +4163,18 @@ public class LendingApplicationServiceV2 {
         data.put("borrower_selfie", cKycResponseDto.getSelfieString());
         if (Lender.SMFG.name().equalsIgnoreCase(kfsDto.getLender())) {
             LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(applicationId);
+            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             String businessCategory = "Others";
             String businessSubCategory = "Others";
             if (REPEAT.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
-                Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(kfsDto.getMerchantId());
-                businessCategory = (businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", "null"));
-                businessSubCategory = (businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", "null"));
+                Map<String, Object> metaData = lendingApplicationLenderDetails.getMetaData();
+                if (Objects.nonNull(metaData) && metaData.containsKey(MERCHANT_CATEGORY)) {
+                    businessCategory = String.valueOf(metaData.getOrDefault(MERCHANT_CATEGORY, ""));
+                    businessSubCategory = String.valueOf(metaData.getOrDefault(MERCHANT_SUB_CATEGORY, ""));
+                }
+                if(ObjectUtils.isEmpty(businessCategory)){
+                    throw new Exception("SMFG : Business Category is empty for applicationId : " + applicationId);
+                }
             }
             data.put("business_category", businessCategory);
             data.put("business_sub_category", businessSubCategory);
@@ -4175,7 +4183,6 @@ public class LendingApplicationServiceV2 {
             Double gstAmountOfProcessingFee = kfsDto.getProcessingFee() - kfsDto.getProcessingFeeWithoutGst();
             data.put("gst_amount_of_processing_fee", String.format("%.2f",gstAmountOfProcessingFee));
             data.put("tenure_of_loan_in_days", kfsDto.getEdiCount());
-            LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(kfsDto.getApplicationId(), kfsDto.getLender());
             if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails) && !ObjectUtils.isEmpty(lendingApplicationLenderDetails.getDataUploadStatus()) && lendingApplicationLenderDetails.getDataUploadStatus().equalsIgnoreCase(smfgConfig.getPslFlagTrue())) {
                 PriorityQueue<BusinessDocsDTO> businessDocs = kycUtils.getBusinessDocData(kfsDto.getMerchantId(), "SMFG", KycDocType.UDYAM_CERTIFICATE.name());
                 data.put("udyam_number", businessDocs.peek() != null ? businessDocs.peek().getDocIdentifier() : null);

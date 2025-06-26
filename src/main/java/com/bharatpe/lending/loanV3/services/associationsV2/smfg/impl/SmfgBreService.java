@@ -11,7 +11,9 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.enums.Status;
+import com.bharatpe.lending.common.service.merchant.constants.Constants;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
+import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
@@ -45,6 +47,7 @@ import javax.transaction.Transactional;
 import java.util.*;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+import static com.bharatpe.lending.constant.LendingConstants.*;
 
 @Slf4j
 @Service
@@ -137,6 +140,7 @@ public class SmfgBreService {
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsRequestDto, LenderAssociationStatus.RISK_FAILED);
                 return false;
             }
+            updateCategoryAndSubCategoryInMetaData(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), breRequest.getPayload().getAdditionaldetails().getMerchantcategory(), breRequest.getPayload().getAdditionaldetails().getMerchantsubcategory());
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE);
             log.info("Bre response of SMFG from nbfc: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
@@ -161,12 +165,14 @@ public class SmfgBreService {
         LendingApplication lendingApplication = lenderAssociationDetailsRequest.getLendingApplication();
         CKycResponseDto cKycResponseDto = lenderAssociationDetailsRequest.getCKycResponseDto();
         NameAndDobDetailsDto nameAndDobDetailsDto = kycUtils.getNameAndDobValues(cKycResponseDto, lendingApplication.getMerchantId());
-        final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(lenderAssociationDetailsRequest.getMerchantId());
-        if (!bankDetailsDtoOptional.isPresent()) {
+        MerchantDetailsDto merchantDetailsDto = merchantService.fetchMerchantDetails(lenderAssociationDetailsRequest.getMerchantId(), Arrays.asList(
+                Constants.MerchantUtil.Scope.BANK_DETAIL
+        ));
+        if (ObjectUtils.isEmpty(merchantDetailsDto) || ObjectUtils.isEmpty(merchantDetailsDto.getBankDetail())) {
             log.info("bank details not found for merchantId : {}", lenderAssociationDetailsRequest.getMerchantId());
             throw new RuntimeException("bank details not found for SMFG application merchant id:" + lenderAssociationDetailsRequest.getMerchantId());
         }
-        BankDetailsDto merchantBankDetail = bankDetailsDtoOptional.get();
+        BankDetailsDto merchantBankDetail = merchantDetailsDto.getBankDetail();
         lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setPennyDropAccountNumber(converterUtils.sanitizeByRegex(merchantBankDetail.getAccountNumber(), allowedRegexMap.getOrDefault("ACCOUNT_NO", null))); // to later check if account is changed
         if (ObjectUtils.isEmpty(lendingRiskVariablesSnapshot)) {
             log.info("lending risk variable snapshot not found for applicationId : {}", lendingApplication.getId());
@@ -252,6 +258,10 @@ public class SmfgBreService {
                 Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
                 businessCategory = businessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
                 businessSubCategory = businessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+                if (ObjectUtils.isEmpty(businessCategory)) { // Fallback to onboarding category if not present
+                    businessCategory = merchantDetailsDto.getMerchantDetail().getBussinessCategory();
+                    businessSubCategory = merchantDetailsDto.getMerchantDetail().getSubCategory();
+                }
             }
             smfgAppPushRequest.getAdditionaldetails().setMerchantcategory(businessCategory);
             smfgAppPushRequest.getAdditionaldetails().setMerchantsubcategory(businessSubCategory);
@@ -429,6 +439,13 @@ public class SmfgBreService {
         addressList.add(address2);
         addressList.add(address3);
         return addressList;
+    }
+
+    private void updateCategoryAndSubCategoryInMetaData(LendingApplicationLenderDetails lenderDetails, String category, String subCategory) {
+        Map<String, Object> metaData = Optional.ofNullable(lenderDetails.getMetaData()).orElse(new HashMap<>());
+        metaData.put(MERCHANT_CATEGORY, category);
+        metaData.put(MERCHANT_SUB_CATEGORY, subCategory);
+        lenderDetails.setMetaData(metaData);
     }
 
 }
