@@ -153,15 +153,15 @@ public class PaymentAsynchronousService {
                 && !ObjectUtils.isEmpty(paymentAsynchronousResponse.getData().getMessage())) {
 
             log.info("Payment posted successful. BP Loan ID: {}", paymentAsynchronousRequest.getBpLoanId());
-            updatePostedAtLms(lmsPaymentDetails);
+            updatePostedAtLms(lmsPaymentDetails, paymentAsynchronousRequest.getLender());
             return true;
         }
         return false;
     }
 
-    private void updatePostedAtLms(LmsPaymentDetails lmsPaymentDetails) {
+    private void updatePostedAtLms(LmsPaymentDetails lmsPaymentDetails, String lender) {
         lmsPaymentDetails.setSentToLms(LMSPaymentStatus.PENDING);
-        lmsPaymentDetails.setSentToLender(LMSPaymentStatus.PENDING);
+        lmsPaymentDetails.setSentToLender(lender.equalsIgnoreCase("UGRO") ? LMSPaymentStatus.SUCCESS : LMSPaymentStatus.PENDING);
         lmsPaymentDetails.setUpdatedAt(new Date());
         lmsPaymentDetailsDao.save(lmsPaymentDetails);
     }

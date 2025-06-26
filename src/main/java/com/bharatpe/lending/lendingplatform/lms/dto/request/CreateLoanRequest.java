@@ -138,6 +138,7 @@ public class CreateLoanRequest {
     public static class NBFCDetails {
         @NotBlank
         private String nbfcId;
+        private String leadId;
         @NotBlank
         private String nbfcBankAcc;
         @NotBlank
