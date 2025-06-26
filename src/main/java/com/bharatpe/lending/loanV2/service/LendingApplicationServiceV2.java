@@ -3405,9 +3405,9 @@ public class LendingApplicationServiceV2 {
             else if(Lender.OXYZO.name().equalsIgnoreCase(lendingApplication.getLender())){
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                    log.info("Add header in kfs doc for applicationId:" + lendingApplication.getId());
+                    log.info("Add header in kfs doc for OXYZO with applicationId:" + lendingApplication.getId());
                     kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC),null);
-                    log.info("Kfs Doc getting generated for applicationId:"+lendingApplication.getId());
+                    log.info("Kfs Doc getting generated for OXYZO with applicationId:"+lendingApplication.getId());
                     byte[] pdfByteArray = pdfGeneratorUtil.generate(kfsHtml);
                     ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
                     s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
