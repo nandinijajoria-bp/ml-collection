@@ -809,11 +809,13 @@ public class MileStoneProgramService {
                  !ObjectUtils.isEmpty(entity)
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             if(RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
-                rteProgramDetailsDto.setTargetLoanAmount(Double.parseDouble(mileStoneResponse.getLoan_amount()));
+                String loanAmountStr = mileStoneResponse.getLoan_amount();
+                double amount = Double.parseDouble(loanAmountStr.substring(0, loanAmountStr.length() - 1));
+                rteProgramDetailsDto.setTargetLoanAmount(amount * 1000);
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse, rteProgramDetailsDto);
                 pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
-            } else {
+            }  else {
                 //responseDto.setShowRTELoansFlow(false);
                 responseDto.setSessionStatus(RTESessionStatus.CLOSED.name());
                 responseDto.setEnrollState(false);
