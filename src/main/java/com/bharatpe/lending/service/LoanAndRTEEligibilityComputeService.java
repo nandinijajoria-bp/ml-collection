@@ -11,16 +11,17 @@ import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.KycDocApprovedTopicDto;
 import com.bharatpe.lending.dto.MileStoneEligibilityResponseDto;
 import com.bharatpe.lending.dto.RTEProgramDetailsDto;
-import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.dto.RteLoanEligibilityResponse;
+import com.bharatpe.lending.exception.CustomLendingException;
 import com.bharatpe.lending.loanV2.dto.BureauConsentDTO;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,6 +38,7 @@ public class LoanAndRTEEligibilityComputeService {
 
     @Autowired
     MerchantService merchant;
+
     @Autowired
     MileStoneProgramService mileStoneProgramService;
     @Autowired
@@ -72,15 +74,34 @@ public class LoanAndRTEEligibilityComputeService {
 
         if(consentUpdated(kycDocApprovedTopicDto.getDocIdentifier(), basicDetailsDto.get().getMobile(), kycDocApprovedTopicDto.getMerchantId())) {
             log.info("Consent is updated for {}", kycDocApprovedTopicDto.getMerchantId());
-            MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(basicDetailsDto.get(), !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + kycDocApprovedTopicDto.getMerchantId())));
-            log.info("rte eligibility {}", responseDto);
-            RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
-            rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
-            mileStoneProgramService.checkEligibility(rteProgramDetailsDto, basicDetailsDto.get());
-            log.info("loanEligibility {} of a merchant is {}",rteProgramDetailsDto.getLoanEligibility(),kycDocApprovedTopicDto.getMerchantId());
+//            computeRteAndLoanEligibility(kycDocApprovedTopicDto.getMerchantId(), basicDetailsDto);
         }else{
             log.info("Unable to update consent for {}", kycDocApprovedTopicDto.getMerchantId());
         }
+    }
+
+    public RteLoanEligibilityResponse computeRteAndLoanEligibility(Long merchantId) {
+        Optional<BasicDetailsDto> basicDetailsDto = merchant.fetchMerchantBasicDetails(merchantId);
+        if(!basicDetailsDto.isPresent()) {
+            log.info("merchant details not present for {}", merchantId);
+            throw new CustomLendingException(HttpStatus.CONFLICT, "Merchant details not found");
+        }
+        return computeRteAndLoanEligibility(merchantId, basicDetailsDto.get());
+    }
+
+    private RteLoanEligibilityResponse computeRteAndLoanEligibility(Long merchantId, BasicDetailsDto basicDetailsDto) {
+        RteLoanEligibilityResponse rteLoanEligibilityResponse = new RteLoanEligibilityResponse();
+        RTEProgramDetailsDto rteProgramDetailsDto = new RTEProgramDetailsDto();
+        log.info("starting loan eligibility for merchant_id: {}", merchantId);
+        mileStoneProgramService.checkEligibility(rteProgramDetailsDto, basicDetailsDto);
+        rteLoanEligibilityResponse.setLoanEligibility(rteProgramDetailsDto.getLoanEligibility());
+        log.info("loan eligibility completed for merchant_id: {}", merchantId);
+        MileStoneEligibilityResponseDto responseDto = mileStoneHelperServicev3.calculateEligibility(basicDetailsDto, !ObjectUtils.isEmpty(lendingCache.get(RTEConstants.RTE_V3_AMOUNT + merchantId)));
+        log.info("rte eligibility response {}", responseDto);
+        rteProgramDetailsDto.setRouteToEligibilityData(responseDto);
+        rteLoanEligibilityResponse.setRteEligibility(responseDto.getMilStoneEligibility());
+        log.info("rte-eligibility {} of a merchant is {}",rteProgramDetailsDto.getLoanEligibility(), merchantId);
+        return rteLoanEligibilityResponse;
     }
 
     private boolean consentUpdated(String pancard, String mobile, Long merchantId) {
