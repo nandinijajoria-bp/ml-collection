@@ -237,7 +237,7 @@ public class ForeclosureService {
         return LenderForeclosureDetailsRequest.builder()
                 .bpLoanId(activeLoan.getLoanApplication().getExternalLoanId())
                 .applicationId(activeLoan.getApplicationId().toString())
-                .lender(Lender.TRILLIONLOANS.name())
+                .lender(Lender.valueOf(activeLoan.getNbfc()).name())
                 .leadId(lald.getLeadId())
                 .clientId(lald.getCccId())
                 .loanAccountNumber(lald.getLan())

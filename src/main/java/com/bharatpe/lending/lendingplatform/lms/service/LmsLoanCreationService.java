@@ -192,7 +192,7 @@ public class LmsLoanCreationService {
 
         CreateLoanRequest.LoanDetails loanDetails = getLoanDetails(lendingApplication, annualRoi);
         CreateLoanRequest.CustomerDetails customerDetails = getCustomerDetails(lendingApplication, merchantBankDetail, cKycResponseDto, lendingPaymentSchedule, lendingApplicationKycDetails);
-        CreateLoanRequest.NBFCDetails nbfcDetails = getNbfcDetails(lendingApplication.getNbfcId());
+        CreateLoanRequest.NBFCDetails nbfcDetails = getNbfcDetails(lendingApplication.getNbfcId(), lenderDetails.getLeadId());
         CreateLoanRequest.MandateDetails mandateDetails = getMandateDetails(lendingApplication);
         ArrayList<CreateLoanRequest.LoanDocuments> loanDocumentsList = getLoanDocuments(lendingKfs, lendingApplication);
         ArrayList<CreateLoanRequest.CustomerReferences> customerReferences = getCustomerReferences(lendingApplication);
@@ -322,10 +322,11 @@ public class LmsLoanCreationService {
                 .build();
     }
 
-    private CreateLoanRequest.NBFCDetails getNbfcDetails(String nbfcId) {
+    private CreateLoanRequest.NBFCDetails getNbfcDetails(String nbfcId, String leadId) {
         //sending dummy nbfc bank details to 1LMS system
         return CreateLoanRequest.NBFCDetails.builder()
                 .nbfcId(nbfcId)
+                .leadId(leadId)
                 .nbfcBankAcc("10150146205")
                 .nbfcBankIFSC("IDFB0020145")
                 .build();
