@@ -2834,15 +2834,14 @@ public class LoanUtil {
                 maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
 
             }
-            if(ObjectUtils.isEmpty(maxValuesDto)
-            || ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
+            if (ObjectUtils.isEmpty(maxValuesDto)
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
                     || ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
                     || ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
-                    || ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())) {
                 logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
                 return null;
             }
-            MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
             maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
             maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
             maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());

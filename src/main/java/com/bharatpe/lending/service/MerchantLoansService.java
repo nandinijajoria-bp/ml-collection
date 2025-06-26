@@ -1256,7 +1256,7 @@ public class MerchantLoansService {
                                 .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                         BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                         eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                        loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingFee, eligibleLoan.getAmount());
+                        loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingFee, eligibleLoan.getAmount(), lendingApplication.getLender());
                     }
                     else if(!ObjectUtils.isEmpty(lenderPricing)){
                         logger.info("LendingLenderPricing : {}", lenderPricing);
@@ -1500,7 +1500,7 @@ public class MerchantLoansService {
                             .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                     BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                     eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingfee, eligibleLoan.getAmount());
+                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingfee, eligibleLoan.getAmount(), lendingApplication.getLender());
                 }
                 else if(!ObjectUtils.isEmpty(lenderPricing)){
                     logger.info("LendingLenderPricing : {}", lenderPricing);
@@ -1702,7 +1702,7 @@ public class MerchantLoansService {
                             .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                     BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                     eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingfee, eligibleLoan.getAmount());
+                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingfee, eligibleLoan.getAmount(), lendingApplication.getLender());
                 }
                 else if(!ObjectUtils.isEmpty(lenderPricing)){
                     logger.info("LendingLenderPricing : {}", lenderPricing);
@@ -1987,7 +1987,7 @@ public class MerchantLoansService {
                             .divide(new BigDecimal(100), 0, RoundingMode.CEILING);
                     BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
                     eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingFee, eligibleLoan.getAmount());
+                    loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(), processingFee, eligibleLoan.getAmount(), lendingApplication.getLender());
                 }
                 else if(!ObjectUtils.isEmpty(lenderPricing)){
                     logger.info("LendingLenderPricing : {}", lenderPricing);
