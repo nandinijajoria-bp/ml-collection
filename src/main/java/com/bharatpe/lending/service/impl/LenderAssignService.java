@@ -1476,12 +1476,12 @@ public class LenderAssignService implements ILenderAssignService {
                 if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     processingFee =  lendingApplication.getLoanAmount() * lendingLenderPricing . getProcessingFeeRate() / 100;
                     interestRate = lendingLenderPricing.getInterestRate();
+                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                 }
                 else{
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
-                    // todo verify this as in my opinion this should not change with lender.
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
                     interestRate = lendingApplication.getInterestRate();
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
@@ -1490,17 +1490,30 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setApr(apr);
                 lenderData.setIrr(irr);
                 lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
-                lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender))); // todo I think we should use numeric values so it should be easy to sort.
+                lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender)));
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(Lender.valueOf(lender)));
                 lenderData.setNachBounceAmount(getNachBounceAmount(Lender.valueOf(lender)));
                 lenderData.setInterstRate(interestRate);
                 eligibleLenderList.add(lenderData);
 
 
-//                 SORT: IR > Propensity > Alaphabetical. todo check this.
-                eligibleLenderList.sort(Comparator.comparing(LenderAggregationResponseDto.LenderData::getInterestRate)
-                        .thenComparing(LenderAggregationResponseDto.LenderData::getApprovalRate)
-                        .thenComparing(LenderAggregationResponseDto.LenderData::getLenderName));
+                // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
+                eligibleLenderList.sort(
+                        Comparator.comparing(LenderAggregationResponseDto.LenderData::getInterestRate).reversed()
+                                .thenComparing((lender1, lender2) -> {
+                                    // Custom comparator for approval rate: HIGH > MEDIUM > LOW
+                                    String rate1 = lender1.getApprovalRate();
+                                    String rate2 = lender2.getApprovalRate();
+
+                                    if (rate1.equals(rate2)) return 0;
+                                    if ("HIGH".equals(rate1)) return -1;
+                                    if ("HIGH".equals(rate2)) return 1;
+                                    if ("MEDIUM".equals(rate1)) return -1;
+                                    if ("MEDIUM".equals(rate2)) return 1;
+                                    return 0; // Both are LOW
+                                })
+                                .thenComparing(LenderAggregationResponseDto.LenderData::getLenderName)
+                );
             }
 
             log.info("adding rejected lenders to the list for lendingApplication:{}:{}", lendingApplication.getId(), prevAssignedLenders);
