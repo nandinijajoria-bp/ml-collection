@@ -1459,6 +1459,7 @@ public class LenderAssignService implements ILenderAssignService {
             addDefaultLender(eligibleLenders, prevAssignedLenders, defaultLender);
             log.info("previous lenders:{}", prevAssignedLenders);
 
+            Double processingFee = null;
             for (String lender : eligibleLenders) {
                 LendingLenderPricing lendingLenderPricing = null;
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
@@ -1470,14 +1471,18 @@ public class LenderAssignService implements ILenderAssignService {
                 }
                 log.info("adding lender {} to list", lender);
                 Double apr;
-                Double irr;
+                Double irr = null;
+                Double interestRate;
                 if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    apr = lendingLenderPricing.getApr();
-                    irr = lendingLenderPricing.getIrr();
+                    processingFee =  lendingApplication.getLoanAmount() * lendingLenderPricing . getProcessingFeeRate() / 100;
+                    interestRate = lendingLenderPricing.getInterestRate();
+                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                 }
                 else{
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    // todo verify this as in my opinion this should not change with lender.
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    interestRate = lendingApplication.getInterestRate();
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
@@ -1485,10 +1490,17 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setApr(apr);
                 lenderData.setIrr(irr);
                 lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
-                lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender)));
+                lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender))); // todo I think we should use numeric values so it should be easy to sort.
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(Lender.valueOf(lender)));
                 lenderData.setNachBounceAmount(getNachBounceAmount(Lender.valueOf(lender)));
+                lenderData.setInterstRate(interestRate);
                 eligibleLenderList.add(lenderData);
+
+
+//                 SORT: IR > Propensity > Alaphabetical. todo check this.
+                eligibleLenderList.sort(Comparator.comparing(LenderAggregationResponseDto.LenderData::getInterestRate)
+                        .thenComparing(LenderAggregationResponseDto.LenderData::getApprovalRate)
+                        .thenComparing(LenderAggregationResponseDto.LenderData::getLenderName));
             }
 
             log.info("adding rejected lenders to the list for lendingApplication:{}:{}", lendingApplication.getId(), prevAssignedLenders);

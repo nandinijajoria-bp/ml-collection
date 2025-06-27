@@ -1,8 +1,5 @@
 package com.bharatpe.lending.loanV3.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.Data;
 
 import java.util.List;
@@ -181,6 +178,16 @@ public class LenderAggregationResponseDto {
         private List<PenaltyConfig> penaltyConfigs;
 
         private Integer nachBounceAmount;
+
+        private Double interstRate;
+
+        public Double getInterestRate() {
+            return interstRate;
+        }
+
+        public void setInterstRate(Double interstRate) {
+            this.interstRate = interstRate;
+        }
 
         List<ForeClosureEntityDTO> foreClosureEntityDTOList;
 
