@@ -1942,10 +1942,19 @@ public class LenderAssignService implements ILenderAssignService {
                     success = false;
                     break;
                 }
-                if (REGULAR_ETC.name().equalsIgnoreCase(riskSegment) && riskVariables.isSTPFlag() && application.getLoanAmount() <= 200000) {
-                    response = "skipping smfg for application id : " + applicationId + " due to risk segment: " + riskVariables.getRiskSegment() + ", loan amount: " + application.getLoanAmount() + " is smaller than 2,00,000";
-                    success = false;
-                    break;
+                if (REGULAR_ETC.name().equalsIgnoreCase(riskSegment)) {
+                    String category = null, subcategory = null;
+                    Optional<BasicDetailsDto> merchantDetailsOptional = merchantService.fetchMerchantBasicDetails(application.getMerchantId());
+                    if (merchantDetailsOptional.isPresent()) {
+                        category = merchantDetailsOptional.get().getBussinessCategory();
+                        subcategory = merchantDetailsOptional.get().getSubCategory();
+                    }
+                    if (riskVariables.isSTPFlag() && application.getLoanAmount() <= 200000 &&
+                            (ObjectUtils.isEmpty(category) || ObjectUtils.isEmpty(subcategory))) {
+                        response = "skipping smfg for application id : " + applicationId + " due to risk segment: " + riskVariables.getRiskSegment() + ", loan amount: " + application.getLoanAmount() + " is smaller than 200000 and category " + category + " or subcategory " + subcategory + " is empty";
+                        success = false;
+                        break;
+                    }
                 }
                 break;
             case OXYZO:

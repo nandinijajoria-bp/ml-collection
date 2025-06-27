@@ -382,7 +382,7 @@ public class MileStoneHelperServicev3 {
         }
 
         if (isFreshOrReenrollingSliderMerchant(entity, responseDto)) {
-            log.info("Skipping LRV checks for slider program of merchantId: {}", merchant.getId());
+            log.info("Skipping LRV checks for slider/cashback program of merchantId: {}", merchant.getId());
             return true;
         }
         return isNewMerchantEligibleForMilestone(merchant, entity, responseDto);
@@ -393,7 +393,10 @@ public class MileStoneHelperServicev3 {
     }
 
     private boolean isFreshOrReenrollingSliderMerchant(MileStoneEntity entity, MileStoneEligibilityResponseDto responseDto) {
-        if (!ObjectUtils.isEmpty(responseDto.getProgramType()) && RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())) {
+        if (!ObjectUtils.isEmpty(responseDto.getProgramType())
+                && (RTEProgramType.SLIDER.name().equals(responseDto.getProgramType())
+                || RTEProgramType.CASHBACK.name().equals(responseDto.getProgramType()))) {
+            log.info("Skipping LRV checks for program: {}", responseDto.getProgramType());
             return (ObjectUtils.isEmpty(entity) || !RTESessionStatus.CLOSED.name().equals(entity.getSessionStatus()));
         }
         return false;
