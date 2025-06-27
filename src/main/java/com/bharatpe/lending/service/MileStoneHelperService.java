@@ -28,6 +28,7 @@ import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.handlers.BureauHandler;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -105,6 +106,9 @@ public class MileStoneHelperService {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    CommonUtil commonUtil;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -819,18 +823,14 @@ public class MileStoneHelperService {
         return false;
     }
 
-    private double parseLoanAmount(String loanAmountStr) {
-        String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
-        return Double.parseDouble(numberPart) * 1000;
-    }
-
     private Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse) {
         Map<String, String> cleverTapEvtData = new HashMap<>();
         cleverTapEvtData.put("rte_program_type", "RTE V3");
         cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
-        if(lendingRiskVariables.getFinalOffer() == parseLoanAmount(mileStoneResponse.getLoan_amount())){
+        double loanAmount = commonUtil.parseLoanAmount(mileStoneResponse.getLoan_amount());
+        if(lendingRiskVariables.getFinalOffer() == loanAmount){
             cleverTapEvtData.put("eligility_type", "current offer is same as target amount");
-        } else if (lendingRiskVariables.getFinalOffer() < parseLoanAmount(mileStoneResponse.getLoan_amount())) {
+        } else if (lendingRiskVariables.getFinalOffer() < loanAmount) {
             cleverTapEvtData.put("eligility_type", "current offer is lower than the target amount");
         } else {
             cleverTapEvtData.put("eligility_type", "current offer is higher than the target amount");

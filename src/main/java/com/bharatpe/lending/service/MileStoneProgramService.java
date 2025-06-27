@@ -41,6 +41,7 @@ import com.bharatpe.lending.loanV2.dto.Eligibility;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
+import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -92,6 +93,9 @@ public class MileStoneProgramService {
 
     @Autowired
     MileStoneHelperService mileStoneHelperService;
+
+    @Autowired
+    CommonUtil commonUtil;
 
     @Autowired
     LendingPincodesDao lendingPincodesDao;
@@ -803,13 +807,13 @@ public class MileStoneProgramService {
         log.info("entity is {} for merchant id {}",entity,merchant.getId());
         log.info("loanEligibility {} of a merchant is {}",rteProgramDetailsDto.getLoanEligibility(),merchant.getId());
 
-        DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
         if (!ObjectUtils.isEmpty(rteProgramDetailsDto.getLoanEligibility()) &&
                 rteProgramDetailsDto.getLoanEligibility().equals(Boolean.TRUE) &&
                  !ObjectUtils.isEmpty(entity)
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
+            DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
             if(RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
-                rteProgramDetailsDto.setTargetLoanAmount(parseLoanAmount(mileStoneResponse.getLoan_amount()));
+                rteProgramDetailsDto.setTargetLoanAmount(commonUtil.parseLoanAmount(mileStoneResponse.getLoan_amount()));
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse, rteProgramDetailsDto);
                 pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER, merchant, cleverTapEvtData, mileStoneResponse);
@@ -826,18 +830,11 @@ public class MileStoneProgramService {
         return new ApiResponse<>(rteProgramDetailsDto);
     }
 
-    private double parseLoanAmount(String loanAmountStr) {
-        log.info("Loan amount string received: {}", loanAmountStr);
-        String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
-        log.info("number part: {}", numberPart);
-        return Double.parseDouble(numberPart) * 1000;
-    }
-
     private Map<String, String> getCleverTapEventData(MileStoneEntity entity, LendingRiskVariables lendingRiskVariables, DSMileStoneResponse mileStoneResponse, RTEProgramDetailsDto rteProgramDetailsDto) {
         Map<String, String> cleverTapEvtData = new HashMap<>();
         cleverTapEvtData.put("rte_program_type", "RTE V3");
         cleverTapEvtData.put("program_duration", String.valueOf(entity.getProgramDuration()));
-        double loanAmount = parseLoanAmount(mileStoneResponse.getLoan_amount());
+        double loanAmount = commonUtil.parseLoanAmount(mileStoneResponse.getLoan_amount());
         if(rteProgramDetailsDto.getLoanAmount() == loanAmount){
             cleverTapEvtData.put("eligility_type", "current offer is same as target amount");
         } else if (rteProgramDetailsDto.getLoanAmount() < loanAmount) {
