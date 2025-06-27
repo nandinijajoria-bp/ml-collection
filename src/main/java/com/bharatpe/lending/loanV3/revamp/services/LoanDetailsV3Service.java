@@ -600,7 +600,7 @@ public class LoanDetailsV3Service {
             loanDetailsV3Response.setImageExist(false);
 
             LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
-            if (checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response) && lendingResubmitTask == null) {
+            if (lendingResubmitTask == null && checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
                 log.info("Found valid existing shop images for merchantId: {}, applicationId: {}", merchantId, applicationId);
                 return;
             }
@@ -618,8 +618,8 @@ public class LoanDetailsV3Service {
 
 
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold && lendingResubmitTask == null) {
+            if (lendingResubmitTask == null && shouldSkipShopPicture && lendingApplication != null &&
+                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
 
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
