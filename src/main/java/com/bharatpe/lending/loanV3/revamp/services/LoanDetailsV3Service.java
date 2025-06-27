@@ -98,6 +98,9 @@ public class LoanDetailsV3Service {
     @Autowired
     LendingAutoDisbursalDao lendingAutoDisbursalDao;
 
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
+
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
     public LoanDetailsV3Response getLoanDetails(LoanDetailsV3Request request, BasicDetailsDto merchant, String token)
@@ -614,8 +617,9 @@ public class LoanDetailsV3Service {
 
 
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
             if (shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
+                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold && lendingResubmitTask == null) {
 
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
