@@ -98,6 +98,9 @@ public class LoanDetailsV3Service {
     @Autowired
     LendingAutoDisbursalDao lendingAutoDisbursalDao;
 
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
+
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
     public LoanDetailsV3Response getLoanDetails(LoanDetailsV3Request request, BasicDetailsDto merchant, String token)
@@ -596,7 +599,8 @@ public class LoanDetailsV3Service {
             loanDetailsV3Response.setSkipShopPicture(false);
             loanDetailsV3Response.setImageExist(false);
 
-            if (checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+            if (lendingResubmitTask == null && checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
                 log.info("Found valid existing shop images for merchantId: {}, applicationId: {}", merchantId, applicationId);
                 return;
             }
@@ -614,7 +618,7 @@ public class LoanDetailsV3Service {
 
 
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (shouldSkipShopPicture && lendingApplication != null &&
+            if (lendingResubmitTask == null && shouldSkipShopPicture && lendingApplication != null &&
                     lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
 
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
