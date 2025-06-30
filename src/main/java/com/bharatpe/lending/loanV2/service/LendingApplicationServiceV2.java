@@ -3393,6 +3393,39 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String kfsHtml = (String) apiResponse.data;
 
+            /**
+             * New Library is being used to generate PDF for only english lenders
+             * identified only english lenders are
+             * CREDITSAISON
+             * OXYZO
+             * PAYU  (not switched for now)
+             * PIRAMAL
+             * SMFG
+             * UGRO
+             */
+            if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
+                    Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
+                    .contains(lendingKfs.getLender())) {
+
+                fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
+                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()
+                            , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
+                        log.info("Add header and footer in kfs doc for applicationId:" + lendingApplication.getId());
+                        kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC),null);
+                        kfsHtml = htmlEditor.addFooterToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(),
+                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))), null, true);
+                    } else {
+                        log.info("Add header in kfs doc with applicationId:" + lendingApplication.getId());
+                        kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC), null);
+                    }
+                }
+                byte[] pdfByteArray = pdfGeneratorUtil.generate(kfsHtml);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            }
+            /** new Library code ends here **/
+
             if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + KFS_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
@@ -3401,17 +3434,6 @@ public class LendingApplicationServiceV2 {
                     throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
                 }
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            }
-            else if(Lender.OXYZO.name().equalsIgnoreCase(lendingApplication.getLender())){
-                fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
-                    log.info("Add header in kfs doc for OXYZO with applicationId:" + lendingApplication.getId());
-                    kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC),null);
-                    log.info("Kfs Doc getting generated for OXYZO with applicationId:"+lendingApplication.getId());
-                    byte[] pdfByteArray = pdfGeneratorUtil.generate(kfsHtml);
-                    ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
-                    s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-                }
             }else {
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
