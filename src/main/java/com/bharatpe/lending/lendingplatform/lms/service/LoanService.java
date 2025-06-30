@@ -323,8 +323,8 @@ public class LoanService {
         }
 
         newSchedule.setTentativeClosingDate(tenativeLoanEndDate);
-        response.setLoanStartDate(newSchedule.getStartDate());
-        response.setNextEdiDate(newSchedule.getNextEdiDate());
+        //response.setLoanStartDate(newSchedule.getStartDate());
+        //response.setNextEdiDate(newSchedule.getNextEdiDate());
 
         if (prevSchedule != null && Arrays.asList("INACTIVE_TOPUP", "ACTIVE").contains(prevSchedule.getStatus())) {
             try {
