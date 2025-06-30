@@ -309,7 +309,7 @@ public class NbfcUtils {
             case "UPDATE_LOAN":
                 return associationServiceUtil.invokeUpdateLoan(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             case "SKIP_VKYC":
-                return associationServiceUtil.invokeSkipVkyc(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+                return associationServiceUtil.invokeSkipVkyc(lenderAssociationDetailsDto);
             default:
                 return false;
         }

@@ -763,7 +763,7 @@ public class AssociationServiceUtil {
         }
     }
 
-    public boolean invokeSkipVkyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
-        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto.getMerchantId(),  lenderAssociationDetailsRequestDto.getApplicationId(), lender);
+    public boolean invokeSkipVkyc(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto);
     }
 }

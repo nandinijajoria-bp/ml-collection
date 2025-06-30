@@ -66,7 +66,7 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
             loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.LENDER_VKYC_PAGE);
             LendingApplicationVkycDetails lendingApplicationVkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(openApplication.getId(), openApplication.getLender())
                     .orElseGet(() -> vKycService.createPendingVkycDetailsRecord(openApplication));
-            updateApplicationVKycDetails(openApplication, lendingApplicationVkycDetails, lendingApplicationLenderDetails);
+            updateApplicationVKycDetails(openApplication, lendingApplicationVkycDetails, lendingApplicationLenderDetails, scopeDataArgs.getLoanDetailsV3Request().getAppVersion());
             lenderVKycStateDTO.setVKycStatus(lendingApplicationVkycDetails.getStatus());
             lenderVKycStateDTO.setRejectReason(lendingApplicationVkycDetails.getRejectReason());
             lenderVKycStateDTO.setVkycEligible(lendingApplicationVkycDetails.getVkycEligible());
@@ -89,7 +89,7 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
         }
     }
 
-    private void updateApplicationVKycDetails(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails, LendingApplicationLenderDetails lenderDetails) {
+    private void updateApplicationVKycDetails(LendingApplication lendingApplication, LendingApplicationVkycDetails vkycDetails, LendingApplicationLenderDetails lenderDetails, Integer appVersion) {
         try {
             if (VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
                 log.info("vkyc already {} of {} for applicationId {} returning ", vkycDetails.getStatus(), lendingApplication.getLender(), lendingApplication.getId());
@@ -100,7 +100,7 @@ public class LenderVKycStageService implements IStageDataService<LenderVKycState
                 return;
             }
             vKycService.setVkycEligibility(vkycDetails, lenderDetails.getLeadId());
-            if (vKycService.isDisableInitiateVkycSession(vkycDetails)) {
+            if (vKycService.isDisableInitiateVkycSession(vkycDetails, appVersion)) {
                 vkycDetails.setVkycEligible(false);
             }
             lendingApplicationVkycDetailsDao.save(vkycDetails);
