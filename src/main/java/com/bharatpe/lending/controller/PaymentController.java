@@ -2,17 +2,13 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
-import com.bharatpe.lending.service.LoanCancellationService;
-import com.bharatpe.lending.service.SettlementService;
+import com.bharatpe.lending.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import com.bharatpe.lending.service.PaymentCallbackRequestDTO;
-import com.bharatpe.lending.service.PaymentService;
 
 @RestController
 @RequestMapping("lending/payment/**")
@@ -27,6 +23,9 @@ public class PaymentController {
 
     @Autowired
     SettlementService settlementService;
+
+    @Autowired
+    LendingCollectionAuditService lendingCollectionAuditService;
 
     @RequestMapping(value="/details", method = RequestMethod.GET, produces="application/json")
     public ResponseEntity<PaymentDetailsResponseDTO> getPaymentDetails(@RequestAttribute BasicDetailsDto merchant,
@@ -152,6 +151,13 @@ public class PaymentController {
     public ResponseDTO applyWaiver(@RequestBody LedgerEntryDTO requestDTO) {
         logger.info("Request received for add entry in ledger: {}", requestDTO);
         return paymentService.createEntryInLedger(requestDTO);
+    }
+
+    @RequestMapping(value = "/receipt", method = RequestMethod.GET, produces="application/json")
+    public ResponseEntity<String> postPendingReceipt(@RequestParam Long loanId) {
+        logger.info("posting pending receipt for loan id: {}", loanId);
+        lendingCollectionAuditService.sendReceiptPosting(loanId);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
     }
 
 }
