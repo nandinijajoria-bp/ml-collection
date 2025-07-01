@@ -145,7 +145,7 @@ public class InvokeSanctionWrapperService {
                     return Arrays.asList(LenderAssociationStages.UPDATE_LEAD.name(), LenderAssociationStages.NACH_MANDATE.name());
             }
             case "PAYU":
-                return Arrays.asList(LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.SKIP_VKYC.name());
+                return Arrays.asList(LenderAssociationStages.UPDATE_ADDRESS.name(),LenderAssociationStages.UPDATE_BANK_DETAILS.name(),LenderAssociationStages.NACH_MANDATE.name(), LenderAssociationStages.SKIP_VKYC.name());
             case "CAPRI":
             case "SMFG":
                 return Collections.singletonList(LenderAssociationStages.NACH_MANDATE.name());
