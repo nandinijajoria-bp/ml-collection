@@ -2919,6 +2919,26 @@ public class PaymentService {
                             collect(Collectors.toList());
             log.info("payment list is {}", list);
             LendingPaymentSchedule lendingPaymentSchedule = optionalLPS.get();
+            if(lendingPaymentSchedule.getLmsSource().equalsIgnoreCase("1LMS")){
+
+                log.info("adjusted or order amount for loanPayment order entity is {} for loanId {}", lendingPullPayment.getDeductedAmount(),lendingPaymentSchedule.getId());
+                if (request.getPaymentRefId() != null) {
+                    LoanPaymentOrder order = createOrder(lendingPaymentSchedule, lendingPullPayment.getDeductedAmount(), request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
+
+
+                    if (!list.isEmpty()) {
+                        order.setTerminalOrderId(list.get(0).getTerminalOrderId());
+                        order.setFinalGateway(list.get(0).getFinalGateway());
+                    }
+                    order.setCheckoutType(request.getCheckoutType());
+                    loanPaymentOrderDao.save(order);
+                    // TODO : call handle callback method
+                    log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
+                    handleCallback(convertToPgPaymentCallbackDTO(order));
+
+                }
+                return ;
+            }
             Double orderAmount = lendingPullPayment.getDeductedAmount();
             Double adjustedAmount = 0d;
             Double refundAmount = 0d;
