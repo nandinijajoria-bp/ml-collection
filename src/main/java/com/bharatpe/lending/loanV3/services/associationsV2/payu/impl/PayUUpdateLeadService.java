@@ -171,6 +171,7 @@ public class PayUUpdateLeadService {
         return addressDataList;
     }
 
+    @Transactional
     public Boolean invokeBankAccountUpdation(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         try {
             log.info("Payu inside bankAccountUpdation {} {}", lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getDocUploadStatus(),lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().getLeadStatus());
