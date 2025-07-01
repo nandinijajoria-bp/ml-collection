@@ -3133,20 +3133,8 @@ public class LendingApplicationServiceV2 {
                         Lender.SMFG.name(), Lender.UGRO.name())
                 .contains(lendingApplication.getLender())) {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
-            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-            PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
-            PdfDocument pdfDocument = new PdfDocument(writer);
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
-                    ImageData headerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC));
-                    ImageData footerImageData = ImageDataFactory.create(getLenderLogo(lendingApplication.getLender(),
-                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))));
-                    Header headerHandler = new Header(headerImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, headerHandler);
-
-                    Footer footerHandler = new Footer(footerImageData);
-                    pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, footerHandler);
-
                     log.info("Add header and footer in sanction letter doc for applicationId:" + lendingApplication.getId());
                     sanctionCumLoanAgreementHtml = htmlEditor.addHeaderToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC), null);
                     sanctionCumLoanAgreementHtml = htmlEditor.addFooterToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(),
