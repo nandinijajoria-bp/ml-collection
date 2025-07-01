@@ -14,7 +14,7 @@ public class EligibilityService {
 
     public GlobalLimitResponse getEligibility(String merchantId, String source, Boolean pincodeChanged, Boolean skipCache) {
         UnderwritingBaseRequest<EligibilityRequest> eligibilityRequest = getEligibilityRequest(merchantId, source, pincodeChanged, skipCache);
-        return eligibilityClient.getEligibility(eligibilityRequest);
+        return eligibilityClient.getEligibility(eligibilityRequest, merchantId);
     }
 
     private UnderwritingBaseRequest<EligibilityRequest> getEligibilityRequest(String merchantId, String source, Boolean pincodeChanged, Boolean skipCache) {
