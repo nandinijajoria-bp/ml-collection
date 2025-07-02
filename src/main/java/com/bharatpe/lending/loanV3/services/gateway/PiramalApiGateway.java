@@ -55,9 +55,15 @@ public class PiramalApiGateway extends ILenderGateway {
     @Value("${nbfc.rps.api:api/v3/lender/foreclosure-details}")
     String nbfcForeclosureFetchUrl;
 
+    @Value("${lender.foreclosure.details.API.Timeout:20000}")
+    Integer lenderForeclosureDetailsAPITimeout;
+
     @Override
     public NbfcResponseDto invokeStage(NbfcRequestDto nbfcRequestDto, LenderAssociationStages.PiramalAssociationStages piramalAssociationStages) {
         try {
+            if(LenderAssociationStages.PiramalAssociationStages.GET_LOAN_DETAILS.equals(piramalAssociationStages)) {
+                return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NbfcResponseDto.class, getUrl(piramalAssociationStages), lenderForeclosureDetailsAPITimeout);
+            }
             return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequestDto), NbfcResponseDto.class, getUrl(piramalAssociationStages));
         } catch (JsonProcessingException e) {
             log.error("exception occurred while processing {} api call to nbfc for piramal for {} {}", piramalAssociationStages.name(), nbfcRequestDto, e.getMessage());

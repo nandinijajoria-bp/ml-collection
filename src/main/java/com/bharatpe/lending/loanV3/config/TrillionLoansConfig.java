@@ -27,6 +27,7 @@ public class TrillionLoansConfig {
     private String eKycStatusCheck = "EKYC_STATUS_CHECK";
 
     private Integer eKycRetryCount = 3;
+    private Integer foreclosureDetailsTimeoutThreshold = 20000;
 
     private List<String> merchantSummaryFieldsToRemove = Arrays.asList("chargeback_flag", "abfl_mca_score");
     private List<String> deTpvDataFieldsToRemove = Arrays.asList("fos_app_cnt", "driver_app_cnt");

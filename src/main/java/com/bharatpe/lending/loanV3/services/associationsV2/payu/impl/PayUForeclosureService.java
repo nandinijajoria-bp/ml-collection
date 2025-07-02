@@ -17,6 +17,7 @@ import com.bharatpe.lending.collection.core.utils.LoanPaymentUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -37,6 +38,9 @@ public class PayUForeclosureService {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Value("${payu.foreclosure.details.timeout.threshold:20000}")
+    Integer payuForeclosureDetailsTimeoutThreshold;
+
     public Double getForeclosureDetails(Long applicationId) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.PAYU.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -52,7 +56,7 @@ public class PayUForeclosureService {
                         .loanId(Integer.valueOf(lendingApplicationLenderDetails.getLan()))
                         .build())
                 .build();
-        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH);
+        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH, payuForeclosureDetailsTimeoutThreshold);
         try {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
 

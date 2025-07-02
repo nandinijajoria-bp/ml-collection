@@ -1,12 +1,6 @@
 package com.bharatpe.lending.loanV3.services.associations.piramal;
 
-import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
-import com.bharatpe.lending.common.enums.Status;
-import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
-import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetForeclosureResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.associationsV2.piramal.impl.PiramalGetLoanDetails;
