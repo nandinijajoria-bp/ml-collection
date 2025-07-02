@@ -56,8 +56,10 @@ public interface KfsConstants {
     String LSP_CONTACT_EMAIL = "nodalofficer@bharatpemoney.com";
     String LSP_CONTACT_NUMBER = "+91-9899355922";
     String LSP_CONTACT_NUMBER_FORMATTED = "+91 9899355922";
-    String NODAL_OFFICER_NAME = "Ms. Punam Priyadarsini Das";
-    String NODAL_OFFICER_CONTACT_NUMBER = "8851682895";
+    String NODAL_OFFICER_NAME = "Urvashi Nayyar";
+    String NODAL_OFFICER_CONTACT_NUMBER = "9871662582";
+    String GRO_OFFICER_NAME = "Ms. Punam Priyadarsini Das";
+    String GRO_OFFICER_CONTACT_NUMBER = "8851682895";
 
     Double PROCESSING_FEE_PERCENTAGE = 2.0;
 
