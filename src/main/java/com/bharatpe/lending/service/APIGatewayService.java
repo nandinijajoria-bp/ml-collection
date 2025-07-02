@@ -294,6 +294,10 @@ public class APIGatewayService {
     @Value("${underwriting.service.base.url}")
     public String underwritingServiceBaseUrl;
 
+
+    @Value("${underwriting.service.base.url1}")
+    public String underwritingServiceBaseUrl1;
+
     @Value("${x.api.key.underwriting.service}")
     public String xApiKeyUnderwritingService;
 
@@ -3204,7 +3208,7 @@ public class APIGatewayService {
         StringBuilder queryParams = new StringBuilder("?mobile=").append(bureauConsentDTO.getMobile());
         queryParams.append("&source=").append("LENDING");
 
-        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent" + queryParams;
+        String url =  underwritingServiceBaseUrl1 + "/api/v1/underwriting/bureau-consent" + queryParams;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -3248,7 +3252,7 @@ public class APIGatewayService {
             put("bureau_mobile", bureauConsentDTO.getBureau_mobile());
         }};
 
-        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/bureau-consent?" + "merchant_id=" + bureauConsentDTO.getMerchantId();
+        String url =  underwritingServiceBaseUrl1 + "/api/v1/underwriting/bureau-consent?" + "merchant_id=" + bureauConsentDTO.getMerchantId();
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

@@ -1498,23 +1498,31 @@ public class LenderAssignService implements ILenderAssignService {
 
 
                 // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
-                eligibleLenderList.sort(
-                        Comparator.comparing(LenderAggregationResponseDto.LenderData::getInterestRate).reversed()
-                                .thenComparing((lender1, lender2) -> {
-                                    // Custom comparator for approval rate: HIGH > MEDIUM > LOW
-                                    String rate1 = lender1.getApprovalRate();
-                                    String rate2 = lender2.getApprovalRate();
+                eligibleLenderList.sort((lender1, lender2) -> {
+                    // First, handle the default lender (always goes to the bottom)
+                    boolean isLender1Default =defaultLender.equals(lender1.getLenderName());
 
-                                    if (rate1.equals(rate2)) return 0;
-                                    if ("HIGH".equals(rate1)) return -1;
-                                    if ("HIGH".equals(rate2)) return 1;
-                                    if ("MEDIUM".equals(rate1)) return -1;
-                                    if ("MEDIUM".equals(rate2)) return 1;
-                                    return 0; // Both are LOW
-                                })
-                                .thenComparing(LenderAggregationResponseDto.LenderData::getLenderName)
-                );
+                    if (isLender1Default) return 1; // lender1 is default, move to end
+
+                    int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
+                    if (interestRateComparison != 0) {
+                        return interestRateComparison;
+                    }
+
+                    String rate1 = lender1.getApprovalRate();
+                    String rate2 = lender2.getApprovalRate();
+
+                    if (rate1.equals(rate2)) {
+                        return lender1.getLenderName().compareTo(lender2.getLenderName());
+                    }
+                    if ("HIGH".equals(rate1)) return -1;
+                    if ("HIGH".equals(rate2)) return 1;
+                    if ("MEDIUM".equals(rate1)) return -1;
+                    if ("MEDIUM".equals(rate2)) return 1;
+                    return 0;
+                });
             }
+            log.info("eligible lenders after sorting:{}", eligibleLenderList);
 
             log.info("adding rejected lenders to the list for lendingApplication:{}:{}", lendingApplication.getId(), prevAssignedLenders);
             if (Objects.nonNull(prevAssignedLenders)) {
