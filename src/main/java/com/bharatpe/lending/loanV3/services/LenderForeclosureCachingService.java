@@ -40,7 +40,7 @@ public class LenderForeclosureCachingService {
     @Value("${lenderForeclosureDetails.caching.enabled.lenders:}")
     private String lenderForeclosureCachingEnabledLenders;
 
-    @Value("${lenderForeclosureDetails.caching.start.time:8:00}")
+    @Value("${lenderForeclosureDetails.caching.start.time:08:00}")
     private String lenderForeclosureCachingStartTime;
 
     @Value("${lenderForeclosureDetails.caching.end.time:22:00}")
