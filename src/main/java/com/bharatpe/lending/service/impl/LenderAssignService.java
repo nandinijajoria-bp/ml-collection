@@ -1474,8 +1474,8 @@ public class LenderAssignService implements ILenderAssignService {
                 Double irr = null;
                 Double interestRate;
                 if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    apr = lendingLenderPricing.getApr();
-                    irr = lendingLenderPricing.getIrr();
+                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
                     interestRate = lendingLenderPricing.getInterestRate();
                 }
                 else{
@@ -1564,6 +1564,11 @@ public class LenderAssignService implements ILenderAssignService {
 
     public Integer getNachBounceAmount(Lender lender) {
         Map<Lender, Integer> nachBounceAmountMap = new HashMap<Lender, Integer>() {{
+            put(TRILLIONLOANS, 500);
+            put(PAYU, 500);
+            put(PIRAMAL, 650);
+            put(LIQUILOANS, 650);
+            put(CREDITSAISON, 650);
             put(LIQUILOANS_P2P, 650);
             put(LIQUILOANS_P2P_OF, 650);
         }};
