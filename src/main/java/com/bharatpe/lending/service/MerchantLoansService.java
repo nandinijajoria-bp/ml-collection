@@ -1345,9 +1345,28 @@ public class MerchantLoansService {
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
                 if (qrPaidRatio <= topupMinQrPaidRatio) {
-                    addRejectionReason(eligiblity, "QR payment less than 40%");
-                    logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
-                    return eligiblity;
+                    if(lendingApplication.getTenureInMonths() >= 12 && TRILLIONLOANS.name()
+                            .equalsIgnoreCase(lendingApplication.getLender())) {
+                        logger.info("Skipping QR rejection due to tenure >= 12 and lender is TRILLIONLOANS" +
+                                        " for merchant: {}", lendingPaymentSchedule.getMerchantId());
+                    } else {
+                        addRejectionReason(eligiblity, "QR payment less than 40%");
+                        logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio,
+                                lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
+                        return eligiblity;
+                    }
+                }
+
+                if(lendingApplication.getTenureInMonths() >= 12 && TRILLIONLOANS.name()
+                        .equalsIgnoreCase(lendingApplication.getLender())) {
+                    int ediPaidDays = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+                    if(ediPaidDays <= 120) {
+                        addRejectionReason(eligiblity, "Edi paid days is less than 120");
+                        logger.info("Edi paid days is less than {} for tenure {} for merchant: {} and lender: {}", 120,
+                                lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId(),
+                                lendingApplication.getLender());
+                        return eligiblity;
+                    }
                 }
 
                 double paidRatio = 0d;
