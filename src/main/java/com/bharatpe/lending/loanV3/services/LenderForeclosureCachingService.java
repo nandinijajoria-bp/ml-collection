@@ -63,12 +63,14 @@ public class LenderForeclosureCachingService {
                 }
             }
             ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name()).getLenderAssociationService(lender);
-            lenderForeclosureDetails = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(applicationId, null);
-            if(!ObjectUtils.isEmpty(lenderForeclosureDetails)
-               && !ObjectUtils.isEmpty(lenderForeclosureDetails.getForeclosureAmount())
-               && lenderForeclosureDetails.getForeclosureAmount() != 0D) {
-                cacheLenderForeclosureDetails(lenderForeclosureDetails, lender, applicationId, isCachingApplicable);
-                return lenderForeclosureDetails;
+            if(!ObjectUtils.isEmpty(iLenderAssociationService)) {
+                lenderForeclosureDetails = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(applicationId, null);
+                if (!ObjectUtils.isEmpty(lenderForeclosureDetails)
+                        && !ObjectUtils.isEmpty(lenderForeclosureDetails.getForeclosureAmount())
+                        && lenderForeclosureDetails.getForeclosureAmount() != 0D) {
+                    cacheLenderForeclosureDetails(lenderForeclosureDetails, lender, applicationId, isCachingApplicable);
+                    return lenderForeclosureDetails;
+                }
             }
         } catch (Exception e) {
             log.error("Exception in fetching {} foreclosure amount for application {} {}", lender, applicationId, Arrays.asList(e.getStackTrace()));
