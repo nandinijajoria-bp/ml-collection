@@ -3130,7 +3130,7 @@ public class LendingApplicationServiceV2 {
          * UGRO
          */
         if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
-                        Lender.SMFG.name(), Lender.UGRO.name())
+                        Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
                 .contains(lendingApplication.getLender())) {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
@@ -3425,7 +3425,7 @@ public class LendingApplicationServiceV2 {
              * UGRO
              */
             if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
-                            Lender.SMFG.name(), Lender.UGRO.name())
+                            Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
                     .contains(lendingKfs.getLender())) {
 
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
