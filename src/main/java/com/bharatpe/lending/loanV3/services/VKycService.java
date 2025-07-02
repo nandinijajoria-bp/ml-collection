@@ -314,16 +314,22 @@ public class VKycService {
 
     public LendingViewStates getLenderVkycPageOrDefault(LendingViewStates defaultViewStage, Long merchantId, String lender) {
         if (isVkycEnabled(merchantId, lender)) {
-            return LendingViewStates.LENDER_VKYC_PAGE;
+            LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(merchantId, lender).orElse(null);
+            if (ObjectUtils.isEmpty(vkycDetails) || !VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
+                log.info("next page vkyc for merchantId {} and lender {}", merchantId, lender);
+                return LendingViewStates.LENDER_VKYC_PAGE;
+            }
         }
         return defaultViewStage;
     }
 
     public Boolean isVkycEnabled(Long merchantId, String lender) {
+        boolean isEnabled = false;
         if (!ObjectUtils.isEmpty(merchantId) && !ObjectUtils.isEmpty(lender)) {
-            return vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
+            isEnabled = vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
         }
-        return false;
+        log.info("vkyc enabled {} for merchantId {} and lender {}", isEnabled, merchantId, lender);
+        return isEnabled;
     }
 
     private VkycStatus getVkycStatusMapping(VkycStatusResponseDto.Status status) {
