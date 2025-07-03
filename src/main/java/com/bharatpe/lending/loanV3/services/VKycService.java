@@ -362,7 +362,7 @@ public class VKycService {
             log.info("vkyc session is {} disabled for applicationId {}", vkycDetails.getSessionStatus(), vkycDetails.getApplicationId());
             return true;
         }
-        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(vkycDetails.getApplicationId(), vkycDetails.getLender());
+        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(vkycDetails.getApplicationId());
         Duration duration = Duration.between(kycDetails.getAadharApprovedAt().toInstant(), Instant.now());
         if (duration.toHours() > vkycConfig.getAadhaarExpiryTatInHours()) {
             log.info("vkyc aadhaar tat breached as days passed {} is more than {} for applicationId {}", duration.toHours(), vkycConfig.getAadhaarExpiryTatInHours(), vkycDetails.getApplicationId());
