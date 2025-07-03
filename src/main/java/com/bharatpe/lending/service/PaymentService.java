@@ -3158,53 +3158,50 @@ public class PaymentService {
 
     private void changeTransferDateForPDPLoan(LendingPaymentScheduleLendingCommon activeLoan) {
         List<LendingLedger> advanceLedgerList = lendingLedgerDao.findAdvanceEdiLedgerList(activeLoan.getId(), DateTimeUtil.getCurrentDayStartTime());
-        if (CollectionUtils.isEmpty(advanceLedgerList)) {
-            logger.info("No advance ledger found for loanId: {}", activeLoan.getId());
-            return;
+        if (!CollectionUtils.isEmpty(advanceLedgerList)) {
+            logger.info("Advance ledger found for loanId: {} with size: {}", activeLoan.getId(), advanceLedgerList.size());
+            advanceLedgerList.stream()
+                    .filter(_ledger -> _ledger.getDate() != null
+                            && _ledger.getAmount() > 0
+                            && _ledger.getDate().after(_ledger.getCreatedAt()))
+                    .forEach(_ledger -> {
+                        logger.info("Changing transfer date for ledgerId: {} from {} to {}", _ledger.getId(), _ledger.getDate(), DateTimeUtil.getCurrentDayStartTime());
+                        _ledger.setDate(DateTimeUtil.getCurrentDayStartTime());
+                        lendingLedgerDao.save(_ledger);
+                    });
         }
-        logger.info("Advance ledger found for loanId: {} with size: {}", activeLoan.getId(), advanceLedgerList.size());
-        advanceLedgerList.stream()
-                .filter(_ledger -> _ledger.getDate() != null
-                        && _ledger.getAmount() > 0
-                        && _ledger.getDate().after(_ledger.getCreatedAt()))
-                .forEach(_ledger -> {
-                    logger.info("Changing transfer date for ledgerId: {} from {} to {}", _ledger.getId(), _ledger.getDate(), DateTimeUtil.getCurrentDayStartTime());
-                    _ledger.setDate(DateTimeUtil.getCurrentDayStartTime());
-                    lendingLedgerDao.save(_ledger);
-                });
+
 
         logger.info("Transfer date changed for all advance ledgers for loanId: {}", activeLoan.getId());
         List<LendingCollectionAudit> lendingCollectionAuditList = lendingCollectionAuditDao.getAllByLoanIdAndStatus(activeLoan.getId(), "PENDING");
-        if (CollectionUtils.isEmpty(lendingCollectionAuditList)) {
-            logger.info("No pending collection audit found for loanId: {}", activeLoan.getId());
-            return;
+        if (!CollectionUtils.isEmpty(lendingCollectionAuditList)) {
+            logger.info("Pending collection audit found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionAuditList.size());
+            lendingCollectionAuditList.stream()
+                    .filter(_lca -> _lca.getTransferDate() != null
+                            && _lca.getAmount() > 0
+                            && _lca.getTransferDate().after(_lca.getCreatedAt()))
+                    .forEach(lendingCollectionAudit -> {
+                        logger.info("Changing transfer date for collection auditId: {} from {} to {}", lendingCollectionAudit.getId(), lendingCollectionAudit.getTransferDate(), DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionAudit.setTransferDate(DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionAuditDao.save(lendingCollectionAudit);
+                    });
         }
-        logger.info("Pending collection audit found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionAuditList.size());
-        lendingCollectionAuditList.stream()
-                .filter(_lca -> _lca.getTransferDate() != null
-                        && _lca.getAmount() > 0
-                        && _lca.getTransferDate().after(_lca.getCreatedAt()))
-                .forEach(lendingCollectionAudit -> {
-            logger.info("Changing transfer date for collection auditId: {} from {} to {}", lendingCollectionAudit.getId(), lendingCollectionAudit.getTransferDate(), DateTimeUtil.getCurrentDayStartTime());
-            lendingCollectionAudit.setTransferDate(DateTimeUtil.getCurrentDayStartTime());
-            lendingCollectionAuditDao.save(lendingCollectionAudit);
-        });
+
 
         List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
-        if (CollectionUtils.isEmpty(lendingCollectionExcessList)) {
-            logger.info("No active excess collection found for loanId: {}", activeLoan.getId());
-            return;
+        if (!CollectionUtils.isEmpty(lendingCollectionExcessList)) {
+            log.info("Active excess collection found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionExcessList.size());
+            lendingCollectionExcessList.stream()
+                    .filter(_lce -> _lce.getCreditDate() != null
+                            && _lce.getExcessNachCreditAmount() > 0
+                            && _lce.getCreditDate().after(_lce.getCreatedAt()))
+                    .forEach(lendingCollectionExcess -> {
+                        logger.info("Changing transfer date for excess collection id: {} from {} to {}", lendingCollectionExcess.getId(), lendingCollectionExcess.getCreditDate(), DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionExcess.setCreditDate(DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionExcessDao.save(lendingCollectionExcess);
+                    });
         }
-        log.info("Active excess collection found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionExcessList.size());
-        lendingCollectionExcessList.stream()
-                .filter(_lce -> _lce.getCreditDate() != null
-                        && _lce.getExcessNachCreditAmount() > 0
-                        && _lce.getCreditDate().after(_lce.getCreatedAt()))
-                .forEach(lendingCollectionExcess -> {
-            logger.info("Changing transfer date for excess collection id: {} from {} to {}", lendingCollectionExcess.getId(), lendingCollectionExcess.getCreditDate(), DateTimeUtil.getCurrentDayStartTime());
-            lendingCollectionExcess.setCreditDate(DateTimeUtil.getCurrentDayStartTime());
-            lendingCollectionExcessDao.save(lendingCollectionExcess);
-        });
+
 
     }
 
@@ -3226,10 +3223,12 @@ public class PaymentService {
         order.setOwnerId(loanId);
         order.setAmount(0.0);
         order.setStatus(CreditConstants.PaymentStatus.INIT.name());
-        order.setOrderId("LOAN");
         order.setSource("MIGRATION");
         order.setDescription("MIGRATION");
         order = loanPaymentOrderDao.save(order);
+        String orderId = "LOAN" + (10000000L + order.getId());
+        order.setOrderId(orderId);
+        loanPaymentOrderDao.save(order);
         return order;
     }
 }
