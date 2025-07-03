@@ -83,10 +83,12 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -3354,14 +3356,7 @@ public class APIGatewayService {
             logger.info("get insurance eligibility for loan with amount {} and tenure {} for merchantId :{}", insuranceEligibilityRequest.getAmount(), insuranceEligibilityRequest.getTenure(), insuranceEligibilityRequest.getCustomerId());
             Map<String, Object> request = configResolver.getConfig(objectMapper.writeValueAsString(insuranceEligibilityRequest), new TypeReference<Map<String, Object>>() {});
 
-            MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
-            request.forEach((key, value) -> queryParams.add(key, String.valueOf(value)));
-
-            String url = UriComponentsBuilder
-                    .fromHttpUrl(insuranceServiceBaseurl + LendingConstants.INSURANCE_ELIGIBILITY_API)
-                    .queryParams(queryParams)
-                    .build()
-                    .toUriString();
+            String url =insuranceServiceBaseurl + LendingConstants.INSURANCE_ELIGIBILITY_API;
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -3371,7 +3366,7 @@ public class APIGatewayService {
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
 
             logger.info("request entity for insurance eligibility API:{} and url:{}", requestEntity, url);
-            ResponseEntity<InsuranceEligibilityResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, InsuranceEligibilityResponseDTO.class);
+            ResponseEntity<InsuranceEligibilityResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, InsuranceEligibilityResponseDTO.class);
             logger.info("response entity for insurance eligibility API:{} and url:{}", responseEntity, url);
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
                 InsuranceEligibilityResponseDTO insuranceEligibilityResponse = responseEntity.getBody();

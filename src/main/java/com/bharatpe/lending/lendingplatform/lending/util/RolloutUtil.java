@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LmsLoanStatus;
 import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
@@ -82,6 +83,18 @@ public class RolloutUtil {
     private int eligibleLendingPlatformTrillionloansMerchantRollout;
     @Value("${lending.platform.trillion.application.limit:0}")
     private int lendingPlatformTrillionloansApplicationLimit;
+
+
+    @Value("${lending.platform.autopay.enable:false}")
+    private boolean isAutoPayEnabled;
+    @Value("${lending.platform.lms.autopay.upi.eligible.merchants:-}")
+    private List<Long> autoPayEligibleMerchants;
+    @Value("${lending.platform.lms.autopay.upi.eligible.lenders:TRILLIONLOANS}")
+    private List<String> lmsAutoPayEligibleLenders;
+    @Value("${lending.platform.lms.autopay.upi.application.limit:0}")
+    private int lmsAutoPayApplicationLimit;
+
+
     private final LmsLoanStatusDao lmsLoanStatusDao;
 
 
@@ -89,6 +102,7 @@ public class RolloutUtil {
     private final LendingApplicationDao lendingApplicationDao;
     private final KycUtils kycUtils;
     private final AutoPayUPIDao autoPayUPIDao;
+    private final LendingPaymentScheduleDao lendingPaymentScheduleDao;
 
     public boolean lendingPlatformUnderwritingFLowApplicable(Long merchantId) {
         //config for internal merchants
@@ -186,9 +200,6 @@ public class RolloutUtil {
             log.info("Application: {} not eligible for new lms flow due to Topup loan", lendingApplication.getId());
             return false;
         }
-        if(!ObjectUtils.isEmpty(autoPayUPI)){
-            return false;
-        }
         if (!ObjectUtils.isEmpty(lmsLoanStatus)) {
             return false;
         }
@@ -203,6 +214,9 @@ public class RolloutUtil {
         }
         if (!oneLmsFlowEnable) {
             return false;
+        }
+        if(!ObjectUtils.isEmpty(autoPayUPI)){
+            return autoPayEligibleForOneLmsFlow(autoPayUPI, lendingApplication);
         }
 
         int merchantIdPercentage = lendingApplication.getMerchantId().intValue() % 100;
@@ -300,6 +314,18 @@ public class RolloutUtil {
 
         log.info("Trillionloans Application Rolled out to New flow for applicationId: {}", lendingApplication.getId());
         return true;
+    }
+
+
+    private boolean autoPayEligibleForOneLmsFlow(AutoPayUPI autoPayUPI, LendingApplication lendingApplication){
+        if(isAutoPayEnabled && lmsAutoPayEligibleLenders.contains(lendingApplication.getLender())){
+            long count  = lendingPaymentScheduleDao.countLmsAutoPayApplication();
+            if(count<=lmsAutoPayApplicationLimit){
+                return true;
+            }
+            return false;
+        }
+        return false;
     }
 
 }

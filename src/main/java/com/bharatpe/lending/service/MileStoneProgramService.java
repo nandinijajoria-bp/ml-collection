@@ -841,6 +841,7 @@ public class MileStoneProgramService {
     }
 
     public ApiResponse<?> updatePageViewData(Long merchantId, String cashbackEarned) {
+        log.info("Updating page view data for merchantId: {} with cashbackEarned: {}", merchantId, cashbackEarned);
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if (ObjectUtils.isEmpty(entity)) {
             return new ApiResponse<>(false, "400", "entity not found");

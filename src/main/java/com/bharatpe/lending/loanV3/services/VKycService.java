@@ -16,13 +16,13 @@ import com.bharatpe.lending.dto.vkyc.request.SkipVkycRequestDto;
 import com.bharatpe.lending.dto.vkyc.request.VKycInitiateRequestDto;
 import com.bharatpe.lending.dto.vkyc.request.VkycEligibilityRequestDto;
 import com.bharatpe.lending.dto.vkyc.request.VkycStatusRequestDto;
-import com.bharatpe.lending.dto.vkyc.response.SkipVkycResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VKycInitiateResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VkycEligibilityResponseDto;
 import com.bharatpe.lending.dto.vkyc.response.VkycStatusResponseDto;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
+import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
@@ -314,16 +314,22 @@ public class VKycService {
 
     public LendingViewStates getLenderVkycPageOrDefault(LendingViewStates defaultViewStage, Long merchantId, String lender) {
         if (isVkycEnabled(merchantId, lender)) {
-            return LendingViewStates.LENDER_VKYC_PAGE;
+            LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(merchantId, lender).orElse(null);
+            if (ObjectUtils.isEmpty(vkycDetails) || !VkycStatus.getTerminatedVkycStatusList().contains(vkycDetails.getStatus())) {
+                log.info("next page vkyc for merchantId {} and lender {}", merchantId, lender);
+                return LendingViewStates.LENDER_VKYC_PAGE;
+            }
         }
         return defaultViewStage;
     }
 
     public Boolean isVkycEnabled(Long merchantId, String lender) {
+        boolean isEnabled = false;
         if (!ObjectUtils.isEmpty(merchantId) && !ObjectUtils.isEmpty(lender)) {
-            return vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
+            isEnabled = vkycConfig.getEnabledLenders().contains(lender) && easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage());
         }
-        return false;
+        log.info("vkyc enabled {} for merchantId {} and lender {}", isEnabled, merchantId, lender);
+        return isEnabled;
     }
 
     private VkycStatus getVkycStatusMapping(VkycStatusResponseDto.Status status) {
@@ -341,12 +347,22 @@ public class VKycService {
         }
     }
 
+    public Boolean isDisableInitiateVkycSession(LendingApplicationVkycDetails vkycDetails, Integer appVersion) {
+        if (!ObjectUtils.isEmpty(appVersion) && appVersion < vkycConfig.getMinAppVersion()) {
+            log.info("vkyc session is disabled for applicationId {} as app version {} is not supported, min app version req {}", vkycDetails.getApplicationId(), appVersion, vkycConfig.getMinAppVersion());
+            vkycDetails.setSessionStatus(VkycStatus.SessionStatus.APP_VERSION_NOT_SUPPORTED.name());
+            lendingApplicationVkycDetailsDao.save(vkycDetails);
+            return true;
+        }
+        return isDisableInitiateVkycSession(vkycDetails);
+    }
+
     public Boolean isDisableInitiateVkycSession(LendingApplicationVkycDetails vkycDetails) {
         if (VkycStatus.getVkycDisabledSessionStatuses().contains(vkycDetails.getSessionStatus())) {
             log.info("vkyc session is {} disabled for applicationId {}", vkycDetails.getSessionStatus(), vkycDetails.getApplicationId());
             return true;
         }
-        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(vkycDetails.getApplicationId(), vkycDetails.getLender());
+        LendingApplicationKycDetails kycDetails = lendingApplicationKycDetailsDao.findTop1ByApplicationIdOrderByIdDesc(vkycDetails.getApplicationId());
         Duration duration = Duration.between(kycDetails.getAadharApprovedAt().toInstant(), Instant.now());
         if (duration.toHours() > vkycConfig.getAadhaarExpiryTatInHours()) {
             log.info("vkyc aadhaar tat breached as days passed {} is more than {} for applicationId {}", duration.toHours(), vkycConfig.getAadhaarExpiryTatInHours(), vkycDetails.getApplicationId());
@@ -370,30 +386,21 @@ public class VKycService {
         return false;
     }
 
-    public Boolean skipVkycForInEligibleUsers(Long merchantId, Long applicationId, String lender) {
-        if (!vkycConfig.getEnabledLenders().contains(lender) || easyLoanUtil.percentScaleUp(merchantId, vkycConfig.getRolloutPercentage())) {
+    public Boolean skipVkycForInEligibleUsers(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        String lender = lenderAssociationDetailsRequestDto.getLendingApplication().getLender();
+        if (!vkycConfig.getEnabledLenders().contains(lender) || easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequestDto.getMerchantId(), vkycConfig.getRolloutPercentage())) {
             return true; // skip vkyc logic to run only in case if vkyc is not enabled for the lender or merchant
         }
-        LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-        if (ObjectUtils.isEmpty(lendingApplication)) {
-            log.info("No application found for given merchantId {} and applicationId {}", merchantId, applicationId);
-            return false;
-        }
-        LendingApplicationLenderDetails lenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(applicationId, lendingApplication.getLender());
-        if (ObjectUtils.isEmpty(lenderDetails) || ObjectUtils.isEmpty(lenderDetails.getLeadId())) {
-            log.info("No lender details or lead id found for given lender {} and applicationId {}", lendingApplication.getLender(), applicationId);
-            return false;
-        }
-        lenderDetails.setSanctionStatus(LenderAssociationStages.SKIP_VKYC.name());
-        lendingApplicationLenderDetailsDao.save(lenderDetails);
-        LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(applicationId, lendingApplication.getLender())
-                .orElseGet(()-> createPendingVkycDetailsRecord(lendingApplication));
+        lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setSanctionStatus(LenderAssociationStages.SKIP_VKYC.name());
+        commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+        LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lenderAssociationDetailsRequestDto.getApplicationId(), lender)
+                .orElseGet(()-> createPendingVkycDetailsRecord(lenderAssociationDetailsRequestDto.getLendingApplication()));
         if(vkycConfig.getDkycEligibleLenders().contains(vkycDetails.getLender())) {
             vkycDetails.setDkycEligible(true);
             lendingApplicationVkycDetailsDao.save(vkycDetails);
-            ApiResponse<?> apiResponse = initiateDkyc(lendingApplication, lenderDetails, vkycDetails);
-            lenderDetails.setLeadStatus(!ObjectUtils.isEmpty(vkycDetails.getStatus()) ? vkycDetails.getStatus().name() : VkycStatus.DKYC_PENDING.name());
-            lendingApplicationLenderDetailsDao.save(lenderDetails);
+            ApiResponse<?> apiResponse = initiateDkyc(lenderAssociationDetailsRequestDto.getLendingApplication(), lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), vkycDetails);
+            lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(!ObjectUtils.isEmpty(vkycDetails.getStatus()) ? vkycDetails.getStatus().name() : VkycStatus.DKYC_PENDING.name());
+            commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
             return apiResponse.isSuccess();
         }
         vkycDetails.setStatus(VkycStatus.VKYC_SKIPPED);

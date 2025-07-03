@@ -9,13 +9,12 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingLedgerDao;
 import com.bharatpe.lending.dto.LenderForeclosureDetailsDTO;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
-import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
 import com.bharatpe.lending.loanV3.dto.response.trillionloans.LoanDetailsResponseDTO;
 import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -56,6 +54,9 @@ public class TLForeclosureFetchService implements ILenderAssociationService<Lend
     @Autowired
     NbfcLenderGateway nbfcLenderGateway;
 
+    @Autowired
+    TrillionLoansConfig trillionLoansConfig;
+
     @Override
     public LenderForeclosureDetailsDTO invoke(Long applicationId, Map<String, Object> args) {
         Optional<LendingApplication> lendingApplication = lendingApplicationDao.findById(applicationId);
@@ -74,7 +75,7 @@ public class TLForeclosureFetchService implements ILenderAssociationService<Lend
         NBFCRequestDTO nbfcRequest = trillionRepaymentService.getForeclosureReceiptRequest(applicationId, lendingLedger);
         LoanDetailsResponseDTO loanDetailsResponseDTO = null;
         try {
-            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequest), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI);
+            NbfcResponseDto nbfcResponseDto = nbfcLenderGateway.invoke(objectMapper.writeValueAsString(nbfcRequest), NbfcResponseDto.class,nbfcBaseUrl+nbfcURI, trillionLoansConfig.getForeclosureDetailsTimeoutThreshold());
             log.info("Successfully hit the api for foreclosure {}",nbfcResponseDto);
 
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {

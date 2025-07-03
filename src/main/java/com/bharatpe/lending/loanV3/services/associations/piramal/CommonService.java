@@ -71,22 +71,8 @@ public class CommonService {
     @Value("${udyam.fetch.rollout:0}")
     private Integer udyamFetchRollout;
 
-    private ExecutorService udyamExecutor;
-
     @Autowired
     private EdiUtil ediUtil;
-
-    @PostConstruct
-    public void init() {
-        udyamExecutor = Executors.newSingleThreadExecutor();
-    }
-
-    @PreDestroy
-    public void destroy() {
-        if (udyamExecutor != null && !udyamExecutor.isShutdown()) {
-            udyamExecutor.shutdown();
-        }
-    }
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -124,19 +110,10 @@ public class CommonService {
                 LenderAssociationStageFactoryV2.autoInvokeNextStage(Lender.valueOf(lenderAssociationDetailsRequest.getLendingApplication().getLender()), LenderAssociationStages.valueOf(currStage)));
         if(LenderAssociationStages.ASSC_COMPLETED.equals(nextStage)
                 && easyLoanUtil.percentScaleUp(lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(), udyamFetchRollout)){
-            try {
-                udyamExecutor.submit(()-> udyamService.triggerFetchUdyamCertificate(
-                        lenderAssociationDetailsRequest.getLendingApplication().getId(),
-                        lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(),
-                        lenderAssociationDetailsRequest.getLendingApplication().getLender()));
-
-            }catch (Exception exception){
-                log.error("Exception occurred while triggering udyam fetch(asynchronously) for applicationId: {}, merchantId: {}, lender: {}. Error: {}",
-                        lenderAssociationDetailsRequest.getLendingApplication().getId(),
-                        lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(),
-                        lenderAssociationDetailsRequest.getLendingApplication().getLender(),
-                        exception.getMessage());
-            }
+            udyamService.triggerFetchUdyamCertificateAsync(
+                    lenderAssociationDetailsRequest.getLendingApplication().getId(),
+                    lenderAssociationDetailsRequest.getLendingApplication().getMerchantId(),
+                    lenderAssociationDetailsRequest.getLendingApplication().getLender());
         }
 
     }
