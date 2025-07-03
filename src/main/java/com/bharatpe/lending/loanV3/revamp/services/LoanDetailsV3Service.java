@@ -83,15 +83,6 @@ public class LoanDetailsV3Service {
     @Autowired
     BQPublisherUtil bqPublisherUtil;
 
-    @Value("${shop.picture.skip.enabled:false}")
-    private boolean shouldSkipShopPicture;
-
-    @Value("${lenders.skip.shop.picture:}")
-    private List<String> lendersToSkipShopPicture;
-
-    @Value("${skip.picture.threshold:0}")
-    private int skipPictureThreshold;
-
     @Value("${sid.threshold}")
     Double sidThreshold;
 
@@ -605,22 +596,10 @@ public class LoanDetailsV3Service {
                 return;
             }
 
-            LocalDate today = LocalDate.now();
-            LocalDateTime startOfDay = today.atStartOfDay();
-            Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
-
-            List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
-                     lendersToSkipShopPicture, startOfDate);
-
-            int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
-            log.info("Found {} applications for lender {} created today for merchantId: {}",
-                    todayApplicationsCount, lendersToSkipShopPicture, merchantId);
-
-
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (lendingResubmitTask == null && shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
-
+            if (lendingResubmitTask == null && lendingApplication != null) {
+                log.info("Processing shop pictures for merchantId: {}, applicationId: {}, lender: {}",
+                        merchantId, applicationId, lendingApplication.getLender());
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
                 log.info("Shop picture skipping not applicable for merchantId: {}, lender: {}",
