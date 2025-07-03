@@ -3192,7 +3192,6 @@ public class LendingApplicationServiceV2 {
             log.info("valuesDouble Size : {}", valuesDouble.length);
             int daysInYear = (ediModel == 7 && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.CAPRI.name(), Lender.PAYU.name(),Lender.CREDITSAISON.name(), Lender.UGRO.name(), Lender.OXYZO.name()).contains(lender)) ? 360 : 365;
             apr = LoanCalculationUtil.irr(valuesDouble, guess) * daysInYear;
-            log.info("apr: {}", apr);
             if(apr.isNaN()){
                 log.info("APR : {}", apr);
                 return null;
