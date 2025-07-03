@@ -918,7 +918,7 @@ public class LendingApplicationServiceV2 {
         }
 
         updateApplicationData(lendingApplication, lendingApplicationRequest, addressValidationDto);
-        replicateApplicationData(merchantBasicDetails,lendingApplication, isPreApproved);
+        replicateApplicationData(lendingApplication);
         saveGstDetailsV3(merchantBasicDetails, lendingApplication);
         log.info("saved lending application details for  {}", lendingApplicationDetails);
         executorService.execute(() -> apiGatewayService.globalLimitTxn(merchantBasicDetails.getId(), "DEBIT", eligibleLoan.getAmount()));
@@ -932,7 +932,7 @@ public class LendingApplicationServiceV2 {
         return lendingApplication;
     }
 
-    private void replicateApplicationData(BasicDetailsDto merchant, LendingApplication lendingApplication, Boolean isPreApproved) {
+    private void replicateApplicationData(LendingApplication lendingApplication) {
         try {
             LendingApplication prevApplication = lendingApplicationDao.getLastDisbursedLoan(lendingApplication.getMerchantId());
             if (prevApplication != null) {
@@ -959,21 +959,7 @@ public class LendingApplicationServiceV2 {
                     replicateGst.setCurrentAddress(lendingGstDetail.getCurrentAddress());
                     lendingGstDao.save(replicateGst);
                 }
-                loanUtil.createRiskVariablesSnapshot(lendingApplication);
 
-                ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
-                shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
-                shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
-                LoanDetailsV3Response loanDetailsV3Response = new LoanDetailsV3Response();
-                log.info("Skipping shop picture at replication for lender: {} and merchant: {}",
-                        lendingApplication.getLender(), lendingApplication.getMerchantId());
-                if (Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
-                    log.info("Shop picture replication skipped for lender: {} and merchant: {}",
-                            lendingApplication.getLender(), lendingApplication.getMerchantId());
-                    loanDetailsV3Response.setSkipShopPicture(true);
-                    loanDetailsV3Response.setImageExist(false);
-                    loanDetailsV3Service.updateLendingShopDocumentsIsSkipped(lendingApplication.getMerchantId(), lendingApplication.getId(), loanDetailsV3Response);
-                }
                 lendingApplication.setEmail(prevApplication.getEmail());
                 lendingApplication.setAlternateMobile(prevApplication.getAlternateMobile());
                 lendingApplicationDao.save(lendingApplication);
