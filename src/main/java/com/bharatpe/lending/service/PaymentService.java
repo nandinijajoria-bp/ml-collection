@@ -3189,6 +3189,23 @@ public class PaymentService {
             lendingCollectionAudit.setTransferDate(DateTimeUtil.getCurrentDayStartTime());
             lendingCollectionAuditDao.save(lendingCollectionAudit);
         });
+
+        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
+        if (CollectionUtils.isEmpty(lendingCollectionExcessList)) {
+            logger.info("No active excess collection found for loanId: {}", activeLoan.getId());
+            return;
+        }
+        log.info("Active excess collection found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionExcessList.size());
+        lendingCollectionExcessList.stream()
+                .filter(_lce -> _lce.getCreditDate() != null
+                        && _lce.getExcessNachCreditAmount() > 0
+                        && _lce.getCreditDate().after(_lce.getCreatedAt()))
+                .forEach(lendingCollectionExcess -> {
+            logger.info("Changing transfer date for excess collection id: {} from {} to {}", lendingCollectionExcess.getId(), lendingCollectionExcess.getCreditDate(), DateTimeUtil.getCurrentDayStartTime());
+            lendingCollectionExcess.setCreditDate(DateTimeUtil.getCurrentDayStartTime());
+            lendingCollectionExcessDao.save(lendingCollectionExcess);
+        });
+
     }
 
     private LoanPaymentOrder lockPaymentTemporary(long loanId, long merchantId) {
