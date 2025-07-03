@@ -308,12 +308,6 @@ public class LendingApplicationServiceV2 {
     @Value("${shop.photo.sync.rollout:0}")
     private Integer shopPhotoSyncRollout;
 
-    @Value("${shop.picture.skip.enabled:false}")
-    private boolean shouldSkipShopPicture;
-
-    @Value("${lenders.skip.shop.picture:}")
-    private List<String> lendersToSkipShopPicture;
-
     @Lazy
     @Autowired
     InvokeCreateLeadAndDocUploadWraperService invokeCreateLeadAndDocUploadWraperService;
@@ -403,9 +397,6 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     LendingApplicationVkycDetailsDao lendingApplicationVkycDetailsDao;
-
-    @Value("${skip.picture.threshold:0}")
-    private int skipPictureThreshold;
 
     @Autowired
     private EdiUtil ediUtil;
@@ -968,92 +959,20 @@ public class LendingApplicationServiceV2 {
                     replicateGst.setCurrentAddress(lendingGstDetail.getCurrentAddress());
                     lendingGstDao.save(replicateGst);
                 }
+                loanUtil.createRiskVariablesSnapshot(lendingApplication);
 
-                if (shouldSkipShopPicture && lendingApplication != null &&
-                        lendersToSkipShopPicture.contains(lendingApplication.getLender())) {
-
-                    loanUtil.createRiskVariablesSnapshot(lendingApplication);
-
-                    LocalDate today = LocalDate.now();
-                    LocalDateTime startOfDay = today.atStartOfDay();
-                    Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
-
-                    List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
-                            lendersToSkipShopPicture, startOfDate);
-
-                    int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
-                    log.info("Found {} applications for lender {} created today for merchantId: {}",
-                            todayApplicationsCount, lendersToSkipShopPicture, lendingApplication.getMerchantId());
-                    if(todayApplicationsCount <= skipPictureThreshold) {
-                        ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
-                        shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
-                        shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
-                        LoanDetailsV3Response loanDetailsV3Response = new LoanDetailsV3Response();
-                        log.info("Skipping shop picture at replication for lender: {} and merchant: {}",
-                                lendingApplication.getLender(), lendingApplication.getMerchantId());
-                        if (Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
-                            log.info("Shop picture replication skipped for lender: {} and merchant: {}",
-                                    lendingApplication.getLender(), lendingApplication.getMerchantId());
-                            loanDetailsV3Response.setSkipShopPicture(true);
-                            loanDetailsV3Response.setImageExist(false);
-                            loanDetailsV3Service.updateLendingShopDocumentsIsSkipped(lendingApplication.getMerchantId(), lendingApplication.getId(), loanDetailsV3Response);
-                        }
-                    }else {
-                        log.info("Not in threshold while skipping shop picture replication for lender: {} and merchant: {}",
-                                lendingApplication.getLender(), lendingApplication.getMerchantId());
-                        List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                        List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
-                                .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
-                                .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
-                                .values().stream()
-                                .flatMap(docs -> docs.stream().limit(1))
-                                .collect(Collectors.toList());
-                        if (!filteredDocuments.isEmpty() && filteredDocuments.size() >= 2) {
-                            for (LendingShopDocuments shopDocuments : filteredDocuments) {
-                                LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
-                                replicateShopDocument.setApplicationId(lendingApplication.getId());
-                                replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
-                                replicateShopDocument.setIp(shopDocuments.getIp());
-                                replicateShopDocument.setProofType(shopDocuments.getProofType());
-                                replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
-                                replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
-                                replicateShopDocument.setLongitude(shopDocuments.getLongitude());
-                                replicateShopDocument.setLatitude(shopDocuments.getLatitude());
-                                replicateShopDocument.setStatus(shopDocuments.getStatus());
-                                if (isPreApproved) {
-                                    replicateShopDocument.setUpdatedAt(prevApplication.getUpdatedAt());
-                                }
-                                lendingShopDocumentsDao.save(replicateShopDocument);
-                            }
-                        }
-                    }
-                }
-                else{
-                    log.info("Replicating shop pictures for merchant: {} and previous application:{}", lendingApplication.getMerchantId(), prevApplication.getId());
-                    List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
-                    List<LendingShopDocuments> filteredDocuments = lendingShopDocuments.stream()
-                        .filter(doc -> doc.getLatitude() != null && doc.getLongitude() != null)
-                        .collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
-                        .values().stream()
-                        .flatMap(docs -> docs.stream().limit(1))
-                        .collect(Collectors.toList());
-
-                log.info("Filtered shop documents for replication: {} for applicationId: {}", filteredDocuments, lendingApplication.getId());
-                if (!filteredDocuments.isEmpty() && filteredDocuments.size() >=2) {
-                        for (LendingShopDocuments shopDocuments : filteredDocuments) {
-                        LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
-                        replicateShopDocument.setApplicationId(lendingApplication.getId());
-                        replicateShopDocument.setMerchantId(lendingApplication.getMerchantId());
-                        replicateShopDocument.setIp(shopDocuments.getIp());
-                        replicateShopDocument.setProofType(shopDocuments.getProofType());
-                        replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
-                        replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
-                        replicateShopDocument.setLongitude(shopDocuments.getLongitude());
-                        replicateShopDocument.setLatitude(shopDocuments.getLatitude());
-                        replicateShopDocument.setStatus(shopDocuments.getStatus());
-                            lendingShopDocumentsDao.save(replicateShopDocument);
-                        }
-                    }
+                ShopPicturesStateDTO shopPicturesStateDTO = new ShopPicturesStateDTO();
+                shopPicturesStateDTO.setMerchantId(lendingApplication.getMerchantId());
+                shopPicturesStateDTO.setApplicationId(lendingApplication.getId());
+                LoanDetailsV3Response loanDetailsV3Response = new LoanDetailsV3Response();
+                log.info("Skipping shop picture at replication for lender: {} and merchant: {}",
+                        lendingApplication.getLender(), lendingApplication.getMerchantId());
+                if (Boolean.TRUE.equals(loanDetailsV3Service.processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication))) {
+                    log.info("Shop picture replication skipped for lender: {} and merchant: {}",
+                            lendingApplication.getLender(), lendingApplication.getMerchantId());
+                    loanDetailsV3Response.setSkipShopPicture(true);
+                    loanDetailsV3Response.setImageExist(false);
+                    loanDetailsV3Service.updateLendingShopDocumentsIsSkipped(lendingApplication.getMerchantId(), lendingApplication.getId(), loanDetailsV3Response);
                 }
                 lendingApplication.setEmail(prevApplication.getEmail());
                 lendingApplication.setAlternateMobile(prevApplication.getAlternateMobile());
