@@ -1459,7 +1459,6 @@ public class LenderAssignService implements ILenderAssignService {
             addDefaultLender(eligibleLenders, prevAssignedLenders, defaultLender);
             log.info("previous lenders:{}", prevAssignedLenders);
 
-            Double processingFee = null;
             for (String lender : eligibleLenders) {
                 LendingLenderPricing lendingLenderPricing = null;
                 if(loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
@@ -1474,7 +1473,8 @@ public class LenderAssignService implements ILenderAssignService {
                 Double irr = null;
                 Double interestRate;
                 if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    Double processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
                     interestRate = lendingLenderPricing.getInterestRate();
                 }
