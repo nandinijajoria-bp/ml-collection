@@ -345,7 +345,7 @@ public class EligibilityV3Service {
     public void fetchEligibility(LoanDetailsV3Request request, EligibilityStateDTO eligibilityStateDTO) {
         checkAndSaveIfMerchantISClubV2Member(eligibilityStateDTO);
         fetchPreComputedEligibility(eligibilityStateDTO);
-        //checkForPreapprovedRepeatOffer(eligibilityStateDTO);
+        checkForPreapprovedRepeatOffer(eligibilityStateDTO);
         if (null != eligibilityStateDTO.getEligibility()) {
             setEdiModel(eligibilityStateDTO);
             return;
