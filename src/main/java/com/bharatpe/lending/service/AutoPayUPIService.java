@@ -9,7 +9,6 @@ import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingPullPayment;
-import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -96,6 +95,9 @@ public class AutoPayUPIService {
 
     @Value("${allowed.lenders.for.direct.cashfree:false}")
     private String allowedLendersForDirectCashfree;
+
+    @Value("${auto.pay.upi.mandate.direct.cashfree.percent.rollout:10}")
+    private int autoPayUPIMandateDirectCashfreePercentRollout;
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -568,7 +570,7 @@ public class AutoPayUPIService {
 
         // overriding data with realtime data
         requestDto.getPayload().setLender(lendingApplicationOptional.get().getLender());
-         switch (determineCheckoutType(requestDto)){
+         switch (determineCheckoutType(requestDto,lendingApplicationOptional.get().getMerchantId())){
              case  "UNITY":
              return registerUPIForNewApplicationMandatePlugin(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
              case  "DR_CASHFREE":
@@ -622,7 +624,7 @@ public class AutoPayUPIService {
         return true;
     }
 
-    public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto) {
+    public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto, Long merchantId) {
         if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
                 getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) &&
                 isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
@@ -631,7 +633,7 @@ public class AutoPayUPIService {
 
         if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
                 getAllowedLenderForUPIAutoPay(allowedLendersForDirectCashfree).contains(requestDto.getPayload().getLender()) &&
-                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree)) {
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree) && easyLoanUtil.percentScaleUp(merchantId, autoPayUPIMandateDirectCashfreePercentRollout)) {
             return DR_CASHFREE.name();
         }
 
