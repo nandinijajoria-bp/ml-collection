@@ -69,11 +69,17 @@ public class AutoPayUPIService {
     @Value(("${pg.android.version.direct.cashfree:7.1.9}"))
     String androidVersionDirectCashfree;
 
+    @Value("${upi.autopay.tat.exceeded.wait.time:14}")
+    Long upiAutopayTatExceededWaitTime;
+
     @Value(("${pg.ios.version:254}"))
     Long iosVersion;
 
     @Value("${redirection.deeplink.autopayupi:bharatpe://dynamic?key=easy-loans-v2-qa}")
     private String redirectionDeeplinkAutopayUpi;
+
+    @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
+    Integer upiAutoPayDedicatedScreenRolloutPercent;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -194,7 +200,7 @@ public class AutoPayUPIService {
             Date createdMandateDate = mandateApplication.getCreatedAt();
             long diffMinutes = calculateTimeDiff(createdMandateDate);
             log.info("diffMinutes is {}", diffMinutes);
-            if (diffMinutes >= 15L) {
+            if (diffMinutes >= upiAutopayTatExceededWaitTime) {
                 mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
                 mandateApplication.setErrorCode("TAT_EXCEEDED");
                 log.info("marking status for mandate register as failed due to tat for merchant id {} application id {}",
@@ -420,7 +426,12 @@ public class AutoPayUPIService {
                 long epochMandateStartDate = tenMinsFromNow.getTime();
                 registerPgRequest.setMandateStartDate(epochMandateStartDate);
                 registerPgRequest.setMandateEndDate(epochMandateStartDate + 157680000000L);
-                registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + "&wroute=key-factor-statement&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
+
+                String upiAutopayRedirectUrl = "&wroute=key-factor-statement";
+                if(easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), upiAutoPayDedicatedScreenRolloutPercent)){
+                    upiAutopayRedirectUrl = "&wroute=upi-autopay";
+                }
+                registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + upiAutopayRedirectUrl + "&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
                 registerPgRequest.setMaxMandateAmount(15000.0);
 
                 AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
