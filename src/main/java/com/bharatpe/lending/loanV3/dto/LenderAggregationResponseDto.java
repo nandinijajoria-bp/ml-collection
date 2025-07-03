@@ -179,14 +179,14 @@ public class LenderAggregationResponseDto {
 
         private Integer nachBounceAmount;
 
-        private Double interstRate;
+        private Double interestRate;
 
         public Double getInterestRate() {
-            return interstRate;
+            return interestRate;
         }
 
-        public void setInterstRate(Double interstRate) {
-            this.interstRate = interstRate;
+        public void setInterestRate(Double interestRate) {
+            this.interestRate = interestRate;
         }
 
         List<ForeClosureEntityDTO> foreClosureEntityDTOList;

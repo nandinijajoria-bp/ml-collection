@@ -1492,7 +1492,7 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender)));
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(Lender.valueOf(lender)));
                 lenderData.setNachBounceAmount(getNachBounceAmount(Lender.valueOf(lender)));
-                lenderData.setInterstRate(interestRate);
+                lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
 
 
