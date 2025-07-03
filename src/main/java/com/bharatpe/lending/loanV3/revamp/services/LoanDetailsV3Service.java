@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
@@ -91,6 +93,9 @@ public class LoanDetailsV3Service {
 
     @Autowired
     LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Autowired
+    ExperianDao experianDao;
 
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
@@ -487,19 +492,22 @@ public class LoanDetailsV3Service {
     }
 
     private AddressDetails fetchAddressFromLendingApplication(Long applicationId, Long merchantId) {
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantId(merchantId);
-        log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
-        if (lendingApplication != null && isAddressComplete(lendingApplication)) {
-            AddressDetails addressDetails = new AddressDetails();
-            addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
-            addressDetails.setArea(lendingApplication.getArea());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setAddress2(lendingApplication.getStreetAddress());
-            addressDetails.setAddress1(lendingApplication.getShopNumber());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setCity(lendingApplication.getCity());
-            addressDetails.setState(lendingApplication.getState());
-            return addressDetails;
+        Experian experian = experianDao.getByMerchantId(merchantId);
+        if(experian.getPincode() != null) {
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdAndPincodeOrderByIdDesc(merchantId, Long.valueOf(experian.getPincode()));
+            log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
+            if (lendingApplication != null && isAddressComplete(lendingApplication)) {
+                AddressDetails addressDetails = new AddressDetails();
+                addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+                addressDetails.setArea(lendingApplication.getArea());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setAddress2(lendingApplication.getStreetAddress());
+                addressDetails.setAddress1(lendingApplication.getShopNumber());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setCity(lendingApplication.getCity());
+                addressDetails.setState(lendingApplication.getState());
+                return addressDetails;
+            }
         }
         return null;
     }
