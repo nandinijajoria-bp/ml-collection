@@ -87,7 +87,7 @@ public class RolloutUtil {
 
     @Value("${lending.platform.autopay.enable:false}")
     private boolean isAutoPayEnabled;
-    @Value("${lending.platform.lms.autopay.upi.eligible.merchants:}")
+    @Value("${lending.platform.lms.autopay.upi.eligible.merchants:-}")
     private List<Long> autoPayEligibleMerchants;
     @Value("${lending.platform.lms.autopay.upi.eligible.lenders:TRILLIONLOANS}")
     private List<String> lmsAutoPayEligibleLenders;
