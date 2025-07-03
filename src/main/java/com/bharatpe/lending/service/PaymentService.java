@@ -81,6 +81,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -91,10 +92,10 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
 import static com.bharatpe.lending.constant.LendingConstants.AUTO_PAY_SETTLEMENT;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
@@ -110,6 +111,9 @@ public class PaymentService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -3095,5 +3099,120 @@ public class PaymentService {
         }catch (Exception e){
             logger.error("Exception in imposing real time penal charges for orderId:{}, stacktrace {} Exception:{}",orderId,Arrays.asList(e.getStackTrace()),e.getMessage());
         }
+    }
+
+    public void shiftFromPDP(PerpetualMigrationDTO dto) {
+        logger.info("Received request to shift from PDP for merchantId: {}, LoanId: {}", dto.getMerchantId(), dto.getLoanId());
+
+        if (dto.isReverse()) {
+            logger.info("Reversing PDP shift for merchantId: {}, LoanId: {}", dto.getMerchantId(), dto.getLoanId());
+            reversePDPShift(dto.getLoanId(), dto.getMerchantId());
+            return;
+        }
+
+        LoanPaymentOrder order = null;
+        try {
+            Optional<LendingPaymentScheduleLendingCommon> loanOptional = lendingPaymentScheduleLendingCommonDao.findById(dto.getLoanId());
+            boolean pdpLoan = loanOptional.isPresent() && Y.name().equalsIgnoreCase(loanOptional.get().getPerpetualDpdAdjusted());
+
+            if (!pdpLoan) {
+                logger.info("Loan is not in PDP state for merchant id: {} and loanId: {}", dto.getMerchantId(), dto.getLoanId());
+                return;
+            }
+
+            LendingPaymentScheduleLendingCommon activeLoan = loanOptional.get();
+
+            order = lockPaymentTemporary(dto.getLoanId(), dto.getMerchantId());
+
+            if (order == null) {
+                logger.info("Unable to lock payment for loanId: {} for merchantId: {}", dto.getLoanId(), dto.getMerchantId());
+                return;
+            }
+
+            changeTransferDateForPDPLoan(activeLoan);
+
+            activeLoan.setPerpetualDpdAdjusted("Z");
+            lendingPaymentScheduleLendingCommonDao.save(activeLoan);
+        } catch (Exception e) {
+            logger.error("Exception while shifting from PDP for loanId: {}, Exception: {} {}", dto.getLoanId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        } finally {
+            if (order != null) {
+                order.setStatus(CreditConstants.PaymentStatus.FAILED.name());
+                loanPaymentOrderDao.save(order);
+            }
+        }
+    }
+
+    private void reversePDPShift(long loanId, long merchantId) {
+        Optional<LendingPaymentScheduleLendingCommon> loanOptional = lendingPaymentScheduleLendingCommonDao.findById(loanId);
+        boolean pdpLoan = loanOptional.isPresent() && "Z".equalsIgnoreCase(loanOptional.get().getPerpetualDpdAdjusted());
+        if (!pdpLoan) {
+            logger.info("Loan is not in PDP state for merchant id: {} and loanId: {}", merchantId, loanId);
+            return;
+        }
+        LendingPaymentScheduleLendingCommon activeLoan = loanOptional.get();
+        logger.info("Reversing PDP shift for loanId: {} for merchantId: {}", loanId, merchantId);
+        activeLoan.setPerpetualDpdAdjusted(Y.name());
+        lendingPaymentScheduleLendingCommonDao.save(activeLoan);
+    }
+
+    private void changeTransferDateForPDPLoan(LendingPaymentScheduleLendingCommon activeLoan) {
+        List<LendingLedger> advanceLedgerList = lendingLedgerDao.findAdvanceEdiLedgerList(activeLoan.getId(), DateTimeUtil.getCurrentDayStartTime());
+        if (CollectionUtils.isEmpty(advanceLedgerList)) {
+            logger.info("No advance ledger found for loanId: {}", activeLoan.getId());
+            return;
+        }
+        logger.info("Advance ledger found for loanId: {} with size: {}", activeLoan.getId(), advanceLedgerList.size());
+        advanceLedgerList.stream()
+                .filter(_ledger -> _ledger.getDate() != null
+                        && _ledger.getAmount() > 0
+                        && _ledger.getDate().after(_ledger.getCreatedAt()))
+                .forEach(_ledger -> {
+                    logger.info("Changing transfer date for ledgerId: {} from {} to {}", _ledger.getId(), _ledger.getDate(), DateTimeUtil.getCurrentDayStartTime());
+                    _ledger.setDate(DateTimeUtil.getCurrentDayStartTime());
+                    lendingLedgerDao.save(_ledger);
+                });
+
+        logger.info("Transfer date changed for all advance ledgers for loanId: {}", activeLoan.getId());
+        List<LendingCollectionAudit> lendingCollectionAuditList = lendingCollectionAuditDao.getAllByLoanIdAndStatus(activeLoan.getId(), "PENDING");
+        if (CollectionUtils.isEmpty(lendingCollectionAuditList)) {
+            logger.info("No pending collection audit found for loanId: {}", activeLoan.getId());
+            return;
+        }
+        logger.info("Pending collection audit found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionAuditList.size());
+        lendingCollectionAuditList.stream()
+                .filter(_lca -> _lca.getTransferDate() != null
+                        && _lca.getAmount() > 0
+                        && _lca.getTransferDate().after(_lca.getCreatedAt()))
+                .forEach(lendingCollectionAudit -> {
+            logger.info("Changing transfer date for collection auditId: {} from {} to {}", lendingCollectionAudit.getId(), lendingCollectionAudit.getTransferDate(), DateTimeUtil.getCurrentDayStartTime());
+            lendingCollectionAudit.setTransferDate(DateTimeUtil.getCurrentDayStartTime());
+            lendingCollectionAuditDao.save(lendingCollectionAudit);
+        });
+    }
+
+    private LoanPaymentOrder lockPaymentTemporary(long loanId, long merchantId) {
+        Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
+
+        // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
+        final LoanPaymentOrderSlave pendingTransaction =
+                loanPaymentOrderSlaveDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(loanId, merchantId, checkPendingAfterTime);
+
+        if (!ObjectUtils.isEmpty(pendingTransaction)) {
+            logger.info("Already a pending transaction exist for loanId : {} with LPO id : {}", loanId, pendingTransaction.getId());
+            return null;
+        }
+
+        LoanPaymentOrder order = new LoanPaymentOrder();
+        order.setMerchantId(merchantId);
+        order.setOwner("lending_payment_schedule");
+        order.setOwnerId(loanId);
+        order.setAmount(0.0);
+        order.setStatus(CreditConstants.PaymentStatus.INIT.name());
+        order.setOrderId("LOAN");
+        order.setSource("MIGRATION");
+        order.setDescription("MIGRATION");
+        order = loanPaymentOrderDao.save(order);
+        return order;
     }
 }
