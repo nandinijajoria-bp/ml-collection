@@ -5,6 +5,7 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.Constants.BusinessCategories;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
@@ -33,6 +34,7 @@ import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.constant.KfsConstants;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.constant.OfferDowngradeApplication;
+import com.bharatpe.lending.constant.PaymentConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.entity.LendingKfs;
@@ -154,6 +156,9 @@ public class LendingApplicationServiceV2 {
     ExperianDao experianDao;
 
     @Autowired
+    AutoPayUPIDao autoPayUPIDao;
+
+    @Autowired
     LendingApplicationDao lendingApplicationDao;
 
     @Autowired
@@ -244,6 +249,15 @@ public class LendingApplicationServiceV2 {
 
     @Value("${loan.details.refresh.window:15}")
     int loanDetailsRefreshWindow;
+
+    @Value("${enable.autopayupi.registration:false}")
+    private Boolean enableAutopayUPIRegistration;
+
+    @Value("${merchant.plugin.rollout.percent:0}")
+    Integer merchantPluginRolloutPercent;
+
+    @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
+    Integer upiAutoPayDedicatedScreenRolloutPercent;
 
     @Autowired
     LenderAssignService lenderAssignService;
@@ -1494,6 +1508,7 @@ public class LendingApplicationServiceV2 {
             else if (enachSkipped) {
                 enachMandatory = false;
             }
+
             String kycStatus = lendingApplication.getManualKyc() != null && (lendingApplication.getManualKyc().equalsIgnoreCase("APPROVED") || lendingApplication.getManualKyc().equalsIgnoreCase("REJECTED")) ? lendingApplication.getManualKyc() : "PENDING";
             String kycComment = null;
             if (lendingApplication.getManualKycReason() != null) {
@@ -1516,6 +1531,16 @@ public class LendingApplicationServiceV2 {
                 kycDTO.setDateDTO(new ApplicationDTO.DateDTO(lendingApplication.getCkycDate()));
             }
             applicationDTO.add(kycDTO);
+
+            // UPI-Autopay Status
+            if(enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
+
+                ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
+                applicationDTO.add(upiAutopayDTO);
+            }
+
+            // E-Nach Status
             applicationDTO.add(applicationDTO2);
 
             if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
@@ -1751,6 +1776,32 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in applicationStatus v2 for application:{}", applicationId, e);
         }
         return new ApiResponse<>(false, "Something went wrong");
+    }
+
+    private ApplicationDTO fetchUpiAutopayDetails(LendingApplication lendingApplication) {
+        log.info("Fetching UPI Autopay details for Application Id: {}", lendingApplication.getId());
+        ApplicationDTO upiAutopayDetails = new ApplicationDTO();
+        upiAutopayDetails.setText("UPI Autopay Done");
+        upiAutopayDetails.setDisabled("rejected".equalsIgnoreCase(lendingApplication.getStatus()));
+
+        AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdOrderByIdDesc(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(autoPayUPI)){
+            upiAutopayDetails.setStatus("PENDING");
+            return upiAutopayDetails;
+        }
+
+        log.info("Autopay Upi Mandate found for Application Id: {} : {}", lendingApplication.getId(), autoPayUPI);
+
+
+        upiAutopayDetails.setStatus(AutoPayStatusEnum.ACTIVE.equals(autoPayUPI.getStatus()) ? "APPROVED" : "PENDING");
+
+        upiAutopayDetails.setComment(PaymentConstants.UPI_AUTOPAY_ERROR_CODE_TO_DISPLAY_MESSAGE_MAP.getOrDefault(autoPayUPI.getErrorCode(), "AutoPay not completed"));
+        ApplicationDTO.DateDTO dateDTO = new ApplicationDTO.DateDTO();
+        dateDTO.setDay(ObjectUtils.isEmpty(autoPayUPI) ? getDateInFormat(lendingApplication.getCreatedAt()) : getDateInFormat(autoPayUPI.getCreatedAt()));
+        dateDTO.setTime(ObjectUtils.isEmpty(autoPayUPI) ? getDateInFormat(lendingApplication.getCreatedAt()) : getDateInFormat(autoPayUPI.getCreatedAt()));
+
+        upiAutopayDetails.setDateDTO(dateDTO);
+        return upiAutopayDetails;
     }
 
     public ApiResponse<ApplicationStatusResponseDTO> getApplicationStatus(Long applicationId, Boolean isIOS,

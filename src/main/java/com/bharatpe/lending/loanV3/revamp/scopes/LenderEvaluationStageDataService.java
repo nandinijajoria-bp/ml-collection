@@ -112,9 +112,11 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                        //TODO: Next Page will change according to configs
                         nextPage = referencePageDisabledForTopup ? LendingViewStates.ENACH_PAGE : LendingViewStates.REFERENCE_PAGE;
                         if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
                             log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
+                            //TODO: Next Page will change according to configs
                             nextPage = LendingViewStates.ENACH_PAGE;
                         }
                     }
