@@ -435,6 +435,9 @@ public class LendingApplicationServiceV2 {
     @Autowired
     InsuranceService insuranceService;
 
+    @Value("${all.english.doc.lender.list}")
+    String  allEnglishDocLanguageList;
+
     private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
 
     public ApiResponse<?> initiateKyc(BasicDetailsDto merchant, InitiateKycRequest initiateKycRequest) {
@@ -3129,9 +3132,7 @@ public class LendingApplicationServiceV2 {
          * SMFG
          * UGRO
          */
-        if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
-                        Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
-                .contains(lendingApplication.getLender())) {
+        if (allEnglishDocLanguageList.contains(lendingApplication.getLender())) {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
@@ -3424,9 +3425,7 @@ public class LendingApplicationServiceV2 {
              * SMFG
              * UGRO
              */
-            if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
-                            Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
-                    .contains(lendingKfs.getLender())) {
+            if (allEnglishDocLanguageList.contains(lendingKfs.getLender())) {
 
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
