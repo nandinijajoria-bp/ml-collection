@@ -79,6 +79,8 @@ import com.bharatpe.lending.util.CommonUtil;
 import com.bharatpe.lending.util.EdiUtil;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.bharatpe.lending.util.LoanUtil;
+import com.bharatpe.util.pdf.HTMLEdittor.HTMLEditor;
+import com.bharatpe.util.pdf.PdfGeneratorUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.html2pdf.ConverterProperties;
@@ -423,6 +425,12 @@ public class LendingApplicationServiceV2 {
 
     @Autowired
     private EdiUtil ediUtil;
+
+    @Autowired
+    PdfGeneratorUtil pdfGeneratorUtil;
+
+    @Autowired
+    HTMLEditor htmlEditor;
 
     @Autowired
     InsuranceService insuranceService;
@@ -3111,7 +3119,39 @@ public class LendingApplicationServiceV2 {
     public Object generateAndUploadSanctionLoanAgreementPdf(LendingApplication lendingApplication,
                                                                  String sanctionCumLoanAgreementHtml, String lender, boolean isForPdf) throws Exception {
         String fileName = "";
-        if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+
+        /**
+         * New Library is being used to generate PDF for only english lenders
+         * identified only english lenders are
+         * CREDITSAISON
+         * OXYZO
+         * PAYU  (not switched for now)
+         * SMFG
+         * UGRO
+         */
+        if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
+                        Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
+                .contains(lendingApplication.getLender())) {
+            fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+            if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
+                if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
+                    log.info("Add header and footer in sanction letter doc for applicationId:" + lendingApplication.getId());
+                    sanctionCumLoanAgreementHtml = htmlEditor.addHeaderToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC), null);
+                    sanctionCumLoanAgreementHtml = htmlEditor.addFooterToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(),
+                            ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))), null, true);
+                } else {
+                    log.info("Add header in sanction letter doc for applicationId:" + lendingApplication.getId());
+                    sanctionCumLoanAgreementHtml = htmlEditor.addHeaderToHtml(sanctionCumLoanAgreementHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC), null);
+                }
+            }
+            log.info("Sanction Loan Agreement Doc getting generated for applicationId:"+lendingApplication.getId());
+            byte[] pdfByteArray = pdfGeneratorUtil.generate(sanctionCumLoanAgreementHtml);
+            ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+            s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+        }
+        /** new Library code ends here **/
+
+        else if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
             fileName = lendingApplicationLenderDetails.getLeadId() + '_' + SANCTION_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
             ByteArrayInputStream inStream = getLoanDocPdf(sanctionCumLoanAgreementHtml, ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC, lendingApplication, sanctionCompressionLevel);
@@ -3119,7 +3159,7 @@ public class LendingApplicationServiceV2 {
                 throw new Exception("Unable to generate Sanction Cum Loan Agreement for applicationID" + lendingApplication.getId());
             }
             s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-        } else {
+        }else {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             ByteArrayOutputStream outStream = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(sanctionCompressionLevel));
@@ -3375,7 +3415,41 @@ public class LendingApplicationServiceV2 {
         if (apiResponse.success) {
             String kfsHtml = (String) apiResponse.data;
 
-            if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
+            /**
+             * New Library is being used to generate PDF for only english lenders
+             * identified only english lenders are
+             * CREDITSAISON
+             * OXYZO
+             * PAYU  (not switched for now)
+             * SMFG
+             * UGRO
+             */
+            if (Arrays.asList(Lender.CREDITSAISON.name(), Lender.OXYZO.name(),
+                            Lender.PIRAMAL.name(), Lender.SMFG.name(), Lender.UGRO.name())
+                    .contains(lendingKfs.getLender())) {
+
+                fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
+                if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
+                    if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name()
+                            , Lender.CAPRI.name()).contains(lendingKfs.getLender())) {
+
+                        log.info("Add header and footer in kfs doc for applicationId:" + lendingApplication.getId());
+                        kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC), null);
+                        kfsHtml = htmlEditor.addFooterToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(),
+                                ApplicationDocType.getFooterMapping(Lender.valueOf(lendingApplication.getLender()))), null, true);
+                    } else {
+
+                        log.info("Add header in kfs doc with applicationId:" + lendingApplication.getId());
+                        kfsHtml = htmlEditor.addHeaderToHtml(kfsHtml, getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC), null);
+                    }
+                }
+                byte[] pdfByteArray = pdfGeneratorUtil.generate(kfsHtml);
+                ByteArrayInputStream inStream = new ByteArrayInputStream(pdfByteArray);
+                s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
+            }
+            /** new Library code ends here **/
+
+            else if (Lender.PAYU.name().equalsIgnoreCase(lendingApplication.getLender())) {
                 LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
                 fileName = lendingApplicationLenderDetails.getLeadId() + '_' + KFS_LETTER_S3_KEY_PREFIX + new SimpleDateFormat("dd-MM-yyyy").format(dateTimeUtil.getCurrentDate()) + ".pdf";
                 ByteArrayInputStream inStream = getLoanDocPdf(kfsHtml, ApplicationDocType.KEY_FACTS_STATEMENT_DOC, lendingApplication, kfsCompressionLevel);
@@ -3383,7 +3457,7 @@ public class LendingApplicationServiceV2 {
                     throw new Exception("Unable to generate KFS for applicationID" + lendingApplication.getId());
                 }
                 s3BucketHandler.uploadToS3PdfBucket(inStream, fileName, s3Bucket);
-            } else {
+            }else {
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 ByteArrayOutputStream outStream = new ByteArrayOutputStream();
                 PdfWriter writer = new PdfWriter(outStream, new WriterProperties().setCompressionLevel(kfsCompressionLevel));
