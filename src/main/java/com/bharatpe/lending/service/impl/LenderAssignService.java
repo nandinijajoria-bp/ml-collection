@@ -1502,10 +1502,10 @@ public class LenderAssignService implements ILenderAssignService {
 
                 // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
                 eligibleLenderList.sort((lender1, lender2) -> {
-                    // First, handle the default lender (always goes to the bottom)
-                    boolean isLender1Default =defaultLender.equals(lender1.getLenderName());
+                    boolean isLender1Default = defaultLender != null &&
+                            defaultLender.getLender().equals(lender1.getLenderName());
 
-                    if (isLender1Default) return 1; // lender1 is default, move to end
+                    if (isLender1Default) return 1;
 
                     int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
                     if (interestRateComparison != 0) {
@@ -1549,13 +1549,13 @@ public class LenderAssignService implements ILenderAssignService {
 
     public String getPropensityMatrix(Lender lender) {
         Map<Lender, String> propensityMap = new HashMap<Lender, String>() {{
-            put(ABFL, "MEDIUM");
+            put(ABFL, "LOW");
             put(MUTHOOT, "MEDIUM");
             put(CAPRI, "MEDIUM");
             put(CREDITSAISON, "LOW");
-            put(PIRAMAL, "LOW");
-            put(UGRO, "LOW");
-            put(OXYZO, "LOW");
+            put(PIRAMAL, "MEDIUM");
+            put(UGRO, "MEDIUM");
+            put(OXYZO, "HIGH");
             put(SMFG, "LOW");
             put(PAYU, "HIGH");
             put(TRILLIONLOANS, "HIGH");
