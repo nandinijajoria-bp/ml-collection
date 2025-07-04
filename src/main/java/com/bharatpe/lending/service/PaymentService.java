@@ -2919,7 +2919,7 @@ public class PaymentService {
                             collect(Collectors.toList());
             log.info("payment list is {}", list);
             LendingPaymentSchedule lendingPaymentSchedule = optionalLPS.get();
-            if(lendingPaymentSchedule.getLmsSource().equalsIgnoreCase("1LMS")){
+            if("1LMS".equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
 
                 log.info("adjusted or order amount for loanPayment order entity is {} for loanId {}", lendingPullPayment.getDeductedAmount(),lendingPaymentSchedule.getId());
                 if (request.getPaymentRefId() != null) {
