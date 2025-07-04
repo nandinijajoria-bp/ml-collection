@@ -435,8 +435,8 @@ public class LendingApplicationServiceV2 {
     @Autowired
     InsuranceService insuranceService;
 
-    @Value("${all.english.doc.lender.list}")
-    String  allEnglishDocLanguageList;
+    @Value("${new.pdf.generation.method.lenders}")
+    String newPdfGenerationMethodLenders;
 
     private final List<String> udyamSuccessStatus = Arrays.asList(LenderAssociationStatus.UDYAM_REGISTRATION_SUCCESS.name());
 
@@ -3132,7 +3132,7 @@ public class LendingApplicationServiceV2 {
          * SMFG
          * UGRO
          */
-        if (allEnglishDocLanguageList.contains(lendingApplication.getLender())) {
+        if (newPdfGenerationMethodLenders.contains(lendingApplication.getLender())) {
             fileName = SANCTION_LOAN_AGREEMENT_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
             if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.SANCTION_CUM_LOAN_AGREEMENT_DOC).isEmpty()) {
                 if (Arrays.asList(Lender.ABFL.name(), Lender.PIRAMAL.name(), Lender.MUTHOOT.name(), Lender.CAPRI.name()).contains(lender)) {
@@ -3425,7 +3425,7 @@ public class LendingApplicationServiceV2 {
              * SMFG
              * UGRO
              */
-            if (allEnglishDocLanguageList.contains(lendingKfs.getLender())) {
+            if (newPdfGenerationMethodLenders.contains(lendingKfs.getLender())) {
 
                 fileName = KFS_S3_KEY_PREFIX + lendingApplication.getId() + ".pdf";
                 if (!getLenderLogo(lendingApplication.getLender(), ApplicationDocType.KEY_FACTS_STATEMENT_DOC).isEmpty()) {
