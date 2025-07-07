@@ -22,12 +22,6 @@ public enum PaymentBank {
     NSDL_PAYMENTS_BANK_LTD("NSDL PAYMENTS BANK LTD"),
     NSDL_PAYMENTS_BANK_LIMITED("NSDL PAYMENTS BANK LIMITED");
 
-
-
-
-
-
-
     private String val;
 }
 
