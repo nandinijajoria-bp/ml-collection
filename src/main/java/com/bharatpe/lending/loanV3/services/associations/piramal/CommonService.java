@@ -167,7 +167,7 @@ public class CommonService {
 
         Double pfRate;
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("experiment available for {}", pricingExperiment);
+            log.info("experiment available for {}: {}", lendingRiskVariablesSnapshot.getMerchantId(), pricingExperiment);
             pfRate = pricingExperiment.getProcessingFeeRate();
         }else {
             LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(

@@ -1039,13 +1039,23 @@ public class LenderAssignService implements ILenderAssignService {
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(application.get().getMerchantId());
                 RiskVariablesDTO riskVariables = EntityToDtoConvertorUtil.convertToRiskVariablesDTO(lendingRiskVariables);
 
-                LendingLenderPricing lenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                        lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
-                        application.get().getTenureInMonths(), fallbackLender.getLender(), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
-                if (Objects.nonNull(lenderPricing)) {
-                    Map<String, LendingLenderPricing> lenderPricingMap = new HashMap<>();
-                    lenderPricingMap.put(lenderPricing.getLender(), lenderPricing);
-                    riskVariables.setLenderPricingMap(lenderPricingMap);
+                PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                        application.get().getTenureInMonths(), (int) (lendingRiskVariables.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
+                if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+                    log.info("Experiment fetched for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
+                    Map<Long, PricingExperiment> pricingExperimentMap = new HashMap<>();
+                    pricingExperimentMap.put(lendingRiskVariables.getMerchantId(), pricingExperiment);
+                    riskVariables.setPricingExperimentMap(pricingExperimentMap);
+                }else {
+                    log.info("fetching pricing from lending lender pricing for {}", lendingRiskVariables.getMerchantId());
+                    LendingLenderPricing lenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                            lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
+                            application.get().getTenureInMonths(), fallbackLender.getLender(), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
+                    if (Objects.nonNull(lenderPricing)) {
+                        Map<String, LendingLenderPricing> lenderPricingMap = new HashMap<>();
+                        lenderPricingMap.put(lenderPricing.getLender(), lenderPricing);
+                        riskVariables.setLenderPricingMap(lenderPricingMap);
+                    }
                 }
 
                 if(baseCheckForWildCardLender && ! lenderBaseChecksCleared(
@@ -1380,7 +1390,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(lendingApplication.getMerchantId()) : null;
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("Experiment fetched for {}: {}", lendingApplication.getId(), pricingExperiment);
+            log.info("Experiment fetched for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
             maxIrr = BigDecimal.valueOf(pricingExperiment.getIrr());
             interestRate = pricingExperiment.getInterestRate();
         }else {
@@ -1410,7 +1420,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(eligibleLoan.getMerchantId()) : null;
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("Experiment fetched {}", pricingExperiment);
+            log.info("Experiment fetched for {}: {}", eligibleLoan.getMerchantId(), pricingExperiment);
             maxApr = BigDecimal.valueOf(pricingExperiment.getApr());
             processingFee = eligibleLoan.getAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
             interestRate = pricingExperiment.getInterestRate();
@@ -1440,7 +1450,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(eligibleLoan.getMerchantId()) : null;
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("Experiment fetched {}", pricingExperiment);
+            log.info("Experiment fetched for {}: {}", eligibleLoan.getMerchantId(), pricingExperiment);
             maxIrr = BigDecimal.valueOf(pricingExperiment.getIrr());
             interestRate = pricingExperiment.getInterestRate();
         }
@@ -1471,7 +1481,7 @@ public class LenderAssignService implements ILenderAssignService {
 
         PricingExperiment pricingExperiment = !CollectionUtils.isEmpty(riskVariables.getPricingExperimentMap()) ? riskVariables.getPricingExperimentMap().get(lendingApplication.getMerchantId()) : null;
         if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
-            log.info("Experiment fetched for {}: {}", lendingApplication.getId(), pricingExperiment);
+            log.info("Experiment fetched for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
             pfPercentage = pricingExperiment.getProcessingFeeRate();
         }else {
             LendingLenderPricing lendingLenderPricing = !CollectionUtils.isEmpty(riskVariables.getLenderPricingMap()) ? riskVariables.getLenderPricingMap().get(lender) : null;
@@ -1741,13 +1751,10 @@ public class LenderAssignService implements ILenderAssignService {
     public void updateOfferDetails(LendingApplication lendingApplication, String newLender){
         if(!loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())) return;
         LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-        PricingExperiment pricingExperiment = null;
-        if(pricingExpEnabled) {
-            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
-                    lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
-        }
+        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
+                lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), (int) (lendingApplication.getMerchantId()%10), lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
 
-        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
             Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
             Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
