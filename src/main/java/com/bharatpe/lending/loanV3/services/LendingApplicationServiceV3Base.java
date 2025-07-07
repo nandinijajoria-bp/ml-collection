@@ -129,8 +129,6 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     PricingExperimentDao pricingExperimentDao;
 
-    public final Set<String> validStages = new HashSet<>(Arrays.asList(LenderAssociationStatus.EKYC_IN_PROGRESS.name(), LenderAssociationStatus.KYC_IN_PROGRESS.name()));
-
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
     public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
