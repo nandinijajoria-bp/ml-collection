@@ -1504,8 +1504,12 @@ public class LenderAssignService implements ILenderAssignService {
                 eligibleLenderList.sort((lender1, lender2) -> {
                     boolean isLender1Default = defaultLender != null &&
                             defaultLender.getLender().equals(lender1.getLenderName());
+                    boolean isLender2Default = defaultLender != null &&
+                            defaultLender.getLender().equals(lender2.getLenderName());
 
-                    if (isLender1Default) return 1;
+                    if (isLender1Default && !isLender2Default) return 1;
+
+                    if (!isLender1Default && isLender2Default) return -1;
 
                     int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
                     if (interestRateComparison != 0) {
