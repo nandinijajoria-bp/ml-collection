@@ -65,6 +65,7 @@ import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.response.LoanDashboardApiVersion;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
+import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
 import com.bharatpe.lending.loanV3.services.associationsV2.AssociationServiceUtil;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.util.LoanUtil;
@@ -80,6 +81,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -90,10 +92,10 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
+import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
 import static com.bharatpe.lending.constant.LendingConstants.AUTO_PAY_SETTLEMENT;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
@@ -109,6 +111,9 @@ public class PaymentService {
 
     @Autowired
     LendingPaymentScheduleDao lendingPaymentScheduleDao;
+
+    @Autowired
+    LendingPaymentScheduleLendingCommonDao lendingPaymentScheduleLendingCommonDao;
 
     @Autowired
     APIGatewayService apiGatewayService;
@@ -196,9 +201,6 @@ public class PaymentService {
     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     @Autowired
     MerchantService merchantService;
-
-    @Autowired
-    LenderAssociationStageFactory lenderAssociationStageFactory;
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
@@ -356,6 +358,9 @@ public class PaymentService {
     @Autowired
     LmsPaymentDetailsDao lmsPaymentDetailsDao;
 
+    @Autowired
+    LenderForeclosureCachingService lenderForeclosureCachingService;
+
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
         logger.info("Received payment details request for merchant id {}", merchant.getId());
@@ -433,40 +438,35 @@ public class PaymentService {
             // this is the recorded in db and excess is added here just to record (net_payable + excess already available) = net foreclosure at our side
             double netForeclosureAtBp=principalDueAmount + advanceEdiAmount + excessCollectionBalance;
             data.setForeClosureAmountAtBp(netForeclosureAtBp);
-
-            ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-                    .getLenderAssociationService(activeLoan.getNbfc());
             LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = null;
-            if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-                int retry = 0;
-                while (retry < 3) {
-                    try {
-                        lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(activeLoan.getApplicationId(), null);
-
-                        if (lenderForeclosureDetailsDTO != null && lenderForeclosureDetailsDTO.getForeclosureAmount() != null) {  // skip retry
-                            netForeclosureAtLender = lenderForeclosureDetailsDTO.getForeclosureAmount();
-                            principalOutstandingLender = lenderForeclosureDetailsDTO.getPrincipalOutstanding();
-                            logger.info("principalDue {} and foreclosure amount {}  at lender for loan {}", principalOutstandingLender, netForeclosureAtLender, activeLoan.getId());
-                            break;
-                        }
-                    }catch (Exception e) {
-                      logger.error("Exception while fetching foreclosure details for merchantId: {} {}", activeLoan.getMerchantId(), Arrays.asList(e.getStackTrace()));
+            int retry = 0;
+            while (retry < 3) {
+                try {
+                    lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(activeLoan.getNbfc(), activeLoan.getApplicationId(), activeLoan.getMerchantId());
+                    if (lenderForeclosureDetailsDTO != null && lenderForeclosureDetailsDTO.getForeclosureAmount() != null) {  // skip retry
+                        netForeclosureAtLender = lenderForeclosureDetailsDTO.getForeclosureAmount();
+                        principalOutstandingLender = lenderForeclosureDetailsDTO.getPrincipalOutstanding();
+                        logger.info("principalDue {} and foreclosure amount {}  at lender for loan {}", principalOutstandingLender, netForeclosureAtLender, activeLoan.getId());
+                        break;
                     }
-                    retry++;
+                } catch (Exception e) {
+                    logger.error("Exception while fetching foreclosure details for merchantId: {} {}", activeLoan.getMerchantId(), Arrays.asList(e.getStackTrace()));
                 }
-                if(netForeclosureAtLender != null && netForeclosureAtLender > 0 && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) ){
-                    logger.info("Checking for unposted piramal penalty for loanId:{}", activeLoan.getId());
-                    double unpostedPiramalPenalty = checkUnpostedPiramalPenalty(activeLoan.getId());
-                    unpostedPiramalPenalty = unpostedPiramalPenalty * -1;
-                    if(unpostedPiramalPenalty > 0) {
-                        logger.info("Adding to net foreclosureAtlender Unposted piramal penalty for loanId:{} is {}", activeLoan.getId(), unpostedPiramalPenalty);
-                        netForeclosureAtLender += unpostedPiramalPenalty;
-                    }
-                }
-                if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
-                finalForeclosureAtLender = netForeclosureAtLender;
-                netForeclosureAtLender = Math.max(netForeclosureAtLender - excessCollectionBalance, 0);
+                retry++;
             }
+            if(netForeclosureAtLender != null && netForeclosureAtLender > 0 && "PIRAMAL".equalsIgnoreCase(activeLoan.getNbfc()) ){
+                logger.info("Checking for unposted piramal penalty for loanId:{}", activeLoan.getId());
+                double unpostedPiramalPenalty = checkUnpostedPiramalPenalty(activeLoan.getId());
+                unpostedPiramalPenalty = unpostedPiramalPenalty * -1;
+                if(unpostedPiramalPenalty > 0) {
+                    logger.info("Adding to net foreclosureAtlender Unposted piramal penalty for loanId:{} is {}", activeLoan.getId(), unpostedPiramalPenalty);
+                    netForeclosureAtLender += unpostedPiramalPenalty;
+                }
+            }
+            if (netForeclosureAtLender == null) netForeclosureAtLender = 0d;
+            finalForeclosureAtLender = netForeclosureAtLender;
+            netForeclosureAtLender = Math.max(netForeclosureAtLender - excessCollectionBalance, 0);
+
             principalDueAmount = principalDueAmount + ediHolidayInterestAmount;
             logger.info("principalDue {} and {} due amt at bharatpe for loan {}", principalDueAmount, overdueAmount, activeLoan.getId());
             principalDueAmount = Math.max(principalDueAmount, Double.valueOf(Math.ceil(netForeclosureAtLender)).intValue());
@@ -2919,6 +2919,26 @@ public class PaymentService {
                             collect(Collectors.toList());
             log.info("payment list is {}", list);
             LendingPaymentSchedule lendingPaymentSchedule = optionalLPS.get();
+            if("1LMS".equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
+
+                log.info("adjusted or order amount for loanPayment order entity is {} for loanId {}", lendingPullPayment.getDeductedAmount(),lendingPaymentSchedule.getId());
+                if (request.getPaymentRefId() != null) {
+                    LoanPaymentOrder order = createOrder(lendingPaymentSchedule, lendingPullPayment.getDeductedAmount(), request.getPaymentRefId(), UPI_AUTOPAY_ADJUSTMENT_MODE);
+
+
+                    if (!list.isEmpty()) {
+                        order.setTerminalOrderId(list.get(0).getTerminalOrderId());
+                        order.setFinalGateway(list.get(0).getFinalGateway());
+                    }
+                    order.setCheckoutType(request.getCheckoutType());
+                    loanPaymentOrderDao.save(order);
+                    // TODO : call handle callback method
+                    log.info("going to call handle callback method for order {} and loanDetails {}",order,lendingPaymentSchedule);
+                    handleCallback(convertToPgPaymentCallbackDTO(order));
+
+                }
+                return ;
+            }
             Double orderAmount = lendingPullPayment.getDeductedAmount();
             Double adjustedAmount = 0d;
             Double refundAmount = 0d;
@@ -3079,5 +3099,136 @@ public class PaymentService {
         }catch (Exception e){
             logger.error("Exception in imposing real time penal charges for orderId:{}, stacktrace {} Exception:{}",orderId,Arrays.asList(e.getStackTrace()),e.getMessage());
         }
+    }
+
+    public void shiftFromPDP(PerpetualMigrationDTO dto) {
+        logger.info("Received request to shift from PDP for merchantId: {}, LoanId: {}", dto.getMerchantId(), dto.getLoanId());
+
+        if (dto.isReverse()) {
+            logger.info("Reversing PDP shift for merchantId: {}, LoanId: {}", dto.getMerchantId(), dto.getLoanId());
+            reversePDPShift(dto.getLoanId(), dto.getMerchantId());
+            return;
+        }
+
+        LoanPaymentOrder order = null;
+        try {
+            Optional<LendingPaymentScheduleLendingCommon> loanOptional = lendingPaymentScheduleLendingCommonDao.findById(dto.getLoanId());
+            boolean pdpLoan = loanOptional.isPresent() && Y.name().equalsIgnoreCase(loanOptional.get().getPerpetualDpdAdjusted());
+
+            if (!pdpLoan) {
+                logger.info("Loan is not in PDP state for merchant id: {} and loanId: {}", dto.getMerchantId(), dto.getLoanId());
+                return;
+            }
+
+            LendingPaymentScheduleLendingCommon activeLoan = loanOptional.get();
+
+            order = lockPaymentTemporary(dto.getLoanId(), dto.getMerchantId());
+
+            if (order == null) {
+                logger.info("Unable to lock payment for loanId: {} for merchantId: {}", dto.getLoanId(), dto.getMerchantId());
+                return;
+            }
+
+            changeTransferDateForPDPLoan(activeLoan);
+
+            activeLoan.setPerpetualDpdAdjusted("Z");
+            lendingPaymentScheduleLendingCommonDao.save(activeLoan);
+        } catch (Exception e) {
+            logger.error("Exception while shifting from PDP for loanId: {}, Exception: {} {}", dto.getLoanId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+        } finally {
+            if (order != null) {
+                order.setStatus(CreditConstants.PaymentStatus.FAILED.name());
+                loanPaymentOrderDao.save(order);
+            }
+        }
+    }
+
+    private void reversePDPShift(long loanId, long merchantId) {
+        Optional<LendingPaymentScheduleLendingCommon> loanOptional = lendingPaymentScheduleLendingCommonDao.findById(loanId);
+        boolean pdpLoan = loanOptional.isPresent() && "Z".equalsIgnoreCase(loanOptional.get().getPerpetualDpdAdjusted());
+        if (!pdpLoan) {
+            logger.info("Loan is not in PDP state for merchant id: {} and loanId: {}", merchantId, loanId);
+            return;
+        }
+        LendingPaymentScheduleLendingCommon activeLoan = loanOptional.get();
+        logger.info("Reversing PDP shift for loanId: {} for merchantId: {}", loanId, merchantId);
+        activeLoan.setPerpetualDpdAdjusted(Y.name());
+        lendingPaymentScheduleLendingCommonDao.save(activeLoan);
+    }
+
+    private void changeTransferDateForPDPLoan(LendingPaymentScheduleLendingCommon activeLoan) {
+        List<LendingLedger> advanceLedgerList = lendingLedgerDao.findAdvanceEdiLedgerList(activeLoan.getId(), DateTimeUtil.getCurrentDayStartTime());
+        if (!CollectionUtils.isEmpty(advanceLedgerList)) {
+            logger.info("Advance ledger found for loanId: {} with size: {}", activeLoan.getId(), advanceLedgerList.size());
+            advanceLedgerList.stream()
+                    .filter(_ledger -> _ledger.getDate() != null
+                            && _ledger.getAmount() > 0
+                            && _ledger.getDate().after(_ledger.getCreatedAt()))
+                    .forEach(_ledger -> {
+                        logger.info("Changing transfer date for ledgerId: {} from {} to {}", _ledger.getId(), _ledger.getDate(), DateTimeUtil.getCurrentDayStartTime());
+                        _ledger.setDate(DateTimeUtil.getCurrentDayStartTime());
+                        lendingLedgerDao.save(_ledger);
+                    });
+        }
+
+
+        logger.info("Transfer date changed for all advance ledgers for loanId: {}", activeLoan.getId());
+        List<LendingCollectionAudit> lendingCollectionAuditList = lendingCollectionAuditDao.getAllByLoanIdAndStatus(activeLoan.getId(), "PENDING");
+        if (!CollectionUtils.isEmpty(lendingCollectionAuditList)) {
+            logger.info("Pending collection audit found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionAuditList.size());
+            lendingCollectionAuditList.stream()
+                    .filter(_lca -> _lca.getTransferDate() != null
+                            && _lca.getAmount() > 0
+                            && _lca.getTransferDate().after(_lca.getCreatedAt()))
+                    .forEach(lendingCollectionAudit -> {
+                        logger.info("Changing transfer date for collection auditId: {} from {} to {}", lendingCollectionAudit.getId(), lendingCollectionAudit.getTransferDate(), DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionAudit.setTransferDate(DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionAuditDao.save(lendingCollectionAudit);
+                    });
+        }
+
+
+        List<LendingCollectionExcess> lendingCollectionExcessList = lendingCollectionExcessDao.findByMerchantIdAndLoanIdAndStatusOrderByIdAsc(activeLoan.getMerchantId(), activeLoan.getId(), "ACTIVE");
+        if (!CollectionUtils.isEmpty(lendingCollectionExcessList)) {
+            log.info("Active excess collection found for loanId: {} with size: {}", activeLoan.getId(), lendingCollectionExcessList.size());
+            lendingCollectionExcessList.stream()
+                    .filter(_lce -> _lce.getCreditDate() != null
+                            && _lce.getExcessNachCreditAmount() > 0
+                            && _lce.getCreditDate().after(_lce.getCreatedAt()))
+                    .forEach(lendingCollectionExcess -> {
+                        logger.info("Changing transfer date for excess collection id: {} from {} to {}", lendingCollectionExcess.getId(), lendingCollectionExcess.getCreditDate(), DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionExcess.setCreditDate(DateTimeUtil.getCurrentDayStartTime());
+                        lendingCollectionExcessDao.save(lendingCollectionExcess);
+                    });
+        }
+
+
+    }
+
+    private LoanPaymentOrder lockPaymentTemporary(long loanId, long merchantId) {
+        Date checkPendingAfterTime = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1 * loanPaymentOrderPendingTransactionTimeWindow);
+
+        // fetch pending transactions in the last loanPaymentOrderPendingTransactionTimeWindow minutes
+        final LoanPaymentOrderSlave pendingTransaction =
+                loanPaymentOrderSlaveDao.findTopByOwnerIdAndMerchantIdAndStatusInAndCreatedAtGreaterThan(loanId, merchantId, checkPendingAfterTime);
+
+        if (!ObjectUtils.isEmpty(pendingTransaction)) {
+            logger.info("Already a pending transaction exist for loanId : {} with LPO id : {}", loanId, pendingTransaction.getId());
+            return null;
+        }
+
+        LoanPaymentOrder order = new LoanPaymentOrder();
+        order.setMerchantId(merchantId);
+        order.setOwner("lending_payment_schedule");
+        order.setOwnerId(loanId);
+        order.setAmount(0.0);
+        order.setStatus(CreditConstants.PaymentStatus.INIT.name());
+        order.setSource("MIGRATION");
+        order.setDescription("MIGRATION");
+        order = loanPaymentOrderDao.save(order);
+        String orderId = "LOAN" + (10000000L + order.getId());
+        order.setOrderId(orderId);
+        loanPaymentOrderDao.save(order);
+        return order;
     }
 }

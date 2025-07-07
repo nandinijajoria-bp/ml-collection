@@ -9,7 +9,6 @@ import com.bharatpe.lending.common.dao.LendingPullPaymentDao;
 import com.bharatpe.lending.common.dao.LoanDpdDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
 import com.bharatpe.lending.common.entity.LendingPullPayment;
-import com.bharatpe.lending.common.enums.LendingEnum;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
@@ -70,11 +69,17 @@ public class AutoPayUPIService {
     @Value(("${pg.android.version.direct.cashfree:7.1.9}"))
     String androidVersionDirectCashfree;
 
+    @Value("${upi.autopay.tat.exceeded.wait.time:14}")
+    Long upiAutopayTatExceededWaitTime;
+
     @Value(("${pg.ios.version:254}"))
     Long iosVersion;
 
     @Value("${redirection.deeplink.autopayupi:bharatpe://dynamic?key=easy-loans-v2-qa}")
     private String redirectionDeeplinkAutopayUpi;
+
+    @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
+    Integer upiAutoPayDedicatedScreenRolloutPercent;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -96,6 +101,9 @@ public class AutoPayUPIService {
 
     @Value("${allowed.lenders.for.direct.cashfree:false}")
     private String allowedLendersForDirectCashfree;
+
+    @Value("${auto.pay.upi.mandate.direct.cashfree.percent.rollout:10}")
+    private int autoPayUPIMandateDirectCashfreePercentRollout;
 
     public FetchTxnResponseDto fetchTransaction(BasicDetailsDto merchant, Long loanId,
                                                 int pageNo, int pageSize) {
@@ -192,7 +200,7 @@ public class AutoPayUPIService {
             Date createdMandateDate = mandateApplication.getCreatedAt();
             long diffMinutes = calculateTimeDiff(createdMandateDate);
             log.info("diffMinutes is {}", diffMinutes);
-            if (diffMinutes >= 15L) {
+            if (diffMinutes >= upiAutopayTatExceededWaitTime) {
                 mandateApplication.setStatus(AutoPayStatusEnum.FAILED);
                 mandateApplication.setErrorCode("TAT_EXCEEDED");
                 log.info("marking status for mandate register as failed due to tat for merchant id {} application id {}",
@@ -418,7 +426,12 @@ public class AutoPayUPIService {
                 long epochMandateStartDate = tenMinsFromNow.getTime();
                 registerPgRequest.setMandateStartDate(epochMandateStartDate);
                 registerPgRequest.setMandateEndDate(epochMandateStartDate + 157680000000L);
-                registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + "&wroute=key-factor-statement&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
+
+                String upiAutopayRedirectUrl = "&wroute=key-factor-statement";
+                if(easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), upiAutoPayDedicatedScreenRolloutPercent)){
+                    upiAutopayRedirectUrl = "&wroute=upi-autopay";
+                }
+                registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + upiAutopayRedirectUrl + "&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());
                 registerPgRequest.setMaxMandateAmount(15000.0);
 
                 AutoPayRegisterPgResponseDto registerPgResponseDto = apiGatewayService.createPgTransaction(merchantBasicDetails.getId(), registerPgRequest);
@@ -568,7 +581,7 @@ public class AutoPayUPIService {
 
         // overriding data with realtime data
         requestDto.getPayload().setLender(lendingApplicationOptional.get().getLender());
-         switch (determineCheckoutType(requestDto)){
+         switch (determineCheckoutType(requestDto,lendingApplicationOptional.get().getMerchantId())){
              case  "UNITY":
              return registerUPIForNewApplicationMandatePlugin(merchant, requestDto.getPayload(), lendingApplicationOptional.get());
              case  "DR_CASHFREE":
@@ -622,7 +635,7 @@ public class AutoPayUPIService {
         return true;
     }
 
-    public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto) {
+    public String determineCheckoutType(RequestDTO<AutoUPIMandateRegisterRequestDto> requestDto, Long merchantId) {
         if (autoPayUPIMandatePluginEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
                 getAllowedLenderForUPIAutoPay(autoPayUPIMandatePluginLenders).contains(requestDto.getPayload().getLender()) &&
                 isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionMerchantPlugin)) {
@@ -631,7 +644,7 @@ public class AutoPayUPIService {
 
         if (autoPayUPIMandateDirectCashfreeEnabled && requestDto.getMeta() != null && "android".equalsIgnoreCase(requestDto.getMeta().getClient()) &&
                 getAllowedLenderForUPIAutoPay(allowedLendersForDirectCashfree).contains(requestDto.getPayload().getLender()) &&
-                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree)) {
+                isVersionGreaterOrEqual(requestDto.getMeta().getDeviceInfo().getAppVersion(), androidVersionDirectCashfree) && easyLoanUtil.percentScaleUp(merchantId, autoPayUPIMandateDirectCashfreePercentRollout)) {
             return DR_CASHFREE.name();
         }
 

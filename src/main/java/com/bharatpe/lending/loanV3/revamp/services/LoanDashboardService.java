@@ -5,9 +5,9 @@ import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.LendingDisbursalStageDao;
 import com.bharatpe.common.entities.*;
+import com.bharatpe.lending.annotations.LogExecutionTime;
 import com.bharatpe.lending.common.Handler.MerchantSummaryHandler;
 import com.bharatpe.lending.common.dao.*;
-import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.enums.*;
@@ -31,14 +31,11 @@ import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MileStoneDao;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
-import com.bharatpe.lending.dto.InsuranceEligibilityRequestDTO;
-import com.bharatpe.lending.dto.InsuranceEligibilityResponseDTO;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
-import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
 import com.bharatpe.lending.loanV2.dto.*;
 import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.InsuranceService;
@@ -216,6 +213,9 @@ public class LoanDashboardService {
     @Value("${diwali.banner.two.end.date:}")
     String diwaliBannerTwoEndDate;
 
+    @Value("${loan.dashboard.rollout:0}")
+    Integer loanDashboardSyncRollout;
+
     @Autowired
     IEdiModelAssignment iEdiModelAssignment;
 
@@ -325,6 +325,190 @@ public class LoanDashboardService {
         return new ApiResponse<>(responseBuilder.build());
     }
 
+    @LogExecutionTime
+    public LoanDashboardResponse getLoanDashboardDetailsV2(BasicDetailsDto merchantDetails, String token) {
+        log.info("Fetching loan dashboard details with new flow for merchantId: {} ", merchantDetails.getId());
+        String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchantDetails.getId();
+        LoanDashboardResponse cachedResponse = getCachedLoanDetails(loanDetailsCacheKey);
+        if (cachedResponse != null) {
+            return cachedResponse;
+        }
+
+        LoanDashboardResponse loanDashboardResponse = initializeLoanDashboardResponse(merchantDetails);
+
+        CompletableFuture<EmiDashboardResponse> emiDataCompletableFuture = fetchEmiDashboardData(merchantDetails, token);
+
+        List<LendingPaymentScheduleSlave> paymentSchedules = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatuses(
+                merchantDetails.getId(), Arrays.asList(LoanStatus.INACTIVE.name(), LoanStatus.CLOSED.name(), LoanStatus.ACTIVE.name(), LoanStatus.DECEASED.name())
+        );
+
+        if (handleInactiveLoan(paymentSchedules, loanDashboardResponse, emiDataCompletableFuture)) {
+            return loanDashboardResponse;
+        }
+
+        loanDashboardResponse.setRepeatLoan(hasClosedLoan(paymentSchedules));
+
+        Optional<LendingPaymentScheduleSlave> activeLoan = getActiveLoan(paymentSchedules);
+        if (activeLoan.isPresent()) {
+            handleActiveLoan(activeLoan.get(), merchantDetails, loanDashboardResponse, emiDataCompletableFuture);
+            return loanDashboardResponse;
+        }
+
+        LendingApplicationSlave openApplication = fetchOpenApplication(merchantDetails, paymentSchedules);
+        if (openApplication != null && handleOpenApplication(merchantDetails, loanDashboardResponse, openApplication, emiDataCompletableFuture)) {
+            return loanDashboardResponse;
+        }
+
+        EmiDashboardResponse emiDashboardData = emiDashboardService.getData(emiDataCompletableFuture);
+        if (emiUtils.isActive(emiDashboardData)) {
+            return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
+        }
+
+        if (isRTEEligible(merchantDetails, loanDashboardResponse)) {
+            return loanDashboardResponse;
+        }
+
+        checkEligibility(loanDashboardResponse, merchantDetails);
+        handleEligibility(merchantDetails, loanDashboardResponse, emiDashboardData);
+
+        cacheLoanDetailsData(loanDashboardResponse);
+        log.info("Returning loan dashboard response on new version for merchantId: {}", merchantDetails.getId());
+        return loanDashboardResponse;
+    }
+
+    private LoanDashboardResponse getCachedLoanDetails(String cacheKey) {
+        try {
+            Object cacheResponse = lendingCache.get(cacheKey);
+            if (!ObjectUtils.isEmpty(cacheResponse)) {
+                log.info("Returning loan details response from cache for {}", cacheKey);
+                LoanDashboardResponse loanDashboardResponse = objectMapper.readValue((String) cacheResponse, LoanDashboardResponse.class);
+                loanDashboardResponse.setSource("CACHE");
+                return loanDashboardResponse;
+            }
+        } catch (IOException e) {
+            log.error("IOException occurred while reading cache for key: {}, error: {}", cacheKey, e.getMessage(), e);
+        } catch (Exception e) {
+            log.error("Unexpected exception occurred while fetching cache for key: {}, error: {}", cacheKey, e.getMessage(), e);
+        }
+        return null;
+    }
+
+    private LoanDashboardResponse initializeLoanDashboardResponse(BasicDetailsDto merchantDetails) {
+        LoanDashboardResponse response = new LoanDashboardResponse();
+        response.setMerchantId(merchantDetails.getId());
+        response.setDummyMerchant(easyLoanUtil.isDummyMerchant(merchantDetails.getId()));
+        return response;
+    }
+
+    private boolean isRTEEligible(BasicDetailsDto merchantDetails, LoanDashboardResponse response) {
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
+        if (isEligibleForRTE(entity)) {
+            log.info("returning rte cashback flow from loan dashboard page for {}", merchantDetails.getId());
+            response.setShowRTEPage(true);
+            return true;
+        }
+        return false;
+    }
+
+    private CompletableFuture<EmiDashboardResponse> fetchEmiDashboardData(BasicDetailsDto merchantDetails, String token) {
+        if (emiUtils.isEmiFlowEnabled()) {
+            return emiDashboardService.getEmiDashboardResponse(merchantDetails.getId(), token);
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    private Optional<LendingPaymentScheduleSlave> getActiveLoan(List<LendingPaymentScheduleSlave> paymentSchedules) {
+        return paymentSchedules.stream()
+                .filter(schedule -> Arrays.asList(LoanStatus.ACTIVE.name(), LoanStatus.DECEASED.name()).contains(schedule.getStatus()))
+                .findFirst();
+    }
+
+    private void handleActiveLoan(LendingPaymentScheduleSlave activeLoan, BasicDetailsDto merchantDetails, LoanDashboardResponse response, CompletableFuture<EmiDashboardResponse> emiDataFuture) {
+        log.info("Active loan found for merchantId: {}", merchantDetails.getId());
+        response.setInsuranceEligibility(insuranceService.checkInsuranceEligibility(activeLoan));
+        funnelService.submitEvent(merchantDetails.getId(), null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.ACTIVE_LOAN, LocalDateTime.now().toString());
+        setBankAccountDetails(merchantDetails.getId(), response);
+        handleTopUpApplication(merchantDetails, response);
+        response.setActiveLoan(true);
+        excessNachService.setExcessCollectionDetails(merchantDetails.getId(), response);
+        cacheLoanDetailsData(response);
+        emiDashboardService.skipData(emiDataFuture);
+    }
+
+    private boolean handleInactiveLoan(List<LendingPaymentScheduleSlave> paymentSchedules, LoanDashboardResponse response, CompletableFuture<EmiDashboardResponse> emiDataFuture) {
+        Optional<LendingPaymentScheduleSlave> inactiveLoan = paymentSchedules.stream()
+                .filter(schedule -> LoanStatus.INACTIVE.name().equalsIgnoreCase(schedule.getStatus()) && !schedule.getCreditLoan())
+                .findFirst();
+        if (inactiveLoan.isPresent()) {
+            response.setIneligible(RejectionReason.LOW_TRANSACTION.getReason());
+            response.setKycStatus(KycStatus.APPROVED);
+            emiDashboardService.skipData(emiDataFuture);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean hasClosedLoan(List<LendingPaymentScheduleSlave> paymentSchedules) {
+        return paymentSchedules.stream()
+                .anyMatch(schedule -> "CLOSED".equalsIgnoreCase(schedule.getStatus()));
+    }
+
+    private void handleTopUpApplication(BasicDetailsDto merchantDetails, LoanDashboardResponse response) {
+        LendingApplicationSlave topupApplication = lendingApplicationDaoSlave.findOpenTopUpApplication(merchantDetails.getId(), "TOPUP");
+        if (Objects.nonNull(topupApplication)) {
+            LoanApplicationDetailsV3 topUpApplicationDetails = setApplicationDetails(topupApplication, merchantDetails);
+            response.setTopupLoanApplication(topUpApplicationDetails);
+            response.getTopupLoanApplication().setAnnualRoi(getAnnualROI(topupApplication));
+        }
+    }
+
+    private LendingApplicationSlave fetchOpenApplication(BasicDetailsDto merchantDetails, List<LendingPaymentScheduleSlave> paymentSchedules) {
+        Optional<LendingPaymentScheduleSlave> closedLoan = paymentSchedules.stream()
+                .filter(schedule -> LoanStatus.CLOSED.name().equalsIgnoreCase(schedule.getStatus()))
+                .findFirst();
+        if (closedLoan.isPresent()) {
+            return lendingApplicationDaoSlave.findTopByMerchantIdAndLoanDisbursalStatusNullAndPaymentScheduleStatusClosedOrderByIdDesc(
+                    merchantDetails.getId(), closedLoan.get().getCreatedAt()
+            );
+        }
+        return lendingApplicationDaoSlave.findTopByMerchantIdAndLoanDisbursalStatusNullOrderByIdDesc(merchantDetails.getId());
+    }
+
+    private boolean handleOpenApplication(BasicDetailsDto merchantDetails, LoanDashboardResponse response, LendingApplicationSlave openApplication, CompletableFuture<EmiDashboardResponse> emiDataCompletableFuture) {
+        LoanApplicationDetailsV3 loanApplicationDetails = setApplicationDetails(openApplication, merchantDetails);
+        if (!ObjectUtils.isEmpty(loanApplicationDetails)) {
+            response.setLoanApplication(loanApplicationDetails);
+            response.getLoanApplication().setAnnualRoi(getAnnualROI(openApplication));
+        }
+        if (response.getLoanApplication() != null && StringUtils.isEmpty(response.getLoanApplication().getReapply())) {
+            cacheLoanDetailsData(response);
+            emiDashboardService.skipData(emiDataCompletableFuture);
+            return true;
+        }
+        return false;
+    }
+
+    private void handleEligibility(BasicDetailsDto merchantDetails, LoanDashboardResponse response, EmiDashboardResponse emiDashboardData) {
+        LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantDetails.getId());
+        if (emiUtils.isEligible(emiDashboardData, lendingRiskVariables) && response.getEligibility() != null) {
+            log.info("eligible for loan merchant:{}", merchantDetails.getId());
+            response.getEligibility().setEmiLoanAmount(emiDefaultLoanAmount);
+        }
+        if (Objects.nonNull(response.getIneligible())) {
+            response.setLoanApplication(null);
+            funnelService.submitEvent(merchantDetails.getId(), null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.INELIGIBLE, LocalDateTime.now().toString());
+        } else if (Objects.isNull(response.getEligibility())) {
+            funnelService.submitEvent(merchantDetails.getId(), null, null, FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.TEN_LAKH_LOAN_PAGE, LocalDateTime.now().toString());
+        }
+    }
+
+    public LoanDashboardResponse fetchLoanDashboardDetailsResponse(BasicDetailsDto merchantDetails, String token) throws IOException {
+        return easyLoanUtil.percentScaleUp(merchantDetails.getId(), loanDashboardSyncRollout)
+                ? getLoanDashboardDetailsV2(merchantDetails, token)
+                : getLoanDashboardDetails(merchantDetails, token);
+    }
+
+
     public LoanDashboardResponse getLoanDashboardDetails(BasicDetailsDto merchantDetails, String token) throws IOException {
         // in previous  version we  are using cache first build the data.
         String loanDetailsCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchantDetails.getId();
@@ -411,7 +595,7 @@ public class LoanDashboardService {
             // send emiLoanApplication in response
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
-        checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        checkEligibility(loanDashboardResponse, merchantDetails);
         if(!Objects.nonNull(loanDashboardResponse.getIneligible()) && emiUtils.isRejectedWithConditions(emiDashboardData, openApplication)){
             // send emiLoanApplication in response
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
@@ -446,7 +630,7 @@ public class LoanDashboardService {
     }
 
     public boolean hasActiveLoan(Long merchantId, LoanDashboardResponse loanDashboardResponse) {
-        LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
+        LendingPaymentScheduleSlave activeLoan = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList(LoanStatus.ACTIVE.name(), LoanStatus.DECEASED.name()));
         if(!ObjectUtils.isEmpty(activeLoan)) {
             loanDashboardResponse.setInsuranceEligibility(insuranceService.checkInsuranceEligibility(activeLoan));
         }
@@ -580,7 +764,6 @@ public class LoanDashboardService {
         try {
             LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
             applicationDetails.setApplicationId(openApplication.getId());
-//            applicationDetails.setExternalLoanId(openApplication.getExternalLoanId());
             applicationDetails.setLoanAmount(openApplication.getLoanAmount());
             applicationDetails.setTenure(openApplication.getTenure());
             applicationDetails.setEdi(openApplication.getEdi());
@@ -591,12 +774,6 @@ public class LoanDashboardService {
                 funnelService.submitEvent(merchantDetails.getId(), null, openApplication.getId(),
                         FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PENDING_APPLICATION, LocalDateTime.now().toString());
             }
-//            LendingApplicationDetails lendingApplicationDetails =
-//                    lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(openApplication.getId());
-//            if (!ObjectUtils.isEmpty(lendingApplicationDetails)) {
-//                log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
-//                applicationDetails.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
-//            }
             if ("approved".equalsIgnoreCase(openApplication.getStatus()) || "pending_verification".equalsIgnoreCase(openApplication.getStatus())) {
                 LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationIdAndMerchantId(openApplication.getId(), openApplication.getMerchantId());
                 if(Objects.nonNull(lendingResubmitTask)){
@@ -623,16 +800,6 @@ public class LoanDashboardService {
                         FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.REJECTED, LocalDateTime.now().toString());
                 RejectionStateDto rejectionStateDto = getRejectionReason(openApplication, merchantDetails);
                 applicationDetails.setRejectReason(rejectionStateDto.getRejectionReason());
-//            applicationDetails.setRejectionMessage(rejectionStateDto.getRejectionMessage());
-//            applicationDetails.setAddressDetails(getShopAddress(openApplication));
-//            applicationDetails.setProfessionalDetails(getProfessionalDetails(openApplication));
-//            applicationDetails.setAdditionalDetails(new AdditionalDetails(openApplication.getEmail(), openApplication.getAlternateMobile()));
-//            applicationDetails.setCurrentAddress(getCurrentAddress(openApplication));
-//            applicationDetails.setShopPhotoRequired(isShopPhotoRequired(openApplication));
-//            if (applicationDetails.getEnachDeeplink() == null && (ApplicationStatus.PENDING_VERIFICATION.name().equalsIgnoreCase(openApplication.getStatus()) || ApplicationStatus.APPROVED.name().equalsIgnoreCase(openApplication.getStatus()))) {
-//                int tat = loanUtil.getApplicationTAT(openApplication.getId());
-//                applicationDetails.setTransferDays(tat < 1 ? "Soon" : tat + "-" + (tat + 2) + " Days");
-//            }
                 Long reapplyTime = getReapplyTime(openApplication);
                 if (Objects.nonNull(reapplyTime)) {
                     reapplyTime = reapplyTime > 0 ? reapplyTime : 0;
@@ -795,127 +962,162 @@ public class LoanDashboardService {
         }
         return null;
     }
-    private void checkEligibility(LoanDashboardResponse loanDashboardResponse, LoanDetailsRequest request, BasicDetailsDto merchant)  {
-            log.info("checking eligibility for {}", merchant.getId());
-            MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
-            if (ObjectUtils.isEmpty(merchantResponseDTO)) {
-                throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
-            }
+    private void checkEligibility(LoanDashboardResponse loanDashboardResponse, BasicDetailsDto merchant)  {
+        log.info("checking eligibility for {}", merchant.getId());
+        /*
+        * COMMENT THIS ---
+         */
+//      MerchantResponseDTO merchantResponseDTO = merchantSummaryHandler.getMerchantSummary(merchant.getId());
+//      if (ObjectUtils.isEmpty(merchantResponseDTO)) {
+//          throw new MerchantSummaryExceptionHandler(merchant.getId().toString());
+//      }
 
-            if (enableDiwaliBanner) {
-                Date diwaliBannerOneRolloutDateParsed = parseDate(diwaliBannerOneRolloutDate);
-                Date diwaliBannerOneEndDateParsed = parseDate(diwaliBannerOneEndDate);
-
-                Date diwaliBannerTwoRolloutDateParsed = parseDate(diwaliBannerTwoRolloutDate);
-                Date diwaliBannerTwoEndDateParsed = parseDate(diwaliBannerTwoEndDate);
-
-                if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
-                    if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {
-                        log.info("Enabling diwali banner one for merchantId : {}", merchant.getId());
-                        loanDashboardResponse.setDiwaliBannerType(getDiwaliBannerType(merchant.getId()));
-                        loanDashboardResponse.setDiwaliBannerEndDate(new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS).format(diwaliBannerOneEndDateParsed));
-                    }
-                }
-
-                if (!ObjectUtils.isEmpty(diwaliBannerTwoRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerTwoEndDateParsed)) {
-                    if (new Date().after(diwaliBannerTwoRolloutDateParsed) && new Date().before(diwaliBannerTwoEndDateParsed)) {
-                        log.info("Enabling diwali  banner two for merchantId : {}", merchant.getId());
-                        loanDashboardResponse.setDiwaliBannerType(getDiwaliBannerType(merchant.getId()));
-                        loanDashboardResponse.setDiwaliBannerEndDate(new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS).format(diwaliBannerTwoEndDateParsed));
-                    }
-                }
-            }
-
-            Experian experian = experianDao.getByMerchantId(merchant.getId());
-            if(ObjectUtils.isEmpty(experian) || Objects.isNull(experian.getPincode())){
-                log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
-                return;
-            }
-
-            LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
-            String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX+merchant.getId();
-            int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(merchant.getId(), newEligibilityRefreshWindowRolloutPercent) ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
-            if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
-                updatedEligibilityRefreshWindow = 0;
-                lendingCache.delete(bureauConsentKey);
-            }
-            Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
-            Eligibility eligibility = null;
-            log.info("eligibility check begins !!! {}", merchant.getId());
-            if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow)) {
-                log.info("Eligible offers exist for merchant:{}", merchant.getId());
-                eligibility = createEligibility(merchant.getId(),eligibleLoan);
-                if (eligibility != null) {
-                    log.info("eligibility is not null for merchant: {}", merchant.getId());
-                    loanDashboardResponse.setEligibility(eligibility);
-                    return;
-                } else {
-                    log.info("eligibility is null for merchant: {}", merchant.getId());
-                }
-            } else {
-                log.info("after the date window for merchant: {}", merchant.getId());
-            }
-            MutableBoolean isDerog = new MutableBoolean(false);
-            GlobalLimitResponse globalLimitResponse=new GlobalLimitResponse();
-            try {
-                globalLimitResponse = apiGatewayService.getGlobalLimit(merchant.getId(), isClubV2Member(merchant.getId()),EligibilityRequestSource.EASY_LOANS);
-            }
-            catch (BureauCallMaskedApiException e) {
-                log.error("Exception occurred for merchantId:{},execption:{}", merchant.getId(),e);
-            }
-            Double eligibleAmount = 0D;
-            if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
-                log.info("Global limit for merchant:{} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
-                eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
-                isDerog.setValue(globalLimitResponse.getData().isDerog());
-                loanDashboardResponse.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
-                loanDashboardResponse.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
-            }
-            if (eligibleAmount > 0D) {
-                log.info("Eligibility found for merchant:{}", merchant.getId());
-                eligibleLoan = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
-                if (!ObjectUtils.isEmpty(eligibleLoan)) {
-                    eligibility = createEligibility(merchant.getId(),eligibleLoan);
-                }
-            }
-
-            loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
-
-            if(Objects.nonNull(loanDashboardResponse.getPreApprovedTag())){
-                funnelService.submitEvent(merchant.getId(), null, null,
-                FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
-            }
-
-
-            if (eligibility != null) {
-                loanDashboardResponse.setEligibility(eligibility);
-                return;
-            }
-            log.info("Eligibility not found for merchant:{}", merchant.getId());
-            boolean eligibilityErrorFlag = false;
-            if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode())) {
-                if (LendingConstants.CALL_MASKED_MOBILE_FLOW.equals(globalLimitResponse.getErrorCode())) {
-                    loanDashboardResponse.setIsMaskedMobileCase(true);
-                }
-                eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
-                if(!eligibilityErrorFlag) {
-                    loanDashboardResponse.setEligibilityExceptionFlag(false);
-                    return;
-                }
-            }
-
-            loanDashboardResponse.setIneligible(getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse));
-            loanDashboardResponse.setChangeBankAccount(!loanUtil.isEnachBank(merchant.getId()));
-            if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
-                    (IneligibleType.ENACH.name().equalsIgnoreCase(loanDashboardResponse.getIneligible()) ||
-                            IneligibleType.CHANGE_BANK_ACCOUNT.name().equalsIgnoreCase(loanDashboardResponse.getIneligible()))
-            ){
-                setBankName(merchant.getId(), loanDashboardResponse);
-            }
-
-            loanDashboardResponse.setEligibilityExceptionFlag(eligibilityErrorFlag);
-            loanDashboardResponse.setRefreshCountDownMinutes(loanUtil.getRefreshCountDownMinutes(globalLimitResponse));
+        if (enableDiwaliBanner) {
+            handleDiwaliBanner(merchant, loanDashboardResponse);
         }
+
+        Experian experian = experianDao.getByMerchantId(merchant.getId());
+        if(ObjectUtils.isEmpty(experian) || Objects.isNull(experian.getPincode())){
+            log.info("No experian record for merchantId:{},returning empty records", merchant.getId());
+            return;
+        }
+
+        // Step 1: Check cached eligibility
+        Eligibility eligibility = checkCachedEligibility(merchant, loanDashboardResponse);
+        if (eligibility != null) {
+            return;
+        }
+
+        // Step 2: Fetch global limit response
+        MutableBoolean isDerog = new MutableBoolean(false);
+        GlobalLimitResponse globalLimitResponse = fetchGlobalLimitResponse(merchant, isDerog);
+
+        // Step 3: Process global limit response
+        Double eligibleAmount = processGlobalLimitResponse(merchant, globalLimitResponse, loanDashboardResponse, isDerog);
+
+        // Step 4: Recompute eligibility if eligible amount is greater than 0
+        if (eligibleAmount > 0D) {
+            log.info("Eligibility found for merchant:{}", merchant.getId());
+            eligibility = recomputeEligibility(merchant, globalLimitResponse);
+        }
+
+        // Step 5: Set pre-approved tag and funnel event
+        setPreApprovedTag(merchant, loanDashboardResponse);
+
+        if (eligibility != null) {
+            loanDashboardResponse.setEligibility(eligibility);
+            return;
+        }
+        log.info("Eligibility not found for merchant:{}", merchant.getId());
+        boolean eligibilityErrorFlag = false;
+        if(Objects.nonNull(globalLimitResponse)  && Objects.nonNull(globalLimitResponse.getErrorCode())) {
+            if (LendingConstants.CALL_MASKED_MOBILE_FLOW.equals(globalLimitResponse.getErrorCode())) {
+                loanDashboardResponse.setIsMaskedMobileCase(true);
+            }
+            eligibilityErrorFlag = loanUtil.isEligibilityErrorResponse(globalLimitResponse);
+            if(!eligibilityErrorFlag) {
+                loanDashboardResponse.setEligibilityExceptionFlag(false);
+                return;
+            }
+        }
+
+        String ineligibleReason = getIneligibleReason(merchant.getId(), isDerog, experian.getPincode(), globalLimitResponse);
+        loanDashboardResponse.setIneligible(ineligibleReason);
+        loanDashboardResponse.setChangeBankAccount(IneligibleType.CHANGE_BANK_ACCOUNT.name().equalsIgnoreCase(ineligibleReason));
+        if(Objects.nonNull(loanDashboardResponse.getIneligible()) &&
+                    (IneligibleType.ENACH.name().equalsIgnoreCase(loanDashboardResponse.getIneligible()) ||
+                            IneligibleType.CHANGE_BANK_ACCOUNT.name().equalsIgnoreCase(loanDashboardResponse.getIneligible()))) {
+            setBankName(merchant.getId(), loanDashboardResponse);
+        }
+
+        loanDashboardResponse.setEligibilityExceptionFlag(eligibilityErrorFlag);
+        loanDashboardResponse.setRefreshCountDownMinutes(loanUtil.getRefreshCountDownMinutes(globalLimitResponse));
+    }
+
+    private void setPreApprovedTag(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
+        loanDashboardResponse.setPreApprovedTag(getPreApprovedTag(merchant.getId()));
+        if (Objects.nonNull(loanDashboardResponse.getPreApprovedTag())) {
+            funnelService.submitEvent(merchant.getId(), null, null,
+                    FunnelEnums.StageId.LOAN_DASHBOARD, FunnelEnums.StageEvent.PREAPPROVED, loanDashboardResponse.getPreApprovedTag());
+        }
+    }
+    private Eligibility recomputeEligibility(BasicDetailsDto merchant, GlobalLimitResponse globalLimitResponse) {
+        LendingEligibleLoan eligibleLoan = recomputeEligibleLoan(globalLimitResponse, null, merchant.getId());
+        if (!ObjectUtils.isEmpty(eligibleLoan)) {
+            return createEligibility(merchant.getId(), eligibleLoan);
+        }
+        return null;
+    }
+
+    private Eligibility checkCachedEligibility(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
+        LendingEligibleLoan eligibleLoan = eligibleLoanDao.findTop1ByMerchantIdAndLoanTypeNotTopup(merchant.getId());
+        String bureauConsentKey = LendingConstants.BUREAU_CONSENT_KEY_PREFIX + merchant.getId();
+        int updatedEligibilityRefreshWindow = easyLoanUtil.percentScaleUp(merchant.getId(), newEligibilityRefreshWindowRolloutPercent)
+                ? newEligibilityRefreshWindow : eligibilityRefreshWindow;
+
+        if (Objects.nonNull(lendingCache.get(bureauConsentKey))) {
+            updatedEligibilityRefreshWindow = 0;
+            lendingCache.delete(bureauConsentKey);
+        }
+
+        Date dateWindow = dateTimeUtil.getDatePlusDays(dateTimeUtil.getCurrentDate(), -24 * updatedEligibilityRefreshWindow);
+        if (!ObjectUtils.isEmpty(eligibleLoan) && eligibleLoan.getCreatedAt().after(dateWindow)) {
+            log.info("Eligible offers exist for merchant: {}", merchant.getId());
+            Eligibility eligibility = createEligibility(merchant.getId(), eligibleLoan);
+            if (eligibility != null) {
+                log.info("Eligibility is not null for merchant: {}", merchant.getId());
+                loanDashboardResponse.setEligibility(eligibility);
+                return eligibility;
+            }
+        }
+        log.info("No cached eligibility found for merchant: {}", merchant.getId());
+        return null;
+    }
+
+    private GlobalLimitResponse fetchGlobalLimitResponse(BasicDetailsDto merchant, MutableBoolean isDerog) {
+        try {
+            return apiGatewayService.getGlobalLimit(merchant.getId(), isClubV2Member(merchant.getId()), EligibilityRequestSource.EASY_LOANS);
+        } catch (BureauCallMaskedApiException e) {
+            log.error("Exception occurred while fetching global limit for merchantId: {}, exception: {}", merchant.getId(), e);
+            return new GlobalLimitResponse();
+        }
+    }
+
+    private Double processGlobalLimitResponse(BasicDetailsDto merchant, GlobalLimitResponse globalLimitResponse, LoanDashboardResponse loanDashboardResponse, MutableBoolean isDerog) {
+        Double eligibleAmount = 0D;
+        if (globalLimitResponse != null && globalLimitResponse.getData() != null && globalLimitResponse.getData().getGlobalLimit() != null) {
+            log.info("Global limit for merchant: {} is {}", merchant.getId(), globalLimitResponse.getData().getGlobalLimit());
+            eligibleAmount = globalLimitResponse.getData().getGlobalLimit();
+            isDerog.setValue(globalLimitResponse.getData().isDerog());
+            loanDashboardResponse.setPreviousFinalOffer(globalLimitResponse.getData().getPreviousFinalOffer());
+            loanDashboardResponse.setOfferIncreased(globalLimitResponse.getData().getOfferIncreased());
+        }
+        return eligibleAmount;
+    }
+
+    private void handleDiwaliBanner(BasicDetailsDto merchant, LoanDashboardResponse loanDashboardResponse) {
+        Date diwaliBannerOneRolloutDateParsed = parseDate(diwaliBannerOneRolloutDate);
+        Date diwaliBannerOneEndDateParsed = parseDate(diwaliBannerOneEndDate);
+
+        Date diwaliBannerTwoRolloutDateParsed = parseDate(diwaliBannerTwoRolloutDate);
+        Date diwaliBannerTwoEndDateParsed = parseDate(diwaliBannerTwoEndDate);
+
+        if (!ObjectUtils.isEmpty(diwaliBannerOneRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerOneEndDateParsed)) {
+            if (new Date().after(diwaliBannerOneRolloutDateParsed) && new Date().before(diwaliBannerOneEndDateParsed)) {
+                log.info("Enabling diwali banner one for merchantId : {}", merchant.getId());
+                loanDashboardResponse.setDiwaliBannerType(getDiwaliBannerType(merchant.getId()));
+                loanDashboardResponse.setDiwaliBannerEndDate(new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS).format(diwaliBannerOneEndDateParsed));
+            }
+        }
+
+        if (!ObjectUtils.isEmpty(diwaliBannerTwoRolloutDateParsed) && !ObjectUtils.isEmpty(diwaliBannerTwoEndDateParsed)) {
+            if (new Date().after(diwaliBannerTwoRolloutDateParsed) && new Date().before(diwaliBannerTwoEndDateParsed)) {
+                log.info("Enabling diwali  banner two for merchantId : {}", merchant.getId());
+                loanDashboardResponse.setDiwaliBannerType(getDiwaliBannerType(merchant.getId()));
+                loanDashboardResponse.setDiwaliBannerEndDate(new SimpleDateFormat(YYYY_MM_DD_HH_MM_SS).format(diwaliBannerTwoEndDateParsed));
+            }
+        }
+    }
 
     private Date parseDate(String stringDate) {
         try {

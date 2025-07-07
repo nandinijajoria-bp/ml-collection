@@ -207,7 +207,7 @@ public class DsHandler {
             HttpEntity<Object> request = new HttpEntity<>(headers);
             String url = deMileStoneBaseUrl + "/rte/merchant_milestone/v3" + "?merchant_id=" + merchantId + "&bureauScore=" + bureauScore + "&bbsScore=" + bbsScore + "&pincodeColor=" + pincodeColor + "&loanAmount=" + loanAmount;
 
-            log.info("DE get MileStone for merchantId: {}, request: {} url: {}", merchantId, mapper.writeValueAsString(request), url);
+            log.info("DE get MileStone for merchantId: {}, url: {}, request: {}", merchantId, url, mapper.writeValueAsString(request));
 
             try {
                 ResponseEntity<String> responseEntity = restTemplate.exchange(

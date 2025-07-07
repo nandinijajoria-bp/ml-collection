@@ -33,6 +33,10 @@
             width: 24%;
         }
 
+        .width-25 {
+            width: 25%;
+        }
+
         .width-70 {
             width: 70%;
         }
@@ -121,12 +125,12 @@
     <table border="1" cellspacing="0" class="width-100 mb20 word-wrap" style="table-layout: fixed; page-break-after: always;">
         <tbody>
         <tr class="width-100">
-            <td class="bold text-center width-6">1</td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-24">
+            <td class="bold text-center width-25">1</td>
+            <td colspan="6" style="padding: 0px 5px;" class="width-25">
                 <p style="margin: 6px 16px;" class="fw600 text-left">Sanctioned Loan Amount (in
                     Rupees)</p>
             </td>
-            <td colspan="6" style="padding: 0px 5px;" class="width-70 word-wrap">
+            <td colspan="6" style="padding: 0px 5px;" class="width-50 word-wrap">
                 <p style="margin: 6px 16px;" class="fw400 text-left">Rs. {{loan_amount_in_figure}}/- (Rupees
                     {{loan_amount_in_words}} only)</p>
             </td>
@@ -631,11 +635,11 @@
     <table border="1" cellspacing="0" class="width-100 mb20 text-justify word-wrap" style="table-layout: fixed;">
         <tbody>
         <tr class="width-100">
-            <td class="bold text-center width-6">1</td>
-            <td colspan="6" style="padding: 0px 5px" class="width-24">
+            <td class="bold text-center width-25">1</td>
+            <td colspan="6" style="padding: 0px 5px" class="width-25">
                 <p style="margin: 6px 16px" class="fw600 text-left">Borrower</p>
             </td>
-            <td colspan="6" style="padding: 0px 5px" class="word-wrap width-70">
+            <td colspan="6" style="padding: 0px 5px" class="word-wrap width-50">
                 <p style="margin: 6px 16px" class="fw600 text-left">{{borrower_name}}</p>
                 <p style="margin: 6px 16px" class="fw600 text-left">{{address_of_borrower}}</p>
                 <p style="margin: 6px 16px" class="fw600 text-left"><span>{{email_of_borrower}}

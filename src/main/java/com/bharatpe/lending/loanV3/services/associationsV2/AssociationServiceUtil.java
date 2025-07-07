@@ -284,6 +284,9 @@ public class AssociationServiceUtil {
     @Autowired
     VKycService vKycService;
 
+    @Autowired
+    PayUUpdateLeadService payUUpdateLeadService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -763,7 +766,26 @@ public class AssociationServiceUtil {
         }
     }
 
-    public boolean invokeSkipVkyc(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
-        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto.getMerchantId(),  lenderAssociationDetailsRequestDto.getApplicationId(), lender);
+    public boolean invokeSkipVkyc(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto);
+    }
+
+
+    public boolean invokeAddressUpdateService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "PAYU":
+                return payUUpdateLeadService.invokeUpdateAddress(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeBankAccountUpdateService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "PAYU":
+                return payUUpdateLeadService.invokeBankAccountUpdation(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
     }
 }

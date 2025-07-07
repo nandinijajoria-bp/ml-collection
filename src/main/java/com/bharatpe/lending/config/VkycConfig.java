@@ -27,5 +27,6 @@ public class VkycConfig {
     private String initiateVkycUrl = "/api/v1/vkyc//init-session";
     private String vkycStatusUrl = "/api/v1/vkyc/status-check";
     private String skipVkycUrl = "/api/v1/vkyc/skip-vkyc";
+    private Integer minAppVersion = 7295;
 
 }

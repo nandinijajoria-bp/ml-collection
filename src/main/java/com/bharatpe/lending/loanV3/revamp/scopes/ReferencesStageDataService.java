@@ -49,6 +49,8 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())) {
+            //TODO: Next Page will change according to configs
+
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         }
         return lendingStateDTO;

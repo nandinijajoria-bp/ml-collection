@@ -70,6 +70,8 @@ public class AbflApiGateway extends INbfcLenderGateway {
     @Value("${nbfc.pennydrop.read.timeout:30000}")
     int nbfcPennyDropReadTimeout;
 
+    @Value("${abfl.foreclosure.details.timeout.threshold:20000}")
+    Integer abflForeclosureDetailsTimeoutThreshold;
 
     @Autowired
     ObjectMapper objectMapper;
@@ -134,7 +136,7 @@ public class AbflApiGateway extends INbfcLenderGateway {
 
     public ForeClosureAmountResponse fetchDueForeclosureAmount(ForeclosureAmountRequest foreclosureAmountRequest) {
         try {
-            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class,nbfcBaseUrl+nbfcForeClosureAmtUrl);
+            return nbfcLenderGateway.invoke(objectMapper.writeValueAsString(foreclosureAmountRequest), ForeClosureAmountResponse.class,nbfcBaseUrl+nbfcForeClosureAmtUrl, abflForeclosureDetailsTimeoutThreshold);
         } catch (JsonProcessingException e) {
             log.error("exception occurred while fetching foreclosure amt to nbfc svc for {}",foreclosureAmountRequest, e);
         }

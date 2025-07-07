@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
 import com.bharatpe.lending.service.RedisNotificationService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,9 @@ public class LoanClosureServiceImpl implements LoanClosureService {
     @Autowired
     ForeClosureAmountInfoDao foreClosureAmountInfoDao;
 
+    @Autowired
+    LenderForeclosureCachingService lenderForeclosureCachingService;
+
     @Override
     public void closeLoanAndUpdateLender(LendingPaymentSchedule loan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
         log.info("inside close loan and update lender for loanId {} orderId {} ",loan.getId(),loanClosureDTO.getOrderId());
@@ -74,6 +78,7 @@ public class LoanClosureServiceImpl implements LoanClosureService {
 
 
     private void postClosureStatusToLender(LendingPaymentSchedule activeLoan, LendingLedger lendingLedger, LoanClosureDTO loanClosureDTO) {
+        lenderForeclosureCachingService.evictLenderForeclosureDetailsCache(activeLoan.getNbfc(), activeLoan.getApplicationId());
         Long orderId = loanClosureDTO.getOrderId();
         if (activeLoan.getStatus().equalsIgnoreCase(Status.LendingStatus.CLOSED.toString())) {
             if ("LDC".equals(activeLoan.getNbfc())) {

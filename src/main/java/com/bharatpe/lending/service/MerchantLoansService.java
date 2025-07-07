@@ -752,6 +752,7 @@ public class MerchantLoansService {
 
                 try {
                     List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, false);
+                    log.info("calculated topup_loan eligibility: {}", loans);
                     List<LoanEligibilityDTO> rejectedLoans = loans.stream()
                             .filter(dto -> dto.getIsRejected() != null && dto.getIsRejected()) // Keep objects where isRejected is true
                             .collect(Collectors.toList());
@@ -1133,6 +1134,7 @@ public class MerchantLoansService {
     }
 
     public List<LoanEligibilityDTO> topupLoan(LendingPaymentScheduleSlave lendingPaymentSchedule, boolean createTopupAppCheck) {
+        log.info("calculating topup loan eligibility for merchantId: {}", lendingPaymentSchedule.getMerchantId());
         List<Long> derogMerchants = loanUtil.loadDerogEffectedMerchants();
         List<Long> customEnabledMerchants = loanUtil.customEnabledTopupMerchants();
         LendingApplication lendingApplication =
@@ -1365,9 +1367,28 @@ public class MerchantLoansService {
                 Double settlementAmount = lendingLedgerDao.findSettlementAmount(lendingPaymentSchedule.getId());
                 double qrPaidRatio = (settlementAmount / lendingPaymentSchedule.getPaidAmount()) * 100;
                 if (qrPaidRatio <= topupMinQrPaidRatio) {
-                    addRejectionReason(eligiblity, "QR payment less than 40%");
-                    logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
-                    return eligiblity;
+                    if(lendingApplication.getTenureInMonths() >= 12 && TRILLIONLOANS.name()
+                            .equalsIgnoreCase(lendingApplication.getLender())) {
+                        logger.info("Skipping QR rejection due to tenure >= 12 and lender is TRILLIONLOANS" +
+                                        " for merchant: {}", lendingPaymentSchedule.getMerchantId());
+                    } else {
+                        addRejectionReason(eligiblity, "QR payment less than 40%");
+                        logger.info("QR payment less than {} in tenure {} for merchant: {}", topupMinQrPaidRatio,
+                                lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
+                        return eligiblity;
+                    }
+                }
+
+                if(lendingApplication.getTenureInMonths() >= 12 && TRILLIONLOANS.name()
+                        .equalsIgnoreCase(lendingApplication.getLender())) {
+                    int ediPaidDays = lendingPaymentSchedule.getEdiCount() - lendingPaymentSchedule.getEdiRemainingCount();
+                    if(ediPaidDays <= 120) {
+                        addRejectionReason(eligiblity, "Edi paid days is less than 120");
+                        logger.info("Edi paid days is less than {} for tenure {} for merchant: {} and lender: {}", 120,
+                                lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId(),
+                                lendingApplication.getLender());
+                        return eligiblity;
+                    }
                 }
 
                 double paidRatio = 0d;
@@ -1387,6 +1408,8 @@ public class MerchantLoansService {
                     logger.info("paid ratio is {} for tenure {} months of merchantId: {}", paidRatio, lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
                     return AdditionalTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
                 }
+                log.info("topup eligibility checks failed for merchantId: {}, paidRatio: {}, tenure: {}, lender: {}",
+                        lendingPaymentSchedule.getMerchantId(), paidRatio, lendingApplication.getTenureInMonths(), lendingApplication.getLender());
             }
         } catch (Exception e) {
             logger.error("Exception occurred while checking eligibility for topup", e);

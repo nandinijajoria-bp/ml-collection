@@ -84,4 +84,13 @@ public interface LendingPaymentScheduleDao extends CrudRepository<LendingPayment
 	)
 	List<LendingPaymentSchedule> findByMerchantIdAndLmsSource(Long merchantId, String lmsSource);
 
+	@Query(
+			value = "SELECT COALESCE(count(lps.id), 0) FROM lending_payment_schedule lps " +
+					"JOIN autopay_upi autopay ON lps.application_id = autopay.application_id " +
+					"WHERE lps.created_at > '2025-06-30' " +
+					"AND lps.status = 'ACTIVE' " +
+					"AND lps.lms_source = '1LMS'",
+			nativeQuery = true
+	)
+	Long countLmsAutoPayApplication();
 }

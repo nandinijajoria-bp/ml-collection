@@ -12,6 +12,7 @@ import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -30,6 +31,9 @@ public class MFForeclosureService  {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Value("${muthoot.foreclosure.details.timeout.threshold:20000}")
+    Integer muthootForeclosureDetailsTimeoutThreshold;
+
     public Double getForeclosureDetails(Long applicationId) {
         LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(applicationId, Lender.MUTHOOT.name());
         if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -45,7 +49,7 @@ public class MFForeclosureService  {
                         .program("EDI")
                         .build())
                 .build();
-        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH);
+        NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH, muthootForeclosureDetailsTimeoutThreshold);
         try {
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 MFForeclosureDetailsResponseDTO response = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), MFForeclosureDetailsResponseDTO.class);

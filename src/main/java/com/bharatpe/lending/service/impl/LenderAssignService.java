@@ -1903,7 +1903,7 @@ public class LenderAssignService implements ILenderAssignService {
                                 }
                             }
 
-                            Pair<Boolean, String> lenderChecksResponse = runLenderChecksForApplication(application, lender, riskVariables, merchantDetails);
+                            Pair<Boolean, String> lenderChecksResponse = runLenderChecksForApplication(application, lender, riskVariables);
                             boolean lenderChecksSuccess = lenderChecksResponse.getKey();
                             if (!lenderChecksSuccess) {
                                 String remarks = lenderChecksResponse.getValue();
@@ -1971,7 +1971,7 @@ public class LenderAssignService implements ILenderAssignService {
         }
     }
 
-    private Pair<Boolean, String> runLenderChecksForApplication(LendingApplication application, String lender, RiskVariablesDTO riskVariables, BasicDetailsDto merchantDetails) {
+    private Pair<Boolean, String> runLenderChecksForApplication(LendingApplication application, String lender, RiskVariablesDTO riskVariables) {
         boolean success = true;
         String response = null;
         Lender lenderEnum = Lender.valueOf(lender);
@@ -2046,16 +2046,19 @@ public class LenderAssignService implements ILenderAssignService {
                     success = false;
                     break;
                 }
-                String category = null, subcategory = null;
-                if (!ObjectUtils.isEmpty(merchantDetails)) {
-                    category = merchantDetails.getBussinessCategory();
-                    subcategory = merchantDetails.getSubCategory();
-                }
-                if (REGULAR_ETC.name().equalsIgnoreCase(riskSegment) && riskVariables.isSTPFlag() && application.getLoanAmount() <= 200000 &&
-                        (ObjectUtils.isEmpty(category) || ObjectUtils.isEmpty(subcategory))) {
-                    response = "skipping smfg for application id : " + applicationId + " due to risk segment: " + riskVariables.getRiskSegment() + ", loan amount: " + application.getLoanAmount() + " is smaller than 200000 and category " + category + " or subcategory " + subcategory + " is empty";
-                    success = false;
-                    break;
+                if (REGULAR_ETC.name().equalsIgnoreCase(riskSegment)) {
+                    String category = null, subcategory = null;
+                    Optional<BasicDetailsDto> merchantDetailsOptional = merchantService.fetchMerchantBasicDetails(application.getMerchantId());
+                    if (merchantDetailsOptional.isPresent()) {
+                        category = merchantDetailsOptional.get().getBussinessCategory();
+                        subcategory = merchantDetailsOptional.get().getSubCategory();
+                    }
+                    if (riskVariables.isSTPFlag() && application.getLoanAmount() <= 200000 &&
+                            (ObjectUtils.isEmpty(category) || ObjectUtils.isEmpty(subcategory))) {
+                        response = "skipping smfg for application id : " + applicationId + " due to risk segment: " + riskVariables.getRiskSegment() + ", loan amount: " + application.getLoanAmount() + " is smaller than 200000 and category " + category + " or subcategory " + subcategory + " is empty";
+                        success = false;
+                        break;
+                    }
                 }
                 break;
             case OXYZO:

@@ -69,4 +69,6 @@ public class SmfgConfig {
     private String LmsLatitude = "28.6127356";
     private String foreclosureTowards = "FORECLOSURE";
     private Long onlinePaymentType = 1000000009L;
+    private Integer foreclosureDetailsTimeoutThreshold = 20000;
+
 }

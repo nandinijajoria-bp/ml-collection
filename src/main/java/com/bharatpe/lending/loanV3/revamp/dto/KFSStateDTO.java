@@ -1,6 +1,5 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
-import com.bharatpe.lending.loanV2.dto.LoanApplicationDetails;
 import lombok.*;
 
 @Data
@@ -18,4 +17,5 @@ public class KFSStateDTO {
     private Boolean agreementDone;
     private String lender;
     private Long merchantId;
+    private boolean dedicatedUpiAutoPayScreenEligible;
 }

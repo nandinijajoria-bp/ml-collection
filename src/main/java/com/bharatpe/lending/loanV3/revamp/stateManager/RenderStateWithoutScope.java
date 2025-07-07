@@ -7,7 +7,6 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.VkycStatus;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
-import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
@@ -36,7 +35,6 @@ import org.springframework.util.ObjectUtils;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -147,11 +145,8 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             log.info("show status page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
-        //To check if user has a repeat loan
-        Optional<LendingPaymentScheduleSlave> lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findLatestClosedLoan(scopeDataArgs.getMerchant().getId());
-        if (showPanPinPage && lendingPaymentSchedule.isPresent()) {
-            panPinForRepeatMerchnant(scopeDataArgs, loanDetailsV3Response);
-            log.info("repeat loan exist {}", scopeDataArgs);
+        if (showPanPinPage && panPinForMerchnant(scopeDataArgs, loanDetailsV3Response)) {
+            log.info("show pan pin page {}", scopeDataArgs);
             return loanDetailsV3Response;
         }
 
@@ -225,15 +220,15 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     }
 
 
-    public LendingStateDTO<PANPINStateDTO> panPinWorkflowForRepeatMerchant () {
+    public LendingStateDTO<PANPINStateDTO> panPinWorkflowMerchant() {
         LendingStateDTO<PANPINStateDTO> lendingStateDTO = new LendingStateDTO<>();
         lendingStateDTO.setScopeState(LendingViewStates.PAN_PIN_PAGE);
         return lendingStateDTO;
     }
 
-    public boolean panPinForRepeatMerchnant(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+    public boolean panPinForMerchnant(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
         log.info("Show Pan Pin Page For Merchant {}", scopeDataArgs.getMerchant().getId());
-        LendingStateDTO<PANPINStateDTO> lendingStateDTO = panPinWorkflowForRepeatMerchant();
+        LendingStateDTO<PANPINStateDTO> lendingStateDTO = panPinWorkflowMerchant();
         return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
     }
 

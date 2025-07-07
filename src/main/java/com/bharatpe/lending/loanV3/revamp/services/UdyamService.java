@@ -6,8 +6,10 @@ import com.bharatpe.lending.common.util.AesEncryptionUtil;
 import com.bharatpe.lending.common.util.LendingHmacCalculator;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dto.UdyamFetchTriggerResponse;
+import com.bharatpe.lending.util.EdiUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -19,9 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @Service
@@ -37,7 +43,30 @@ public class UdyamService {
     @Value("${kyc.service.base.url}")
     private String kycServiceHost;
 
-    public void triggerFetchUdyamCertificate(Long applicationId, Long merchantId, String lender){
+    private ExecutorService udyamExecutor;
+
+    @PostConstruct
+    public void init() {
+        udyamExecutor = Executors.newSingleThreadExecutor();
+    }
+
+    @PreDestroy
+    public void destroy() {
+        if (udyamExecutor != null && !udyamExecutor.isShutdown()) {
+            udyamExecutor.shutdown();
+        }
+    }
+
+    public void triggerFetchUdyamCertificateAsync(Long applicationId, Long merchantId, String lender){
+        try{
+            udyamExecutor.submit(()-> triggerFetchUdyamCertificate(applicationId, merchantId, lender));
+        }catch (Exception exception){
+            log.error("Exception occurred while triggering udyam fetch(asynchronously) for applicationId: {}, merchantId: {}, lender: {}. Error: {}",
+                    applicationId, merchantId, lender, exception.getMessage());
+        }
+    }
+
+    private void triggerFetchUdyamCertificate(Long applicationId, Long merchantId, String lender){
         if(Objects.isNull(applicationId) || StringUtils.isEmpty(lender)){
             log.warn("invalid entry to fetch udyam, for merchant_id, application_id and lender are:{}, {}, {}", merchantId, applicationId, lender);
             return;
