@@ -96,10 +96,12 @@ import java.util.stream.Collectors;
 
 import static com.bharatpe.lending.common.enums.LoanSettlementMechanism.EDI_BY_EDI;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
+import static com.bharatpe.lending.constant.CommonConstants.OK;
 import static com.bharatpe.lending.constant.CreditConstants.PaymentStatus.SUCCESS;
 import static com.bharatpe.lending.constant.LendingConstants.AUTO_PAY_SETTLEMENT;
 import static com.bharatpe.lending.constant.LendingConstants.UPI_AUTOPAY_ADJUSTMENT_MODE;
 import static com.bharatpe.lending.constant.PaymentConstants.EXCESS_NACH_TERMINAL_ORDER_ID_SUFFIX;
+import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ONE_LMS;
 
 @Service
 @Slf4j
@@ -360,6 +362,9 @@ public class PaymentService {
 
     @Autowired
     LenderForeclosureCachingService lenderForeclosureCachingService;
+
+    @Value("${lms.previous.mandate.failed:3}")
+    private int lmsPreviousMandateFailed;
 
 
     public PaymentDetailsResponseDTO getPaymentDetails(BasicDetailsDto merchant, Boolean showForeClosureDetails) {
@@ -983,6 +988,23 @@ public class PaymentService {
                                 return "OK";
                             }
                         } else {
+                            if((ONE_LMS).equalsIgnoreCase(lendingPaymentSchedule.getLmsSource())){
+                                logger.info("1LMS autopay mandate failed for loanId {} and lendingPullPaymentId {}",lendingPullPayment.getLoanId(),lendingPullPayment.getId());
+                                lendingPullPayment.setStatus(request.getPaymentStatus());
+                                lendingPullPayment.setErrorDescription(request.getErrorDescription());
+                                lendingPullPaymentDao.save(lendingPullPayment);
+                                List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),lmsPreviousMandateFailed);
+                                log.info("consecutive records for id {} lendingPullPaymentList size is {}",lendingPullPayment.getId(),lendingPullPaymentList.size());
+                                if(checkConsecutiveFailures(lendingPullPaymentList,lmsPreviousMandateFailed) ){
+                                    log.info("Consecutive failures found for mandateId {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
+                                    List<String> statusList = new ArrayList<>();
+                                    statusList.add(AutoPayStatusEnum.ACTIVE.name());
+                                    AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getNbfc(), statusList);
+                                    autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.HARD_QR_DEDUCTION.name());
+                                    autoPayUPIDao.save(autoPayUPI);
+                                }
+                                return OK;
+                            }
                             lendingPullPayment.setErrorDescription(request.getErrorDescription());
                             lendingPullPayment.setStatus(request.getPaymentStatus());
                             lendingPullPaymentDao.save(lendingPullPayment);
