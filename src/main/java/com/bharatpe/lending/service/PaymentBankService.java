@@ -1,13 +1,11 @@
 package com.bharatpe.lending.service;
 
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.enums.PaymentBank;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,7 +18,7 @@ public class PaymentBankService {
     Integer minimumThresholdForFreshUser;
 
     @Value("${minimum.threshold.repeat.topup.loan:150000}")
-    Integer minimumThresholdForRepeatAndTopupLoan;
+    Integer minimumThresholdForRepeatUser;
 
     private final LoanUtil loanUtil;
 
@@ -36,16 +34,9 @@ public class PaymentBankService {
             log.info("MerchantId {} is not using a payment bank", merchantId);
             return false;
         }
-        String loanType = lendingApplication.getLoanType();
-        if (loanType != null && LoanType.TOPUP.name().equalsIgnoreCase(loanType)) {
-            log.info("Loan type is TOPUP for lending application: {}", lendingApplication.getId());
-        }
         boolean repeatLoan = loanUtil.isRepeatLoan(merchantId);
-        if (repeatLoan || LoanType.TOPUP.name().equalsIgnoreCase(loanType)) {
-            return lendingApplication.getLoanAmount() > minimumThresholdForRepeatAndTopupLoan;
-        } else {
-            return lendingApplication.getLoanAmount() > minimumThresholdForFreshUser;
-        }
+        double loanAmount = repeatLoan ? minimumThresholdForRepeatUser : minimumThresholdForFreshUser;
+        return lendingApplication.getLoanAmount() > loanAmount;
     }
 
 
