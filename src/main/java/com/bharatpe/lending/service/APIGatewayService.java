@@ -60,6 +60,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
@@ -120,6 +121,7 @@ public class APIGatewayService {
     @Value("${pg.percent:10}")
     Integer pgPercent;
 
+    @Getter
     @Value("${upi.percent}")
     Integer upiPercent;
     @Autowired
@@ -2464,6 +2466,7 @@ public class APIGatewayService {
         logger.info("age from kycDocs : {} for merchant: {}",age, merchantId);
         return age;
     }
+
 
     public Date parseKycDob(String dob){
         Date dateOfBirth = null;
