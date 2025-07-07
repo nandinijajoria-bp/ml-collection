@@ -48,6 +48,7 @@ public class UgroConfig {
     private String grievanceTIme = "9.30 am to 6 pm, Monday to Friday";
 
     private String defaultBsrCode = "74101";
+    private Integer foreclosureDetailsTimeoutThreshold = 20000;
 
     public String getBsrCode(String key) {
         Map<String, String> bsrCodeMap = new HashMap<>();

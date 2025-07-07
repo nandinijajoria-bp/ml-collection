@@ -1,8 +1,11 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.loanV3.revamp.dto.AgreementStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -38,11 +41,16 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
     @Autowired
     private LoanUtil loanUtil;
 
+    @Autowired
+    private LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
     @Override
     public LendingStateDTO<ReferenceStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())) {
+            //TODO: Next Page will change according to configs
+
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         }
         return lendingStateDTO;
@@ -59,18 +67,29 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
             log.info("scope application id {}", scopeDataArgs.getApplicationId());
+
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
             log.info("lendingApplication {} and status {}", lendingApplication, lendingApplication.getStatus());
+
             if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
                 referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
                 referenceStateDTO.setLender(lendingApplication.getLender());
                 referenceStateDTO.setLoanType(lendingApplication.getLoanType());
             }
+
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(scopeDataArgs.getApplicationId());
+
+            if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+                log.info("Lending Application Details not found for applicationId: {}", lendingApplication.getId());
+                throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(), LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
+            }
+            referenceStateDTO.setIsAadhaarAddressVerified(!ObjectUtils.isEmpty(lendingApplicationDetails.getCurrentAddressSameAsPermanentAddress()));
+            referenceStateDTO.setLoanPurpose(lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name()) && ObjectUtils.isEmpty(lendingApplicationDetails.getLoanPurpose()));
+
             if(!ObjectUtils.isEmpty(scopeDataArgs.getMerchant())) {
                 referenceStateDTO.setMerchantName(loanUtil.getBeneficiaryName(scopeDataArgs.getMerchant().getId()));
                 referenceStateDTO.setMobile(scopeDataArgs.getMerchant().getMobile());
             }
-
 
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
         } catch (Exception e) {

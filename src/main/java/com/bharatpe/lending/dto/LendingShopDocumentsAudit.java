@@ -11,4 +11,5 @@ import lombok.NoArgsConstructor;
 public class LendingShopDocumentsAudit {
     LendingShopDocuments lendingShopDocuments;
     Boolean resubmittedDoc;
+    String skipFailureReason;
 }

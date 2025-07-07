@@ -58,7 +58,10 @@ public class NachBounceChargesService {
     @Value("${piramal.nach.bounce.charge:500}")
     Integer piramalNachBounceCharge;
 
-    @Value("${lender.nach.bounce.check:PAYU,PIRAMAL}")
+    @Value("${credit.saison.nach.bounce.charge:500}")
+    Integer creditSaisonNachBounceCharge;
+
+    @Value("${lender.nach.bounce.check:PAYU,PIRAMAL,CREDITSAISON}")
     List<String> LENDER_NACH_BOUNCE_CHECK;
 
     @Value("${flat.overdue.penalty.piramal.rollout.date:-}")
@@ -66,6 +69,9 @@ public class NachBounceChargesService {
 
     @Value("${dpd.penalty.payu.rollout.date:-}")
     String dpdPenaltyPayURolloutDate;
+
+    @Value("${creditsaison.charges.rollout.date:-}")
+    private String creditSaisonChargesRolloutDate;
 
     public Double getNachCharges(LendingPaymentSchedule lendingPaymentSchedule) {
         Double nachCharges = 0d;
@@ -110,6 +116,9 @@ public class NachBounceChargesService {
             case "PAYU":
                 return dpdPenaltyPayURolloutDate;
 
+            case "CREDITSAISON":
+                return creditSaisonChargesRolloutDate;
+
             default:
               return null;
         }
@@ -121,6 +130,8 @@ public class NachBounceChargesService {
                 return piramalNachBounceCharge;
             case "PAYU":
                 return payUNachBounceCharge;
+            case "CREDITSAISON":
+                return creditSaisonNachBounceCharge;
             default:
                 return null;
         }
@@ -164,7 +175,8 @@ public class NachBounceChargesService {
     }
 
     public boolean checkForNachBounce(LendingPaymentSchedule activeLoan) {
-        if(LendingEnum.LENDER.PIRAMAL.toString().equals(activeLoan.getNbfc())){
+        List<String> eligibleLendersList = Arrays.asList(LendingEnum.LENDER.PIRAMAL.toString(), LendingEnum.LENDER.CREDITSAISON.toString());
+        if(eligibleLendersList.contains(activeLoan.getNbfc())){
             return checkForNachBounceV2(activeLoan);
         }
         Date loanStartDate = activeLoan.getStartDate();

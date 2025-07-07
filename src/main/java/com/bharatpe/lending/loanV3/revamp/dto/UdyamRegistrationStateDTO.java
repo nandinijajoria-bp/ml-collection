@@ -15,4 +15,5 @@ public class UdyamRegistrationStateDTO {
     private Boolean isTopup;
     private String externalLoanId;
     private Boolean isUdyamRequired;
+    private String udyamStatus;
 }

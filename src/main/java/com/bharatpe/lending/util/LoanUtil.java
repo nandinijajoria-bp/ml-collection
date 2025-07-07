@@ -50,15 +50,13 @@ import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
-import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
-import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
 import com.bharatpe.lending.service.PaymentBankService;
@@ -73,6 +71,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
@@ -263,6 +262,7 @@ public class LoanUtil {
 	LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
 	@Autowired
+	@Lazy
 	LendingApplicationServiceV2 lendingApplicationServiceV2;
 
 	@Autowired
@@ -279,9 +279,6 @@ public class LoanUtil {
 
     @Autowired
 	ForeClosureConfigDao foreClosureDao;
-
-	@Autowired
-	LendingLoanInsuranceDao lendingLoanInsuranceDao;
 
 	@Value("${update.ifsc.piramal:false}")
 	boolean updateIfscForPiramal;
@@ -321,12 +318,6 @@ public class LoanUtil {
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
 	@Autowired
-	LenderAssociationStageFactory lenderAssociationStageFactory;
-
-	@Autowired
-	AbflForeclosureFetchService abflForeclosureFetchService;
-
-	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
 
 	@Autowired
@@ -340,6 +331,8 @@ public class LoanUtil {
 
 	@Value("${eligibleLoan.creation.skip.rollout:0}")
 	Integer eligibleLoanCreationSkipRollout;
+	@Value("${round.down.eligible.lenders:TRILLIONLOANS}")
+	private List<String> roundDownEligibleLenders;
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
@@ -421,6 +414,9 @@ public class LoanUtil {
 	PenaltyFeeLedgerDao penaltyFeeLedgerDao;
 	@Autowired
 	PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
+
+	@Autowired
+	LenderForeclosureCachingService lenderForeclosureCachingService;
 
 	@PostConstruct
 	public void init(){
@@ -1172,10 +1168,11 @@ public class LoanUtil {
 		dsHandler.pushKafkaAudit(kafkaAudit);
 	}
 
-	private void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
+	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			if (lendingRiskVariables != null) {
+			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
@@ -1665,12 +1662,12 @@ public class LoanUtil {
 
 	public double getForeClosureAmountForLender(LendingPaymentSchedule lendingPaymentSchedule) {
 		Double netForeclosureAtLender = 0d;
-		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
-		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
-			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
+		if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+			netForeclosureAtLender = (double) getForeclosureAmount(lendingPaymentSchedule);
+			return netForeclosureAtLender;
 		}
+		LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
+		netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		return netForeclosureAtLender;
 	}
 
@@ -2698,16 +2695,6 @@ public class LoanUtil {
 		return rejectedLenderMapping.getOrDefault(lender, lender);
 	}
 
-	public LendingLoanInsurance getInsuranceDetails(Long applicationId, String lender, String status) {
-		if (ObjectUtils.isEmpty(applicationId) || ObjectUtils.isEmpty(lender) || ObjectUtils.isEmpty(status)) {
-			return null;
-		}
-
-		return lendingLoanInsuranceDao.findByApplicationIdAndLenderAndStatus(
-				applicationId,
-				lender,
-				status);
-	}
 	public List<EnachModeDTO> getEnachModes(Long merchantId) {
 		LendingNachBankResponseDTO lendingNachBankResponse = getEnachBankMode(merchantId);
 
@@ -2849,7 +2836,7 @@ public class LoanUtil {
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
 				|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
-			logger.info("max pricing values not found values -> {} {} {} {}", maxValuesDto.getMaxApr(), maxValuesDto.getMaxIrr(), maxValuesDto.getMaxProcessingFeeRate(), maxValuesDto.getMaxInterestRate());
+			logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
 			return null;
 		}
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
@@ -2884,14 +2871,21 @@ public class LoanUtil {
 		return 0D;
 	}
 
-	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount){
+	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
 		eligibleLoan.setRateOfInterest(interestRate);
 		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
-		Double ediAmount = Math.ceil((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		if(!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)){
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		}else{
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
 		Double repayment = ediAmount * eligibleLoan.getEdiCount();
 		eligibleLoan.setProcessingFee(processingFee.intValue());
 		eligibleLoan.setRepayment(repayment.intValue());
-		eligibleLoan.setEdi(ediAmount.intValue());
+		eligibleLoan.setEdi((int) ediAmount);
 		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
 		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
 		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
@@ -2963,6 +2957,8 @@ public class LoanUtil {
 				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 			}
 			else {
+				penaltyFeeLedger.setPostingStatus("FAILED");
+				penaltyFeeLedgerDao.save(penaltyFeeLedger);
 				logger.info("Piramal: penalty  posting failed to request {} response {}",piramalForeclosureChargesRequestDto, nbfcResponseDto);
 			}
 		} catch (JsonProcessingException e) {
@@ -3101,6 +3097,43 @@ public class LoanUtil {
 			logger.error("Exception in checking BT application for applicationId {} {}", lendingApplication.getId(), Arrays.asList(e.getStackTrace()));
 		}
 		return false;
+	}
+
+	public void createLendingAuditTrailDTO(LendingApplication lendingApplication) {
+
+		LendingAuditTrailDTO lendingAuditTrailDTO = LendingAuditTrailDTO.builder()
+				.applicationId(lendingApplication.getId())
+				.merchantId(lendingApplication.getMerchantId())
+				.shopNumber(lendingApplication.getShopNumber())
+				.streetAddress(lendingApplication.getStreetAddress())
+				.area(lendingApplication.getArea())
+				.landmark(lendingApplication.getLandmark())
+				.pincode(String.valueOf(lendingApplication.getPincode()))
+				.city(lendingApplication.getCity())
+				.state(lendingApplication.getState())
+				.businessName(lendingApplication.getBusinessName())
+				.createdAt(new Date())
+				.updatedAt(new Date())
+				.source("LENDING")
+				.remarks("Audit trail created for SHOP_DETAILS")
+				.build();
+		saveLendingAuditTrailToBQ(lendingAuditTrailDTO);
+	}
+
+	public void saveLendingAuditTrailToBQ(LendingAuditTrailDTO lendingAuditTrailDTO) {
+		try {
+			if (lendingAuditTrailDTO == null) {
+				logger.warn("AuditTrailDTO is null, skipping BQ save.");
+				return;
+			}
+			Map<String, Object> auditTrailData = objectMapper.convertValue(lendingAuditTrailDTO, Map.class);
+			bqPublisherUtil.publish("lending","lending_audit_trail", auditTrailData);
+			logger.info("Successfully saved AuditTrailDTO to BQ: {}", lendingAuditTrailDTO);
+		}
+		catch (Exception e) {
+			logger.error("Error while saving lending audit trail to BQ for applicationId: {}, error: {}",
+					lendingAuditTrailDTO.getApplicationId(), e.getMessage(), e);
+		}
 	}
 }
 

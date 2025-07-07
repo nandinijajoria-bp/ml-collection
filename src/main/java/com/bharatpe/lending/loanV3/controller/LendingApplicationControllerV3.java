@@ -156,14 +156,6 @@ public class LendingApplicationControllerV3 {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/stageDetails")
-    public ResponseEntity<?> stageDetails(@RequestBody InvokeStageRequestDTO invokeStageRequest) {
-        log.info("initiated the stage details request {}", invokeStageRequest);
-        NBFCResponseDTO<?> response = lendingApplicationServiceV3.getStageDetails(invokeStageRequest);
-        HttpStatus status = response.getSuccess() ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
-        return ResponseEntity.status(status).body(response);
-    }
-
     @PostMapping("/retryStage")
     public ResponseEntity<RetryStageRequestDTO> retrySpecificStage(@RequestBody RetryStageRequestDTO retryStageRequestDTO) {
         log.info("initiated the retry stage request {}", retryStageRequestDTO);

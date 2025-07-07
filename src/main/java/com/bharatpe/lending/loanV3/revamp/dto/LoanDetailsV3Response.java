@@ -1,21 +1,14 @@
 package com.bharatpe.lending.loanV3.revamp.dto;
 
-import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.enums.VkycStatus;
 import com.bharatpe.lending.enums.KycStatus;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
-import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.ObjectUtils;
-
-import javax.validation.constraints.NotNull;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 @Data
 @AllArgsConstructor
@@ -107,6 +100,7 @@ public class LoanDetailsV3Response {
     private Double emiLoanAmount;
     private Boolean emiRejected;
     private String rejectReason;
+    private Integer emiEligibleIn;
     private String loanType;
     private String previousLender;
     private Double processingFee;
@@ -119,6 +113,15 @@ public class LoanDetailsV3Response {
     private String udyamRegistrationLink;
     private String kycAddress;
     private Boolean invalidState;
+    private Boolean isAadhaarAddressVerified;
+    private Boolean loanPurpose;
+    private Boolean skipShopPicture;
+    private Boolean imageExist;
+    private String udyamFlowStatus;
+    private Boolean vkycCompleted;
+    private VkycStatus vkycStatus;
+    private Boolean vkycEligible;
+    private Boolean dkycEligible;
 
     @Data
     @ToString

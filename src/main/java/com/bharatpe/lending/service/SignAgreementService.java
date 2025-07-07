@@ -40,6 +40,7 @@ import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.impl.LenderAssignService;
 import com.bharatpe.lending.util.LoanUtil;
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -548,20 +549,46 @@ public class SignAgreementService {
 			lendingGstDao.save(replicateGst);
 		}
 
-		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(),prevApplication.getId());
-		if(lendingShopDocuments.size() > 0 && !lendingShopDocuments.isEmpty()){
-			for(LendingShopDocuments shopDocuments : lendingShopDocuments){
-				LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
-				replicateShopDocument.setApplicationId(newApplication.getId());
-				replicateShopDocument.setMerchantId(newApplication.getMerchantId());
-				replicateShopDocument.setIp(shopDocuments.getIp());
-				replicateShopDocument.setProofType(shopDocuments.getProofType());
-				replicateShopDocument.setProofFrontSide(shopDocuments.getProofFrontSide());
-				replicateShopDocument.setProofBackSide(shopDocuments.getProofBackSide());
-				replicateShopDocument.setLongitude(shopDocuments.getLongitude());
-				replicateShopDocument.setLatitude(shopDocuments.getLatitude());
-				replicateShopDocument.setStatus(shopDocuments.getStatus());
-				lendingShopDocumentsDao.save(replicateShopDocument);
+		List<LendingShopDocuments> lendingShopDocuments = lendingShopDocumentsDao.findByMerchantIdAndLendingApplicationId(prevApplication.getMerchantId(), prevApplication.getId());
+		if (CollectionUtils.isNotEmpty(lendingShopDocuments)) {
+			logger.info("Found {} shop documents for replication from applicationId: {} for merchantId: {}",
+					lendingShopDocuments.size(), prevApplication.getId(), prevApplication.getMerchantId());
+
+			// Filter shop documents: keep only those with geo coordinates and take only one per proof type
+			List<LendingShopDocuments> filteredShopDocuments = lendingShopDocuments.stream()
+					.collect(Collectors.groupingBy(LendingShopDocuments::getProofType))
+					.values().stream()
+					.flatMap(docs -> docs.stream().limit(1))
+					.collect(Collectors.toList());
+
+			logger.info("Filtered {} shop documents for replication from applicationId: {} for merchantId: {}",
+					filteredShopDocuments.size(), prevApplication.getId(), prevApplication.getMerchantId());
+
+			if (CollectionUtils.isNotEmpty(lendingShopDocuments)) {
+				for (LendingShopDocuments shopDocument : filteredShopDocuments) {
+					LendingShopDocuments replicateShopDocument = new LendingShopDocuments();
+					replicateShopDocument.setApplicationId(newApplication.getId());
+					replicateShopDocument.setMerchantId(newApplication.getMerchantId());
+					replicateShopDocument.setIp(shopDocument.getIp());
+					replicateShopDocument.setProofType(shopDocument.getProofType());
+					replicateShopDocument.setProofFrontSide(shopDocument.getProofFrontSide());
+					replicateShopDocument.setProofBackSide(shopDocument.getProofBackSide());
+					replicateShopDocument.setLongitude(shopDocument.getLongitude());
+					replicateShopDocument.setLatitude(shopDocument.getLatitude());
+					replicateShopDocument.setStatus(shopDocument.getStatus());
+
+					logger.info("Replicating shop document proofType: {}, with latitude: {}, longitude: {} for applicationId: {}",
+							shopDocument.getProofType(), shopDocument.getLatitude(), shopDocument.getLongitude(),
+							newApplication.getId());
+
+					lendingShopDocumentsDao.save(replicateShopDocument);
+				}
+
+				logger.info("Successfully replicated {} filtered shop documents for new applicationId: {}",
+						filteredShopDocuments.size(), newApplication.getId());
+			} else {
+				logger.warn("No valid shop documents with location data found for replication for applicationId: {}",
+						newApplication.getId());
 			}
 		}
 

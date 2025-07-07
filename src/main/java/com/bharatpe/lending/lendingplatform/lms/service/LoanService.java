@@ -323,8 +323,8 @@ public class LoanService {
         }
 
         newSchedule.setTentativeClosingDate(tenativeLoanEndDate);
-        response.setLoanStartDate(newSchedule.getStartDate());
-        response.setNextEdiDate(newSchedule.getNextEdiDate());
+        //response.setLoanStartDate(newSchedule.getStartDate());
+        //response.setNextEdiDate(newSchedule.getNextEdiDate());
 
         if (prevSchedule != null && Arrays.asList("INACTIVE_TOPUP", "ACTIVE").contains(prevSchedule.getStatus())) {
             try {
@@ -358,17 +358,6 @@ public class LoanService {
 //       createEdiSchedule(lendingPaymentSchedule);  // RPS needed here?
 //       createEdiException(lendingPaymentSchedule);
 //       Note: TOPUP and PDPD cases are not handled yet.
-
-        postPayoutAuditDto.setPostPayoutResponse(response);
-        kafkaAudit.setData(postPayoutAuditDto);
-        pushKafkaAudit(kafkaAudit);
-
-        executeSmsAndPaymentLink(application, newSchedule, basicDetails);
-
-        LmsLoanStatus lmsLoanStatus = lmsLoanStatusDao.findLatestByBpLoanId(application.getExternalLoanId());
-        lmsLoanStatus.setStatus("SUCCESS");
-        lmsLoanStatus.setUpdatedAt(new Date());
-        updateDBForDisbursedLoan(newSchedule, application, lmsLoanStatus);
 
         log.info("Disbursed loan successful for applicationId: {}", application.getId());
         return new ResponseEntity<>(response, HttpStatus.OK);
@@ -432,8 +421,7 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
 
     private boolean isDisbursalAmountMismatch(LendingApplication application, PostPayoutRequestDto request) {
         return Math.abs(application.getDisbursalAmount() - Math.ceil(request.getDisbursedAmount())) > 10 &&
-                !(LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()) &&
-                        Lender.TRILLIONLOANS.name().equalsIgnoreCase(application.getLender()));
+                !(LoanType.TOPUP.name().equalsIgnoreCase(application.getLoanType()));
     }
 
     private void updateLendingApplicationForDisbursal(LendingApplication application, PostPayoutRequestDto request) {
@@ -453,7 +441,7 @@ private void executeSmsAndPaymentLink(LendingApplication application, LendingPay
     }
 
     private static final List<String> EXCLUDED_LENDERS = Arrays.asList(
-            "TRILLIONLOANS"
+            Lender.TRILLIONLOANS.name(), Lender.UGRO.name()
     );
 
     private LendingPaymentSchedule createLendingPaymentSchedule(LendingApplication lendingApplication, BasicDetailsDto basicDetailsDto) {

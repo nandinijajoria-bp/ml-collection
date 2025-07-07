@@ -50,7 +50,7 @@ public class EligibilityClient {
         this.objectMapper = objectMapper;
     }
 
-    public GlobalLimitResponse getEligibility(UnderwritingBaseRequest<EligibilityRequest> eligibilityRequest) {
+    public GlobalLimitResponse getEligibility(UnderwritingBaseRequest<EligibilityRequest> eligibilityRequest, String merchantId) {
         try {
             HttpEntity<?> request = clientUtil.populateHeadersAndPayload(eligibilityRequest);
             String url = lendingPlatformConfiguration.getEligibilityUrl();
@@ -61,10 +61,10 @@ public class EligibilityClient {
                 return convertResponseEntityToGlobalLimitResponse(responseEntity, eligibilityRequest);
             }
         } catch (HttpServerErrorException | HttpClientErrorException e) {
-            log.info("Exception in eligibility response :{} {}", e.getMessage(), e.getResponseBodyAsString());
+            log.info("Exception in eligibility response for merchant: {} :{} {}", merchantId, e.getMessage(), e.getResponseBodyAsString());
             return parseErrorResponse(e);
         } catch (Exception e) {
-            log.error("Exception in fetching eligibility response : {}", e.getMessage(), e);
+            log.error("Exception in fetching eligibility response for merchant:{} : {}",merchantId, e.getMessage(), e);
         }
         return null;
     }

@@ -26,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 
@@ -100,10 +101,10 @@ public class CreditSaisonPennyDropService  {
             commonService.manageApplicationState(lenderAssociationDetailsDto);
 
             NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(nbfcRequestDTO, LenderAssociationStages.PENNY_DROP);
+            CreditSasionPennyDropResponseDTO creditSaisonCallbackResponseDTO = Objects.nonNull(nbfcResponseDTO) && Objects.nonNull(nbfcResponseDTO.getData()) ?
+                    objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), CreditSasionPennyDropResponseDTO.class) : null;
 
-            CreditSasionPennyDropResponseDTO creditSaisonCallbackResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), CreditSasionPennyDropResponseDTO.class);
-
-            if (!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess()
+            if (!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && Objects.nonNull(creditSaisonCallbackResponseDTO) && ! StringUtils.isEmpty(creditSaisonCallbackResponseDTO.getMessage())
                     && Arrays.asList(csConfig.getPennyDropSyncAlreadyValidatedStatus().toLowerCase(), csConfig.getPennyDropSyncInProgressStatus().toLowerCase()).contains(creditSaisonCallbackResponseDTO.getMessage().toLowerCase())
             ) {
                 log.info("CS: successfully placed the penny drop request at lender for {}", nbfcRequestDTO);

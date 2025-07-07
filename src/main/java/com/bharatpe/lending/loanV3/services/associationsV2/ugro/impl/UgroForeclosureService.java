@@ -54,7 +54,7 @@ public class UgroForeclosureService {
         }
         try {
             NBFCRequestDTO<?> nbfcRequestDto = NBFCRequestDTO.builder().productName("LENDING").lender(Lender.UGRO.name()).applicationId(applicationId).payload(UgroClosureBreakupRequest.builder().leadId(lendingApplicationLenderDetails.getLeadId()).loanId(lendingApplication.getNbfcId()).closureDate(String.valueOf(Instant.now().toEpochMilli())).build()).build();
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH);
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(nbfcRequestDto, LenderAssociationStages.FORECLOSURE_FETCH, ugroConfig.getForeclosureDetailsTimeoutThreshold());
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 UgroClosureBreakupResponse response = objectMapper.convertValue(nbfcResponseDto.getData(), UgroClosureBreakupResponse.class);
                 if (!ObjectUtils.isEmpty(response.getBreakup()) && !ObjectUtils.isEmpty(response.getBreakup().getTotal())) {

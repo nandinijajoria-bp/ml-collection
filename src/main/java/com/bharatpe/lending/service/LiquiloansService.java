@@ -39,6 +39,7 @@ import com.bharatpe.lending.handlers.S3BucketHandler;
 import com.bharatpe.lending.lendingplatform.lending.util.RolloutUtil;
 import com.bharatpe.lending.lendingplatform.lms.service.LoanService;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV2.service.InsuranceService;
 import com.bharatpe.lending.loanV3.dto.AbflRpsResponseDTO;
 import com.bharatpe.lending.loanV3.dto.LenderEdIScheduleResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.PiramalGetLoanResponseDto;
@@ -290,6 +291,9 @@ public class LiquiloansService {
 
     @Autowired
     RolloutUtil rolloutUtil;
+
+    @Autowired
+    InsuranceService insuranceService;
 
     @Value("${sameDayEdiAdjusment.rollout.percent:0}")
     Integer sameDayEdiAdjustmentRolloutPercent;
@@ -791,7 +795,7 @@ public class LiquiloansService {
                 lendingPaymentSchedule = lendingPaymentScheduleDao.save(lendingPaymentSchedule);
 
                 if (lendingApplication.getLender().equalsIgnoreCase(Lender.PIRAMAL.name())) {
-                    publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
+                    insuranceService.publishLoanInsuranceEvent(lendingApplication, loanDashboardApiVersion);
                 }
 
                 if (!ObjectUtils.isEmpty(prevLendingPaymentSchedule)
@@ -891,15 +895,21 @@ public class LiquiloansService {
         }
         Optional<LendingPaymentScheduleLendingCommon> lendingPaymentScheduleLendingCommon = Optional.empty();
         boolean perpetualDpdLoan = false;
-        if (sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender()) ||
-                (pdpPartialRollout.contains(lendingApplication.getLender()) && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent))) {
-            lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
-            if (lendingPaymentScheduleLendingCommon.isPresent()) {
-                logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
-                perpetualDpdLoan = true;
-                lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
-                lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
-            }
+        if ( !loanUtil.checkIfUPIAutoPayIsActive(lendingApplication.getMerchantId(), lendingApplication.getLender(), lendingApplication.getId())
+              &&  ( sameDayEdiAdjustmentEligibleLenders.contains(lendingApplication.getLender())
+                        || ( pdpPartialRollout.contains(lendingApplication.getLender())
+                                && easyLoanUtil.percentScaleUp(basicDetailsDto.getId(), sameDayEdiAdjustmentRolloutPercent)
+                            )
+                  )
+        ) {
+                lendingPaymentScheduleLendingCommon = lendingPaymentScheduleLendingCommonDao.findById(lendingPaymentSchedule.getId());
+                if (lendingPaymentScheduleLendingCommon.isPresent()) {
+                    logger.info("marking loan as perpetual dpd adjusted loan for id : {}", lendingPaymentScheduleLendingCommon.get().getId());
+                    perpetualDpdLoan = true;
+                    lendingPaymentScheduleLendingCommon.get().setPerpetualDpdAdjusted(PerpetualDpdAdjusted.Y.name());
+                    lendingPaymentScheduleLendingCommonDao.save(lendingPaymentScheduleLendingCommon.get());
+                }
+
         }
         if (backDatedLoanEligibleLenders.contains(lendingPaymentSchedule.getNbfc()) && backdatedLoanEnabled &&
                 diffInDisbursalDates > 0) {
@@ -982,39 +992,6 @@ public class LiquiloansService {
             });
         } catch (Exception e) {
             logger.error("Error occurred while fetching payment link", e);
-        }
-    }
-
-    private void publishLoanInsuranceEvent(LendingApplication lendingApplication, LoanDashboardApiVersion loanDashboardApiVersion) {
-
-        LendingConsent lendingConsent = lendingConsentDao.findLendingConsentByApplicationIdAndMerchantIdAndConsentType(
-                lendingApplication.getId(),
-                lendingApplication.getMerchantId(),
-                "INSURANCE");
-
-        LendingLoanInsurance lendingLoanInsurance = loanUtil.getInsuranceDetails(
-                lendingApplication.getId(),
-                lendingApplication.getLender(),
-                "SELECTED");
-
-        if (ObjectUtils.isEmpty(lendingConsent)) {
-            return;
-        }
-
-        FunnelEnums.StageEvent event;
-        if (lendingConsent.getIsAccepted() && !ObjectUtils.isEmpty(lendingLoanInsurance)) {
-            event = FunnelEnums.StageEvent.ACCEPT;
-        } else {
-            event = FunnelEnums.StageEvent.REJECT;
-        }
-        logger.info("Insurance is: {} for merchant: {}", event.name(), lendingApplication.getMerchantId());
-        if(LoanDetailsConstant.VERSION_V2.equalsIgnoreCase(loanDashboardApiVersion.getApiVersion())){
-            funnelService.submitEventV3(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                    FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString(), LoanDetailsConstant.FUNNEL_VERSION_TAG);
-        }
-        else{
-            funnelService.submitEvent(lendingApplication.getMerchantId(), null, lendingApplication.getId(),
-                    FunnelEnums.StageId.INSURANCE, event, LocalDateTime.now().toString());
         }
     }
 
@@ -1887,6 +1864,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(totalInterest);
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(cal.getTime());
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "BHARATPE");
             lendingPaymentScheduleDao.save(paymentSchedule);
         } catch (Exception ex) {
             logger.error("Exception while creating schedule for Loan ID {}, Exception is {}", paymentSchedule.getId(), ex);
@@ -1939,6 +1917,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(piramalGetLoanResponseDto.getTotalInterestPayable().doubleValue());
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(piramalGetLoanResponseDto.getMaturityDate());
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "LENDER");
             lendingPaymentScheduleDao.save(paymentSchedule);
             return true;
         } catch (Exception ex) {
@@ -1999,6 +1978,7 @@ public class LiquiloansService {
             paymentSchedule.setInterest(totalInterestPayable);
             paymentSchedule.setOtherCharges(0D);
             paymentSchedule.setTentativeClosingDate(parsedDate);
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "LENDER");
             lendingPaymentScheduleDao.save(paymentSchedule);
             return true;
         } catch (Exception ex) {
@@ -2061,6 +2041,7 @@ public class LiquiloansService {
                 lendingApplication.setRepayment(totalPayableAmount);
                 lendingApplicationDao.save(lendingApplication);
             }
+            saveRpsTypeMetadata(paymentSchedule.getLoanApplication().getId(), "LENDER");
             lendingPaymentScheduleDao.save(paymentSchedule);
             return true;
         } catch (Exception ex) {
@@ -2331,4 +2312,16 @@ public class LiquiloansService {
                         (!ObjectUtils.isEmpty(lendingPaymentSchedule) && LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())));
     }
 
+    private void saveRpsTypeMetadata(Long applicationId, String type) {
+        try {
+            LendingApplicationLenderDetails lendingApplicationLenderDetails =
+                    lendingApplicationLenderDetailsDao.findTop1LendingApplicationLenderDetailsByApplicationIdAndStatusOrderByIdDesc(applicationId, "ACTIVE");
+            Map<String, Object> metaData = Optional.ofNullable(lendingApplicationLenderDetails.getMetaData()).orElse(new HashMap<>());
+            metaData.put("rpsType", type);
+            lendingApplicationLenderDetails.setMetaData(metaData);
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+        } catch (Exception e) {
+            logger.error("Failed to save RPS metadata for application ID {}", applicationId, e);
+        }
+    }
 }

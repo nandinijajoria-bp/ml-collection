@@ -308,6 +308,12 @@ public class NbfcUtils {
                 return  associationServiceUtil.invokeKycStatusCheck(lender, lenderAssociationDetailsDto);
             case "UPDATE_LOAN":
                 return associationServiceUtil.invokeUpdateLoan(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "SKIP_VKYC":
+                return associationServiceUtil.invokeSkipVkyc(lenderAssociationDetailsDto);
+            case "UPDATE_ADDRESS":
+                return associationServiceUtil.invokeAddressUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
+            case "UPDATE_BANK_DETAILS":
+                return associationServiceUtil.invokeBankAccountUpdateService(lenderAssociationDetailsDto.getLendingApplication().getLender(), lenderAssociationDetailsDto);
             default:
                 return false;
         }
@@ -329,15 +335,6 @@ public class NbfcUtils {
             log.info("Exception in checking prev Bp Kyc lenders assigned for applicationId {}", applicationId);
         }
         return false;
-    }
-
-    public NBFCResponseDTO<?> getStageDetails(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, LenderAssociationStages stage) {
-        switch (stage) {
-            case GENERATE_DOCUMENT:
-                return associationServiceUtil.getDocsGenerateService(lender, lenderAssociationDetailsDto);
-            default:
-                return NBFCResponseDTO.builder().success(Boolean.FALSE).build();
-        }
     }
 
     public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){

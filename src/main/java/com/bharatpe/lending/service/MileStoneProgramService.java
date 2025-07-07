@@ -32,6 +32,7 @@ import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
@@ -583,24 +584,41 @@ public class MileStoneProgramService {
                 DSMileStoneAchievementResponse.Achievement weekAchievements = achievementResponse.getAchievement().get(completedWeek - 1); // 0-based index
                 cleverTapEvtData.put("active_days_maintained", String.valueOf(weekAchievements.getActive_days()));
                 cleverTapEvtData.put("transactions_done", String.valueOf(weekAchievements.getTxn_cnt()));
-                pushEventToFunnelService(
-                        cashbackEventName,
-                        FunnelEnums.StageEvent.RTE_CASHBACK,
-                        merchant, cleverTapEvtData, mileStoneResponse
-                );
+
+                if(!ObjectUtils.isEmpty(mileStoneResponse.getTarget())) {
+                    Target weeklyTargets = mileStoneResponse.getTarget().get(weekAchievements.getMilestone_no()-1);
+                    if(eligibleForWeeklyCashback(merchant, weekAchievements, weeklyTargets)) {
+                        cleverTapEvtData.put("cashback_status", Constants.YES);
+                        cleverTapEvtData.put("cashback_value", String.valueOf(weeklyTargets.getCashback()));
+                    }else{
+                        cleverTapEvtData.put("cashback_status", Constants.NO);
+                    }
+                }
             }
             Target nextWeekTargets = completedWeek < 4 ? mileStoneResponse.getTarget().get(completedWeek) : null;
             if(!ObjectUtils.isEmpty(nextWeekTargets)) {
                 log.info("events for next week of {}", merchant.getId());
                 cleverTapEvtData.put("target_active_days", String.valueOf(nextWeekTargets.getActive_days()));
                 cleverTapEvtData.put("target_transactions", String.valueOf(nextWeekTargets.getNo_txn()));
-                pushEventToFunnelService(
-                        cashbackEventName,
-                        FunnelEnums.StageEvent.RTE_CASHBACK,
-                        merchant, cleverTapEvtData, mileStoneResponse
-                );
             }
+            pushEventToFunnelService(
+                    cashbackEventName,
+                    FunnelEnums.StageEvent.RTE_CASHBACK,
+                    merchant, cleverTapEvtData, mileStoneResponse
+            );
         }
+    }
+
+    private boolean eligibleForWeeklyCashback(BasicDetailsDto merchant, DSMileStoneAchievementResponse.Achievement weekAchievements, Target weeklyTargets) {
+        if(ObjectUtils.isEmpty(weeklyTargets)) {
+            log.info("Weekly targets empty for {}", merchant.getId());
+            return false;
+        }
+        if(weekAchievements.getActive_days() >= weeklyTargets.getActive_days() && weekAchievements.getUnq_payer() >= weeklyTargets.getUnq_payer()) {
+            log.info("Merchant: {} eligible for weekly cashback: {}", merchant.getId(), weeklyTargets.getCashback());
+            return true;
+        }
+        return false;
     }
 
     public ApiResponse<?> milestoneOffer(BasicDetailsDto merchant, MileStoneOfferRequest request) {
@@ -823,6 +841,7 @@ public class MileStoneProgramService {
     }
 
     public ApiResponse<?> updatePageViewData(Long merchantId, String cashbackEarned) {
+        log.info("Updating page view data for merchantId: {} with cashbackEarned: {}", merchantId, cashbackEarned);
         MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
         if (ObjectUtils.isEmpty(entity)) {
             return new ApiResponse<>(false, "400", "entity not found");

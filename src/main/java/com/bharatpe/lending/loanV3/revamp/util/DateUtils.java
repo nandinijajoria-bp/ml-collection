@@ -3,13 +3,10 @@ package com.bharatpe.lending.loanV3.revamp.util;
 import lombok.extern.slf4j.Slf4j;
 
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.Period;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.TimeZone;
 
 @Slf4j
 public class DateUtils {
@@ -45,7 +42,7 @@ public class DateUtils {
         calendar.add(Calendar.DATE, daysCount);
         return calendar.getTime();
     }
-    public static long calculateAgeOfMerchantInDays(Date birthDate,Date currentDate)
+    public static long calculateAgeInDays(Date birthDate, Date currentDate)
     {
         long age = 0;
         if ((birthDate != null) && (currentDate != null)) {

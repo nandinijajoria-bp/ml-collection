@@ -8,9 +8,12 @@ import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationKycDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.loanV3.config.SmfgConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
@@ -20,6 +23,7 @@ import com.bharatpe.lending.loanV3.dto.request.smfg.SmfgAppPushRequest;
 import com.bharatpe.lending.loanV3.dto.response.smfg.SmfgAppPushResponseDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -28,12 +32,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import javax.transaction.Transactional;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static com.bharatpe.lending.common.enums.RiskSegment.REGULAR_ETC;
 import static com.bharatpe.lending.common.enums.RiskSegment.REPEAT;
+import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_CATEGORY;
+import static com.bharatpe.lending.constant.LendingConstants.MERCHANT_SUB_CATEGORY;
 
 @Slf4j
 @Service
@@ -65,6 +69,22 @@ public class SmfgNachMandateService {
 
     @Autowired
     KycUtils kycUtils;
+
+    @Autowired
+    ConverterUtils converterUtils;
+
+    private static final Map<String, String> allowedRegexMap;
+
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("ACCOUNT_HOLDER_NAME", "a-zA-Z0-9 \\-\\.\\#/,");
+        map.put("ACCOUNT_NO", "0-9");
+        map.put("FATHER_NAME", "a-zA-Z ");
+        allowedRegexMap = Collections.unmodifiableMap(map);
+    }
+
+    @Autowired
+    MerchantService merchantService;
 
     @Transactional
     public Boolean invokeNachMandate(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
@@ -133,11 +153,11 @@ public class SmfgNachMandateService {
                         .leaddetails(SmfgAppPushRequest.LeadDetails.builder()
                                 .emailaddress(lendingApplicationKycDetails.getEmail()).build())
                         .additionaldetails(SmfgAppPushRequest.AdditionalDetails.builder()
-                                .fathersName(lendingApplicationKycDetails.getFatherName()).build())
+                                .fathersName(converterUtils.sanitizeByRegex(lendingApplicationKycDetails.getFatherName(), allowedRegexMap.getOrDefault("FATHER_NAME", null))).build())
                         .repaymentdisbbankdetails(SmfgAppPushRequest.RepaymentDisbBankDetails.builder()
-                                .accountholdername(merchantNachDetailsResponseDTO.getBeneficiaryName())
+                                .accountholdername(converterUtils.sanitizeByRegex(merchantNachDetailsResponseDTO.getBeneficiaryName(), allowedRegexMap.getOrDefault("ACCOUNT_HOLDER_NAME", null)))
                                 .bankname(merchantNachDetailsResponseDTO.getBankName())
-                                .accountno(merchantNachDetailsResponseDTO.getAccountNumber())
+                                .accountno(converterUtils.sanitizeByRegex(merchantNachDetailsResponseDTO.getAccountNumber(), allowedRegexMap.getOrDefault("ACCOUNT_NO", null)))
                                 .accounttype("CURRENT".equalsIgnoreCase(merchantNachDetailsResponseDTO.getAccountType()) ? smfgConfig.getCurrentAccountType() : smfgConfig.getSavingAccountType())
                                 .ifsccode(merchantNachDetailsResponseDTO.getIfscCode()).build())
                         .mandatedetails(SmfgAppPushRequest.MandateDetails.builder()
@@ -149,7 +169,7 @@ public class SmfgNachMandateService {
                                 .mandatereferenceno(merchantNachDetailsResponseDTO.getProviderUmrn()).build())
                         .build();
             }
-            populateMerchantCategoryAndSubCategory(lendingApplication, requestDto);
+            populateMerchantCategoryAndSubCategory(lendingApplication, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), requestDto);
             NBFCRequestDTO<SmfgAppPushRequest> requestDTO = new NBFCRequestDTO<>();
             requestDTO.setApplicationId(lendingApplication.getId());
             requestDTO.setLender(lendingApplication.getLender());
@@ -162,19 +182,28 @@ public class SmfgNachMandateService {
         return null;
     }
 
-    private void populateMerchantCategoryAndSubCategory(LendingApplication lendingApplication, SmfgAppPushRequest smfgAppPushRequest) {
+    private void populateMerchantCategoryAndSubCategory(LendingApplication lendingApplication, LendingApplicationLenderDetails lenderDetails, SmfgAppPushRequest smfgAppPushRequest) {
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         String businessCategory = null;
         String businessSubCategory = null;
         if (REPEAT.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
-                Map<String, String> prevBusinessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
-                businessCategory = prevBusinessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
-                businessSubCategory = prevBusinessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+            Map<String, Object> metaData = lenderDetails.getMetaData();
+            if (Objects.nonNull(metaData) && metaData.containsKey(MERCHANT_CATEGORY)) {
+                businessCategory = String.valueOf(metaData.getOrDefault(MERCHANT_CATEGORY, null));
+                businessSubCategory = String.valueOf(metaData.getOrDefault(MERCHANT_SUB_CATEGORY, null));
+            }
         }
         if (REGULAR_ETC.equals(lendingRiskVariablesSnapshot.getRiskSegment())) {
             Map<String, String> currentBusinessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategoryByApplicationId(lendingApplication.getId());
             businessCategory = currentBusinessCategoryAndSubCategoryMap.getOrDefault("businessCategory", null);
             businessSubCategory = currentBusinessCategoryAndSubCategoryMap.getOrDefault("businessSubcategory", null);
+            if (ObjectUtils.isEmpty(businessCategory)) { // Fallback to onboarding category if not present
+                Optional<BasicDetailsDto> merchantDetailsOptional = merchantService.fetchMerchantBasicDetails(lendingApplication.getMerchantId());
+                if (merchantDetailsOptional.isPresent()) {
+                    businessCategory = merchantDetailsOptional.get().getBussinessCategory();
+                    businessSubCategory = merchantDetailsOptional.get().getSubCategory();
+                }
+            }
         }
         smfgAppPushRequest.getAdditionaldetails().setMerchantcategory(businessCategory);
         smfgAppPushRequest.getAdditionaldetails().setMerchantsubcategory(businessSubCategory);

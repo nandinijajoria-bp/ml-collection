@@ -6,6 +6,7 @@ import com.bharatpe.lending.loanV2.dto.AdditionalDetails;
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.LoanApplicationStage;
 import com.bharatpe.lending.loanV2.dto.ProfessionalDetails;
+import com.bharatpe.lending.loanV3.dto.UpiAutopayApplicationDetailsDTO;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -53,10 +54,12 @@ public class LoanApplicationDetailsV3 {
     private String nachSessionMode;
     private Long nachStartedAt;
 
+    private UpiAutopayApplicationDetailsDTO upiAutopayDetails;
+
     private List<LoanApplicationStage> loanApplicationStageList=new ArrayList<>();
 
     private Boolean isInsured;
-    private List<LoanInsuranceDTO> loanInsurances;
+    private List<LoanInsuranceDTO.InsuranceDetails> loanInsurances;
     private Double apr;
 
     private Double annualRoi;

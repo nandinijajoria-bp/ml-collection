@@ -129,7 +129,7 @@ public class ShopPicturesStageDataService implements IStageDataService<ShopPictu
                 log.info("lender assc for {} {}", lendingApplicationDetails.getLenderAssc(), lendingApplicationDetails.getApplicationId());
                 shopPicturesStateDTO.setLenderAssc(Optional.ofNullable(lendingApplicationDetails.getLenderAssc()).orElse(false));
                 if (!hasShopPictureAndShopStockImageByMerchantIdAndApplicationId(lendingApplication.getId(),scopeDataArgs.getMerchant().getId())) {
-                    log.info("already, one picture is missing of shop for merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
+                    log.info("already, one picture is missing of shop for merchantId : {} and applicationId : {}",scopeDataArgs.getMerchant().getId(), scopeDataArgs.getApplicationId());
                 }else {
                     log.info("both shop image for merchantId : {} and applicationId : {}",scopeDataArgs.getApplicationId(),scopeDataArgs.getMerchant().getId());
                     if (LenderAssociationStages.LENDER_CHANGE.name().equals(lendingApplicationDetails.getStage()) && !ObjectUtils.isEmpty(loanUtil.getLenderAggregationScreen(lendingApplication.getId()))) {

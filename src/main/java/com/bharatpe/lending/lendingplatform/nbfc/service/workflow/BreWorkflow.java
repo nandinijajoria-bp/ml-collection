@@ -26,7 +26,6 @@ import static com.bharatpe.lending.common.enums.LenderAssociationStatus.RISK_FAI
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.BREStatus.INITIATED;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.WorkflowName.BRE_WORKFLOW;
 import static com.bharatpe.lending.lendingplatform.nbfc.enums.LeadStatus.BRE;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.TRILLIONLOANS;
 
 @Service
 @Slf4j
@@ -43,7 +42,7 @@ public class BreWorkflow implements Workflow {
     @Override
     public void invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
-        LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
+        LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
         lald.setLeadStatus(BRE.name());
         lald.setLeadSubStatus(LeadSubStatus.PENDING);
@@ -87,7 +86,14 @@ public class BreWorkflow implements Workflow {
     }
 
     private LenderBaseRequest<BRERequest> getBRERequest(LendingApplication lendingApplication) {
-        BRERequest breRequest = breRequestBuilder.buildRequest(lendingApplication);
+        BRERequest breRequest;
+        try {
+            breRequest = breRequestBuilder.buildRequest(lendingApplication);
+        } catch (Exception e) {
+            log.error("Error while creating bre request for applicationId={}, error:{}",
+                    lendingApplication.getId(), e.getMessage(), e);
+            return null;
+        }
         return LenderBaseRequest.<BRERequest>builder()
                 .applicationId(String.valueOf(lendingApplication.getId()))
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))

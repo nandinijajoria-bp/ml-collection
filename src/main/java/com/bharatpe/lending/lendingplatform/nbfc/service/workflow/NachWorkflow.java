@@ -10,18 +10,20 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.request.NachRegistrationReq
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.LenderApiResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.response.NachRegistrationResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistry;
+import com.bharatpe.lending.lendingplatform.nbfc.registry.WorkflowRegistryFactory;
 import com.bharatpe.lending.lendingplatform.nbfc.service.builder.request.NachRegistrationRequestBuilder;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.service.database.LendingApplicationLenderDetailsService;
 import com.bharatpe.lending.lendingplatform.nbfc.util.WorkflowUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
 import java.util.Arrays;
 
-import static com.bharatpe.lending.common.enums.LenderAssociationStages.DRAWDOWN;
 import static com.bharatpe.lending.lendingplatform.nbfc.constants.WorkflowName.NACH_WORKFLOW;
 import static com.bharatpe.lending.lendingplatform.nbfc.enums.LeadStatus.NACH;
 import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.TRILLIONLOANS;
@@ -35,6 +37,9 @@ public class NachWorkflow implements Workflow {
     private final WorkflowUtil workflowUtil;
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
     private final LendingApplicationLenderDetailsService lendingApplicationLenderDetailsService;
+    @Lazy
+    private final WorkflowRegistryFactory workflowRegistryFactory;
+
 
 
     @Override
@@ -74,18 +79,20 @@ public class NachWorkflow implements Workflow {
             return;
         }
         log.info("Nach registration response success for application id {}", applicationId);
-        updateLad(applicationId);
-        updateLald(lald);
+        WorkflowRegistry workflowRegistry = workflowRegistryFactory
+                .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
+        updateLad(applicationId, workflowRegistry);
+        updateLald(lald, workflowRegistry);
     }
 
-    private void updateLad(String applicationId) {
+    private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
-        lendingApplicationDetails.setStage(DRAWDOWN.name());
+        lendingApplicationDetails.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lendingApplicationDetailsService.save(lendingApplicationDetails);
     }
 
-    private void updateLald(LendingApplicationLenderDetails lald) {
-        lald.setStage(DRAWDOWN.name());
+    private void updateLald(LendingApplicationLenderDetails lald, WorkflowRegistry workflowRegistry) {
+        lald.setStage(workflowRegistry.getAssociationStageForWorkflow(this).name());
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
     }

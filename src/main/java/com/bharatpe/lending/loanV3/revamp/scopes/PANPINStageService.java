@@ -191,7 +191,7 @@ public class PANPINStageService implements IStageDataService<EligibilityStateDTO
                 loanDashboardService.deleteLoanDashboardCache(scopeDataArgs.getMerchant().getId());
                 return new LendingStateDTO<>(null, null, LendingViewStates.PAN_PIN_PAGE);
             }
-            isPlanSelectionFlow = emiUtils.isEligible(emiDashboardResponse, lendingRiskVariables);
+            isPlanSelectionFlow = emiUtils.isEligibleForPlanSelectionPage(emiDashboardResponse, lendingRiskVariables);
         }
         LendingViewStates lendingViewStates = isPlanSelectionFlow ? LendingViewStates.PLAN_SELECTION_PAGE : LendingViewStates.OFFER_PAGE;
 

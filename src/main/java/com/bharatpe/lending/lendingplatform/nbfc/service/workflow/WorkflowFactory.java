@@ -16,6 +16,7 @@ public class WorkflowFactory {
 	private final KYCWorkflow kycWorkflow;
 	private final LoanDocumentDigiSignWorkflow loanDocumentDigiSignWorkflow;
 	private final LoanDocumentWorkflow loanDocumentWorkflow;
+	private final LoanDocumentDownloadWorkflow loanDocumentDownloadWorkflow;
 	private final NachWorkflow nachWorkflow;
 	private final LoanSanctionWorkflow sanctionWorkflow;
 	private final UpdateLeadWorkflow updateLeadWorkflow;
@@ -32,6 +33,8 @@ public class WorkflowFactory {
 				return kycWorkflow;
 			case DIGI_SIGN:
 				return loanDocumentDigiSignWorkflow;
+			case LOAN_DOCUMENT_DOWNLOAD:
+				return loanDocumentDownloadWorkflow;
 			case LOAN_DOCUMENT_UPLOAD:
 				return loanDocumentWorkflow;
 			case NACH_REGISTRATION:

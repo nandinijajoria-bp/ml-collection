@@ -36,6 +36,7 @@ import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.service.MerchantLoansService;
 import com.bharatpe.lending.service.PaymentBankService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -117,6 +118,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     private boolean isPaymentBankChangeFlowApplicable;
 
 
+    @Autowired
+    VKycService vkycService;
+
 
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -129,7 +133,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                 lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
                 log.info("Setting LendingViewStates to ENACH_PAGE for merchantId: {}", scopeDataArgs.getMerchant().getId());
             } else {
-                lendingStateDTO.setLendingViewStates(LendingViewStates.APPLICATION_STATUS_PAGE);
+                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
             }
         }
         return lendingStateDTO;
@@ -203,7 +207,7 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             if(LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())){
                 loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.AGREEMENT_PAGE);
             }
-            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), LendingViewStates.APPLICATION_STATUS_PAGE);
+            else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender()));
         }
         BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setBankDetails(accountDetails);

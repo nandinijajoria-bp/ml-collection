@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.consumer;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.common.util.ConfigResolver;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -19,11 +20,13 @@ import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
+import com.bharatpe.lending.loanV3.revamp.services.UdyamService;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
 import com.bharatpe.lending.loanV3.services.associationsV2.AbflDocGenerateService;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
+import com.bharatpe.lending.util.EdiUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -89,6 +92,15 @@ public class KycRequestKafka {
     @Autowired
     ObjectMapper objectMapper;
 
+    @Autowired
+    private EdiUtil ediUtil;
+
+    @Autowired
+    private UdyamService udyamService;
+
+    @Autowired
+    private EasyLoanUtil easyLoanUtil;
+
     @Value("${abfl.eKyc.retry.count:2}")
     Integer abflEKycRetryCount;
 
@@ -101,6 +113,9 @@ public class KycRequestKafka {
     @Value("${eKyc.redirection.url:-}")
     String abflEkycRedirectionUrl;
 
+    @Value("${udyam.fetch.rollout:0}")
+    private Integer udyamFetchRollout;
+
     private final List<String> eKycValidSessionStatus = Arrays.asList("IN_PROGRESS", "SUCCESS");
 
     private final String EKYC_SUCCESS_STATUS = "SUCCESS";
@@ -109,7 +124,7 @@ public class KycRequestKafka {
     @KafkaListener(
             topics="${abfl.kyc.topic:invoke_kyc}",
             concurrency = "5",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void kycRequestListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -139,7 +154,7 @@ public class KycRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));
@@ -174,7 +189,7 @@ public class KycRequestKafka {
 
     @KafkaListener(
             topics="${abfl.kyc.callback.topic:kyc-callback}",
-            autoStartup = "${kafka.confluent.consumer.new:false}",
+            autoStartup = "false",
             containerFactory = "ConfluentKafkaListenerContainer")
     public void kycCallbackListener(String request) {
         Optional<LendingApplication> lendingApplication = Optional.empty();
@@ -221,6 +236,10 @@ public class KycRequestKafka {
             KycCallbackResponseDto.Data data= kycCallbackResponseDto.getData();
             existingLendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
             LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(kycCallbackResponseDto.getLender()),LenderAssociationStages.KYC);
+            if(LenderAssociationStages.ASSC_COMPLETED.equals(nextStage)
+                    && easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), udyamFetchRollout)){
+                udyamService.triggerFetchUdyamCertificateAsync(lendingApplication.get().getId(), lendingApplication.get().getMerchantId(), lendingApplication.get().getLender());
+            }
             existingLendingApplicationLenderDetails.setStage(nextStage.name());
             existingLendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
             existingLendingApplicationLenderDetails.setNbfcKycAsyncId(data.getAsyncId());
@@ -342,6 +361,10 @@ public class KycRequestKafka {
                     if (kycValid) {
                         lendingApplicationLenderDetails.setKycStatus(LenderAssociationStatus.KYC_COMPLETED.name());
                         LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(lendingApplication.get().getLender()), LenderAssociationStages.KYC);
+                        if(LenderAssociationStages.ASSC_COMPLETED.equals(nextStage)
+                                && easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), udyamFetchRollout)){
+                            udyamService.triggerFetchUdyamCertificateAsync(lendingApplication.get().getId(), lendingApplication.get().getMerchantId(), lendingApplication.get().getLender());
+                        }
                         lendingApplicationLenderDetails.setStage(nextStage.name());
                         lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
@@ -381,7 +404,7 @@ public class KycRequestKafka {
                 lendingApplicationLenderDetails.setStatus(Status.ACTIVE.name());
                 lendingApplicationLenderDetails.setAccountId(lendingApplication.get().getExternalLoanId());
                 DecimalFormat df = new DecimalFormat("#.##");
-                df.setRoundingMode(RoundingMode.DOWN);
+                df.setRoundingMode(ediUtil.isRoundDownEligibleLender(lendingApplication.get().getLender()) ? RoundingMode.UP : RoundingMode.DOWN);
                 lendingApplicationLenderDetails.setAnnualRoi(Double.valueOf(df.format(
                         lendingApplicationServiceV2.getApr(lendingApplication.get().getMerchantId(), lendingApplication.get().getId(), lendingApplication.get().getLoanAmount(),
                                 LenderOffDays.valueOf(lendingApplication.get().getLender()).getEdiModel().getNoOfEdiDaysInAWeek(), lendingApplication.get().getLender()))));

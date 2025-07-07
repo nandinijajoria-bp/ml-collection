@@ -7,6 +7,7 @@ import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.KYCDocuments;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.KycDocStatus;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.KycDocType;
 import com.bharatpe.lending.lendingplatform.nbfc.util.BuildersUtil;
+import com.bharatpe.lending.loanV3.utils.KycUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -101,6 +102,8 @@ public class KYCDocumentsBuilder {
 				.livelinessScore(BigDecimal.valueOf(doc.getLivelinessScore()))
 				.faceMatchPer(ObjectUtils.isEmpty(doc.getFaceMatchPer()) ?
 						null : BigDecimal.valueOf(BuildersUtil.getParsedFaceMatchPer(doc.getFaceMatchPer())))
+				.docFrontImageUrl(doc.getDocFrontImageUrl())
+				.docBackImageUrl(doc.getDocBackImageUrl())
 				.build();
 	}
 

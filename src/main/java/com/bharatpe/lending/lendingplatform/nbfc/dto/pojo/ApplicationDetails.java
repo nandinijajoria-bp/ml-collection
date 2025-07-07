@@ -1,5 +1,6 @@
 package com.bharatpe.lending.lendingplatform.nbfc.dto.pojo;
 
+import com.bharatpe.lending.dto.CommonResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -71,5 +72,7 @@ public class ApplicationDetails {
     private String dealNo;
     private String smbId;
     private String offerId;
-
+    private String merchantCategory;
+    private CommonResponse ediScheduleResponse;
+    private Double apr;
 }

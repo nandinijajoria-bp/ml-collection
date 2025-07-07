@@ -81,8 +81,14 @@ public class LoanSanctionWorkflow implements Workflow {
     }
 
     private LenderBaseRequest<LoanSanctionRequest> getLoanSanctionRequest(LendingApplication lendingApplication) {
-        LoanSanctionRequest loanSanctionRequest = loanSanctionRequestBuilder
-                .buildRequest(lendingApplication);
+        LoanSanctionRequest loanSanctionRequest = null;
+        try {
+            loanSanctionRequest = loanSanctionRequestBuilder.buildRequest(lendingApplication);
+        } catch (Exception e) {
+            log.error("Error while building loan sanction request for application id {}: {}",
+                    lendingApplication.getId(), e.getMessage(), e);
+            return null;
+        }
         return LenderBaseRequest.<LoanSanctionRequest>builder()
                 .applicationId(String.valueOf(lendingApplication.getId()))
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))
