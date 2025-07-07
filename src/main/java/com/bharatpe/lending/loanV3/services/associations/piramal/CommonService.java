@@ -25,12 +25,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.util.Arrays;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
@@ -78,17 +74,6 @@ public class CommonService {
 
     @Value("${pricing.experiment.enable:false}")
     boolean pricingExpEnabled;
-    @PostConstruct
-    public void init() {
-        udyamExecutor = Executors.newSingleThreadExecutor();
-    }
-
-    @PreDestroy
-    public void destroy() {
-        if (udyamExecutor != null && !udyamExecutor.isShutdown()) {
-            udyamExecutor.shutdown();
-        }
-    }
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
