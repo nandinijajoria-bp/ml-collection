@@ -7,19 +7,24 @@ import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
 import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
+import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
 import com.bharatpe.lending.util.LoanCalculationUtil;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.ObjectUtils;
 
+import javax.validation.constraints.NotNull;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -28,18 +33,9 @@ import java.util.stream.Collectors;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 @Data
-public class LendingMerchantLoansResponseDTO {
+public class LendingMerchantLoansResponseDTO extends TopupEligibilityResponseData {
 
     private List<Loan> loans;
-
-    private boolean success = true;
-
-    private List<LoanEligibilityDTO> eligibility;
-
-    private String message = "success";
-
-    private Boolean topup = false;
-
     private Boolean isPanNsdlVerified;
     private Double totalPaidAmount = 0D;
     private Double totalAmount = 0D;
@@ -49,7 +45,6 @@ public class LendingMerchantLoansResponseDTO {
     private Boolean ediStarted;
     private Boolean perpetualDpdRestrictPgPayment;
     private List<RepaymentDetails> repaymentDetails;
-    private String topupLender;
     private BankAccountDetails accountDetails;
     private Boolean showChangeBankAccountBanner;
     private Boolean showRenachBanner;
@@ -57,8 +52,6 @@ public class LendingMerchantLoansResponseDTO {
     private Boolean contactSync = false;
     private List<PenaltyConfig> penaltyConfig;
     private Boolean topupRejected;
-    private String rejectionReason;
-    private Boolean isRejected;
     private Boolean timeBasedTopupDisabled;
     private double configNachBounceAmount;
 
@@ -118,6 +111,8 @@ public class LendingMerchantLoansResponseDTO {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class RepaymentDetails {
         private String status;
         private String mode;
@@ -208,301 +203,20 @@ public class LendingMerchantLoansResponseDTO {
             this.duePenalty = duePenalty;
             this.settlementInitiated = settlementInitiated;
         }
-
-        public Long getLoanId() {
-            return this.loanId;
-        }
-
-        public void setLoanId(Long loanId) {
-            this.loanId = loanId;
-        }
-
-        public Double getLoanAmount() {
-            return this.loanAmount;
-        }
-
-        public void setLoanAmount(Double loanAmount) {
-            this.loanAmount = loanAmount;
-        }
-
-        public Double getEdiAmount() {
-            return this.ediAmount;
-        }
-
-        public void setEdiAmount(Double ediAmount) {
-            this.ediAmount = ediAmount;
-        }
-
-        public Double getDueAmount() {
-            return this.dueAmount;
-        }
-
-        public void setDueAmount(Double dueAmount) {
-            this.dueAmount = dueAmount;
-        }
-
-        public Double getInterestRate() {
-            return this.interestRate;
-        }
-
-        public void setInterestRate(Double interestRate) {
-            this.interestRate = interestRate;
-        }
-
-        public Double getProcessingFee() {
-            return this.processingFee;
-        }
-
-        public void setProcessingFee(Double processingFee) {
-            this.processingFee = processingFee;
-        }
-
-        public Double getDisbursedAmount() {
-            return this.disbursedAmount;
-        }
-
-        public void setDisbursedAmount(Double disbursedAmount) {
-            this.disbursedAmount = disbursedAmount;
-        }
-
-        public Double getPendingAmount() {
-            return this.pendingAmount;
-        }
-
-        public void setPendingAmount(Double pendingAmount) {
-            this.pendingAmount = pendingAmount;
-        }
-
-        public Double getPaidPrinciple() {
-            return this.paidPrinciple;
-        }
-
-        public void setPaidPrinciple(Double paidPrinciple) {
-            this.paidPrinciple = paidPrinciple;
-        }
-
-        public String getTenure() {
-            return this.tenure;
-        }
-
-        public void setTenure(String tenure) {
-            this.tenure = tenure;
-        }
-
-        public String getStartDate() {
-            return this.startDate;
-        }
-
-        public void setStartDate(String startDate) {
-            this.startDate = startDate;
-        }
-
-        public String getEndDate() {
-            return this.endDate;
-        }
-
-        public void setEndDate(String endDate) {
-            this.endDate = endDate;
-        }
-
-        public String getLoanType() {
-            return this.loanType;
-        }
-
-        public void setLoanType(String loanType) {
-            this.loanType = loanType;
-        }
-
-        public String getStatus() {
-            return this.status;
-        }
-
-        public void setStatus(String status) {
-            this.status = status;
-        }
-
-        public Double getPaidAmount() {
-            return paidAmount;
-        }
-
-        public void setPaidAmount(Double paidAmount) {
-            this.paidAmount = paidAmount;
-        }
-
-        public Double getLastEdiPaid() {
-            return lastEdiPaid;
-        }
-
-        public void setLastEdiPaid(Double lastEdiPaid) {
-            this.lastEdiPaid = lastEdiPaid;
-        }
-
-        public boolean isShowPaynow() {
-            return showPaynow;
-        }
-
-        public void setShowPaynow(boolean showPaynow) {
-            this.showPaynow = showPaynow;
-        }
-
-        public boolean isShowCustomAmount() {
-            return showCustomAmount;
-        }
-
-        public void setShowCustomAmount(boolean showCustomAmount) {
-            this.showCustomAmount = showCustomAmount;
-        }
-
-        public Double getRepaymentAmount() {
-            return repaymentAmount;
-        }
-
-        public void setRepaymentAmount(Double repaymentAmount) {
-            this.repaymentAmount = repaymentAmount;
-        }
-
-        public Integer getEdiCount() {
-            return ediCount;
-        }
-
-        public void setEdiCount(Integer ediCount) {
-            this.ediCount = ediCount;
-        }
-
-
-        public String getLender() {
-            return lender;
-        }
-
-        public void setLender(String lender) {
-            this.lender = lender;
-        }
-
-        public String getSettlementStatus() {
-            return settlementStatus;
-        }
-
-        public void setSettlementStatus(String settlementStatus) {
-            this.settlementStatus = settlementStatus;
-        }
-
-        public Integer getDpd() {
-            return dpd;
-        }
-
-        public void setDpd(Integer dpd) {
-            this.dpd = dpd;
-        }
-
-        public Loan loanId(Long loanId) {
-            this.loanId = loanId;
-            return this;
-        }
-
-        public Loan loanAmount(Double loanAmount) {
-            this.loanAmount = loanAmount;
-            return this;
-        }
-
-        public Loan ediAmount(Double ediAmount) {
-            this.ediAmount = ediAmount;
-            return this;
-        }
-
-        public Loan dueAmount(Double dueAmount) {
-            this.dueAmount = dueAmount;
-            return this;
-        }
-
-        public Loan interestRate(Double interestRate) {
-            this.interestRate = interestRate;
-            return this;
-        }
-
-        public Loan processingFee(Double processingFee) {
-            this.processingFee = processingFee;
-            return this;
-        }
-
-        public Loan disbursedAmount(Double disbursedAmount) {
-            this.disbursedAmount = disbursedAmount;
-            return this;
-        }
-
-        public Loan pendingAmount(Double pendingAmount) {
-            this.pendingAmount = pendingAmount;
-            return this;
-        }
-
-        public Loan paidPrinciple(Double paidPrinciple) {
-            this.paidPrinciple = paidPrinciple;
-            return this;
-        }
-
-        public Loan tenure(String tenure) {
-            this.tenure = tenure;
-            return this;
-        }
-
-        public Loan startDate(String startDate) {
-            this.startDate = startDate;
-            return this;
-        }
-
-        public Loan endDate(String endDate) {
-            this.endDate = endDate;
-            return this;
-        }
-
-        public Loan loanType(String loanType) {
-            this.loanType = loanType;
-            return this;
-        }
-
-        public Loan status(String status) {
-            this.status = status;
-            return this;
-        }
-
-        public Double getAnnualRoi() {
-            return annualRoi;
-        }
-
-        public void setAnnualRoi(Double annualRoi) {
-            this.annualRoi = annualRoi;
-        }
-
-        @Override
-        public String toString() {
-            return "{" + " loanId='" + getLoanId() + "'" + ", loanAmount='" + getLoanAmount() + "'" + ", ediAmount='"
-                    + getEdiAmount() + "'" + ", dueAmount='" + getDueAmount() + "'" + ", interestRate='"
-                    + getInterestRate() + "'" + ", processingFee='" + getProcessingFee() + "'" + ", disbursedAmount='"
-                    + getDisbursedAmount() + "'" + ", pendingAmount='" + getPendingAmount() + "'" + ", paidPrinciple='"
-                    + getPaidPrinciple() + "'" + ", tenure='" + getTenure() + "'" + ", startDate='" + getStartDate()
-                    + "'" + ", endDate='" + getEndDate() + "'" + ", loanType='" + getLoanType() + "'" + ", status='"
-                    + getStatus() + "'" + " lender='" + getLender() + "'" + "}";
-        }
-
     }
 
     @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
     public static class PenaltyConfig {
         private Long minAmount;
         private Long maxAmount;
         private Double penalty;
     }
-
-
-    public List<Loan> getLoans() {
-        return loans;
-    }
-
-    public void setLoans(List<Loan> loans) {
-        this.loans = loans;
-    }
-
-    public void setLoansFromLendingPaymentSchedule(List<LendingPaymentScheduleSlave> loansList) {
-        this.loans = loansList.stream().map(this::lendingPaymentScheduleToLoan).collect(Collectors.toList());
+    public void setLoansFromLendingPaymentSchedule(List<LendingPaymentScheduleSlave> loansList,@NotNull Map<Long, LendingApplicationSlave> applicationMap) {
+        this.loans = loansList.stream()
+                .map(loan -> lendingPaymentScheduleToLoan(loan, applicationMap.get(loan.getApplicationId())))
+                .collect(Collectors.toList());
         this.totalAmount = this.loans.stream().reduce(0D,
                 (partialAmount, loan)->partialAmount + (ObjectUtils.isEmpty(loan.getLoanAmount()) ? 0 : loan.getLoanAmount()), Double::sum);
         this.totalDueAmount = this.loans.stream().reduce(0D,
@@ -570,8 +284,10 @@ public class LendingMerchantLoansResponseDTO {
                 .build();
     }
 
-    private Loan lendingPaymentScheduleToLoan(LendingPaymentScheduleSlave lendingPaymentSchedule) {
-        LendingApplicationSlave application = lendingPaymentSchedule.getLoanApplication();
+    private Loan lendingPaymentScheduleToLoan(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplicationSlave application) {
+        if(application == null){
+            application = lendingPaymentSchedule.getLoanApplication();
+        }
         Double loanAmount = lendingPaymentSchedule.getLoanAmount() != null ? lendingPaymentSchedule.getLoanAmount()
                 : 0d;
         Double paidPrinciple = lendingPaymentSchedule.getPaidPrinciple() != null
@@ -673,122 +389,5 @@ public class LendingMerchantLoansResponseDTO {
         return Double.sum(loanSummary.getLoanAmount(),
                 Double.sum(loanSummary.getPendingInterest().doubleValue(),
                         loanSummary.getOverdueInterest().doubleValue()));
-    }
-
-
-    public boolean getSuccess() {
-        return success;
-    }
-
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public Double getTotalPaidAmount() {
-        return totalPaidAmount;
-    }
-
-    public void setTotalPaidAmount(Double totalPaidAmount) {
-        this.totalPaidAmount = totalPaidAmount;
-    }
-
-    public Double getTotalAmount() {
-        return totalAmount;
-    }
-
-    public void setTotalAmount(Double totalAmount) {
-        this.totalAmount = totalAmount;
-    }
-
-    public Double getTotalDueAmount() {
-        return totalDueAmount;
-    }
-
-    public void setTotalDueAmount(Double totalDueAmount) {
-        this.totalDueAmount = totalDueAmount;
-    }
-
-    public boolean isSuccess() {
-        return success;
-    }
-
-    public Boolean getTopup() {
-        return topup;
-    }
-
-    public void setTopup(Boolean topup) {
-        this.topup = topup;
-    }
-
-    public List<LoanEligibilityDTO> getEligibility() {
-        return eligibility;
-    }
-
-    public void setEligibility(List<LoanEligibilityDTO> eligibility) {
-        this.eligibility = eligibility;
-    }
-
-    public HalfLoan getHalfLoan() {
-        return halfLoan;
-    }
-
-    public void setHalfLoan(HalfLoan halfLoan) {
-        this.halfLoan = halfLoan;
-    }
-
-    public IOLoan getIoLoan() {
-        return ioLoan;
-    }
-
-    public void setIoLoan(IOLoan ioLoan) {
-        this.ioLoan = ioLoan;
-    }
-
-    public Boolean getEdiStarted() {
-        return ediStarted;
-    }
-
-    public void setEdiStarted(Boolean ediStarted) {
-        this.ediStarted = ediStarted;
-    }
-
-    public List<RepaymentDetails> getRepaymentDetails() {
-        return repaymentDetails;
-    }
-
-    public void setRepaymentDetails(List<RepaymentDetails> repaymentDetails) {
-        this.repaymentDetails = repaymentDetails;
-    }
-
-    public String getTopupLender() {
-        return topupLender;
-    }
-
-    public void setTopupLender(String topupLender) {
-        this.topupLender = topupLender;
-    }
-
-    public BankAccountDetails getAccountDetails() {
-        return accountDetails;
-    }
-
-    public void setAccountDetails(BankAccountDetails accountDetails) {
-        this.accountDetails = accountDetails;
-    }
-
-    public Boolean getContactSync() {
-        return this.contactSync;
-    }
-
-    public void setContactSync(Boolean contactSync) {
-        this.contactSync = contactSync;
     }
 }
