@@ -363,7 +363,7 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 			}
 
 			if (documentList.isEmpty()) {
-				logger.error("No documents were successfully processed for merchant: {}, application: {}",
+				logger.warn("No documents were successfully processed for merchant: {}, application: {}",
 						merchantBasicDetails.getId(), lendingApplication.getId());
 				return ApiResponse.error(String.valueOf(HttpStatus.UNPROCESSABLE_ENTITY.value()), "No documents were successfully processed", null);
 			}

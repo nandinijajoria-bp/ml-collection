@@ -1470,14 +1470,22 @@ public class LenderAssignService implements ILenderAssignService {
                 }
                 log.info("adding lender {} to list", lender);
                 Double apr;
-                Double irr;
+                Double irr = null;
+                Double interestRate;
+                LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(lendingApplication.getId()).
+                        edi(lendingApplication.getEdi()).tenureInMonths(lendingApplication.getTenureInMonths()).
+                        loanAmount(lendingApplication.getLoanAmount()).payableDays(lendingApplication.getPayableDays()).
+                        lender(lendingApplication.getLender()).build();
                 if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    apr = lendingLenderPricing.getApr();
-                    irr = lendingLenderPricing.getIrr();
+                    Double processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                    apr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, lendingApplication.getLoanAmount() - processingFee, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
+                    irr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, lendingApplication.getLoanAmount(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lender, lendingLenderPricing);
+                    interestRate = lendingLenderPricing.getInterestRate();
                 }
                 else{
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
+                    interestRate = lendingApplication.getInterestRate();
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
@@ -1488,8 +1496,40 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setApprovalRate(getPropensityMatrix(Lender.valueOf(lender)));
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(Lender.valueOf(lender)));
                 lenderData.setNachBounceAmount(getNachBounceAmount(Lender.valueOf(lender)));
+                lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
+
+
+                // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
+                eligibleLenderList.sort((lender1, lender2) -> {
+                    boolean isLender1Default = defaultLender != null &&
+                            defaultLender.getLender().equals(lender1.getLenderName());
+                    boolean isLender2Default = defaultLender != null &&
+                            defaultLender.getLender().equals(lender2.getLenderName());
+
+                    if (isLender1Default && !isLender2Default) return 1;
+
+                    if (!isLender1Default && isLender2Default) return -1;
+
+                    int interestRateComparison = lender2.getInterestRate().compareTo(lender1.getInterestRate());
+                    if (interestRateComparison != 0) {
+                        return interestRateComparison;
+                    }
+
+                    String rate1 = lender1.getApprovalRate();
+                    String rate2 = lender2.getApprovalRate();
+
+                    if (rate1.equals(rate2)) {
+                        return lender1.getLenderName().compareTo(lender2.getLenderName());
+                    }
+                    if ("HIGH".equals(rate1)) return -1;
+                    if ("HIGH".equals(rate2)) return 1;
+                    if ("MEDIUM".equals(rate1)) return -1;
+                    if ("MEDIUM".equals(rate2)) return 1;
+                    return 0;
+                });
             }
+            log.info("eligible lenders after sorting:{}", eligibleLenderList);
 
             log.info("adding rejected lenders to the list for lendingApplication:{}:{}", lendingApplication.getId(), prevAssignedLenders);
             if (Objects.nonNull(prevAssignedLenders)) {
@@ -1513,16 +1553,18 @@ public class LenderAssignService implements ILenderAssignService {
 
     public String getPropensityMatrix(Lender lender) {
         Map<Lender, String> propensityMap = new HashMap<Lender, String>() {{
-            put(ABFL, "HIGH");
+            put(ABFL, "LOW");
             put(MUTHOOT, "MEDIUM");
             put(CAPRI, "MEDIUM");
             put(CREDITSAISON, "LOW");
-            put(PIRAMAL, "LOW");
+            put(PIRAMAL, "MEDIUM");
+            put(UGRO, "MEDIUM");
+            put(OXYZO, "HIGH");
             put(SMFG, "LOW");
+            put(PAYU, "HIGH");
             put(TRILLIONLOANS, "HIGH");
             put(LIQUILOANS_P2P, "HIGH");
-            put(PAYU, "MEDIUM");
-
+            put(LIQUILOANS_NBFC, "HIGH");
         }};
 
         return propensityMap.getOrDefault(lender, "LOW");
@@ -1530,6 +1572,11 @@ public class LenderAssignService implements ILenderAssignService {
 
     public Integer getNachBounceAmount(Lender lender) {
         Map<Lender, Integer> nachBounceAmountMap = new HashMap<Lender, Integer>() {{
+            put(TRILLIONLOANS, 500);
+            put(PAYU, 500);
+            put(PIRAMAL, 650);
+            put(LIQUILOANS, 650);
+            put(CREDITSAISON, 650);
             put(LIQUILOANS_P2P, 650);
             put(LIQUILOANS_P2P_OF, 650);
         }};
