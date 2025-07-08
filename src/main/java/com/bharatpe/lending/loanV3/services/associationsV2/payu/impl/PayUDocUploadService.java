@@ -64,6 +64,9 @@ public class PayUDocUploadService {
     @Autowired
     DocUploadUtils docUploadUtils;
 
+    @Autowired
+    LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
+
     @Transactional
     public boolean invokeDocUpload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String docType) {
 
@@ -261,6 +264,9 @@ public class PayUDocUploadService {
     public boolean invokeAdditionalDocUpload(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String docType) {
         try {
 
+            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DOC_UPLOAD_IN_PROGRESS.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
+
             LendingKfs lendingKfs = lendingKfsDao.findTop1ByApplicationIdAndLenderOrderByIdDesc(lendingApplication.getId(), lendingApplicationLenderDetails.getLender());
             if (ObjectUtils.isEmpty(lendingKfs)) {
                 throw new RuntimeException("Unable to fetch lending kfs and loan agreement documents for merchant");
@@ -269,6 +275,8 @@ public class PayUDocUploadService {
             NBFCRequestDTO getLoanDocsRequest = getLoanDocsRequestDTO(lendingApplication.getId(), lendingApplicationLenderDetails, lendingKfs);
 
             if (Objects.isNull(getLoanDocsRequest) || Objects.isNull(getLoanDocsRequest.getPayload())) {
+                lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 log.info("error in getLoanDocs API of PayU for applicationId: {}", lendingApplication.getId());
                 return false;
             }
@@ -288,6 +296,8 @@ public class PayUDocUploadService {
         } catch (Exception e) {
             log.error("exception occurred while invoking doc upload of PayU for {} {} {} {}", docType, lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+        lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DOC_UPLOAD_FAILED.name());
+        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         return false;
     }
 
@@ -360,10 +370,14 @@ public class PayUDocUploadService {
 
     public boolean invokeSignDocs(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String docType, PayULoanDocsUploadResponseDTO getLoanDocsResponseDTO) {
         try {
+            lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_IN_PROGRESS.name());
+            lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
             List<PayULoanDocsUploadResponseDTO.DocumentList> documentsList = getLoanDocsResponseDTO.getDocumentList();
 
             if (documentsList == null || documentsList.isEmpty()) {
                 log.info("Loan documents list is empty for PayU");
+                lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_FAILED.name());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 return false;
             }
 
@@ -377,6 +391,8 @@ public class PayUDocUploadService {
 
                 if (!document.isPresent() || document.get().getDocumentId() == null ||  document.get().getDocumentId().isEmpty()) {
                     log.info("Document or documentId not found for PayU - {}", doc);
+                    lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_FAILED.name());
+                    lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                     return false;
                 } else {
                     requestDetailsList.add(getSignDocsRequestDetails(lendingApplication, lendingApplicationLenderDetails, document.get().getDocumentId(), doc ));
@@ -386,6 +402,8 @@ public class PayUDocUploadService {
             NBFCRequestDTO getSignDocsRequest = getSignDocsPayload(lendingApplication, lendingApplicationLenderDetails, requestDetailsList);
             if (getSignDocsRequest == null || getSignDocsRequest.getPayload() == null) {
                 log.info("Error in invokeSignDocs API of PayU for applicationId: {}", lendingApplication.getId());
+                lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_FAILED.name());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 return false;
             }
 
@@ -396,13 +414,16 @@ public class PayUDocUploadService {
 
             if (nbfcResponseDto != null && nbfcResponseDto.getSuccess() && nbfcResponseDto.getData() != null) {
                 PayUCommonResponseDTO commonResponseDTO = objectMapper.convertValue(nbfcResponseDto.getData(), PayUCommonResponseDTO.class);
-
+                lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_COMPLETE.name());
+                lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
                 return "SUCCESS".equalsIgnoreCase(commonResponseDTO.getApiStatus());
             }
 
         } catch (Exception e) {
             log.error("Exception occurred while invoking sign doc API of PayU for {} {} {} {}", docType, lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
+        lendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.DIGI_SIGN_FAILED.name());
+        lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
         return false;
     }
 
