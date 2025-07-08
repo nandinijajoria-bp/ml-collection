@@ -1209,8 +1209,7 @@ public class LoanUtil {
 	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
+			if (lendingRiskVariables != null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
@@ -2837,6 +2836,7 @@ public class LoanUtil {
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
 		try{
 			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				if(!ObjectUtils.isEmpty(applicationId)){
