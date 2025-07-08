@@ -123,6 +123,12 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     private EdiUtil ediUtil;
 
+    @Value("${pricing.experiment.enable:false}")
+    boolean pricingExpEnabled;
+
+    @Autowired
+    PricingExperimentDao pricingExperimentDao;
+
     public abstract void initLenderAssociation(InvokeLenderAssociationRequest invokeLenderAssociationRequest);
 
     public ApiResponse<?> fetchApplicationStatus(Long merchantId, String lenderKycStatus, boolean userReturnedFromLenderKyc) {
@@ -788,22 +794,32 @@ public abstract class LendingApplicationServiceV3Base {
 
                     if(offerModifiedEligibleLenders.contains(lendingApplication.getLender()) &&
                             !ObjectUtils.isEmpty(approvedLoanOfferAmount) && lendingApplication.getLoanAmount() > approvedLoanOfferAmount) {
-                        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                                lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                                lendingRiskVariablesSnapshot.getRiskGroup(),
-                                lendingApplication.getTenureInMonths(),
-                                lendingApplication.getLender(),
-                                lendingRiskVariablesSnapshot.getPincodeColor().name(),
-                                lendingApplication.getCreatedAt()
-                        );
-
-                        Double pfRate;
-                        if(ObjectUtils.isEmpty(lendingLenderPricing)){
-                            log.info("Lending lender pricing not available, using eligible loan values");
-                            pfRate = eligibleLoan.get().getProcessingFeeRate();
-                        } else {
-                            pfRate = lendingLenderPricing.getProcessingFeeRate();
+                        PricingExperiment pricingExperiment = null;
+                        if(pricingExpEnabled) {
+                            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(), lendingRiskVariablesSnapshot.getRiskGroup(),
+                                    lendingRiskVariablesSnapshot.getTenure(), (int)(lendingRiskVariablesSnapshot.getMerchantId()%10), lendingRiskVariablesSnapshot.getPincodeColor().name(), lendingApplication.getCreatedAt());
                         }
+                        Double pfRate;
+                        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+                            log.info("pricing experiment fetched for {}: {}",merchantId, pricingExperiment);
+                            pfRate = pricingExperiment.getProcessingFeeRate();
+                        }else{
+                            LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                                    lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                                    lendingApplication.getTenureInMonths(),
+                                    lendingApplication.getLender(),
+                                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                                    lendingApplication.getCreatedAt()
+                            );
+                            if(ObjectUtils.isEmpty(lendingLenderPricing)){
+                                log.info("Lending lender pricing not available, using eligible loan values");
+                                pfRate = eligibleLoan.get().getProcessingFeeRate();
+                            } else {
+                                pfRate = lendingLenderPricing.getProcessingFeeRate();
+                            }
+                        }
+
 
                         Double processingFee = Math.ceil((pfRate * approvedLoanOfferAmount) / 100);
                         Double interestAmt = (approvedLoanOfferAmount * (lendingApplication.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
