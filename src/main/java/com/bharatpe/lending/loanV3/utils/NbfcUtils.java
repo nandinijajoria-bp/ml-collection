@@ -349,16 +349,19 @@ public class NbfcUtils {
     public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         RiskVariablesDTO riskVariables = new RiskVariablesDTO();
-        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
-                lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                lendingRiskVariablesSnapshot.getRiskGroup(),
-                lendingRiskVariablesSnapshot.getTenure(),
-                (int) (lendingApplication.getMerchantId()%10),
-                lendingRiskVariablesSnapshot.getPincodeColor().name(),
-                lendingApplication.getCreatedAt()
-        );
+        PricingExperiment pricingExperiment = null;
+        if(pricingExpEnabled) {
+            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
+                    lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingRiskVariablesSnapshot.getTenure(),
+                    (int) (lendingApplication.getMerchantId()%10),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+        }
 
-        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("pricing experiment fetched for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
             riskVariables.setPricingExperimentMap(Collections.singletonMap(lendingApplication.getMerchantId(), pricingExperiment));
         }else {

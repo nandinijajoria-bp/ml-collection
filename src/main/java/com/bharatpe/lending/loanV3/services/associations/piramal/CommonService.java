@@ -152,13 +152,16 @@ public class CommonService {
         LendingApplication newApplication = new LendingApplication();
         BeanUtils.copyProperties(lendingApplication, newApplication);
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-        PricingExperiment pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                lendingRiskVariablesSnapshot.getRiskGroup(),
-                lendingRiskVariablesSnapshot.getTenure(),
-                (int) (lendingApplication.getMerchantId()%10),
-                lendingRiskVariablesSnapshot.getPincodeColor().name(),
-                lendingApplication.getCreatedAt()
-        );
+        PricingExperiment pricingExperiment = null;
+        if(pricingExpEnabled) {
+            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingRiskVariablesSnapshot.getTenure(),
+                    (int) (lendingApplication.getMerchantId()%10),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+        }
 
         log.info("Requested loan amount : {}", lendingApplication.getLoanAmount());
         Double loanAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
@@ -166,7 +169,7 @@ public class CommonService {
         Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
 
         Double pfRate;
-        if(pricingExpEnabled && !ObjectUtils.isEmpty(pricingExperiment)) {
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
             log.info("experiment available for {}: {}", lendingRiskVariablesSnapshot.getMerchantId(), pricingExperiment);
             pfRate = pricingExperiment.getProcessingFeeRate();
         }else {
