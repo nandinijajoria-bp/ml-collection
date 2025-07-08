@@ -364,7 +364,8 @@ public class LoanDashboardService {
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
 
-        if (isRTEEligible(merchantDetails, loanDashboardResponse)) {
+        checksForRTE(merchantDetails, loanDashboardResponse);
+        if(loanDashboardResponse.isShowRTEPage()) {
             return loanDashboardResponse;
         }
 
@@ -374,6 +375,34 @@ public class LoanDashboardService {
         cacheLoanDetailsData(loanDashboardResponse);
         log.info("Returning loan dashboard response on new version for merchantId: {}", merchantDetails.getId());
         return loanDashboardResponse;
+    }
+
+    private void checksForRTE(BasicDetailsDto merchantDetails, LoanDashboardResponse response) {
+        MileStoneEntity entity = mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(merchantDetails.getId());
+        if (ObjectUtils.isEmpty(entity)) {
+            return;
+        }
+
+        DSMileStoneResponse dsMileStoneResponse = mileStoneHelperService.fetchTarget(entity);
+        if (ObjectUtils.isEmpty(dsMileStoneResponse)) {
+            log.info("Empty targets for merchant: {}", merchantDetails.getId());
+            return;
+        }
+
+        if (isEligibleForRTE(dsMileStoneResponse, RTEProgramType.CASHBACK.name(), Boolean.TRUE.equals(entity.getShowSummaryPage()))) {
+            log.info("returning rte cashback flow from loan dashboard page for {}", merchantDetails.getId());
+            response.setShowRTEPage(true);
+            return;
+        }
+
+        if (isEligibleForRTE(dsMileStoneResponse, RTEProgramType.SLIDER.name(), RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus()))) {
+            log.info("merchant is enrolled in slider program: {}", merchantDetails.getId());
+            response.setSliderEnrolled(true);
+        }
+    }
+
+    private boolean isEligibleForRTE(DSMileStoneResponse dsMileStoneResponse, String programType, boolean sessionInProgress) {
+        return programType.equals(dsMileStoneResponse.getProgram_type()) && sessionInProgress;
     }
 
     private LoanDashboardResponse getCachedLoanDetails(String cacheKey) {
