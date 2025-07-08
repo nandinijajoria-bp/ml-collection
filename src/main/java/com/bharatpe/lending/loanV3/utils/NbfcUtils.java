@@ -1,23 +1,26 @@
 package com.bharatpe.lending.loanV3.utils;
 
 import com.bharatpe.common.entities.LendingApplication;
+
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
+import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingLenderPricingDao;
 import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
-import com.bharatpe.lending.common.entity.LendingLenderPricing;
-import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.dao.PricingExperimentDao;
 import com.bharatpe.common.enums.RejectionStage;
-import com.bharatpe.lending.common.enums.*;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
+import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
+import com.bharatpe.lending.common.entity.PricingExperiment;
+import com.bharatpe.lending.common.entity.LendingLenderPricing;
+import com.bharatpe.lending.common.enums.LenderOffDays;
 import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LenderDisbursalLimitsDao;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.entity.LendingLenderQuota;
 import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
-import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -108,6 +111,12 @@ public class NbfcUtils {
     LendingLenderPricingDao lendingLenderPricingDao;
     @Autowired
     CommonService commonService;
+
+    @Autowired
+    PricingExperimentDao pricingExperimentDao;
+
+    @Value("${pricing.experiment.enable:false}")
+    boolean pricingExpEnabled;
 
     @Autowired
     private RolloutUtil rolloutUtil;
@@ -340,16 +349,32 @@ public class NbfcUtils {
     public boolean additionalLenderDowngradeChecksFailed(LendingApplication lendingApplication){
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         RiskVariablesDTO riskVariables = new RiskVariablesDTO();
-        LendingLenderPricing lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                lendingRiskVariablesSnapshot.getRiskGroup(),
-                lendingApplication.getTenureInMonths(),
-                lendingApplication.getLender(),
-                lendingRiskVariablesSnapshot.getPincodeColor().name(),
-                lendingApplication.getCreatedAt()
-        );
+        PricingExperiment pricingExperiment = null;
+        if(pricingExpEnabled) {
+            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(
+                    lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingRiskVariablesSnapshot.getTenure(),
+                    (int) (lendingApplication.getMerchantId()%10),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+        }
 
-        riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricingList));
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("pricing experiment fetched for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
+            riskVariables.setPricingExperimentMap(Collections.singletonMap(lendingApplication.getMerchantId(), pricingExperiment));
+        }else {
+            LendingLenderPricing lenderPricingList = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                    lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingApplication.getTenureInMonths(),
+                    lendingApplication.getLender(),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+            riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricingList));
+        }
 
         // Check APR and IRR conditions
         boolean aprCheckResult = lenderAssignService.maxAprCheckFailedV2(lendingApplication, LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel(), lendingApplication.getLender(), riskVariables);

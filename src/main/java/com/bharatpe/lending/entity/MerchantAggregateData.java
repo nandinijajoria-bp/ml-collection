@@ -1,31 +1,51 @@
 package com.bharatpe.lending.entity;
 
-
-import com.bharatpe.common.entities.BaseEntity;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.TypeAlias;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import java.time.Instant;
 
-@Entity
-@Table(name = "merchant_aggregate_data")
 @Data
-public class MerchantAggregateData extends BaseEntity {
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Document(collection = "merchant_aggregate_data_new")
+@TypeAlias("MerchantAggregateDataNew")
+@ToString(callSuper = true)
+public class MerchantAggregateData {
 
-    @Column(name = "merchant_id")
-    private Long merchantId;
+    @Id
+    private String id;
 
-    @Column(name = "application_type")
+    @CreatedDate
+    @Field("created_at")
+    private Instant createdAt;
+
+    @LastModifiedDate
+    @Field("updated_at")
+    private Instant updatedAt;
+
+    @Field("application_type")
     private String applicationType;
 
-    @Column(name = "sources")
+    @Field("merchant_id")
+    private long merchantId;
+
+    @Field("sources")
     private String sources;
 
-    @Column(name = "scienaptic_properties")
+    @Field("scienaptic_properties")
     private String scienapticProperties;
 
-    @Column(name = "aggregate_id")
+    @Field("aggregate_id")
     private String aggregateId;
-
 }

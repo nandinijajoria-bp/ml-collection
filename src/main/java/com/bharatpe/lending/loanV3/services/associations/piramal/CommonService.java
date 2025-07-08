@@ -25,13 +25,8 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Service
 @Slf4j
@@ -73,6 +68,12 @@ public class CommonService {
 
     @Autowired
     private EdiUtil ediUtil;
+
+    @Autowired
+    PricingExperimentDao pricingExperimentDao;
+
+    @Value("${pricing.experiment.enable:false}")
+    boolean pricingExpEnabled;
 
     public void manageApplicationState(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
         if (lenderAssociationDetailsDto.isManageState()) {
@@ -151,15 +152,16 @@ public class CommonService {
         LendingApplication newApplication = new LendingApplication();
         BeanUtils.copyProperties(lendingApplication, newApplication);
         LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-
-        LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
-                lendingRiskVariablesSnapshot.getRiskSegment().name(),
-                lendingRiskVariablesSnapshot.getRiskGroup(),
-                lendingApplication.getTenureInMonths(),
-                lendingApplication.getLender(),
-                lendingRiskVariablesSnapshot.getPincodeColor().name(),
-                lendingApplication.getCreatedAt()
-        );
+        PricingExperiment pricingExperiment = null;
+        if(pricingExpEnabled) {
+            pricingExperiment = pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMidEndsWithAndPincodeColor(lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingRiskVariablesSnapshot.getTenure(),
+                    (int) (lendingApplication.getMerchantId()%10),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+        }
 
         log.info("Requested loan amount : {}", lendingApplication.getLoanAmount());
         Double loanAmount = lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt();
@@ -167,11 +169,25 @@ public class CommonService {
         Optional<LendingEligibleLoan> eligibleLoan = eligibleLoanDao.findById(lendingApplicationDetails.getOfferId());
 
         Double pfRate;
-        if(ObjectUtils.isEmpty(lendingLenderPricing)){
-            log.info("Lending lender pricing not available, using eligible loan values");
-            pfRate = eligibleLoan.get().getProcessingFeeRate();
-        } else {
-            pfRate = lendingLenderPricing.getProcessingFeeRate();
+        if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            log.info("experiment available for {}: {}", lendingRiskVariablesSnapshot.getMerchantId(), pricingExperiment);
+            pfRate = pricingExperiment.getProcessingFeeRate();
+        }else {
+            LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
+                    lendingRiskVariablesSnapshot.getRiskSegment().name(),
+                    lendingRiskVariablesSnapshot.getRiskGroup(),
+                    lendingApplication.getTenureInMonths(),
+                    lendingApplication.getLender(),
+                    lendingRiskVariablesSnapshot.getPincodeColor().name(),
+                    lendingApplication.getCreatedAt()
+            );
+
+            if(ObjectUtils.isEmpty(lendingLenderPricing)){
+                log.info("Lending lender pricing not available, using eligible loan values");
+                pfRate = eligibleLoan.get().getProcessingFeeRate();
+            } else {
+                pfRate = lendingLenderPricing.getProcessingFeeRate();
+            }
         }
 
         Double processingFee = Math.ceil((pfRate * loanAmount) / 100);
