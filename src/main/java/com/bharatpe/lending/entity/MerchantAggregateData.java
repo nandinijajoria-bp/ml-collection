@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.TypeAlias;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -21,6 +22,9 @@ import java.time.Instant;
 @TypeAlias("MerchantAggregateDataNew")
 @ToString(callSuper = true)
 public class MerchantAggregateData {
+
+    @Id
+    private String id;
 
     @CreatedDate
     @Field("created_at")
