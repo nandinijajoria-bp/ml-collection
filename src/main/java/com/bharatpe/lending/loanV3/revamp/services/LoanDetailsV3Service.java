@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
@@ -14,6 +16,7 @@ import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiRespo
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
+import com.bharatpe.lending.loanV3.dto.UpiAutopayApplicationDetailsDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -83,15 +86,6 @@ public class LoanDetailsV3Service {
     @Autowired
     BQPublisherUtil bqPublisherUtil;
 
-    @Value("${shop.picture.skip.enabled:false}")
-    private boolean shouldSkipShopPicture;
-
-    @Value("${lenders.skip.shop.picture:}")
-    private List<String> lendersToSkipShopPicture;
-
-    @Value("${skip.picture.threshold:0}")
-    private int skipPictureThreshold;
-
     @Value("${sid.threshold}")
     Double sidThreshold;
 
@@ -100,6 +94,9 @@ public class LoanDetailsV3Service {
 
     @Autowired
     LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Autowired
+    ExperianDao experianDao;
 
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
@@ -250,6 +247,10 @@ public class LoanDetailsV3Service {
                     return loanDetailsV3Response;
                 case ENACH_PAGE:
                     setEnachResponse((EnachStateDTO)lendingStateDTO.getData(),loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+                case UPI_AUTOPAY_PAGE:
+                    setUpiAutopayResponse((UpiAutopayStateDTO) lendingStateDTO.getData(),loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
                 case KYC_ROUTE_TO_ELIGIBILITY:
@@ -496,19 +497,22 @@ public class LoanDetailsV3Service {
     }
 
     private AddressDetails fetchAddressFromLendingApplication(Long applicationId, Long merchantId) {
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantId(merchantId);
-        log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
-        if (lendingApplication != null && isAddressComplete(lendingApplication)) {
-            AddressDetails addressDetails = new AddressDetails();
-            addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
-            addressDetails.setArea(lendingApplication.getArea());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setAddress2(lendingApplication.getStreetAddress());
-            addressDetails.setAddress1(lendingApplication.getShopNumber());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setCity(lendingApplication.getCity());
-            addressDetails.setState(lendingApplication.getState());
-            return addressDetails;
+        Experian experian = experianDao.getByMerchantId(merchantId);
+        if(experian.getPincode() != null) {
+            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdAndPincodeOrderByIdDesc(merchantId, Long.valueOf(experian.getPincode()));
+            log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
+            if (lendingApplication != null && isAddressComplete(lendingApplication)) {
+                AddressDetails addressDetails = new AddressDetails();
+                addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+                addressDetails.setArea(lendingApplication.getArea());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setAddress2(lendingApplication.getStreetAddress());
+                addressDetails.setAddress1(lendingApplication.getShopNumber());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setCity(lendingApplication.getCity());
+                addressDetails.setState(lendingApplication.getState());
+                return addressDetails;
+            }
         }
         return null;
     }
@@ -605,22 +609,10 @@ public class LoanDetailsV3Service {
                 return;
             }
 
-            LocalDate today = LocalDate.now();
-            LocalDateTime startOfDay = today.atStartOfDay();
-            Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
-
-            List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
-                     lendersToSkipShopPicture, startOfDate);
-
-            int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
-            log.info("Found {} applications for lender {} created today for merchantId: {}",
-                    todayApplicationsCount, lendersToSkipShopPicture, merchantId);
-
-
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (lendingResubmitTask == null && shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
-
+            if (lendingResubmitTask == null && lendingApplication != null) {
+                log.info("Processing shop pictures for merchantId: {}, applicationId: {}, lender: {}",
+                        merchantId, applicationId, lendingApplication.getLender());
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
                 log.info("Shop picture skipping not applicable for merchantId: {}, lender: {}",
@@ -1364,6 +1356,21 @@ public class LoanDetailsV3Service {
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
+        else loanDetailsV3Response.setLoanApplication(applicationDetails);
+    }
+
+    private static void setUpiAutopayResponse(UpiAutopayStateDTO upiAutopayStateDTO,LoanDetailsV3Response loanDetailsV3Response){
+        LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
+        loanDetailsV3Response.setLender(upiAutopayStateDTO.getLender());
+        UpiAutopayApplicationDetailsDTO upiAutopayDetails = UpiAutopayApplicationDetailsDTO.builder().loanAmount(upiAutopayStateDTO.getLoanAmount()).tenure(upiAutopayStateDTO.getTenure())
+                        .loanType(upiAutopayStateDTO.getLoanType()).mandateStatus(upiAutopayStateDTO.getMandateStatus()).createdAt(upiAutopayStateDTO.getCreatedAt())
+                        .waitTime(upiAutopayStateDTO.getWaitTime()).retryCount(upiAutopayStateDTO.getRetryCount()).errorCode(upiAutopayStateDTO.getErrorCode())
+                        .errorReason(upiAutopayStateDTO.getErrorReason()).displayMessage(upiAutopayStateDTO.getDisplayMessage()).retryEligible(upiAutopayStateDTO.getRetrySuggested()).pollingTime(upiAutopayStateDTO.getPollingTime())
+                        .build();
+        applicationDetails.setUpiAutopayDetails(upiAutopayDetails);
+        loanDetailsV3Response.setAccountDetails(upiAutopayStateDTO.getBankDetails());
+        loanDetailsV3Response.setMerchantId(upiAutopayStateDTO.getMerchantId());
+        if(upiAutopayStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
 

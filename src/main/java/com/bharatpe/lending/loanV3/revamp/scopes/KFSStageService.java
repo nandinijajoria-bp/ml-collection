@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.scopes;
 import com.bharatpe.lending.common.Constants.AutoPayStatusEnum;
 import com.bharatpe.lending.common.dao.AutoPayUPIDao;
 import com.bharatpe.lending.common.entity.AutoPayUPI;
+import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dto.MandateUPIStatusResponse;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -64,6 +65,9 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
     @Value("${merchant.plugin.rollout.percent:0}")
     Integer merchantPluginRolloutPercent;
 
+    @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
+    Integer upiAutoPayDedicatedScreenRolloutPercent;
+
     @Autowired
     VKycService vkycService;
 
@@ -71,7 +75,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
     public LendingStateDTO<KFSStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<KFSStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
 
-        if (Objects.nonNull(lendingStateDTO.getData().getUpiAutoPayEligible()) && lendingStateDTO.getData().getUpiAutoPayEligible()) {
+        if (Objects.nonNull(lendingStateDTO.getData().getUpiAutoPayEligible()) && lendingStateDTO.getData().getUpiAutoPayEligible() && !lendingStateDTO.getData().isDedicatedUpiAutoPayScreenEligible()) {
             // we want the user to be on the kfs page until the autopayupi is successfully done
             if (!AutoPayStatusEnum.ACTIVE.name().equals(lendingStateDTO.getData().getUpiAutoPayMandateStatus())) {
                 lendingStateDTO.setLendingViewStates(LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
@@ -94,6 +98,12 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
             }
         }
+
+        if(!ObjectUtils.isEmpty(lendingStateDTO) && !ObjectUtils.isEmpty(lendingStateDTO.getData()) &&
+                lendingStateDTO.getData().isDedicatedUpiAutoPayScreenEligible() && ObjectUtils.isEmpty(lendingStateDTO.getData().getTopupLoanApplication())) {
+            lendingStateDTO.setLendingViewStates(LendingViewStates.UPI_AUTOPAY_PAGE);
+        }
+
         loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
         return lendingStateDTO;
     }
@@ -113,7 +123,8 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
             if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-           && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)) {
+                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && !easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
+
                 log.info("setting autopay for application id {}", lendingApplication.getId());
                 kfsStageResponseV3.setUpiAutoPayEligible(true);
 
@@ -154,6 +165,11 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                     kfsStageResponseV3.setAgreementDone(true);
                 else kfsStageResponseV3.setAgreementDone(false);
 
+            } else if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
+                log.info("setting dedicated upi autopay for application id {} true", lendingApplication.getId());
+                kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(true);
+                kfsStageResponseV3.setUpiAutoPayEligible(false);
             } else kfsStageResponseV3.setUpiAutoPayEligible(false);
 
             scopeDataArgs.setApplicationId(lendingApplication.getId());
@@ -166,8 +182,6 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 }
                 return new LendingStateDTO<>(kfsStageResponseV3 , LendingViewStates.KEY_FACTOR_STATEMENT_PAGE, LendingViewStates.KEY_FACTOR_STATEMENT_PAGE);
             }
-
-
 
             LoanApplicationDetailsV3 loanApplicationDetails = setApplicationDetails(lendingApplication);
             kfsStageResponseV3.setLoanApplication(loanApplicationDetails);

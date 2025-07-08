@@ -169,6 +169,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-mongodb</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.bharatpe</groupId>
+            <artifactId>doc-utils</artifactId>
+            <version>1.0.0-lending</version>
+        </dependency>
     </dependencies>
 
     <build>

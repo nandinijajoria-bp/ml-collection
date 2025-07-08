@@ -3,6 +3,7 @@ package com.bharatpe.lending.loanV3.revamp.config;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.scopes.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
@@ -72,6 +73,9 @@ public class StageServiceFactory {
     @Autowired
     LenderVKycStageService lenderVKycStageService;
 
+    @Autowired
+    UpiAutopayStageService upiAutopayStageService;
+
     public IStageDataService getStageService(LendingViewStates lendingViewStates) {
         switch (lendingViewStates) {
             case PAN_PIN_PAGE:
@@ -102,6 +106,8 @@ public class StageServiceFactory {
                 return offerStageDataService;
             case ENACH_PAGE:
                 return enachStageService;
+            case UPI_AUTOPAY_PAGE:
+                return upiAutopayStageService;
             case KYC_ROUTE_TO_ELIGIBILITY:
                 return kycRouteToEligibilityService;
             case RTE_PIN_PAGE:

@@ -160,4 +160,9 @@ public class PaymentController {
         return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
     }
 
+    @RequestMapping(value = "/pdpd/shift", method = RequestMethod.POST, produces="application/json")
+    public ResponseEntity<String> shiftFromPDP(@RequestBody PerpetualMigrationDTO requestDTO) {
+        paymentService.shiftFromPDP(requestDTO);
+        return new ResponseEntity<>("SUCCESS", HttpStatus.OK);
+    }
 }
