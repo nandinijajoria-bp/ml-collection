@@ -3222,7 +3222,7 @@ public class LendingApplicationServiceV2 {
             Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (interestRate * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
             double ediAmount = ((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
             edi = ediUtil.getEdiAfterRoundingLogic(loanApplicationDetailsDto.getId(), ediAmount, lender);
-            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), lenderPricing.getInterestRate(), edi, lenderPricing.getInterestRate());
+            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), interestRate, edi, interestAmt);
 
 
             CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(applicationId, edi, loanApplicationDetailsDto);
