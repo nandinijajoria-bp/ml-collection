@@ -1,7 +1,6 @@
 package com.bharatpe.lending.dto;
 
 import com.bharatpe.lending.common.entity.LendingLenderPricing;
-import com.bharatpe.lending.common.entity.PricingExperiment;
 import com.bharatpe.lending.common.enums.PincodeColor;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,6 +28,5 @@ public class RiskVariablesDTO {
     private Map<String, LendingLenderPricing> lenderPricingMap = new HashMap<>();
     private double monthlyTpv;
     private double unsecuredPos;
-    private Map<Long, PricingExperiment> pricingExperimentMap = new HashMap<>();
     private boolean isSTPFlag;
 }
