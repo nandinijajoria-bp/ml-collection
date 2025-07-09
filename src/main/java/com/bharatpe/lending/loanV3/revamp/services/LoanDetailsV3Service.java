@@ -499,7 +499,14 @@ public class LoanDetailsV3Service {
     private AddressDetails fetchAddressFromLendingApplication(Long applicationId, Long merchantId) {
         Experian experian = experianDao.getByMerchantId(merchantId);
         if(experian.getPincode() != null) {
-            LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdAndPincodeOrderByIdDesc(merchantId, Long.valueOf(experian.getPincode()));
+            List<LendingApplication> lendingApplications = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(
+                    merchantId, Long.valueOf(experian.getPincode()));
+
+            LendingApplication lendingApplication = null;
+            if (!CollectionUtils.isEmpty(lendingApplications)) {
+                lendingApplication = lendingApplications.size() > 1 ?
+                        lendingApplications.get(1) : lendingApplications.get(0);
+            }
             log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
             if (lendingApplication != null && isAddressComplete(lendingApplication)) {
                 AddressDetails addressDetails = new AddressDetails();
