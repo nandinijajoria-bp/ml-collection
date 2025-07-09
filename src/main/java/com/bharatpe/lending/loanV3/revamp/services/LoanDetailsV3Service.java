@@ -496,11 +496,11 @@ public class LoanDetailsV3Service {
         if(experian.getPincode() != null) {
             List<LendingApplication> lendingApplications = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(
                     merchantId, Long.valueOf(experian.getPincode()));
+
             LendingApplication lendingApplication = null;
-            if (lendingApplications.size() > 1) {
-                lendingApplication = lendingApplications.get(1); // Get the second element
-            } else if (!lendingApplications.isEmpty()) {
-                lendingApplication = lendingApplications.get(0); // Fall back to first if only one exists
+            if (!CollectionUtils.isEmpty(lendingApplications)) {
+                lendingApplication = lendingApplications.size() > 1 ?
+                        lendingApplications.get(1) : lendingApplications.get(0);
             }
             log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
             if (lendingApplication != null && isAddressComplete(lendingApplication)) {
