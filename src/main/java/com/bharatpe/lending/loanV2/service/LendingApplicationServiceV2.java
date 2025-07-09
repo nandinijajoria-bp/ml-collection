@@ -3206,7 +3206,7 @@ public class LendingApplicationServiceV2 {
         * This method is to be used specifically for calculating APR for base checks only.
         * This caters the case of using lender pricing config for APR calculation
      */
-    public Double getAprForBaseChecks(LoanApplicationDetailsDto loanApplicationDetailsDto, Double amountToCalculateAprOn, Integer ediModel, String lender, LendingLenderPricing lenderPricing){
+    public Double getAprForBaseChecks(LoanApplicationDetailsDto loanApplicationDetailsDto, Double amountToCalculateAprOn, Integer ediModel, String lender, double interestRate){
         try{
             long applicationId = loanApplicationDetailsDto.getId();
 
@@ -3218,13 +3218,12 @@ public class LendingApplicationServiceV2 {
             //Get Lender pricing config for APR calculation
             Double edi = loanApplicationDetailsDto.getEdi();
             log.info("Edi of loan id : {} is {}", loanApplicationDetailsDto.getId(), edi);
-            if (!ObjectUtils.isEmpty(lenderPricing)) {
-                Long payableDays = (long) OfferUtils.getEdiDays(loanApplicationDetailsDto.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (lenderPricing.getInterestRate() * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
-                double ediAmount = ((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
-                edi = ediUtil.getEdiAfterRoundingLogic(loanApplicationDetailsDto.getId(), ediAmount, lender);
-                log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), lenderPricing.getInterestRate(), edi, lenderPricing.getInterestRate());
-            }
+            Long payableDays = (long) OfferUtils.getEdiDays(loanApplicationDetailsDto.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
+            Double interestAmt = (loanApplicationDetailsDto.getLoanAmount() * (interestRate * loanApplicationDetailsDto.getTenureInMonths()) / 100) ;
+            double ediAmount = ((loanApplicationDetailsDto.getLoanAmount() + interestAmt) / payableDays);
+            edi = ediUtil.getEdiAfterRoundingLogic(loanApplicationDetailsDto.getId(), ediAmount, lender);
+            log.info("payable days : {}, loan amt : {}, interest rate : {}, edi : {}, interest amt : {}", payableDays, loanApplicationDetailsDto.getLoanAmount(), interestRate, edi, interestAmt);
+
 
             CommonResponse response = lendingEdiScheduleService.getEdiScheduleForEdi(applicationId, edi, loanApplicationDetailsDto);
             if(!response.isSuccess()){
