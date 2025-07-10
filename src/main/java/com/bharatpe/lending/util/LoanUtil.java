@@ -1963,7 +1963,7 @@ public class LoanUtil {
 		if (accountDetails == null) {
 			logger.error("Account details are null for merchant {}", lendingApplication.getMerchantId());
 		}
-		if(isPaymentBankChangeFlowApplicable){
+		if(isPaymentBankChangeFlowApplicable && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
 			if (paymentBankService.changePaymentAccount(lendingApplication, accountDetails) || paymentBankService.isPaymentBank(lendingApplication.getMerchantId(),accountDetails)) {
 				logger.info("Merchant {} using Payments Bank with loan amount threshold", lendingApplication.getMerchantId());
 				return Boolean.FALSE;

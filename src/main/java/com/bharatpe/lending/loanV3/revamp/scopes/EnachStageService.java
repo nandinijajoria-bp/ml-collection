@@ -211,15 +211,14 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
         }
         BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
         enachStateDTO.setBankDetails(accountDetails);
-        if(isPaymentBankChangeFlowApplicable){
+        if(isPaymentBankChangeFlowApplicable && !LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())){
             if(paymentBankService.isPaymentBank(openApplication.getMerchantId(), accountDetails)){
                 enachStateDTO.setHasLinkedPaymentBank(true);
                 log.info("Setting setHasLinkedPaymentBank to true for merchantId: {}", scopeDataArgs.getMerchant().getId());
-            }
+                }
             enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication, accountDetails));
             log.info("Payment Bank Change flow is applicable for merchantId: {} and setPaymentBank is: {}", scopeDataArgs.getMerchant().getId(), enachStateDTO.isPaymentBank());
         }
-
         log.info("Enach Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), enachStateDTO);
         return new LendingStateDTO<>(enachStateDTO , LendingViewStates.ENACH_PAGE, LendingViewStates.ENACH_PAGE);
     }
