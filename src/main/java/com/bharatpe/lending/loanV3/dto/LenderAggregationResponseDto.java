@@ -175,11 +175,20 @@ public class LenderAggregationResponseDto {
         private String lenderName;
         private String approvalRate="HIGH";
         private Boolean isRejected = false;
+        private Double edi;
         private List<PenaltyConfig> penaltyConfigs;
 
         private Integer nachBounceAmount;
 
         private Double interestRate;
+
+        public Double getEdi() {
+            return edi;
+        }
+
+        public void setEdi(Double edi) {
+            this.edi = edi;
+        }
 
         public Double getInterestRate() {
             return interestRate;
