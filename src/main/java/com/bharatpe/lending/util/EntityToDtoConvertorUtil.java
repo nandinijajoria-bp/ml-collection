@@ -1,6 +1,8 @@
 package com.bharatpe.lending.util;
 
+import com.bharatpe.lending.common.entity.LendingMerchantReferences;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.dto.MerchantReferencesV2ResponseDto;
 import com.bharatpe.lending.dto.RiskVariablesDTO;
 import com.bharatpe.lending.service.AssignmentRuleUtils;
 import org.springframework.util.CollectionUtils;
@@ -54,5 +56,13 @@ public class EntityToDtoConvertorUtil {
             return true;
         }
         return false;
+    }
+
+    public static MerchantReferencesV2ResponseDto.MerchantReferenceData convertToMerchantReferencesV2Response(LendingMerchantReferences reference) {
+         return MerchantReferencesV2ResponseDto.MerchantReferenceData.builder()
+                .name(reference.getReferenceName())
+                .phoneNumber(reference.getReferenceNumber())
+                .relation(reference.getInferredRelation())
+                .build();
     }
 }

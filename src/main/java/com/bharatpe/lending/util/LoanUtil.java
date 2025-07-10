@@ -42,6 +42,7 @@ import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.ReferenceRelation;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
@@ -3219,6 +3220,20 @@ public class LoanUtil {
 			logger.error("Error while saving lending audit trail to BQ for applicationId: {}, error: {}",
 					lendingAuditTrailDTO.getApplicationId(), e.getMessage(), e);
 		}
+	}
+
+
+	public int getMerchantReferenceComparator(LendingMerchantReferences reference1, LendingMerchantReferences reference2) {
+		ReferenceRelation relation1 = LendingConstants.REFERENCE_INFERRED_RELATION_MAPPING.getOrDefault(
+				reference1.getInferredRelation(), ReferenceRelation.FRIEND_OTHER);
+		ReferenceRelation relation2 = LendingConstants.REFERENCE_INFERRED_RELATION_MAPPING.getOrDefault(
+				reference2.getInferredRelation(), ReferenceRelation.FRIEND_OTHER);
+
+		if (relation1.equals(relation2)) {
+			return reference2.getUpdatedAt().compareTo(reference1.getUpdatedAt());
+		}
+
+		return relation1.compareTo(relation2);
 	}
 }
 
