@@ -1558,8 +1558,6 @@ public class LenderAssignService implements ILenderAssignService {
                 log.info("adding lender {} to list", lender);
                 Double apr;
                 Double irr = null;
-                Double ediAmount;
-                Double processingFee;
                 Double interestRate = null;
                 LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(lendingApplication.getId()).
                         edi(lendingApplication.getEdi()).tenureInMonths(lendingApplication.getTenureInMonths()).
@@ -1568,48 +1566,32 @@ public class LenderAssignService implements ILenderAssignService {
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
                     log.info("pricing experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
                     interestRate = pricingExperiment.getInterestRate();
-                    processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
-                    Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                    Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                    ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
-                    log.info("apr: {}, irr: {} , edi: {} for application:{}", apr, irr, ediAmount, lendingApplication.getId());
+                    Double processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
+                    apr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, lendingApplication.getLoanAmount() - processingFee, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lender, interestRate);
+                    irr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, lendingApplication.getLoanAmount(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lender, interestRate);
                 }
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                    Double processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                     interestRate = lendingLenderPricing.getInterestRate();
-                    Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                    Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                    ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
-                    irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
-                    log.info("apr: {}, irr: {} , edi: {} for application:{}", apr, irr, ediAmount, lendingApplication.getId());
+                    apr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, lendingApplication.getLoanAmount() - processingFee, LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lender, interestRate);
+                    irr = lendingApplicationServiceV2.getAprForBaseChecks(loanApplicationDetailsDto, lendingApplication.getLoanAmount(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lender, interestRate);
                 }
                 else{
                     interestRate = lendingApplication.getInterestRate();
-                    Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
-                    Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
-                    ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
-                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
-                    log.info("apr: {}, irr: {} , edi: {} for application:{}", apr, irr, ediAmount, lendingApplication.getId());
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
                 lenderData.setLenderName(lender);
                 lenderData.setApr(apr);
                 lenderData.setIrr(irr);
-                lenderData.setEdi(ediAmount);
-                lenderData.setProcessingFee(processingFee);
                 lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
                 lenderData.setApprovalRate(getPropensityMatrix(valueOf(lender)));
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(valueOf(lender)));
                 lenderData.setNachBounceAmount(getNachBounceAmount(valueOf(lender)));
                 lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
-                log.info("lenderData added for lender:{}", lenderData);
 
 
                 // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical

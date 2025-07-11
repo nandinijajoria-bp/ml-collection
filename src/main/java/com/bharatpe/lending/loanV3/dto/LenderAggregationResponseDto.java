@@ -175,29 +175,11 @@ public class LenderAggregationResponseDto {
         private String lenderName;
         private String approvalRate="HIGH";
         private Boolean isRejected = false;
-        private Double edi;
-        private Double processingFee;
         private List<PenaltyConfig> penaltyConfigs;
 
         private Integer nachBounceAmount;
 
         private Double interestRate;
-
-        public Double getEdi() {
-            return edi;
-        }
-
-        public void setEdi(Double edi) {
-            this.edi = edi;
-        }
-
-        public Double getProcessingFee() {
-            return processingFee;
-        }
-
-        public void setProcessingFee(Double processingFee) {
-            this.processingFee = processingFee;
-        }
 
         public Double getInterestRate() {
             return interestRate;
@@ -401,9 +383,6 @@ public class LenderAggregationResponseDto {
                     ", foreClosureEntityDTOList=" + foreClosureEntityDTOList +
                     ", apr=" + apr +
                     ", irr=" + irr +
-                    ", edi=" + edi +
-                    ", interestRate=" + interestRate +
-                    ", processingFee=" + processingFee +
                     '}';
         }
     }
