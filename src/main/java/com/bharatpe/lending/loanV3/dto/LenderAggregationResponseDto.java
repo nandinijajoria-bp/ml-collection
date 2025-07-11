@@ -42,9 +42,12 @@ public class LenderAggregationResponseDto {
         private Double apr;
         private Double irr;
 
-        public LenderData(String lenderName, String lenderLogo, Boolean isRejected) {
-            this.lenderName = lenderName;
-            this.isRejected = isRejected;
+        public Boolean getRejected() {
+            return isRejected;
+        }
+
+        public void setRejected(Boolean rejected) {
+            isRejected = rejected;
         }
 
         @Data
