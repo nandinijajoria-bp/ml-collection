@@ -1589,9 +1589,9 @@ public class LenderAssignService implements ILenderAssignService {
                     Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
                     ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
+                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
-                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
