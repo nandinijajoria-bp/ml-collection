@@ -24,10 +24,3 @@ public enum PaymentBank {
 
     private String val;
 }
-
-//Airtel Payments Bank:
-//Fino Payments Bank:
-//India Post Payments Bank:
-//Paytm Payments Bank:
-//Jio Payments Bank:
-//NSDL Payments Bank:
