@@ -1574,6 +1574,7 @@ public class LenderAssignService implements ILenderAssignService {
                     ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
+                    log.info("apr: {}, irr: {} , edi: {} for application:{}", apr, irr, ediAmount, lendingApplication.getId());
                 }
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
                     processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
@@ -1583,6 +1584,7 @@ public class LenderAssignService implements ILenderAssignService {
                     ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
+                    log.info("apr: {}, irr: {} , edi: {} for application:{}", apr, irr, ediAmount, lendingApplication.getId());
                 }
                 else{
                     interestRate = lendingApplication.getInterestRate();
@@ -1592,6 +1594,7 @@ public class LenderAssignService implements ILenderAssignService {
                     processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
+                    log.info("apr: {}, irr: {} , edi: {} for application:{}", apr, irr, ediAmount, lendingApplication.getId());
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
@@ -1606,6 +1609,7 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setNachBounceAmount(getNachBounceAmount(valueOf(lender)));
                 lenderData.setInterestRate(interestRate);
                 eligibleLenderList.add(lenderData);
+                log.info("lenderData added for lender:{}", lenderData);
 
 
                 // SORT: IR (descending) > Propensity (HIGH>MEDIUM>LOW) > Alphabetical
