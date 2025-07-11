@@ -1,5 +1,7 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
@@ -84,15 +86,6 @@ public class LoanDetailsV3Service {
     @Autowired
     BQPublisherUtil bqPublisherUtil;
 
-    @Value("${shop.picture.skip.enabled:false}")
-    private boolean shouldSkipShopPicture;
-
-    @Value("${lenders.skip.shop.picture:}")
-    private List<String> lendersToSkipShopPicture;
-
-    @Value("${skip.picture.threshold:0}")
-    private int skipPictureThreshold;
-
     @Value("${sid.threshold}")
     Double sidThreshold;
 
@@ -101,6 +94,9 @@ public class LoanDetailsV3Service {
 
     @Autowired
     LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Autowired
+    ExperianDao experianDao;
 
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
@@ -501,19 +497,29 @@ public class LoanDetailsV3Service {
     }
 
     private AddressDetails fetchAddressFromLendingApplication(Long applicationId, Long merchantId) {
-        LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantId(merchantId);
-        log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
-        if (lendingApplication != null && isAddressComplete(lendingApplication)) {
-            AddressDetails addressDetails = new AddressDetails();
-            addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
-            addressDetails.setArea(lendingApplication.getArea());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setAddress2(lendingApplication.getStreetAddress());
-            addressDetails.setAddress1(lendingApplication.getShopNumber());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setCity(lendingApplication.getCity());
-            addressDetails.setState(lendingApplication.getState());
-            return addressDetails;
+        Experian experian = experianDao.getByMerchantId(merchantId);
+        if(experian.getPincode() != null) {
+            List<LendingApplication> lendingApplications = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(
+                    merchantId, Long.valueOf(experian.getPincode()));
+
+            LendingApplication lendingApplication = null;
+            if (!CollectionUtils.isEmpty(lendingApplications)) {
+                lendingApplication = lendingApplications.size() > 1 ?
+                        lendingApplications.get(1) : lendingApplications.get(0);
+            }
+            log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
+            if (lendingApplication != null && isAddressComplete(lendingApplication)) {
+                AddressDetails addressDetails = new AddressDetails();
+                addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+                addressDetails.setArea(lendingApplication.getArea());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setAddress2(lendingApplication.getStreetAddress());
+                addressDetails.setAddress1(lendingApplication.getShopNumber());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setCity(lendingApplication.getCity());
+                addressDetails.setState(lendingApplication.getState());
+                return addressDetails;
+            }
         }
         return null;
     }
@@ -610,22 +616,10 @@ public class LoanDetailsV3Service {
                 return;
             }
 
-            LocalDate today = LocalDate.now();
-            LocalDateTime startOfDay = today.atStartOfDay();
-            Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
-
-            List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
-                     lendersToSkipShopPicture, startOfDate);
-
-            int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
-            log.info("Found {} applications for lender {} created today for merchantId: {}",
-                    todayApplicationsCount, lendersToSkipShopPicture, merchantId);
-
-
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (lendingResubmitTask == null && shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount <= skipPictureThreshold) {
-
+            if (lendingResubmitTask == null && lendingApplication != null) {
+                log.info("Processing shop pictures for merchantId: {}, applicationId: {}, lender: {}",
+                        merchantId, applicationId, lendingApplication.getLender());
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
                 log.info("Shop picture skipping not applicable for merchantId: {}, lender: {}",

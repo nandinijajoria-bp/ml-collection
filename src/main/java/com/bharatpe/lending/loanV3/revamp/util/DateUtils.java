@@ -2,11 +2,17 @@ package com.bharatpe.lending.loanV3.revamp.util;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.validation.constraints.NotNull;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.Period;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 public class DateUtils {
@@ -77,5 +83,26 @@ public class DateUtils {
         log.info("date1Year {} - date2Year {}", date1Year, date2Year);
         return (date1Year == date2Year);
     }
+    public static int getAge(Date dob){
+        if(dob == null){
+            return 0;
+        }
+        return Period.between(convertToLocalDate(dob), LocalDate.now()).getYears();
+    }
 
+    private static LocalDate convertToLocalDate(@NotNull Date date) {
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+    public static Date parseDob(String dob){
+        List<String> dateFormats = Arrays.asList("dd/MM/yyyy","dd-MM-yyyy");
+        for(String dateFormat : dateFormats){
+            try{
+                return new SimpleDateFormat(dateFormat).parse(dob);
+            }
+            catch(ParseException e){
+                log.info("Failed to parse dob: {}, with format : {}", dob, dateFormat);
+            }
+        }
+        return null;
+    }
 }

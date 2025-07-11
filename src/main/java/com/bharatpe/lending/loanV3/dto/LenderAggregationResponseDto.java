@@ -1,8 +1,5 @@
 package com.bharatpe.lending.loanV3.dto;
 
-import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.Data;
 
 import java.util.List;
@@ -178,9 +175,37 @@ public class LenderAggregationResponseDto {
         private String lenderName;
         private String approvalRate="HIGH";
         private Boolean isRejected = false;
+        private Double edi;
+        private Double processingFee;
         private List<PenaltyConfig> penaltyConfigs;
 
         private Integer nachBounceAmount;
+
+        private Double interestRate;
+
+        public Double getEdi() {
+            return edi;
+        }
+
+        public void setEdi(Double edi) {
+            this.edi = edi;
+        }
+
+        public Double getProcessingFee() {
+            return processingFee;
+        }
+
+        public void setProcessingFee(Double processingFee) {
+            this.processingFee = processingFee;
+        }
+
+        public Double getInterestRate() {
+            return interestRate;
+        }
+
+        public void setInterestRate(Double interestRate) {
+            this.interestRate = interestRate;
+        }
 
         List<ForeClosureEntityDTO> foreClosureEntityDTOList;
 
@@ -376,6 +401,9 @@ public class LenderAggregationResponseDto {
                     ", foreClosureEntityDTOList=" + foreClosureEntityDTOList +
                     ", apr=" + apr +
                     ", irr=" + irr +
+                    ", edi=" + edi +
+                    ", interestRate=" + interestRate +
+                    ", processingFee=" + processingFee +
                     '}';
         }
     }
