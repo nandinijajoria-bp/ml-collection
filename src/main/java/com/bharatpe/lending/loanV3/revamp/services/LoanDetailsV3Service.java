@@ -1363,6 +1363,8 @@ public class LoanDetailsV3Service {
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
+        loanDetailsV3Response.setHasLinkedPaymentBank(enachStateDTO.isHasLinkedPaymentBank());
+        loanDetailsV3Response.setPaymentBank(enachStateDTO.isPaymentBank());
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
