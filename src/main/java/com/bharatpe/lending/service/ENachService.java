@@ -129,6 +129,7 @@ public class ENachService {
     @Autowired
     private LoanDashboardService loanDashboardService;
 
+    @Lazy
     @Autowired
     LoanDetailsV3Service loanDetailsV3Service;
 
