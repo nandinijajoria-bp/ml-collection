@@ -60,10 +60,11 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.service.*;
-import com.bharatpe.lending.util.CommonUtil;
+import com.bharatpe.lending.util.EntityToDtoConvertorUtil;
 import com.bharatpe.lending.util.LoanUtil;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.util.MongoPublisherUtil;
+import com.bharatpe.lending.util.ValidationUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -76,6 +77,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 
@@ -181,7 +183,7 @@ public class LoanDetailsServiceV2 {
     FosService fosService;
 
     @Autowired
-    CommonUtil commonUtil;
+    ValidationUtil validationUtil;
 
     @Value("${eligibility.refresh.window:1}")
     int eligibilityRefreshWindow;
@@ -364,6 +366,12 @@ public class LoanDetailsServiceV2 {
     Boolean referencePageDisabledForTopup;
 
     private static final String UPTO_3_LAKH = "UPTO_3_LAKH";
+
+    @Value("${references.prefill.rollout.percent:10}")
+    private Integer referencesPrefillRolloutPercent;
+
+    @Autowired
+    MerchantReferencesDataService merchantReferencesDataService;
 
     public ApiResponse<?> getLoanDetails(LoanDetailsRequest request, BasicDetailsDto merchant, String token, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
         try {
@@ -1563,10 +1571,10 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "No applicationId found for given merchantId");
             }
 
-            if ("TOPUP".equalsIgnoreCase(lendingApplication.getLoanType()) && referencePageDisabledForTopup)
+            if (LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && referencePageDisabledForTopup)
             {
                 log.info("lending application loan Type is {} ",lendingApplication.getLoanType());
-                return new ApiResponse<>(false,"Application type is Topup");
+                return new ApiResponse<>(false,"Reference page disabled for topup loan");
             }
             log.info("applicationId: {} found of merchantId: {}", lendingApplication.getId(), merchantId);
 
@@ -1576,17 +1584,20 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "LRVS details not found for given merchantId");
             }
 
+            //TODO: Delete this block of code
             if(lendingRiskVariablesSnapshot.getNewContactReferenceLogic()) {
                 //new logic
                 return handleNewContactReferenceLogic(merchantId, lendingRiskVariablesSnapshot, lendingApplication);
             }
 
-            Long referencesLimit = getReferenceLimit(lendingApplication);
-            if (referencesLimit == 3L) {
-                //old version & 3 references - v3 changes
-                return handleThreeReferencesLimit(merchantId, lendingApplication);
+            Long referencesLimit = Objects.nonNull(lendingRiskVariablesSnapshot) && Objects.nonNull(lendingRiskVariablesSnapshot.getReferenceCount())
+                    ? lendingRiskVariablesSnapshot.getReferenceCount()
+                    : LendingConstants.MAX_MERCHANT_REFERENCES_ALLOWED;
+            if (referencesLimit == LendingConstants.MAX_MERCHANT_REFERENCES_ALLOWED) {
+                return handleMerchantReferences(merchant, lendingApplication, referencesLimit);
             }
 
+            //TODO: Delete below code
             log.info("references limit for merchantId:{} {}", merchant.getId(), referencesLimit);
             if(hasDeprecatedMerchantReferences){
                 return new ApiResponse<>(false, "Merchant score api is deprecated");
@@ -1595,7 +1606,7 @@ public class LoanDetailsServiceV2 {
             MerchantReferencesResponseDto responseDto;
             DeGetReferencesResponse deResponse = dsHandler.getMerchantReferences(merchantId, minScore, toBeShown,lendingApplication.getId());
             if(Objects.isNull(deResponse)) {
-                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
+                rejectingLoanDueToInsufficientReferences(lendingRiskVariablesSnapshot,lendingApplication,LendingConstants.REJECTION_REASON_2);
                 log.info("Successfully rejected applicationId: {} because of no response from DE api of merchantId: {}", lendingApplication.getId(), merchantId);
                 responseDto = MerchantReferencesResponseDto.builder().ineligible(true).build();
                 return new ApiResponse<>(responseDto);
@@ -1618,7 +1629,7 @@ public class LoanDetailsServiceV2 {
 
             if (totalContacts < LendingConstants.MINIMUM_CONTACTS_NEEDED) {
 
-                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_2);
+                rejectingLoanDueToInsufficientReferences(lendingRiskVariablesSnapshot, lendingApplication,LendingConstants.REJECTION_REASON_2);
                 log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", lendingApplication.getId(), merchantId);
                 responseDto = MerchantReferencesResponseDto.builder().references(deReferenceList).minScore(minScore).limit(referencesLimit).ineligible(true).build();
 
@@ -1680,30 +1691,43 @@ public class LoanDetailsServiceV2 {
         return new ApiResponse<>(responseDto);
     }
 
-    private ApiResponse<?> handleThreeReferencesLimit(Long merchantId, LendingApplication lendingApplication) {
-        log.info("3 references required for merchantId: {}", merchantId);
+    private ApiResponse<?> handleMerchantReferences(BasicDetailsDto merchant, LendingApplication lendingApplication, Long referencesLimit) {
+        long merchantId = merchant.getId();
+        log.info("{} references required for merchantId: {}",referencesLimit, merchantId);
 
         List<LendingMerchantReferences> savedMerchantReferencesList = lendingMerchantReferencesDao.findByMerchantIdAndApplicationId(merchantId, lendingApplication.getId());
         MerchantReferencesV2ResponseDto responseDto;
 
-        if (!ObjectUtils.isEmpty(savedMerchantReferencesList) && savedMerchantReferencesList.size() == 3) {
-            log.info("Populating existing 3 references for merchantId: {}", merchantId);
+        if (CollectionUtils.isEmpty(savedMerchantReferencesList) && easyLoanUtil.percentScaleUp(merchantId, referencesPrefillRolloutPercent)) {
+            List<LendingMerchantReferences> referencesFromDB = merchantReferencesDataService.getMerchantReferencesByMerchantIdAndLender(merchantId, lendingApplication.getLender());
+            log.info("Filtering out existing refences for merchantId: {}", merchantId);
+
+            String beneficiaryName = loanUtil.getBeneficiaryName(merchantId);
+            savedMerchantReferencesList = referencesFromDB.stream()
+                    .sorted(Comparator.comparing(LendingMerchantReferences::getApplicationId, Comparator.reverseOrder()))
+                    .filter(reference -> {
+                        MerchantReference referenceDto = MerchantReference.builder().name(reference.getReferenceName()).phoneNumber(reference.getReferenceNumber()).build();
+                        return validationUtil.isMerchantReferenceValid(referenceDto, merchant, beneficiaryName).getFirst();
+                    })
+                    .sorted(loanUtil::getMerchantReferenceComparator)
+                    .limit(referencesLimit)
+                    .collect(Collectors.toList());
+        }
+
+        if (!ObjectUtils.isEmpty(savedMerchantReferencesList)) {
+            log.info("Populating upto {} existing references for merchantId: {}",referencesLimit, merchantId);
             List<MerchantReferencesV2ResponseDto.MerchantReferenceData> references = savedMerchantReferencesList.stream()
-                    .map(reference -> MerchantReferencesV2ResponseDto.MerchantReferenceData.builder()
-                            .name(reference.getReferenceName())
-                            .phoneNumber(reference.getReferenceNumber())
-                            .relation(reference.getInferredRelation())
-                            .build())
+                    .map(EntityToDtoConvertorUtil::convertToMerchantReferencesV2Response)
                     .collect(Collectors.toList());
 
             responseDto = MerchantReferencesV2ResponseDto.builder()
-                    .limit((long) savedMerchantReferencesList.size())
+                    .limit(referencesLimit)
                     .references(references)
                     .ineligible(false)
                     .build();
         } else {
             responseDto = MerchantReferencesV2ResponseDto.builder()
-                    .limit(3L)
+                    .limit(referencesLimit)
                     .ineligible(false)
                     .build();
         }
@@ -1765,7 +1789,7 @@ public class LoanDetailsServiceV2 {
                 return new ApiResponse<>(false, "ineligible field can not be null!");
             }
             if (isIneligible) {
-                rejectingLoanDueToInsufficientReferences(lendingApplication,LendingConstants.REJECTION_REASON_1);
+                rejectingLoanDueToInsufficientReferences(lendingRiskVariablesSnapshot, lendingApplication,LendingConstants.REJECTION_REASON_1);
                 log.info("Successfully rejected applicationId: {} because of insufficient references of merchantId: {}", applicationId, merchantId);
                 return new ApiResponse<>(true, "Successfully rejected applicationId because of insufficient references");
             }
@@ -1777,8 +1801,10 @@ public class LoanDetailsServiceV2 {
             if (!res.getFirst()) {
                 return new ApiResponse<>(false, res.getSecond());
             }
+
+            String merchantBeneficiaryName = loanUtil.getBeneficiaryName(merchant.getId());
             for (MerchantReference reference : requestedReferenceList) {
-                Pair<Boolean,String> ans = isValid(reference, merchant);
+                Pair<Boolean,String> ans = validationUtil.isMerchantReferenceValid(reference, merchant, merchantBeneficiaryName);
                 if (!ans.getFirst()) {
                     return new ApiResponse<>(false, ans.getSecond());
                 }
@@ -1877,13 +1903,12 @@ public class LoanDetailsServiceV2 {
         }
     }
 
-    private void rejectingLoanDueToInsufficientReferences(LendingApplication lendingApplication,String rejection_reason) {
+    private void rejectingLoanDueToInsufficientReferences(LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot, LendingApplication lendingApplication, String rejection_reason) {
         log.info("Started Rejecting application: {} due to insufficient references of merchantId: {}", lendingApplication.getId(), lendingApplication.getMerchantId());
         lendingApplication.setStatus("rejected");
         lendingApplication.setManualCibil("REJECTED");
         lendingApplication.setManualCibilReason(rejection_reason);
         lendingApplication.setCibilApprovedDate(new Date());
-        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
         if(Objects.nonNull(lendingRiskVariablesSnapshot)) {
             lendingRiskVariablesSnapshot.setExperianRejection(rejection_reason);
             lendingRiskVariablesSnapshotDao.save(lendingRiskVariablesSnapshot);
@@ -2891,67 +2916,6 @@ public class LoanDetailsServiceV2 {
             log.error("Exception while saving Merchant PSP in Mongo, Exception is :{}", Arrays.asList(ex.getStackTrace()));
 
         }
-    }
-
-    private Pair<Boolean,String> isValid(MerchantReference reference, BasicDetailsDto merchant) {
-        String name = reference.getName();
-        if (StringUtils.isEmpty(name)) {
-            log.info("Reference name is Empty!");
-            return Pair.of(false,"");
-        }
-        String strippedName = name.replaceAll(" ", "");
-        String merchantName = loanUtil.getBeneficiaryName(merchant.getId());
-        // Rule 1: Name cannot be the same as the merchant's name
-        if (!StringUtils.isEmpty(merchantName) && name.equalsIgnoreCase(merchant.getName())) {
-            log.info("reference name matches with merchant name, {}", name);
-            return Pair.of(false,"Reference name matches with merchant name : " + name);
-        }
-
-        // Rule 2: Must have at least 3 consecutive characters
-        if (!commonUtil.hasAtLeastThreeConsecutiveChars(name)) {
-            log.info("reference name is not having atleast three consecutive chars, {}", name);
-            return Pair.of(false,"Reference name contains three consecutive chars : " + name );
-        }
-
-        // Rule 3: Must not contain any numerical or special characters
-        if (!strippedName.matches("[a-zA-Z]+")) {
-            log.info("reference name is having special or numeric chars, {}", name);
-            return Pair.of(false,"Reference name is having special or numeric chars : " + name);
-        }
-
-        // Rule 4: Must not be entirely consecutive letters
-        if (commonUtil.isAllConsecutiveLetters(strippedName)) {
-            log.info("reference name having all consecutive letters, {}", name);
-            return Pair.of(false,"Reference name having all consecutive letters : " + name);
-        }
-
-        String merchantMobile = merchant.getMobile();
-        String referenceMobile = reference.getPhoneNumber();
-        if (StringUtils.isEmpty(merchantMobile) || StringUtils.isEmpty(referenceMobile) || referenceMobile.length() < 10) {
-            log.info("reference mobile is empty or length is less than 10");
-            return Pair.of(false,"reference mobile is empty or length is less than 10 : " + referenceMobile);
-        }
-        merchantMobile = merchantMobile.length() == 12 ? merchantMobile.substring(2) : merchantMobile;
-        referenceMobile = referenceMobile.length() == 12 ? referenceMobile.substring(2) : referenceMobile;
-
-        // Rule 1: Mobile number cannot be the same as the merchant's number
-        if (referenceMobile.equals(merchantMobile)) {
-            log.info("merchant mobile matches with reference mobile, {}", referenceMobile);
-            return Pair.of(false,"merchant mobile matches with reference mobile : " + referenceMobile);
-        }
-
-        // Rule 2: Consecutive numbers for more than 4 values are not allowed
-        if (commonUtil.hasMoreThanFourConsecutiveNumbers(referenceMobile)) {
-            log.info("reference mobile having more than 4 consecutive numbers, {}", referenceMobile);
-            return Pair.of(false,"reference mobile having more than 4 consecutive numbers : " + referenceMobile);
-        }
-
-        // Rule 3: The same digit repeated more than 4 times is not allowed
-        if (commonUtil.hasMoreThanFourSameDigits(referenceMobile)) {
-            log.info("reference mobile having same digit more than 4 times, {}", referenceMobile);
-            return Pair.of(false,"reference mobile having same digit more than 4 times : " + referenceMobile);
-        }
-        return Pair.of(true,"");
     }
 
     private Pair<Boolean,String> hasValidRestrictedRelations(List<MerchantReference> references) {
