@@ -1559,6 +1559,7 @@ public class LenderAssignService implements ILenderAssignService {
                 Double apr;
                 Double irr = null;
                 Double ediAmount;
+                Double processingFee;
                 Double interestRate = null;
                 LoanApplicationDetailsDto loanApplicationDetailsDto = LoanApplicationDetailsDto.builder().id(lendingApplication.getId()).
                         edi(lendingApplication.getEdi()).tenureInMonths(lendingApplication.getTenureInMonths()).
@@ -1567,7 +1568,7 @@ public class LenderAssignService implements ILenderAssignService {
                 if(!ObjectUtils.isEmpty(pricingExperiment)) {
                     log.info("pricing experiment available for {}: {}", lendingApplication.getMerchantId(), pricingExperiment);
                     interestRate = pricingExperiment.getInterestRate();
-                    Double processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
+                    processingFee = lendingApplication.getLoanAmount() * (pricingExperiment.getProcessingFeeRate() / 100);
                     Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
                     ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
@@ -1575,7 +1576,7 @@ public class LenderAssignService implements ILenderAssignService {
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
                 }
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
-                    Double processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
+                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                     interestRate = lendingLenderPricing.getInterestRate();
                     Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(lender).getEdiModel());
                     Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
@@ -1590,6 +1591,7 @@ public class LenderAssignService implements ILenderAssignService {
                     ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
                     apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), lendingApplication.getEdi(), lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), null);
+                    processingFee = lendingApplication.getLoanAmount() * (lendingLenderPricing.getProcessingFeeRate() / 100);
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
                 lenderData.setPenaltyConfigs(getPenaltyConfig(lender));
@@ -1597,6 +1599,7 @@ public class LenderAssignService implements ILenderAssignService {
                 lenderData.setApr(apr);
                 lenderData.setIrr(irr);
                 lenderData.setEdi(ediAmount);
+                lenderData.setProcessingFee(processingFee);
                 lenderData.setRejected(Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender));
                 lenderData.setApprovalRate(getPropensityMatrix(valueOf(lender)));
                 lenderData.setForeClosureEntityDTOList(getForeclosureAmount(valueOf(lender)));

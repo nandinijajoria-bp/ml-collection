@@ -176,6 +176,7 @@ public class LenderAggregationResponseDto {
         private String approvalRate="HIGH";
         private Boolean isRejected = false;
         private Double edi;
+        private Double processingFee;
         private List<PenaltyConfig> penaltyConfigs;
 
         private Integer nachBounceAmount;
@@ -188,6 +189,14 @@ public class LenderAggregationResponseDto {
 
         public void setEdi(Double edi) {
             this.edi = edi;
+        }
+
+        public Double getProcessingFee() {
+            return processingFee;
+        }
+
+        public void setProcessingFee(Double processingFee) {
+            this.processingFee = processingFee;
         }
 
         public Double getInterestRate() {
