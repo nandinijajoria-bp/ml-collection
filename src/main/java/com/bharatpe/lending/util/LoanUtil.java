@@ -248,7 +248,7 @@ public class LoanUtil {
 	LoanDpdDao loanDpdDao;
 
 	@Autowired
-	PaymentBankService paymentBankService;
+	private PaymentBankService paymentBankService;
 
 	@Autowired
 	AutoPayUPIDao autoPayUPIDao;
