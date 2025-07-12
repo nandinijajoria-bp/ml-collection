@@ -30,11 +30,12 @@ import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.bharatpe.lending.util.MapperUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -365,9 +366,21 @@ public class TLBreService {
         }, delay, TimeUnit.SECONDS);
     }
 
-    public Object sanitizePayload(String json, Long applicationId) {
+    public Object sanitizePayload(Document json, Long applicationId) {
         try {
-            JsonNode root = objectMapper.readTree(json);
+
+            log.info("Sanitizing payload: {} for applicationId: {}", json, applicationId);
+//            if (json.startsWith("{")) {
+//                root = objectMapper.readTree(json);
+//            } else {
+//                String cleanedJson = json.replaceAll("^\"|\"$", "").replace("\\\"", "\"");
+//                root = objectMapper.readTree(cleanedJson);
+//            }
+            //Bson document to JsonNode
+            //Write a parser that converts the Bson Document to a Traditional JSON object, and then convert the json to a JsonNode
+            JsonNode root = MapperUtil.convertBsonDocumentToJsonNode(json);
+
+            log.info("Parsed JSON: {}", root);
 
             // Filter MERCHANT_SUMMARY
             JsonNode merchantSummary = root.path(MERCHANT_SUMMARY);

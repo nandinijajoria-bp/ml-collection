@@ -9,7 +9,10 @@ import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.entity.MerchantAggregateData;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.CustomerAdditionalData;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
+import com.bharatpe.lending.util.MapperUtil;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -76,7 +79,7 @@ public class CustomerAdditionalDataBuilder {
 				customerAdditionalData.setAggregatedId(merchantAggregateData.getAggregateId());
 
 				try {
-					customerAdditionalData.setSources(objectMapper.readTree(merchantAggregateData.getSources()));
+					customerAdditionalData.setSources(MapperUtil.convertBsonDocumentToJsonNode(merchantAggregateData.getSources()));
 					customerAdditionalData.setScienapticProperties(objectMapper.readTree(merchantAggregateData.getScienapticProperties()));
 				} catch (IOException exception) {
 					log.error("Error occured while parsing merchant aggregate data for merchantId: {}",
