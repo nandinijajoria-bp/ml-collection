@@ -30,7 +30,7 @@ import java.util.TimeZone;
 		@PropertySource("file:/etc/bharatpe/key.properties"),
 		@PropertySource("file:/etc/bharatpe/production.properties")
 })
-@EnableMongoRepositories(basePackages = "com.bharatpe.lending.common.dao.mongo")
+@EnableMongoRepositories(basePackages = {"com.bharatpe.lending.common.dao.mongo","com.bharatpe.lending.dao"})
 public class Application
 {
 
