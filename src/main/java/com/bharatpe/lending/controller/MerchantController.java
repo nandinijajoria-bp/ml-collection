@@ -7,11 +7,7 @@ import com.bharatpe.lending.common.entity.LendingPincodes;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.constant.ErrorMessages;
-import com.bharatpe.lending.dao.MerchantAggregateDataDao;
-import com.bharatpe.lending.entity.MerchantAggregateData;
 import com.bharatpe.lending.loanV2.dto.BusinessDetailsDTO;
-import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl.TLBreService;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -33,12 +29,6 @@ public class MerchantController {
 
     @Autowired
     LendingMerchantDetailsDao lendingMerchantDetailsDao;
-
-    @Autowired
-    MerchantAggregateDataDao merchantAggregateDataDao;
-
-    @Autowired
-    private TLBreService tlBreService;
 
     /**
      * Add Merchant Address
@@ -137,19 +127,4 @@ public class MerchantController {
         log.warn("Error occurred: {} - {}", errorCode, errorMessage);
         return ResponseEntity.badRequest().body(Map.of("errorCode", errorCode, "errorMessage", errorMessage));
     }
-
-//    @PostMapping("/address")
-//    public Object sanitizePayload(@RequestBody SanitizePayloadRequest request) {
-//        MerchantAggregateData merchantAggregateData = merchantAggregateDataDao.findByMerchantIdAndAggregateId(request.getMerchantId(), request.getAggregateId());
-//        if (ObjectUtils.isEmpty(merchantAggregateData)) {
-//            throw new RuntimeException("Merchant Aggregate Data not found for merchant id: " + request.getMerchantId() + ", aggregate id : " + request.getAggregateId());
-//        }
-//        return tlBreService.sanitizePayload(merchantAggregateData.getSources(), request.getMerchantId());
-//    }
-//
-//    @Data
-//    public static class SanitizePayloadRequest {
-//        private String aggregateId;
-//        private Long merchantId;
-//    }
 }
