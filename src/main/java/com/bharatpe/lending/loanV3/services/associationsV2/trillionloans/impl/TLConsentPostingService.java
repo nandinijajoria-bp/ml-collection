@@ -4,6 +4,7 @@ import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -28,6 +29,9 @@ public class TLConsentPostingService {
     @Autowired
     ILenderAPIGateway lenderAPIGateway;
 
+    @Autowired
+    TrillionLoansConfig trillionLoansConfig;
+
     public Boolean invokeConsentPosting(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
             NBFCRequestDTO<?> consentPostingRequest = getPayload(lenderAssociationDetailsRequestDto);
@@ -37,7 +41,7 @@ public class TLConsentPostingService {
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return true;
             }
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(consentPostingRequest, LenderAssociationStages.POST_CONSENT);
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(consentPostingRequest, LenderAssociationStages.POST_CONSENT, trillionLoansConfig.getPostConsentTimeoutThreshold());
             log.info("Post Consent response of TrillionLoans from nbfc : {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(getLeadStatus(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails(), true));

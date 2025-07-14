@@ -319,7 +319,7 @@ public class TLBreService {
 
     private boolean executeBre(NBFCRequestDTO breRequest, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
         try {
-            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE);
+            NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE, trillionLoansConfig.getBreTimeoutThreshold());
             log.info("BRE response from NBFC: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
                 TLBreResponseDto breResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLBreResponseDto.class);

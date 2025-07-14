@@ -3,34 +3,24 @@ package com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.impl;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
 import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
-import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
 import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
-import com.bharatpe.lending.common.service.merchant.constants.Constants;
-import com.bharatpe.lending.common.service.merchant.dto.MerchantDetailsDto;
-import com.bharatpe.lending.common.service.merchant.service.MerchantService;
-import com.bharatpe.lending.common.util.DateTimeUtil;
-import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
-import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLNachMandateRequestDto;
-import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLeadRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLeadRequestV2Dto;
 import com.bharatpe.lending.loanV3.dto.request.trillionloans.TLUpdateLoanRequestDto;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.trillionloans.validations.TLPayloadValidation;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
-import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
@@ -64,20 +54,7 @@ public class TLUpdateLeadService {
     LoanUtil loanUtil;
 
     @Autowired
-    ObjectMapper objectMapper;
-
-    @Autowired
-    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
-
-
-    @Autowired
-    ConverterUtils converterUtils;
-
-    @Autowired
-    MerchantService merchantService;
-
-    @Value("${trillion.updateLead.timeout.threshold:200000}")
-    Integer trillionUpdateLeadTimeoutThreshold;
+    TrillionLoansConfig trillionLoansConfig;
 
     @Transactional
     public boolean invokeUpdateLead(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
@@ -94,7 +71,7 @@ public class TLUpdateLeadService {
                 commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
                 return false;
             }
-            NBFCResponseDTO updateLeadResponseDTO = lenderAPIGateway.invokeStage(updateLeadRequestDto, LenderAssociationStages.UPDATE_LEAD, trillionUpdateLeadTimeoutThreshold);
+            NBFCResponseDTO updateLeadResponseDTO = lenderAPIGateway.invokeStage(updateLeadRequestDto, LenderAssociationStages.UPDATE_LEAD, trillionLoansConfig.getUpdateLeadTimeoutThreshold());
             log.info("update lead response of TrillionLoans from nbfc: {} with applicationId: {}", updateLeadResponseDTO, lenderAssociationDetailsRequestDto.getApplicationId());
             if (Objects.nonNull(updateLeadResponseDTO) && updateLeadResponseDTO.getSuccess() && Objects.nonNull(updateLeadResponseDTO.getData())) {
                 lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setLeadStatus(LenderAssociationStatus.UPDATE_LEAD_COMPLETED.name());
