@@ -721,7 +721,7 @@ public class MerchantLoansService {
             response.setMessage("No active loan found for the merchant");
             return response;
         }
-        List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, true);
+        List<LoanEligibilityDTO> loans = topupLoan(lendingPaymentSchedule, false);
         setTopupDetails(merchantId, loans, response, lendingPaymentSchedule);
         // TODO merge 1LMS topup eligibility, once topup is started for 1LMS
         return response;
