@@ -810,14 +810,20 @@ public class MileStoneHelperService {
         if (Boolean.TRUE.equals(request.getIsOfferAchieved())) {
             entity.setMilestoneOffer(true);
             entity.setSessionStatus("CLOSED");
-            mileStoneDao.save(entity);
-            log.info("Updated the entity {}", entity);
             DSMileStoneResponse mileStoneResponse = fetchTarget(entity);
-            if (!ObjectUtils.isEmpty(mileStoneResponse) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+
+            if (!ObjectUtils.isEmpty(mileStoneResponse) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())) {
+                entity.setComment("Due to early eligibility, closing the RTE program (merchant initiated)");
+                mileStoneDao.save(entity);
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse);
-                pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED.name(), FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED, merchant, cleverTapEvtData, mileStoneResponse);
+                pushEventToFunnelService(CleverTapEvents.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED.name(),
+                        FunnelEnums.StageEvent.LOAN_RTE_PRE_ELIGIBILITY_OFFER_ACCEPTED,
+                        merchant, cleverTapEvtData, mileStoneResponse);
+            } else {
+                mileStoneDao.save(entity);
             }
+            log.info("Updated the entity {}", entity);
             return true;
         }
         return false;
