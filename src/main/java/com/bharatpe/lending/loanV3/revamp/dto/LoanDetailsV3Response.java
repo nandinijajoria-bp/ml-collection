@@ -49,6 +49,8 @@ public class LoanDetailsV3Response {
     private Boolean showReferencePage;
     private Integer ediDaysModel;
     private Long merchantId;
+    private boolean paymentBank;
+    private boolean hasLinkedPaymentBank;
 
     private String currentPage;
     private String nextPage;
