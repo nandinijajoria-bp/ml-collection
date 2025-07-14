@@ -1572,7 +1572,7 @@ public class LenderAssignService implements ILenderAssignService {
                     Double interestAmt = (lendingApplication.getLoanAmount() * (pricingExperiment.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
                     Double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
                     edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication.getPayableDays()),edi, lendingApplication.getLoanAmount() - processingFee, lendingApplication.getMerchantId(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), edi, lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
                 }
                 else if(!ObjectUtils.isEmpty(lendingLenderPricing) && loanUtil.isLenderPricingApplicableMerchant(lendingApplication.getMerchantId())){
@@ -1582,7 +1582,7 @@ public class LenderAssignService implements ILenderAssignService {
                     Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
                     Double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
                     edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication.getPayableDays()),edi, lendingApplication.getLoanAmount() - processingFee, lendingApplication.getMerchantId(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), edi, lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
                 }
                 else{
@@ -1592,7 +1592,7 @@ public class LenderAssignService implements ILenderAssignService {
                     Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
                     Double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
                     edi = ediUtil.getEdiAfterRoundingLogic(lendingApplication.getId(), ediAmount, lendingApplication.getLender());
-                    apr = lendingApplicationServiceV2.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - processingFee, LenderOffDays.valueOf(lender).getEdiModel().getNoOfEdiDaysInAWeek(), lender);
+                    apr = lendingApplicationServiceV2.getApr(Math.toIntExact(lendingApplication.getPayableDays()),edi, lendingApplication.getLoanAmount() - processingFee, lendingApplication.getMerchantId(), lender);
                     irr = lendingApplicationServiceV2.getApr(lendingApplication.getPayableDays().intValue(), edi, lendingApplication.getLoanAmount(), lendingApplication.getMerchantId(), lender);
                 }
                 LenderAggregationResponseDto.LenderData lenderData = new LenderAggregationResponseDto.LenderData();
