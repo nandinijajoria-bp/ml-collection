@@ -21,6 +21,7 @@ import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV2.dto.BankAccountDetails;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachStateDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.LendingStateDTO;
@@ -34,6 +35,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.EnachErrorHandingService;
 import com.bharatpe.lending.service.MerchantLoansService;
+import com.bharatpe.lending.service.PaymentBankService;
 import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -83,6 +85,9 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     private LoanDashboardService loanDashboardService;
 
     @Autowired
+    private PaymentBankService paymentBankService;
+
+    @Autowired
     LendingPaymentScheduleDaoSlave lendingPaymentScheduleDaoSlave;
 
     @Autowired
@@ -109,6 +114,10 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${upi.nach.lender:-}")
     private Set<String> upiNachLender;
 
+    @Value("${payment.bank.change.flow.applicable:false}")
+    private boolean isPaymentBankChangeFlowApplicable;
+
+
     @Autowired
     VKycService vkycService;
 
@@ -116,10 +125,17 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Override
     public LendingStateDTO<EnachStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<EnachStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(lendingStateDTO.getData().isTopup()){
+        boolean isPaymentBankFlow = lendingStateDTO.getData().isPaymentBank() || lendingStateDTO.getData().isHasLinkedPaymentBank();
+        if (lendingStateDTO.getData().isTopup()) {
             lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
+        } else {
+            if (isPaymentBankFlow) {
+                lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+                log.info("Setting LendingViewStates to ENACH_PAGE for merchantId: {}", scopeDataArgs.getMerchant().getId());
+            } else {
+                lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
+            }
         }
-        else lendingStateDTO.setLendingViewStates(vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingStateDTO.getData().getMerchantId(), lendingStateDTO.getData().getLender()));
         return lendingStateDTO;
     }
 
@@ -193,9 +209,16 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
             }
             else loanDetailsV3Service.saveApplicationViewState(null, openApplication.getId(), vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, openApplication.getMerchantId(), openApplication.getLender()));
         }
-
-        enachStateDTO.setBankDetails(loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId()));
-
+        BankAccountDetails accountDetails = loanUtil.getAccountDetails(scopeDataArgs.getMerchant().getId());
+        enachStateDTO.setBankDetails(accountDetails);
+        if(isPaymentBankChangeFlowApplicable && !LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType())){
+            if(paymentBankService.isPaymentBank(openApplication.getMerchantId(), accountDetails)){
+                enachStateDTO.setHasLinkedPaymentBank(true);
+                log.info("Setting setHasLinkedPaymentBank to true for merchantId: {}", scopeDataArgs.getMerchant().getId());
+                }
+            enachStateDTO.setPaymentBank(paymentBankService.changePaymentAccount(openApplication, accountDetails));
+            log.info("Payment Bank Change flow is applicable for merchantId: {} and setPaymentBank is: {}", scopeDataArgs.getMerchant().getId(), enachStateDTO.isPaymentBank());
+        }
         log.info("Enach Stage Response for {} : {}", scopeDataArgs.getMerchant().getId(), enachStateDTO);
         return new LendingStateDTO<>(enachStateDTO , LendingViewStates.ENACH_PAGE, LendingViewStates.ENACH_PAGE);
     }

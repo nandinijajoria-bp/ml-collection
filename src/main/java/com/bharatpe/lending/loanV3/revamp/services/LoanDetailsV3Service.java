@@ -29,6 +29,7 @@ import com.bharatpe.lending.util.BQPublisherUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -44,6 +45,7 @@ import static com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates.AGREEME
 @Slf4j
 public class LoanDetailsV3Service {
 
+    @Lazy
     @Autowired
     RenderStateViaScope renderStateViaScope;
 
@@ -1361,6 +1363,8 @@ public class LoanDetailsV3Service {
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
+        loanDetailsV3Response.setHasLinkedPaymentBank(enachStateDTO.isHasLinkedPaymentBank());
+        loanDetailsV3Response.setPaymentBank(enachStateDTO.isPaymentBank());
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);

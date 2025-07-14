@@ -62,6 +62,7 @@ import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
+import com.bharatpe.lending.service.PaymentBankService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -247,6 +248,9 @@ public class LoanUtil {
 	LoanDpdDao loanDpdDao;
 
 	@Autowired
+	private PaymentBankService paymentBankService;
+
+	@Autowired
 	AutoPayUPIDao autoPayUPIDao;
 
 	@Autowired
@@ -287,6 +291,9 @@ public class LoanUtil {
 
 	@Value("${aggregation.flow.experimentId:}")
 	String isAggregationFlowApplicableExperimentId;
+
+	@Value("${payment.bank.change.flow.applicable:false}")
+	boolean isPaymentBankChangeFlowApplicable;
 
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
@@ -2038,10 +2045,22 @@ public class LoanUtil {
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
 		}
+
 		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
+		BankAccountDetails accountDetails = getAccountDetails(lendingApplication.getMerchantId());
+		if (accountDetails == null) {
+			logger.error("Account details are null for merchant {}", lendingApplication.getMerchantId());
+		}
+		if(isPaymentBankChangeFlowApplicable && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+			if (paymentBankService.changePaymentAccount(lendingApplication, accountDetails) || paymentBankService.isPaymentBank(lendingApplication.getMerchantId(),accountDetails)) {
+				logger.info("Merchant {} using Payments Bank with loan amount threshold", lendingApplication.getMerchantId());
+				return Boolean.FALSE;
+			}
+		}
+
 		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
 		if (ObjectUtils.isEmpty(approvedNachDetails)) {
