@@ -9,6 +9,7 @@ import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -63,6 +64,8 @@ public class TLCreateClientService {
     @Value("${enable.tl.update.client:false}")
     private Boolean enableTlUpdateClient;
 
+    @Autowired
+    TrillionLoansConfig trillionLoansConfig;
 
     @Transactional
     public boolean invokeCreateClient(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -92,7 +95,7 @@ public class TLCreateClientService {
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, LenderAssociationStatus.CREATE_CLIENT_FAILED);
                 return false;
             }
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(createClientRequest, LenderAssociationStages.CREATE_CLIENT);
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(createClientRequest, LenderAssociationStages.CREATE_CLIENT, trillionLoansConfig.getCreateClientTimeoutThreshold());
             log.info("create client response of TrillionLoans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
                 log.info("create client request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());

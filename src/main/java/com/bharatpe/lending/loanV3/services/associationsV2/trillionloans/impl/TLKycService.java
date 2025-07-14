@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.enums.Status;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
@@ -54,6 +55,9 @@ public class TLKycService {
 
     @Autowired
     private KycUtils kycUtils;
+
+    @Autowired
+    TrillionLoansConfig trillionLoansConfig;
 
     private final List<String> kycCallbackValidStatus = Arrays.asList(LenderAssociationStatus.KYC_IN_PROGRESS.name(), LenderAssociationStatus.AADHAR_UPLOAD_IN_PROGRESS.name());
 
@@ -121,7 +125,7 @@ public class TLKycService {
                     .identifier(new LinkedHashMap<String, Object>(){{ put("isEligibleForLenderKyc", isEligibleForLenderKyc); }})
                     .build();
 
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(kycRequestPayload, LenderAssociationStages.KYC);
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(kycRequestPayload, LenderAssociationStages.KYC, trillionLoansConfig.getKycTimeoutThreshold());
             log.info("KYC response of Trillionloans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequest.getApplicationId());
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.EKYC_PENDING.name() : LenderAssociationStatus.KYC_IN_PROGRESS.name());
