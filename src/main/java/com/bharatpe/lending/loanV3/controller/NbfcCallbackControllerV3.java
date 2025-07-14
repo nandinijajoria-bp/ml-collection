@@ -72,6 +72,8 @@ public class NbfcCallbackControllerV3 {
     @Autowired
     PennyDropCallbackWrapperService pennyDropCallbackWrapperService;
 
+    @Autowired
+    RetryCallbackWrapperService retryCallbackWrapperService;
 
     @PostMapping("bre")
     public ResponseEntity<ApiResponse<?>> listenBreCallback(@RequestBody BreCallbackResponseDto breCallbackResponseDto) throws JsonProcessingException {
@@ -191,7 +193,7 @@ public class NbfcCallbackControllerV3 {
 
     @PostMapping("eKyc-decision")
     public ResponseEntity<ApiResponse<?>> eKycCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) {
-        log.info("eKyc callback received via controller {}", nbfcResponseDTO);
+        log.info("eKyc decision callback received via controller {}", nbfcResponseDTO);
         kycCallbackWrapperService.lenderEKycCallback(nbfcResponseDTO);
         return ResponseEntity.status(HttpStatus.OK).body(new ApiResponse<>(true,"eKyc callback consumed successfully !"));
     }
@@ -201,5 +203,12 @@ public class NbfcCallbackControllerV3 {
         log.info("pennyDrop callback received via controller {}", nbfcResponseDTO);
         pennyDropCallbackWrapperService.pennyDropCallback(nbfcResponseDTO);
         return ResponseEntity.ok(new ApiResponse<>(true,"pennyDrop async callback handled"));
+    }
+
+    @PostMapping("retry")
+    public ResponseEntity<ApiResponse<?>> listenRetryCallback(@RequestBody NBFCResponseDTO nbfcResponseDTO) throws JsonProcessingException {
+        log.info("Retry callback received via controller {}", nbfcResponseDTO);
+        retryCallbackWrapperService.retryCallback(nbfcResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(true,"Retry async callback handled"));
     }
 }

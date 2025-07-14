@@ -127,10 +127,18 @@ public class TLKycService {
 
             NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(kycRequestPayload, LenderAssociationStages.KYC, trillionLoansConfig.getKycTimeoutThreshold());
             log.info("KYC response of Trillionloans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequest.getApplicationId());
-            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
-                lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.EKYC_PENDING.name() : LenderAssociationStatus.KYC_IN_PROGRESS.name());
-                commonService.manageApplicationState(lenderAssociationDetailsRequest);
-                return true;
+            if (!ObjectUtils.isEmpty(nbfcResponseDto)) {
+                if(nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.EKYC_PENDING.name() : LenderAssociationStatus.KYC_IN_PROGRESS.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequest);
+                    return true;
+                }
+                if(nbfcResponseDto.getRetry()) {
+                    log.info("Kyc request of trillionLoans pushed to retry for {}", lenderAssociationDetailsRequest.getApplicationId());
+                    lenderAssociationDetailsRequest.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.KYC_RETRY.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequest);
+                    return false;
+                }
             }
         } catch (Exception e) {
             log.error("exception occurred while KYC of Trillionloans for {} {} {}", lenderAssociationDetailsRequest.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
