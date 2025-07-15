@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.collections.MapUtils;
+import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -188,5 +189,18 @@ public class CommonUtil {
         return null;
     }
 
+    public double parseLoanAmount(String loanAmountStr) {
+        if(StringUtils.isEmpty(loanAmountStr)){
+            log.error("Loan amount string is empty or null");
+            throw new IllegalArgumentException("Loan amount string is null or empty");
+        }
+        loanAmountStr = loanAmountStr.trim().toLowerCase();
+        if (loanAmountStr.endsWith("k")) {
+            String numberPart = loanAmountStr.substring(0, loanAmountStr.length() - 1);
+            return Double.parseDouble(numberPart) * 1000;
+        } else {
+            return Double.parseDouble(loanAmountStr);
+        }
+    }
 
 }

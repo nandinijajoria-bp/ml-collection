@@ -603,13 +603,12 @@ public class MileStoneProgramServiceTest {
         ReflectionTestUtils.setField(mileStoneProgramService, "isRtev3Enabled", isRtev3Enabled);
 
         MileStoneOfferRequest request = new MileStoneOfferRequest();
-
         MileStoneEntity entity = new MileStoneEntity();
         entity.setMilestoneOffer(false);
 
         when(lendingCache.get(RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId())).thenReturn(null);
         when(mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(eq(merchant.getId()))).thenReturn(entity);
-        when(mileStoneHelperService.updateEntity(eq(request), eq(entity))).thenReturn(true);
+        when(mileStoneHelperService.updateEntity(eq(request), eq(entity), eq(merchant))).thenReturn(true);
 
         ApiResponse<?> response = mileStoneProgramService.milestoneOffer(merchant, request);
 
@@ -633,7 +632,7 @@ public class MileStoneProgramServiceTest {
         String mileStoneProgramCacheKey = RTEConstants.RTE_PROGRAM_DETAILS_CACHE + merchant.getId();
 
         when(mileStoneDao.findTop1ByMerchantIdOrderByIdDesc(eq(merchant.getId()))).thenReturn(entity);
-        when(mileStoneHelperService.updateEntity(eq(request), eq(entity))).thenReturn(true);
+        when(mileStoneHelperService.updateEntity(eq(request), eq(entity), eq(merchant))).thenReturn(true);
         when(lendingCache.get(eq(mileStoneProgramCacheKey))).thenReturn(new Object());
 
         ApiResponse<?> response = mileStoneProgramService.milestoneOffer(merchant, request);
