@@ -63,7 +63,7 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
     @Value("${aggregation.flow.experimentId:37}")
     String isAggregationFlowApplicableExperimentId;
 
-    @Value("${lender.assign.threshold}")
+    @Value("${lender.assign.threshold:}")
     Integer maxLenderAssignThreshold;
 
     @Autowired
@@ -135,9 +135,10 @@ public class LenderAggregationStageService implements IStageDataService<LenderAg
     @Override
     public LendingStateDTO<LenderAggregationResponseDto> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<LenderAggregationResponseDto> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        if(!ObjectUtils.isEmpty(lendingStateDTO.getData()) &&  loanUtilV3.isPreapprovedRepeatLoan(lendingStateDTO.getData().getApplicationId())) {
-            lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
-        }
+        //isPreapprovedRepeatLoan this no longer exists
+//        if(!ObjectUtils.isEmpty(lendingStateDTO.getData()) &&  loanUtilV3.isPreapprovedRepeatLoan(lendingStateDTO.getData().getApplicationId())) {
+//            lendingStateDTO.setLendingViewStates(LendingViewStates.KYC_PAGE);
+//        }
         return lendingStateDTO;
     }
 

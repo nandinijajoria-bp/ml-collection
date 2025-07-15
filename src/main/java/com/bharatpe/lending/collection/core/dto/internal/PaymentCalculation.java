@@ -20,4 +20,7 @@ public class PaymentCalculation {
     double penaltySettled;
     double chargesSettled;
     boolean allDuePaid;
+    double nachBounceSettled;
+    double penalChargesSettled;
+    boolean isChargeApportioned;
 }

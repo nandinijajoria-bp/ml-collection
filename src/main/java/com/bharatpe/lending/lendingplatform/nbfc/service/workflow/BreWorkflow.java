@@ -86,7 +86,14 @@ public class BreWorkflow implements Workflow {
     }
 
     private LenderBaseRequest<BRERequest> getBRERequest(LendingApplication lendingApplication) {
-        BRERequest breRequest = breRequestBuilder.buildRequest(lendingApplication);
+        BRERequest breRequest;
+        try {
+            breRequest = breRequestBuilder.buildRequest(lendingApplication);
+        } catch (Exception e) {
+            log.error("Error while creating bre request for applicationId={}, error:{}",
+                    lendingApplication.getId(), e.getMessage(), e);
+            return null;
+        }
         return LenderBaseRequest.<BRERequest>builder()
                 .applicationId(String.valueOf(lendingApplication.getId()))
                 .customerId(String.valueOf(lendingApplication.getMerchantId()))

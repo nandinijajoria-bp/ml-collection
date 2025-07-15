@@ -48,7 +48,7 @@ public class BPEnachController {
     private EdiEmiProxyHelper<Map<String,String>, Map<String,String>, ENachSubmitRequestDTO, ENachIntitiationResponseDTO> nachSubmitProxy;
 
 
-    @RequestMapping(value = "/initiate", method = RequestMethod.GET, consumes = "application/json", produces = "application/json")
+    @RequestMapping(value = "/initiate", method = RequestMethod.GET, produces = "application/json")
     public ResponseEntity<ENachIntitiationResponseDTO> initiateEnach(HttpServletRequest httpServletRequest, @RequestAttribute BasicDetailsDto merchant,
                                                                      @RequestHeader("token") String token,
                                                                      @RequestParam(name = "app_version", required = false) String appVersion,

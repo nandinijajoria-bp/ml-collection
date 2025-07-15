@@ -54,7 +54,7 @@ public class TrillionRepaymentService {
                     .build();
             return nbfcRequestDTO;
         } catch (Exception e) {
-            log.info("Exception in generating foreclosure receipt payload of USFB for {}, {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.info("Exception in generating foreclosure receipt payload of TrillionLoans for {}, {}, {}", applicationId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return null;
     }

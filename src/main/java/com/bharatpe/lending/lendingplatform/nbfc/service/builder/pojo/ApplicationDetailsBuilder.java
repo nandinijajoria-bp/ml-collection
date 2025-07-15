@@ -5,14 +5,14 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dto.CommonResponse;
 import com.bharatpe.lending.lendingplatform.nbfc.dto.pojo.ApplicationDetails;
+import com.bharatpe.lending.lendingplatform.nbfc.util.BuildersUtil;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.bharatpe.lending.service.LendingEdiScheduleService;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
-import com.bharatpe.lending.service.LendingEdiScheduleService;
 
 import java.math.BigDecimal;
 import java.util.Date;
@@ -26,6 +26,8 @@ public class ApplicationDetailsBuilder {
 	KycUtils kycUtils;
 	@Autowired
 	LendingEdiScheduleService lendingEdiScheduleService;
+	@Autowired
+	BuildersUtil builderUtil;
 
 	public ApplicationDetails buildApplicationDetails(
 			LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails) {
@@ -47,7 +49,9 @@ public class ApplicationDetailsBuilder {
 		Map<String, String> businessCategoryAndSubCategoryMap = kycUtils.getBusinessCategoryAndSubCategory(lendingApplication.getMerchantId());
 		String merchantCategory = ObjectUtils.isEmpty(businessCategoryAndSubCategoryMap.get("businessCategory"))?"DEFAULT BUSINESS CATEGORY":businessCategoryAndSubCategoryMap.get("businessCategory");
 		CommonResponse ediScheduleResponse = lendingEdiScheduleService.getEdiScheduleV2(lendingApplication.getMerchantId(), lendingApplication.getId(), null);
-		log.info("Edi Schedule Response for merchantId: {} is {}", lendingApplication.getMerchantId(), ediScheduleResponse);
+
+		Double apr = builderUtil.getApr(lendingApplication.getMerchantId(), lendingApplication.getId(), lendingApplication.getLoanAmount() - lendingApplication.getProcessingFee(), LoanUtil.getEdiModal(lendingApplication).getNoOfEdiDaysInAWeek(), lendingApplication.getLender());
+
 		ApplicationDetails applicationDetails = ApplicationDetails.builder()
 				.applicationId(lendingApplication.getId().toString())
 				.customerId(lendingApplication.getMerchantId().toString())
@@ -70,6 +74,7 @@ public class ApplicationDetailsBuilder {
 				.agreementAt(lendingApplication.getAgreementAt())
 				.merchantCategory(merchantCategory)
 				.ediScheduleResponse(ediScheduleResponse)
+				.apr(truncateToTwoDecimals(apr))
 				.build();
 
 		if (!ObjectUtils.isEmpty(lendingApplicationLenderDetails)) {
@@ -93,5 +98,9 @@ public class ApplicationDetailsBuilder {
 		log.debug("Application Details for merchant: {} is {}", lendingApplication.getMerchantId(), applicationDetails);
 
 		return applicationDetails;
+	}
+
+	public static double truncateToTwoDecimals(Double value) {
+		return ((int) (value * 100)) / 100.0;
 	}
 }

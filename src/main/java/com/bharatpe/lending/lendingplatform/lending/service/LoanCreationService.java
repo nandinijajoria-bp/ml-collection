@@ -17,9 +17,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.List;
 
 import static com.bharatpe.lending.lendingplatform.nbfc.enums.Lender.OXYZO;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.CREATE_LEAD;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.KYC;
-import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.KYC_DOCUMENT_UPLOAD;
+import static com.bharatpe.lending.lendingplatform.nbfc.enums.WorkflowStage.*;
 
 @Slf4j
 @Service

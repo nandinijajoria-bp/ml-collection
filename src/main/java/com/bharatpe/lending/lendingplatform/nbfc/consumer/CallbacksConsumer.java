@@ -19,6 +19,7 @@ public class CallbacksConsumer {
     private final DisbursalCallbackProcessingService disbursalCallbackProcessingService;
     private final EKycCallbackProcessingService eKycCallbackProcessingService;
     private final CKycCallbackProcessingService cKycCallbackProcessingService;
+    private final PennyDropCallbackProcessingService pennyDropCallbackProcessingService;
 
     @KafkaListener(
             topics = "${kafka.topic.lending.connector.bre.callback:lc-bre-callback}",
@@ -56,11 +57,11 @@ public class CallbacksConsumer {
         MDC.clear();
     }
 
-    @KafkaListener(
-            topics = "${kafka.topic.lending.connector.ekyc.callback:lc-ekyc-callback}",
-            groupId = "lending-service",
-            autoStartup = "${kafka.listener.autoStartup:false}",
-            containerFactory = "ConfluentKafkaListenerContainer")
+//    @KafkaListener(
+//            topics = "${kafka.topic.lending.connector.ekyc.callback:lc-ekyc-callback}",
+//            groupId = "lending-service",
+//            autoStartup = "${kafka.listener.autoStartup:false}",
+//            containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeEKycCallback(String message) {
         MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received EKYC callback from Kafka: {}", message);
@@ -68,15 +69,27 @@ public class CallbacksConsumer {
         MDC.clear();
     }
 
-    @KafkaListener(
-            topics = "${kafka.topic.lending.connector.ckyc.callback:lc-ckyc-callback}",
-            groupId = "lending-service",
-            autoStartup = "${kafka.listener.autoStartup:false}",
-            containerFactory = "ConfluentKafkaListenerContainer")
+//    @KafkaListener(
+//            topics = "${kafka.topic.lending.connector.ckyc.callback:lc-ckyc-callback}",
+//            groupId = "lending-service",
+//            autoStartup = "${kafka.listener.autoStartup:false}",
+//            containerFactory = "ConfluentKafkaListenerContainer")
     public void consumeCKycCallback(String message) {
         MDC.put("requestId", UUID.randomUUID().toString());
         log.info("Received CKYC callback from Kafka: {}", message);
         cKycCallbackProcessingService.processCKYCCallback(message);
+        MDC.clear();
+    }
+
+    @KafkaListener(
+            topics = "${kafka.topic.lending.connector.penny.drop.callback:lc-penny-drop-callback}",
+            groupId = "lending-service",
+            autoStartup = "${kafka.listener.autoStartup:false}",
+            containerFactory = "ConfluentKafkaListenerContainer")
+    public void consumePennyDropCallback(String message) {
+        MDC.put("requestId", UUID.randomUUID().toString());
+        log.info("Received PennyDrop callback from Kafka: {}", message);
+        pennyDropCallbackProcessingService.processPennyDropCallback(message);
         MDC.clear();
     }
 }

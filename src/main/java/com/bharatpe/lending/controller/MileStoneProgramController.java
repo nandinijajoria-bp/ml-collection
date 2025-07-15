@@ -2,13 +2,16 @@ package com.bharatpe.lending.controller;
 
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.dto.*;
+import com.bharatpe.lending.exception.CustomLendingException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.service.LoanAndRTEEligibilityComputeService;
 import com.bharatpe.lending.service.MileStoneProgramService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Objects;
 
 @RestController
 @RequestMapping("/milestone")
@@ -17,6 +20,9 @@ public class MileStoneProgramController {
 
     @Autowired
     MileStoneProgramService mileStoneProgramService;
+
+    @Autowired
+    private LoanAndRTEEligibilityComputeService loanAndRTEEligibilityComputeService;
 
     @GetMapping(value = "/eligibility")
     public ApiResponse<MileStoneEligibilityResponseDto> computeEligibility(
@@ -85,6 +91,26 @@ public class MileStoneProgramController {
     public ApiResponse<?> updatePageView(@RequestAttribute BasicDetailsDto merchant, @RequestParam(required = false) String cashBackEarned) {
         log.info("Updating pageViewed data for {}", merchant.getId());
         return mileStoneProgramService.updatePageViewData(merchant.getId(), cashBackEarned);
+    }
+
+    @GetMapping(value = "/rte-loan-eligibility-check")
+    public ResponseEntity<ApiResponse<RteLoanEligibilityResponse>> checkRteLoanEligibility(@RequestParam Long merchantId) {
+        log.info("computing rte and loan eligibility for merchant id: {}", merchantId);
+        try {
+            RteLoanEligibilityResponse rteLoanEligibilityResponse = loanAndRTEEligibilityComputeService.computeRteAndLoanEligibility(merchantId);
+            log.info("rte and loan eligibility successful for merchant id: {}", merchantId);
+            ApiResponse<RteLoanEligibilityResponse> apiResponse = new ApiResponse<>(rteLoanEligibilityResponse);
+            return ResponseEntity.ok(apiResponse);
+        }catch (CustomLendingException exception){
+            log.error("CustomLendingException occurred while computing rte and loan eligibility for merchant id {}: {}", merchantId, exception.getMessage());
+            ApiResponse<RteLoanEligibilityResponse> apiResponse = new ApiResponse<>(false, exception.getMessage());
+            return ResponseEntity.status(exception.getStatus()).body(apiResponse);
+        } catch (Exception exception){
+            log.error("Error occurred while computing rte and loan eligibility for merchant id {}: {}", merchantId, exception.getMessage());
+            ApiResponse<RteLoanEligibilityResponse> apiResponse = new ApiResponse<>(false, "Something went wrong");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(apiResponse);
+        }
+
     }
 
 

@@ -19,6 +19,13 @@ public class AsyncConfig implements AsyncConfigurer {
     @Value("${piramal.max.pool.size:70}")
     int piramalAsyncMaxPoolSize;
 
+    @Value("${merchant.account.info.async.core.pool.size:5}")
+    private int merchantAccountInfoPoolSize;
+    @Value("${merchant.account.info.async.max.pool.size:10}")
+    private int merchantAccountInfoMaxPoolSize;
+    @Value("${merchant.account.info.async.queue.size:25}")
+    private int merchantAccountQueueSize;
+
     @Override
     public Executor getAsyncExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -35,6 +42,8 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setCorePoolSize(piramalAsyncCorePoolSize);
         executor.setMaxPoolSize(piramalAsyncMaxPoolSize);
         executor.setThreadNamePrefix("PiramalAsyncThread::");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }
@@ -45,6 +54,8 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setCorePoolSize(piramalAsyncCorePoolSize);
         executor.setMaxPoolSize(piramalAsyncMaxPoolSize);
         executor.setThreadNamePrefix("LenderAsyncThread::");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }
@@ -59,6 +70,16 @@ public class AsyncConfig implements AsyncConfigurer {
                 .build();
     }
 
+    @Bean(name = "accountInfoTaskExecutor")
+    public Executor getAccountInfoTaskExecutor(){
+        return new TaskExecutorBuilder()
+                .threadNamePrefix("account-info-task-executor-")
+                .corePoolSize(merchantAccountInfoPoolSize)
+                .maxPoolSize(merchantAccountInfoMaxPoolSize)
+                .queueCapacity(merchantAccountQueueSize)
+                .build();
+    }
+
     @Bean(name = "commonAsyncTaskExecutor")
     public Executor getCommonAsyncTaskExecutor(){
         return new TaskExecutorBuilder()
@@ -66,4 +87,6 @@ public class AsyncConfig implements AsyncConfigurer {
                 .corePoolSize(15)
                 .build();
     }
+
+
 }

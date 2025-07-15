@@ -1,6 +1,16 @@
 package com.bharatpe.lending.constant;
 
-import java.util.*;
+import com.bharatpe.lending.enums.ReferenceRelation;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static com.bharatpe.lending.enums.ReferenceRelation.*;
 
 public interface LendingConstants {
 	Integer MAX_LOAN_AMOUNT_INTEGER = 1000000;
@@ -31,6 +41,8 @@ public interface LendingConstants {
 	String ENACH_BANK_MESSAGE="<p class='inel-note'>Note: Your Bank A/C is not eNACH-able and our lending partners don’t process a loan application in this Bank A/C. Please change your Bank A/C by clicking <b>here</b> and try again.</p>";
 	String BANK_CHANGE_DEEPLINK="bharatpe://dynamic?key=add-bank-account&wroute=easy-loans";
 	String COLLECT_VPA_CREATE_TXN_URL = "/startTxn";
+	long MAX_MERCHANT_REFERENCES_ALLOWED = 3L;
+
 	enum BUREAU_TYPES {
         CRIF, EXPERIAN;
     }
@@ -51,6 +63,7 @@ public interface LendingConstants {
 	String CREATE_PG_TXN_V2 = "/v2/client/transaction";
 	String CREATE_PG_TXN_V1 = "/v1/client/transaction";
 
+	String LENDING_CLIENT = "LENDING";
 	String CREATE_PG_TXN_MANDATE_PLUGIN = "/v2/client/mandate/create-mandate";
 	String MANDATE_REVOKE = "/v2/client/mandate/revoke";
 	String PG_STATUS_CHECK = "/v1/client/transaction?orderId=";
@@ -59,6 +72,7 @@ public interface LendingConstants {
 	String KYC_DOC_URL = "/api/v2/internal/get-document";
 	String KYC_INITIATE_URL = "/api/v2/internal/initiate-kyc";
 	String UPLOAD_SHOP_IMAGE = "/api/v3/internal/upload-shop";
+	String UDYAM_FETCH_API = "/api/v1/udyam-fetch";
 	String KYC_PAN_NO_URL = "/api/v1/internal/pan-details";
 	String PAN_NAME = "/api/v1/internal/pan-verify";
 	String PAN_VERIFY_V3_INTERNAL = "/api/v3/internal/pan-verify";
@@ -144,12 +158,77 @@ public interface LendingConstants {
 	String OFFER_DOWNGRADE_PERCENTAGE = "offer_downgrade_percentage";
 	String OFFER_DOWNGRADE_THRESHOLD = "offer_downgrade_threshold";
 	String OFFER_MODIFICATION_STATUS = "offer_modification_status";
+	String MERCHANT_CATEGORY = "merchant_category";
+	String MERCHANT_SUB_CATEGORY = "sub_category";
 
 	String HEADER_X_API_KEY = "X-API-KEY";
 	String INSURANCE_ELIGIBILITY_API =  "/api/eligibility";
 	String SHOP_FRONT = "shop-front";
 	String SHOP_STOCK = "shop-stock";
+	String SHOP_QR = "shop-qr";
 	String INSURANCE_ACTIVE_APPLICATION_API = "/api/insurance/activeApplications";
+	String NACH_INSTALLMENT_FREQUENCY_EDI = "daily";
+	Map<String, ReferenceRelation> REFERENCE_INFERRED_RELATION_MAPPING = new HashMap<String, ReferenceRelation>() {{
+		// PARENT relations
+		put("PARENT", PARENT);
+		put("FATHER", PARENT);
+		put("MOTHER", PARENT);
+		put("father", PARENT);
+		put("mother", PARENT);
+		put("others_father", PARENT);
+		put("others_mother", PARENT);
+
+		// FRIEND_OTHER relations
+		put("FRIEND_OTHER", FRIEND_OTHER);
+		put("FRIEND", FRIEND_OTHER);
+		put("OTHER", FRIEND_OTHER);
+		put("aunty", FRIEND_OTHER);
+		put("boss", FRIEND_OTHER);
+		put("daughterinlaw", FRIEND_OTHER);
+		put("daughter", FRIEND_OTHER);
+		put("fatherinlaw", FRIEND_OTHER);
+		put("friend", FRIEND_OTHER);
+		put("grandfather", FRIEND_OTHER);
+		put("home", FRIEND_OTHER);
+		put("maternalgrandmother", FRIEND_OTHER);
+		put("maternaluncle", FRIEND_OTHER);
+		put("motherinlaw", FRIEND_OTHER);
+		put("office", FRIEND_OTHER);
+		put("others_daughter", FRIEND_OTHER);
+		put("others_home", FRIEND_OTHER);
+		put("others_son", FRIEND_OTHER);
+		put("paternalaunty", FRIEND_OTHER);
+		put("paternalgrandfather", FRIEND_OTHER);
+		put("paternalgrandmother", FRIEND_OTHER);
+		put("paternaluncle", FRIEND_OTHER);
+		put("social", FRIEND_OTHER);
+		put("son", FRIEND_OTHER);
+		put("soninlaw", FRIEND_OTHER);
+		put("teacher", FRIEND_OTHER);
+		put("uncle", FRIEND_OTHER);
+
+		// BROTHER_SISTER relations
+		put("BROTHER_SISTER", BROTHER_SISTER);
+		put("BROTHER", BROTHER_SISTER);
+		put("SISTER", BROTHER_SISTER);
+		put("brother", BROTHER_SISTER);
+		put("brotherinlaw", BROTHER_SISTER);
+		put("others_brother", BROTHER_SISTER);
+		put("others_sister", BROTHER_SISTER);
+		put("sister", BROTHER_SISTER);
+		put("sisterinlaw", BROTHER_SISTER);
+
+		// HUSBAND_WIFE relations
+		put("HUSBAND_WIFE", HUSBAND_WIFE);
+		put("HUSBAND", HUSBAND_WIFE);
+		put("WIFE", HUSBAND_WIFE);
+		put("husband", HUSBAND_WIFE);
+		put("others_husband", HUSBAND_WIFE);
+		put("others_spouse", HUSBAND_WIFE);
+		put("others_wife", HUSBAND_WIFE);
+		put("spouse", HUSBAND_WIFE);
+		put("wife", HUSBAND_WIFE);
+	}};
 }
 
 

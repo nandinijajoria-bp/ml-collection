@@ -17,6 +17,7 @@ import com.bharatpe.lending.common.enums.RiskSegment;
 import com.bharatpe.lending.common.service.FunnelService;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
+import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.handlers.DsHandler;
@@ -106,8 +107,19 @@ public class UploadDocumentService {
 			uploadDocumentResponse.setInvalidPhoto(false);
 			uploadDocumentResponse.setSidGreaterThanRequired(false);
 
-			UploadDocumentRequestDTO uploadDocumentRequest = requestDTO.getPayload();
-			Long applicationId = uploadDocumentRequest.getApplicationId();
+			UploadDocumentRequestDTO uploadDocumentRequest = null;
+			Long applicationId = null;
+
+			if (requestDTO != null && requestDTO.getPayload() != null) {
+				uploadDocumentRequest = requestDTO.getPayload();
+				applicationId = uploadDocumentRequest.getApplicationId();
+			} else {
+				logger.error("Invalid request payload: null or missing payload for merchant: {}",
+						merchant != null ? merchant.getId() : "unknown");
+				return ApiResponse.error(String.valueOf(HttpStatus.BAD_REQUEST.value()),
+						"Invalid request: missing payload", null);
+			}
+
 			List<UploadDocumentRequestDTO.Document> documents = uploadDocumentRequest.getDocuments();
 
 			if (applicationId == null || applicationId <= 0 || documents == null || documents.isEmpty()) {
@@ -287,9 +299,9 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 					DocumentsIdProofMaster documentsIdProof = null;
 					LendingShopDocuments lendingShopDocuments = null;
 
-					if ("shop-front".equalsIgnoreCase(proofType) ||
-							"shop-stock".equalsIgnoreCase(proofType) ||
-							"shop-qr".equalsIgnoreCase(proofType)) {
+					if (LendingConstants.SHOP_FRONT.equalsIgnoreCase(proofType) ||
+							LendingConstants.SHOP_STOCK.equalsIgnoreCase(proofType) ||
+							LendingConstants.SHOP_QR.equalsIgnoreCase(proofType)) {
 
 						if (Boolean.TRUE.equals(isUpdateMoreDocument)) {
 							lendingShopDocuments = updateShopDocuments(
@@ -308,10 +320,10 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 							documentResponse.setSinglePageDocument(1);
 							documentList.add(documentResponse);
 
-							validateShopImages(lendingShopDocuments, merchantBasicDetails, uploadDocumentResponse, lendingApplication);
+							//validateShopImages(lendingShopDocuments, merchantBasicDetails, uploadDocumentResponse, lendingApplication);
 
 							lendingShopDocumentsAuditList.add(new LendingShopDocumentsAudit(
-									lendingShopDocuments, resubmitRequest));
+									lendingShopDocuments, resubmitRequest, null));
 						}
 					} else {
 						if (isUpdate) {
@@ -351,7 +363,7 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 			}
 
 			if (documentList.isEmpty()) {
-				logger.error("No documents were successfully processed for merchant: {}, application: {}",
+				logger.warn("No documents were successfully processed for merchant: {}, application: {}",
 						merchantBasicDetails.getId(), lendingApplication.getId());
 				return ApiResponse.error(String.valueOf(HttpStatus.UNPROCESSABLE_ENTITY.value()), "No documents were successfully processed", null);
 			}
@@ -364,96 +376,96 @@ private void logSidFunnelEvent(Long merchantId, Long applicationId, Double SID, 
 			return ApiResponse.error(String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()), "Failed to process documents: " + e.getMessage(), null);
 		}
 	}
-
-	/**
-	 * Validates shop images based on their type and updates response accordingly
-	 */
-	private void validateShopImages(LendingShopDocuments lendingShopDocuments,
-									BasicDetailsDto merchantBasicDetails,
-									UploadDocumentResponseDTO uploadDocumentResponse,
-									LendingApplication lendingApplication) {
-
-		if (merchantBasicDetails.getId() % 10 != 0 || lendingShopDocuments == null) return;
-
-		String proofType = lendingShopDocuments.getProofType();
-		boolean isShopFront = "shop-front".equalsIgnoreCase(proofType);
-		boolean isShopStock = "shop-stock".equalsIgnoreCase(proofType);
-
-		if (!isShopFront && !isShopStock) return;
-
-		DsImageValidationRequestDto requestDto = new DsImageValidationRequestDto(
-				lendingShopDocuments.getProofFrontSide(),
-				isShopFront, isShopStock, false, isShopFront
-		);
-
-		DsImageValidationResponseDto responseDto = apiGatewayService.validateImage(requestDto);
-
-		if (ObjectUtils.isEmpty(responseDto)) return;
-
-		if (isShopFront) {
-			processShopFrontValidation(lendingShopDocuments, uploadDocumentResponse, responseDto, lendingApplication);
-		} else if (isShopStock) {
-			processShopStockValidation(lendingShopDocuments, responseDto);
-		}
-	}
-
-	private void processShopFrontValidation(LendingShopDocuments lendingShopDocuments,
-											UploadDocumentResponseDTO uploadDocumentResponse,
-											DsImageValidationResponseDto responseDto,
-											LendingApplication lendingApplication) {
-
-		DsImageValidationResponseDto.ShopParams shopFrontExistence = responseDto.getShopFrontExistence();
-		DsImageValidationResponseDto.ShopParams shopFrontStructure = responseDto.getShopFrontStructure();
-
-		if (!ObjectUtils.isEmpty(shopFrontExistence)) {
-			saveLendingShopDocumentsDsParams(
-					lendingShopDocuments,
-					shopFrontExistence.getDsClass(),
-					shopFrontExistence.getConfidence(),
-					shopFrontExistence.getVerifiedShop()
-			);
-
-			boolean isInvalidPhoto = Boolean.FALSE.equals(shopFrontExistence.getVerifiedShop())
-					&& "NO_SHOP".equalsIgnoreCase(shopFrontExistence.getDsClass())
-					&& shopFrontExistence.getConfidence() > 0.75;
-
-			uploadDocumentResponse.setInvalidPhoto(isInvalidPhoto);
-		}
-
-		if (!ObjectUtils.isEmpty(shopFrontStructure)) {
-			updateGstDetailsWithShopStructure(lendingApplication.getId(), shopFrontStructure);
-		}
-	}
-
-	private void processShopStockValidation(LendingShopDocuments lendingShopDocuments,
-											DsImageValidationResponseDto responseDto) {
-
-		DsImageValidationResponseDto.ShopParams shopStockCategory = responseDto.getShopStockCategory();
-
-		if (!ObjectUtils.isEmpty(shopStockCategory)) {
-			saveLendingShopDocumentsDsParams(
-					lendingShopDocuments,
-					shopStockCategory.getDsClass(),
-					shopStockCategory.getConfidence(),
-					shopStockCategory.getVerifiedShop()
-			);
-		}
-	}
-
-	private void updateGstDetailsWithShopStructure(Long applicationId, DsImageValidationResponseDto.ShopParams structure) {
-		LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
-
-		if (ObjectUtils.isEmpty(lendingGstDetail)) return;
-
-		if (lendingGstDetail.getShopType() == null && !ObjectUtils.isEmpty(structure.getDsClass())) {
-			lendingGstDetail.setShopType(structure.getDsClass());
-		}
-
-		lendingGstDetail.setComputedShopType(structure.getDsClass());
-		lendingGstDetail.setConfidence(structure.getConfidence());
-
-		lendingGstDao.save(lendingGstDetail);
-	}
+//
+//	/**
+//	 * Validates shop images based on their type and updates response accordingly
+//	 */
+//	private void validateShopImages(LendingShopDocuments lendingShopDocuments,
+//									BasicDetailsDto merchantBasicDetails,
+//									UploadDocumentResponseDTO uploadDocumentResponse,
+//									LendingApplication lendingApplication) {
+//
+//		if (merchantBasicDetails.getId() % 100 >= 1 || lendingShopDocuments == null) return;
+//
+//		String proofType = lendingShopDocuments.getProofType();
+//		boolean isShopFront = LendingConstants.SHOP_FRONT.equalsIgnoreCase(proofType);
+//		boolean isShopStock = LendingConstants.SHOP_STOCK.equalsIgnoreCase(proofType);
+//
+//		if (!isShopFront && !isShopStock) return;
+//
+//		DsImageValidationRequestDto requestDto = new DsImageValidationRequestDto(
+//				lendingShopDocuments.getProofFrontSide(),
+//				isShopFront, isShopStock, false, isShopFront
+//		);
+//
+//		DsImageValidationResponseDto responseDto = apiGatewayService.validateImage(requestDto);
+//
+//		if (ObjectUtils.isEmpty(responseDto)) return;
+//
+//		if (isShopFront) {
+//			processShopFrontValidation(lendingShopDocuments, uploadDocumentResponse, responseDto, lendingApplication);
+//		} else if (isShopStock) {
+//			processShopStockValidation(lendingShopDocuments, responseDto);
+//		}
+//	}
+//
+//	private void processShopFrontValidation(LendingShopDocuments lendingShopDocuments,
+//											UploadDocumentResponseDTO uploadDocumentResponse,
+//											DsImageValidationResponseDto responseDto,
+//											LendingApplication lendingApplication) {
+//
+//		DsImageValidationResponseDto.ShopParams shopFrontExistence = responseDto.getShopFrontExistence();
+//		DsImageValidationResponseDto.ShopParams shopFrontStructure = responseDto.getShopFrontStructure();
+//
+//		if (!ObjectUtils.isEmpty(shopFrontExistence)) {
+//			saveLendingShopDocumentsDsParams(
+//					lendingShopDocuments,
+//					shopFrontExistence.getDsClass(),
+//					shopFrontExistence.getConfidence(),
+//					shopFrontExistence.getVerifiedShop()
+//			);
+//
+//			boolean isInvalidPhoto = Boolean.FALSE.equals(shopFrontExistence.getVerifiedShop())
+//					&& "NO_SHOP".equalsIgnoreCase(shopFrontExistence.getDsClass())
+//					&& shopFrontExistence.getConfidence() > 0.75;
+//
+//			uploadDocumentResponse.setInvalidPhoto(isInvalidPhoto);
+//		}
+//
+//		if (!ObjectUtils.isEmpty(shopFrontStructure)) {
+//			updateGstDetailsWithShopStructure(lendingApplication.getId(), shopFrontStructure);
+//		}
+//	}
+//
+//	private void processShopStockValidation(LendingShopDocuments lendingShopDocuments,
+//											DsImageValidationResponseDto responseDto) {
+//
+//		DsImageValidationResponseDto.ShopParams shopStockCategory = responseDto.getShopStockCategory();
+//
+//		if (!ObjectUtils.isEmpty(shopStockCategory)) {
+//			saveLendingShopDocumentsDsParams(
+//					lendingShopDocuments,
+//					shopStockCategory.getDsClass(),
+//					shopStockCategory.getConfidence(),
+//					shopStockCategory.getVerifiedShop()
+//			);
+//		}
+//	}
+//
+//	private void updateGstDetailsWithShopStructure(Long applicationId, DsImageValidationResponseDto.ShopParams structure) {
+//		LendingGstDetail lendingGstDetail = lendingGstDao.findByApplicationId(applicationId);
+//
+//		if (ObjectUtils.isEmpty(lendingGstDetail)) return;
+//
+//		if (lendingGstDetail.getShopType() == null && !ObjectUtils.isEmpty(structure.getDsClass())) {
+//			lendingGstDetail.setShopType(structure.getDsClass());
+//		}
+//
+//		lendingGstDetail.setComputedShopType(structure.getDsClass());
+//		lendingGstDetail.setConfidence(structure.getConfidence());
+//
+//		lendingGstDao.save(lendingGstDetail);
+//	}
 
 
 	public void saveLendingShopDocumentsDsParams (LendingShopDocuments lendingShopDocuments, String outputClass, Double confidence, Boolean verified) {

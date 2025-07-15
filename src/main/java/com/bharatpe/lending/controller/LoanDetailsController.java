@@ -9,6 +9,7 @@ import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
+import com.bharatpe.lending.loanV3.dto.TopupEligibilityResponseData;
 import com.bharatpe.lending.loanV3.revamp.services.businessLoan.proxy.EdiEmiProxyHelper;
 import com.bharatpe.lending.service.*;
 import com.bharatpe.lending.util.BQPublisherUtil;
@@ -273,6 +274,30 @@ public class LoanDetailsController {
 		logger.info("merchantLoans response : {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
+
+	/**
+	 * Endpoint to check topup eligibility for a merchant.
+	 * @param merchant The BasicDetailsDto of the merchant.
+	 * @param token The authentication token.
+	 * @param merchantId The ID of the merchant.
+	 * @return ResponseEntity containing TopupEligibilityResponseData. TopupEligibilityResponseData contains information
+	 * about the topup eligibility status and eligibility details.
+	 */
+	@GetMapping(value="/topup_eligibility", consumes = "application/json", produces = "application/json")
+	public ResponseEntity<TopupEligibilityResponseData> getTopupEligibility(
+			@RequestAttribute(required = false) BasicDetailsDto merchant,
+			@RequestHeader(value = "token", required = false) String token,
+			@RequestParam(required = false) Long merchantId
+	) {
+		if (Objects.nonNull(merchant)){
+			merchantId = merchant.getId();
+		}
+		logger.info("request received for topup eligibility: {}", merchantId);
+		TopupEligibilityResponseData resp = merchantLoansService.getTopupEligibility(token, merchantId);
+		logger.info("response for topup eligibility for merchant_id: {} is: {}",merchantId, resp);
+		return new ResponseEntity<>(resp, HttpStatus.OK);
+	}
+
 
 	@RequestMapping(value="/algo360_logs", method=RequestMethod.POST, consumes="application/json", produces="application/json")
 	public ResponseEntity<String> processAlgo360Logs(@RequestAttribute BasicDetailsDto merchant, @RequestBody String data, @RequestHeader("token") String token){

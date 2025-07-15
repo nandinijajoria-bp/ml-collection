@@ -49,6 +49,8 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
         lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())) {
+            //TODO: Next Page will change according to configs
+
             lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
         }
         return lendingStateDTO;
@@ -68,6 +70,12 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
 
             LendingApplication lendingApplication = lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(scopeDataArgs.getMerchant().getId());
             log.info("lendingApplication {} and status {}", lendingApplication, lendingApplication.getStatus());
+
+            if (!ObjectUtils.isEmpty(lendingApplication) && !ObjectUtils.isEmpty(lendingApplication.getStatus())) {
+                referenceStateDTO.setApplicationStatus(lendingApplication.getStatus());
+                referenceStateDTO.setLender(lendingApplication.getLender());
+                referenceStateDTO.setLoanType(lendingApplication.getLoanType());
+            }
 
             LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(scopeDataArgs.getApplicationId());
 

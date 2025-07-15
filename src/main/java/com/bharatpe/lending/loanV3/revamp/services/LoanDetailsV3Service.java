@@ -1,7 +1,8 @@
 package com.bharatpe.lending.loanV3.revamp.services;
 
+import com.bharatpe.common.dao.ExperianDao;
+import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
-import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.service.merchant.dto.*;
@@ -15,6 +16,7 @@ import com.bharatpe.lending.lendingplatform.authentication.dto.response.ApiRespo
 import com.bharatpe.lending.loanV2.dto.AddressDetails;
 import com.bharatpe.lending.loanV2.dto.EmiEligibility;
 import com.bharatpe.lending.loanV3.dto.LenderAggregationResponseDto;
+import com.bharatpe.lending.loanV3.dto.UpiAutopayApplicationDetailsDTO;
 import com.bharatpe.lending.loanV3.revamp.dto.*;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
@@ -23,9 +25,11 @@ import com.bharatpe.lending.loanV3.revamp.stateManager.RenderStateViaScope;
 import com.bharatpe.lending.loanV3.revamp.stateManager.RenderStateWithoutScope;
 import com.bharatpe.lending.service.ImageURLService;
 import com.bharatpe.lending.service.UploadDocumentService;
+import com.bharatpe.lending.util.BQPublisherUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
@@ -41,6 +45,7 @@ import static com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates.AGREEME
 @Slf4j
 public class LoanDetailsV3Service {
 
+    @Lazy
     @Autowired
     RenderStateViaScope renderStateViaScope;
 
@@ -80,17 +85,20 @@ public class LoanDetailsV3Service {
     @Autowired
     KycHandler kycHandler;
 
-    @Value("${shop.picture.skip.enabled:false}")
-    private boolean shouldSkipShopPicture;
-
-    @Value("${lenders.skip.shop.picture:}")
-    private List<String> lendersToSkipShopPicture;
-
-    @Value("${skip.picture.threshold:0}")
-    private int skipPictureThreshold;
+    @Autowired
+    BQPublisherUtil bqPublisherUtil;
 
     @Value("${sid.threshold}")
     Double sidThreshold;
+
+    @Autowired
+    LendingAutoDisbursalDao lendingAutoDisbursalDao;
+
+    @Autowired
+    LendingResubmitTaskDao lendingResubmitTaskDao;
+
+    @Autowired
+    ExperianDao experianDao;
 
     private static final Set<String> ALLOWED_SHOP_STRUCTURE_TYPES = new HashSet<>(Arrays.asList("permanent", "temporary"));
 
@@ -243,6 +251,10 @@ public class LoanDetailsV3Service {
                     setEnachResponse((EnachStateDTO)lendingStateDTO.getData(),loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
                     return loanDetailsV3Response;
+                case UPI_AUTOPAY_PAGE:
+                    setUpiAutopayResponse((UpiAutopayStateDTO) lendingStateDTO.getData(),loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
                 case KYC_ROUTE_TO_ELIGIBILITY:
                     setKYCRouteToEligibilityResponse((KYCRTEDto) lendingStateDTO.getData(),loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
@@ -265,6 +277,13 @@ public class LoanDetailsV3Service {
                 case UDYAM_REGISTRATION_PAGE:
                     setUdyamRegistrationPageResponse((UdyamRegistrationStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
                     loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+
+                case LENDER_VKYC_PAGE:
+                    setLenderVKycResponse((LenderVKycStateDTO) lendingStateDTO.getData(), loanDetailsV3Response);
+                    loanDetailsV3Response.setNextPage(lendingStateDTO.getLendingViewStates().name());
+                    return loanDetailsV3Response;
+
                 default:
 
             }
@@ -382,7 +401,7 @@ public class LoanDetailsV3Service {
 
         populateBasicShopDetails(shopDetailsStateDTO, loanDetailsV3Response);
         populateLoanApplicationDetails(shopDetailsStateDTO, loanDetailsV3Response);
-        //populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
+        populateLoanApplicationAddressDetails(loanDetailsV3Response.getLoanApplication(), token, shopDetailsStateDTO);
 
         log.info("Shop details response populated successfully {}", loanDetailsV3Response);
     }
@@ -480,19 +499,29 @@ public class LoanDetailsV3Service {
     }
 
     private AddressDetails fetchAddressFromLendingApplication(Long applicationId, Long merchantId) {
-        LendingApplication lendingApplication = lendingApplicationDao.findByMerchantIdAndStatus(merchantId, ApplicationStatus.APPROVED.name().toLowerCase());
-        log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
-        if (lendingApplication != null && isAddressComplete(lendingApplication)) {
-            AddressDetails addressDetails = new AddressDetails();
-            addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
-            addressDetails.setArea(lendingApplication.getArea());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setAddress2(lendingApplication.getStreetAddress());
-            addressDetails.setAddress1(lendingApplication.getShopNumber());
-            addressDetails.setLandmark(lendingApplication.getLandmark());
-            addressDetails.setCity(lendingApplication.getCity());
-            addressDetails.setState(lendingApplication.getState());
-            return addressDetails;
+        Experian experian = experianDao.getByMerchantId(merchantId);
+        if(experian.getPincode() != null) {
+            List<LendingApplication> lendingApplications = lendingApplicationDao.findTop2ByMerchantIdAndPincodeOrderByIdDesc(
+                    merchantId, Long.valueOf(experian.getPincode()));
+
+            LendingApplication lendingApplication = null;
+            if (!CollectionUtils.isEmpty(lendingApplications)) {
+                lendingApplication = lendingApplications.size() > 1 ?
+                        lendingApplications.get(1) : lendingApplications.get(0);
+            }
+            log.info("fetching address from Lending Application for Application ID: {} and lendingApplication:{}", applicationId, lendingApplication);
+            if (lendingApplication != null && isAddressComplete(lendingApplication)) {
+                AddressDetails addressDetails = new AddressDetails();
+                addressDetails.setPincode(String.valueOf(lendingApplication.getPincode()));
+                addressDetails.setArea(lendingApplication.getArea());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setAddress2(lendingApplication.getStreetAddress());
+                addressDetails.setAddress1(lendingApplication.getShopNumber());
+                addressDetails.setLandmark(lendingApplication.getLandmark());
+                addressDetails.setCity(lendingApplication.getCity());
+                addressDetails.setState(lendingApplication.getState());
+                return addressDetails;
+            }
         }
         return null;
     }
@@ -583,27 +612,16 @@ public class LoanDetailsV3Service {
             loanDetailsV3Response.setSkipShopPicture(false);
             loanDetailsV3Response.setImageExist(false);
 
-            if (checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
+            LendingResubmitTask lendingResubmitTask = lendingResubmitTaskDao.findTopByApplicationId(applicationId);
+            if (lendingResubmitTask == null && checkExistingImagesForApplication(merchant, shopPicturesStateDTO, loanDetailsV3Response)) {
                 log.info("Found valid existing shop images for merchantId: {}, applicationId: {}", merchantId, applicationId);
                 return;
             }
 
-            LocalDate today = LocalDate.now();
-            LocalDateTime startOfDay = today.atStartOfDay();
-            Date startOfDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
-
-            List<LendingApplication> lendingApplications = lendingApplicationDao.findByLenderAndCreatedAtGreaterThanEqual(
-                     lendersToSkipShopPicture, startOfDate);
-
-            int todayApplicationsCount = lendingApplications != null ? lendingApplications.size() : 0;
-            log.info("Found {} applications for lender {} created today for merchantId: {}",
-                    todayApplicationsCount, lendersToSkipShopPicture, merchantId);
-
-
             LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(applicationId, merchantId);
-            if (shouldSkipShopPicture && lendingApplication != null &&
-                    lendersToSkipShopPicture.contains(lendingApplication.getLender()) && todayApplicationsCount >= skipPictureThreshold) {
-
+            if (lendingResubmitTask == null && lendingApplication != null) {
+                log.info("Processing shop pictures for merchantId: {}, applicationId: {}, lender: {}",
+                        merchantId, applicationId, lendingApplication.getLender());
                 processLenderSpecificShopPictureRules(merchant, shopPicturesStateDTO, loanDetailsV3Response, lendingApplication);
             } else {
                 log.info("Shop picture skipping not applicable for merchantId: {}, lender: {}",
@@ -682,12 +700,14 @@ public class LoanDetailsV3Service {
                                                          LoanDetailsV3Response response, LendingApplication application) {
         // Validate input parameters
         if (merchant == null || dto == null || response == null || application == null) {
+            saveShopDocumentsAudit(application,"Invalid inputs for processLenderSpecificShopPictureRules");
             log.warn("Invalid inputs for processLenderSpecificShopPictureRules");
             return false;
         }
 
         LendingRiskVariablesSnapshot riskSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(application.getId());
         if (riskSnapshot == null || riskSnapshot.getLoanSegment() == null) {
+            saveShopDocumentsAudit(application,"No risk variables or loan segment found");
             log.info("No risk variables or loan segment found for applicationId: {}", application.getId());
             return false;
         }
@@ -698,7 +718,7 @@ public class LoanDetailsV3Service {
         Optional<LendingApplication> referenceApplication = Optional.empty();
 
         if (LoanSegment.REPEAT.name().equalsIgnoreCase(loanSegment)) {
-            Long latestStpApplicationId = findLatestStpApplication(merchant.getId());
+            Long latestStpApplicationId = findLatestNonStpApplication(merchant.getId());
             if (latestStpApplicationId != null) {
                 referenceApplication = lendingApplicationDao.findById(latestStpApplicationId);
             }
@@ -726,9 +746,7 @@ public class LoanDetailsV3Service {
                 }
             }
 
-            // If no past approved applications, use current application
             if (!referenceApplication.isPresent()) {
-                referenceApplication = Optional.of(application);
                 log.info("No past approved applications found, using current application");
             }
         }
@@ -738,19 +756,48 @@ public class LoanDetailsV3Service {
 
         if (!referenceApplication.isPresent()) {
             log.info("No reference application found checking from Ckyc for merchantId: {}", merchant.getId());
-            checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration);
+            checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration, application);
             return response.getSkipShopPicture();
         }
-        response.setSkipShopPicture(false);
 
         LendingApplication refApp = referenceApplication.get();
 
+        // Get shop documents for reference application
         List<LendingShopDocuments> shopDocs = lendingShopDocumentsDao.findByMerchantIdAndApplicationId(
                 refApp.getMerchantId(), refApp.getId());
 
-        if (!CollectionUtils.isEmpty(shopDocs) &&
-                isDocumentsRecent(shopDocs, validDuration, loanSegment) &&
-                isValidShopDocuments(response,shopDocs, dto, refApp.getId())) {
+        // Filter for shop-stock documents
+        List<LendingShopDocuments> shopStockDocs = shopDocs.stream()
+                .filter(doc -> "shop-stock".equalsIgnoreCase(doc.getProofType()) && doc.getProofFrontSide() != null)
+                .collect(Collectors.toList());
+
+        // Check if we have any shop-stock documents
+        if (CollectionUtils.isEmpty(shopStockDocs)) {
+            saveShopDocumentsAudit(application,"No Lending shop-stock documents found");
+            log.info("No shop-stock documents found for merchantId: {}, applicationId: {}",
+                    refApp.getMerchantId(), refApp.getId());
+            return false;
+        }
+
+        LendingShopDocuments shopStockDoc = shopStockDocs.get(0);
+        log.info("Found shop-stock document with proofFrontSide: {} for merchantId: {}",
+                shopStockDoc.getProofFrontSide(), refApp.getMerchantId());
+
+        LendingShopDocuments shopPictureDocs = lendingShopDocumentsDao
+                .findTopByMerchantIdAndProofFrontSideOrderByUpdatedAtAsc(
+                        refApp.getMerchantId(), shopStockDoc.getProofFrontSide());
+
+        log.info("Found shop picture document with proofFrontSide: {} for merchantId: {}",
+                shopPictureDocs != null ? shopPictureDocs.getProofFrontSide() : "null", refApp.getMerchantId());
+
+        List<LendingShopDocuments> shopPictureDocsList = lendingShopDocumentsDao
+                .findByMerchantIdAndApplicationId(refApp.getMerchantId(), shopPictureDocs.getApplicationId());
+        log.info("Found {} shop picture documents for merchantId: {}, applicationId: {}",
+                shopPictureDocsList, refApp.getMerchantId(), shopPictureDocs.getApplicationId());
+
+        if (!CollectionUtils.isEmpty(shopPictureDocsList) &&
+                isDocumentsRecent(shopPictureDocsList, validDuration, loanSegment, application) &&
+                isValidShopDocuments(response,shopDocs, dto, refApp.getId(), application)) {
 
             RequestDTO<UploadDocumentRequestDTO> uploadRequest = new RequestDTO<>();
             populateUploadDocumentRequest(shopDocs, uploadRequest, refApp.getId(), application.getId());
@@ -770,73 +817,114 @@ public class LoanDetailsV3Service {
         // Fall back to checking CKYC documents for both FRESH and REPEAT loans
         if (Boolean.FALSE.equals(response.getSkipShopPicture())) {
             log.info("No valid shop documents found or validation failed, checking CKYC documents");
-            checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration);
+            checkCKycDocsForShopPictures(merchant, dto, response, loanSegment, validDuration, application);
         }
         return response.getSkipShopPicture();
     }
 
     /**
-     * Find the latest STP application for a merchant
+     * Find the latest Non-STP application for a merchant
      *
      * @param merchantId Merchant ID
      * @return application ID or null if not found
      */
-    private Long findLatestStpApplication(Long merchantId) {
+    private Long findLatestNonStpApplication(Long merchantId) {
+        log.info("Finding latest Non-STP application for merchantId: {}", merchantId);
+
         if (merchantId == null) {
-            log.warn("Cannot find STP application with null merchantId");
+            log.warn("Cannot find Non-STP application with null merchantId");
             return null;
         }
+
+        List<LendingAutoDisbursal> lendingAutoDisbursal = lendingAutoDisbursalDao.findByMerchantId(merchantId);
+        log.info("Found {} auto disbursal records for merchantId: {}",
+                lendingAutoDisbursal != null ? lendingAutoDisbursal.size() : 0, merchantId);
 
         List<LendingApplication> approvedApplications = lendingApplicationDao.findAllByMerchantIdAndStatus(
                 merchantId, ApplicationStatus.APPROVED.name().toLowerCase());
+        log.info("Found {} approved applications for merchantId: {}",
+                approvedApplications != null ? approvedApplications.size() : 0, merchantId);
 
-        if (CollectionUtils.isEmpty(approvedApplications)) {
-            log.info("No approved applications found for merchantId: {}", merchantId);
+        // Find application IDs that are in approvedApplications but not in lendingAutoDisbursal
+        Set<Long> autoDisbursalAppIds = lendingAutoDisbursal.stream()
+                .map(LendingAutoDisbursal::getApplicationId)
+                .collect(Collectors.toSet());
+        log.info("Auto disbursal application IDs: {}", autoDisbursalAppIds);
+
+        List<LendingApplication> nonSTPApps = approvedApplications.stream()
+                .filter(app -> !autoDisbursalAppIds.contains(app.getId()))
+                .sorted(Comparator.comparing(LendingApplication::getUpdatedAt).reversed())
+                .collect(Collectors.toList());
+        log.info("Found {} potential non-STP applications after filtering",
+                nonSTPApps != null ? nonSTPApps : 0);
+
+        // Now check each application for valid field values, starting with the latest
+        Optional<LendingApplication> validApp = nonSTPApps.stream()
+                .sorted(Comparator.comparing(LendingApplication::getCreatedAt).reversed())
+                .filter(app -> {
+                    log.info("Checking application ID: {} for field values", app.getId());
+                    List<Long> fieldIds = Arrays.asList(38L, 39L);
+                    List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(app.getId(), fieldIds);
+                    log.info("Found {} field values for application ID: {}", fieldValues, app.getId());
+
+                    if (CollectionUtils.isEmpty(fieldValues)) {
+                        log.info("No field values found for application ID: {}", app.getId());
+                        return false;
+                    }
+
+                    // Check if we have both fields
+                    boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+                    boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+                    log.info("Application ID: {} - Has field 38: {}, Has field 39: {}",
+                            app.getId(), hasValidShopStructure, isShopOperational);
+
+                    // Check if field 38 has valid values (permanent or temporary)
+                    boolean isValidShopStructure = fieldValues.stream()
+                            .filter(f -> f.getFieldId() == 38L)
+                            .anyMatch(f -> ALLOWED_SHOP_STRUCTURE_TYPES.contains(f.getFieldDropdownValue().toLowerCase()));
+
+                    // Check if field 39 has valid value (yes)
+                    boolean isValidShopOperational = fieldValues.stream()
+                            .filter(f -> f.getFieldId() == 39L)
+                            .anyMatch(f -> "yes".equalsIgnoreCase(f.getFieldDropdownValue()));
+
+                    log.info("Application ID: {} - Field 38 valid: {}, Field 39 valid: {}",
+                            app.getId(), isValidShopStructure, isValidShopOperational);
+
+                    return hasValidShopStructure && isShopOperational && isValidShopStructure && isValidShopOperational;
+                })
+                .findFirst();
+
+        LendingApplication latestValidApp = validApp.orElse(null);
+
+        if (latestValidApp != null) {
+            log.info("Found valid Non-STP application ID: {} for merchantId: {}, created at: {}",
+                    latestValidApp.getId(), merchantId, latestValidApp.getCreatedAt());
+            return latestValidApp.getId();
+        } else {
+            log.info("No valid Non-STP application found for merchantId: {}", merchantId);
             return null;
         }
-
-        Long latestStpApplicationId = null;
-        Date latestTimestamp = null;
-
-        for (LendingApplication app : approvedApplications) {
-            if (app == null || app.getId() == null || app.getCreatedAt() == null) {
-                continue;
-            }
-
-            LendingRiskVariablesSnapshot riskSnapshot =
-                    lendingRiskVariablesSnapshotDao.findByApplicationId(app.getId());
-
-            if (riskSnapshot != null && Boolean.TRUE.equals(riskSnapshot.getStpFlag())) {
-                // For the first STP application or if this one is more recent
-                if (latestTimestamp == null || app.getCreatedAt().after(latestTimestamp)) {
-                    latestStpApplicationId = app.getId();
-                    latestTimestamp = app.getCreatedAt();
-                    log.debug("Found newer STP application: {} with timestamp: {}",
-                            latestStpApplicationId, latestTimestamp);
-                }
-            }
-        }
-
-        log.info("Latest STP application for merchantId: {}: {}",
-                merchantId, latestStpApplicationId != null ? latestStpApplicationId : "Not found");
-        return latestStpApplicationId;
     }
+
 
     /**
      * Check CKYC documents for shop pictures
      */
     private void checkCKycDocsForShopPictures(BasicDetailsDto merchant, ShopPicturesStateDTO dto,
-                                              LoanDetailsV3Response response, String loanSegment, Duration validDuration) {
+                                              LoanDetailsV3Response response, String loanSegment, Duration validDuration, LendingApplication application) {
 
         Optional<CKycDocDetailsResponseDto> cKycDocDetails = merchantService.getCKycDocDetails(dto.getMerchantId());
         if (!cKycDocDetails.isPresent() || cKycDocDetails.get().getData() == null ||
                 CollectionUtils.isEmpty(cKycDocDetails.get().getData().getDocsList())) {
+            saveShopDocumentsAudit(application, "No valid CKYC documents found");
             log.info("No valid CKYC documents found for merchantId: {}", dto.getMerchantId());
             return;
         }
 
         List<CKycDocDetailsResponseDto.Docs> docsList = cKycDocDetails.get().getData().getDocsList();
         if (docsList == null || docsList.isEmpty()) {
+            saveShopDocumentsAudit(application, "No CKYC documents found");
             log.info("No CKYC documents found for merchantId: {}", dto.getMerchantId());
             return;
         }
@@ -844,6 +932,7 @@ public class LoanDetailsV3Service {
         for (CKycDocDetailsResponseDto.Docs doc : docsList) {
             if (doc == null || doc.getCreatedAt() == null ||
                     !isDocumentsRecentCreatedAt(validDuration, loanSegment, doc.getCreatedAt())) {
+                saveShopDocumentsAudit(application, "CKYC document not recent enough");
                 log.info("CKYC document not recent enough for merchantId: {}", dto.getMerchantId());
                 return;
             }
@@ -898,18 +987,55 @@ public class LoanDetailsV3Service {
         return Duration.ZERO;
     }
 
-    private boolean isDocumentsRecent(List<LendingShopDocuments> docs, Duration duration, String loanType) {
-        if (docs == null || docs.isEmpty()) return false;
+    /**
+     * Checks if the provided shop documents are recent enough based on the specified duration
+     * and loan type.
+     *
+     * @param docs The shop documents to check
+     * @param duration The maximum allowed age of documents
+     * @param loanType The type of loan (FRESH, REPEAT, etc.)
+     * @return true if all documents are recent enough, false otherwise
+     */
+    private boolean isDocumentsRecent(List<LendingShopDocuments> docs, Duration duration, String loanType, LendingApplication application) {
+        log.info("Checking if documents are recent for loan type: {}, with duration: {}", loanType, duration);
+
+        if (docs == null || docs.isEmpty()) {
+            saveShopDocumentsAudit(application, "Document list is null or empty");
+            log.warn("Document list is null or empty, returning false");
+            return false;
+        }
+
+        log.info("Found {} shop documents to check for recency", docs.size());
 
         Instant threshold = Instant.now().minus(duration);
+        log.info("Threshold for document recency: {}", threshold);
+
+        boolean allRecent = true;
 
         for (LendingShopDocuments doc : docs) {
+            if (doc.getUpdatedAt() == null) {
+                saveShopDocumentsAudit(application, "Document has null updatedAt timestamp");
+                log.warn("Document has null updatedAt timestamp: documentId={}, proofType={}", doc.getId(), doc.getProofType());
+                allRecent = false;
+                continue;
+            }
+
             Instant updatedAt = doc.getUpdatedAt().toInstant();
-            if (updatedAt.isBefore(threshold)) {
-                return false;
+            boolean isRecent = !updatedAt.isBefore(threshold);
+
+            log.info("Document recency check: documentId={}, proofType={}, updatedAt={}, isRecent={}",
+                    doc.getId(), doc.getProofType(), doc.getUpdatedAt(), isRecent);
+
+            if (!isRecent) {
+                saveShopDocumentsAudit(application, "Document is too old");
+                log.info("Document is too old: documentId={}, proofType={}, updatedAt={}, threshold={}",
+                        doc.getId(), doc.getProofType(), doc.getUpdatedAt(), threshold);
+                allRecent = false;
             }
         }
-        return true;
+
+        log.info("Document recency check result: {} for loan type: {}", allRecent, loanType);
+        return allRecent;
     }
 
     private boolean isDocumentsRecentCreatedAt(Duration duration, String loanType, Date createdAt) {
@@ -923,8 +1049,9 @@ public class LoanDetailsV3Service {
         return timestampToCheck.isAfter(Instant.now().minus(duration));
     }
 
-    private boolean isValidShopDocuments(LoanDetailsV3Response response, List<LendingShopDocuments> docs, ShopPicturesStateDTO dto, Long approvedApplicationId) {
+    private boolean isValidShopDocuments(LoanDetailsV3Response response, List<LendingShopDocuments> docs, ShopPicturesStateDTO dto, Long approvedApplicationId, LendingApplication application) {
         if (docs.size() < 2) {
+            saveShopDocumentsAudit(application, "Insufficient shop documents");
             log.info("Insufficient shop documents for merchantId: {}", dto.getMerchantId());
             response.setSkipShopPicture(false);
             return false;
@@ -937,6 +1064,7 @@ public class LoanDetailsV3Service {
                 });
 
         if (!isDistanceValid) {
+            saveShopDocumentsAudit(application, "Distance check failed for shop documents");
             log.info("Distance check failed for merchantId: {}", dto.getMerchantId());
             response.setSkipShopPicture(false);
             return false;
@@ -947,33 +1075,34 @@ public class LoanDetailsV3Service {
         List<LmsFieldValues> fieldValues = lmsFieldValuesDao.findByLendingApplicationIdAndFieldIdIn(approvedApplicationId, fieldIds);
 
         if (CollectionUtils.isEmpty(fieldValues)) {
+            saveShopDocumentsAudit(application, "No LMS field values found for application");
             log.info("No LMS field values found for applicationId: {}, merchantId: {}", approvedApplicationId, dto.getMerchantId());
             response.setSkipShopPicture(false);
             return false;
         }
 
-        boolean hasField38 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
-        boolean hasField39 = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
+        boolean hasValidShopStructure = fieldValues.stream().anyMatch(f -> f.getFieldId() == 38L);
+        boolean isShopOperational = fieldValues.stream().anyMatch(f -> f.getFieldId() == 39L);
 
-        boolean isField38Valid = fieldValues.stream()
+        boolean isValidShopStructure = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 38L)
                 .allMatch(f -> {
                     String val = f.getFieldDropdownValue();
                     log.info("FieldId: 38, Value: {}", val);
                     return val != null && ALLOWED_SHOP_STRUCTURE_TYPES.contains(val.toLowerCase());
                 });
-        log.info("FieldId: 38 shopStructureType valid: {}", isField38Valid);
+        log.info("FieldId: 38 shopStructureType valid: {}", isValidShopStructure);
 
-        boolean isField39Valid = fieldValues.stream()
+        boolean isValidShopOperational = fieldValues.stream()
                 .filter(f -> f.getFieldId() == 39L)
                 .allMatch(f -> {
                     String val = f.getFieldDropdownValue();
                     log.info("FieldId: 39, Value: {}", val);
                     return val != null && val.equalsIgnoreCase("yes");
                 });
-        log.info("FieldId: 39 isShopOperational valid: {}", isField38Valid);
+        log.info("FieldId: 39 isShopOperational valid: {}", isValidShopStructure);
 
-        boolean allFieldsValid = hasField38 && hasField39 && isField38Valid && isField39Valid;
+        boolean allFieldsValid = hasValidShopStructure && isShopOperational && isValidShopStructure && isValidShopOperational;
         log.info("All LMS field values valid: {}", allFieldsValid);
         return allFieldsValid;
     }
@@ -1050,6 +1179,7 @@ public class LoanDetailsV3Service {
         CKycDocDetailsResponseDto.DocumentData data = ckyc.getData();
         LendingApplication lendingApplication = lendingApplicationDao.findByIdAndMerchantId(dto.getApplicationId(), dto.getMerchantId());
         if (data == null || data.getDocsList() == null || data.getDocsList().size() < 2) {
+            saveShopDocumentsAudit(lendingApplication, "CKYC documents not sufficient");
             log.info("CKYC documents not sufficient for merchantId: {}", dto.getMerchantId());
             return false;
         }
@@ -1062,6 +1192,7 @@ public class LoanDetailsV3Service {
                 .collect(Collectors.toList());
 
         if(shopPictureDocs.isEmpty() || shopPictureDocs.size() < 2) {
+            saveShopDocumentsAudit(lendingApplication, "No valid ckyc shop picture documents found");
             log.info("No shop picture documents found for merchantId: {}", dto.getMerchantId());
             return false;
         }
@@ -1084,6 +1215,7 @@ public class LoanDetailsV3Service {
         }
 
         if (!hasValidDoc) {
+            saveShopDocumentsAudit(lendingApplication, "ckyc Shop document field validation failed");
             log.info("No valid shop documents found with required properties for merchantId: {}", dto.getMerchantId());
             return false;
         }
@@ -1116,7 +1248,7 @@ public class LoanDetailsV3Service {
                 return true;
             }
         }
-
+        saveShopDocumentsAudit(lendingApplication, "No ckyc documents passed distance check");
         log.info("No documents passed distance check for merchantId: {}", dto.getMerchantId());
         return false;
     }
@@ -1231,8 +1363,25 @@ public class LoanDetailsV3Service {
         applicationDetails.setNachSessionStatus(enachStateDTO.getNachSessionStatus());
         applicationDetails.setNachSessionMode(enachStateDTO.getNachSessionMode());
         applicationDetails.setEnachErrorResponse(enachStateDTO.getEnachErrorResponse());
+        loanDetailsV3Response.setHasLinkedPaymentBank(enachStateDTO.isHasLinkedPaymentBank());
+        loanDetailsV3Response.setPaymentBank(enachStateDTO.isPaymentBank());
         loanDetailsV3Response.setMerchantId(enachStateDTO.getMerchantId());
         if(enachStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
+        else loanDetailsV3Response.setLoanApplication(applicationDetails);
+    }
+
+    private static void setUpiAutopayResponse(UpiAutopayStateDTO upiAutopayStateDTO,LoanDetailsV3Response loanDetailsV3Response){
+        LoanApplicationDetailsV3 applicationDetails = new LoanApplicationDetailsV3();
+        loanDetailsV3Response.setLender(upiAutopayStateDTO.getLender());
+        UpiAutopayApplicationDetailsDTO upiAutopayDetails = UpiAutopayApplicationDetailsDTO.builder().loanAmount(upiAutopayStateDTO.getLoanAmount()).tenure(upiAutopayStateDTO.getTenure())
+                        .loanType(upiAutopayStateDTO.getLoanType()).mandateStatus(upiAutopayStateDTO.getMandateStatus()).createdAt(upiAutopayStateDTO.getCreatedAt())
+                        .waitTime(upiAutopayStateDTO.getWaitTime()).retryCount(upiAutopayStateDTO.getRetryCount()).errorCode(upiAutopayStateDTO.getErrorCode())
+                        .errorReason(upiAutopayStateDTO.getErrorReason()).displayMessage(upiAutopayStateDTO.getDisplayMessage()).retryEligible(upiAutopayStateDTO.getRetrySuggested()).pollingTime(upiAutopayStateDTO.getPollingTime())
+                        .build();
+        applicationDetails.setUpiAutopayDetails(upiAutopayDetails);
+        loanDetailsV3Response.setAccountDetails(upiAutopayStateDTO.getBankDetails());
+        loanDetailsV3Response.setMerchantId(upiAutopayStateDTO.getMerchantId());
+        if(upiAutopayStateDTO.isTopup())loanDetailsV3Response.setTopupLoanApplication(applicationDetails);
         else loanDetailsV3Response.setLoanApplication(applicationDetails);
     }
 
@@ -1290,6 +1439,47 @@ public class LoanDetailsV3Service {
         loanDetailsV3Response.setApplicationId(udyamRegistrationStateDTO.getApplicationId());
         loanDetailsV3Response.setUdyamRegistrationRequired(udyamRegistrationStateDTO.getIsUdyamRequired());
         loanDetailsV3Response.setUdyamFlowStatus(udyamRegistrationStateDTO.getUdyamStatus());
+    }
+
+    /**
+     * Saves an audit record for shop document processing operations
+     *
+     * @param lendingApplication The lending application being processed
+     * @param skipFailureReason Reason for skipping shop picture validation if applicable
+     * @return The created audit record
+     */
+    private void saveShopDocumentsAudit(LendingApplication lendingApplication,
+                                                             String skipFailureReason) {
+        LendingShopDocumentsAudit audit = new LendingShopDocumentsAudit();
+
+            if  (lendingApplication != null) {
+                LendingShopDocuments placeholder = new LendingShopDocuments();
+                placeholder.setApplicationId(lendingApplication.getId());
+                placeholder.setMerchantId(lendingApplication.getMerchantId());
+                placeholder.setIsSkipped(false);
+                audit.setLendingShopDocuments(placeholder);
+            }
+
+            audit.setResubmittedDoc(false);
+            audit.setSkipFailureReason(skipFailureReason);
+            log.info("Saving shop documents audit: {}", audit);
+            if (audit != null) {
+            log.info("Publishing data to BQ for lending shop docs for merchant id {}",
+                    lendingApplication.getMerchantId());
+            bqPublisherUtil.publish("Lending", "lending_shop_documents_audit",
+                    audit);
+        }
+
+    }
+
+    private static void setLenderVKycResponse(LenderVKycStateDTO lenderVKycStateDTO, LoanDetailsV3Response loanDetailsV3Response) {
+        loanDetailsV3Response.setLender(lenderVKycStateDTO.getLender());
+        loanDetailsV3Response.setVkycCompleted(lenderVKycStateDTO.getVkycCompleted());
+        loanDetailsV3Response.setVkycStatus(lenderVKycStateDTO.getVKycStatus());
+        loanDetailsV3Response.setVkycEligible(lenderVKycStateDTO.getVkycEligible());
+        loanDetailsV3Response.setDkycEligible(lenderVKycStateDTO.getDkycEligible());
+        loanDetailsV3Response.setApplicationId(lenderVKycStateDTO.getApplicationId());
+        loanDetailsV3Response.setRejectReason(lenderVKycStateDTO.getRejectReason());
     }
 
 }

@@ -19,6 +19,7 @@ import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionCallbac
 import com.bharatpe.lending.loanV3.dto.response.creditsasion.CreditSasionPennyDropResponseDTO;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
+import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -26,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 
@@ -56,6 +58,9 @@ public class CreditSaisonPennyDropService  {
 
     @Value("${lender.change.enabled:false}")
     Boolean enableLenderChange;
+
+    @Autowired
+    ConverterUtils converterUtils;
 
 
     public Boolean invokePennyDrop(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
@@ -100,10 +105,10 @@ public class CreditSaisonPennyDropService  {
             commonService.manageApplicationState(lenderAssociationDetailsDto);
 
             NBFCResponseDTO nbfcResponseDTO = lenderAPIGateway.invokeStage(nbfcRequestDTO, LenderAssociationStages.PENNY_DROP);
+            CreditSasionPennyDropResponseDTO creditSaisonCallbackResponseDTO = Objects.nonNull(nbfcResponseDTO) && Objects.nonNull(nbfcResponseDTO.getData()) ?
+                    objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), CreditSasionPennyDropResponseDTO.class) : null;
 
-            CreditSasionPennyDropResponseDTO creditSaisonCallbackResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDTO.getData()), CreditSasionPennyDropResponseDTO.class);
-
-            if (!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess()
+            if (!ObjectUtils.isEmpty(nbfcResponseDTO) && nbfcResponseDTO.getSuccess() && Objects.nonNull(creditSaisonCallbackResponseDTO) && ! StringUtils.isEmpty(creditSaisonCallbackResponseDTO.getMessage())
                     && Arrays.asList(csConfig.getPennyDropSyncAlreadyValidatedStatus().toLowerCase(), csConfig.getPennyDropSyncInProgressStatus().toLowerCase()).contains(creditSaisonCallbackResponseDTO.getMessage().toLowerCase())
             ) {
                 log.info("CS: successfully placed the penny drop request at lender for {}", nbfcRequestDTO);
@@ -131,6 +136,16 @@ public class CreditSaisonPennyDropService  {
         return false;
     }
 
+    private static final Map<String, String> fieldSanitizationRegexMap;
+
+    static {
+        Map<String, String> map = new HashMap<>();
+
+        map.put("HOLDER_NAME", "a-zA-Z0-9 &().,'-/");
+
+        fieldSanitizationRegexMap = Collections.unmodifiableMap(map);
+    }
+
     public NBFCRequestDTO createPayload(LendingApplication lendingApplication, BankDetailsDto bankDetailsDto, Boolean isAccountSame) {
         try {
             if (ObjectUtils.isEmpty(lendingApplication)) {
@@ -153,7 +168,9 @@ public class CreditSaisonPennyDropService  {
                             .bankAccounts(Arrays.asList(CreditSasionPennyDropRequestDTO.BankAccount.builder()
                                     .type(csConfig.getBankTypeCurrent().equalsIgnoreCase(bankDetailsDto.getAccountType()) ? csConfig.getBankTypeCurrent() : csConfig.getBankTypeSaving())
                                     .bankName(bankDetailsDto.getBankName())
-                                    .holderName(bankDetailsDto.getBeneficiaryName())
+                                    .holderName(converterUtils.sanitizeByRegex(
+                                            bankDetailsDto.getBeneficiaryName(),
+                                            fieldSanitizationRegexMap.getOrDefault("HOLDER_NAME", null)))
                                     .ifscCode(bankDetailsDto.getIfsc())
                                     .accountNumber(bankDetailsDto.getAccountNumber())
                                     .build()))

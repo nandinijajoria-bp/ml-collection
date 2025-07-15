@@ -7,6 +7,7 @@ import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.associationsV2.capri.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.creditsaison.impl.*;
 import com.bharatpe.lending.loanV3.services.associationsV2.muthoot.impl.*;
@@ -279,6 +280,12 @@ public class AssociationServiceUtil {
 
     @Autowired
     PiramalInsuranceService piramalInsuranceService;
+
+    @Autowired
+    VKycService vKycService;
+
+    @Autowired
+    PayUUpdateLeadService payUUpdateLeadService;
 
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
@@ -756,6 +763,29 @@ public class AssociationServiceUtil {
                 return piramalInsuranceService.getInsurancePremiums(lendingApplication);
             default:
                 return null;
+        }
+    }
+
+    public boolean invokeSkipVkyc(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequestDto) {
+        return vKycService.skipVkycForInEligibleUsers(lenderAssociationDetailsRequestDto);
+    }
+
+
+    public boolean invokeAddressUpdateService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "PAYU":
+                return payUUpdateLeadService.invokeUpdateAddress(lenderAssociationDetailsDto);
+            default:
+                return false;
+        }
+    }
+
+    public boolean invokeBankAccountUpdateService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsDto) {
+        switch (lender) {
+            case "PAYU":
+                return payUUpdateLeadService.invokeBankAccountUpdation(lenderAssociationDetailsDto);
+            default:
+                return false;
         }
     }
 }

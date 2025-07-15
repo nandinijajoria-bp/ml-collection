@@ -73,7 +73,7 @@ public class LmsCreateLoanSuccessCallback {
             Map<String, Object> disbursalRequestMap = lmsLoanStatus.getDisbursalRequest();
             PostPayoutRequestDto postPayoutRequestDto = objectMapper.convertValue(disbursalRequestMap, PostPayoutRequestDto.class);
 
-            Map<String, Object> disbursalResponseMap = lmsLoanStatus.getDisbursalRequest();
+            Map<String, Object> disbursalResponseMap = lmsLoanStatus.getDisbursalResponse();
             PostPayoutResponseDto postPayoutResponseDto = objectMapper.convertValue(disbursalResponseMap, PostPayoutResponseDto.class);
 
             //Fetching lending_application details on bpLoanId

@@ -60,6 +60,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.joda.time.DateTime;
 import org.json.JSONObject;
@@ -83,10 +84,12 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -118,6 +121,7 @@ public class APIGatewayService {
     @Value("${pg.percent:10}")
     Integer pgPercent;
 
+    @Getter
     @Value("${upi.percent}")
     Integer upiPercent;
     @Autowired
@@ -1440,6 +1444,7 @@ public class APIGatewayService {
             put("lender", finalLender);
             put("mode", requestDTO.getNachMode());
             put("tenure_in_months", requestDTO.getTenureInMonths());
+            put("installment_frequency", LendingConstants.NACH_INSTALLMENT_FREQUENCY_EDI);
         }};
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         try {
@@ -1796,7 +1801,7 @@ public class APIGatewayService {
         if(rolloutUtil.lendingPlatformUnderwritingFLowApplicable(merchantId)){
             log.info("Merchant {} has been rolled out to the platform v1 flow for Global Limit Response.", merchantId);
             GlobalLimitResponse globalLimitResponse =  underwritingService.getEligibility(String.valueOf(merchantId),
-                    LendingConstants.LENDING_SOURCE, isPincodeChanged, flagForUwToSkipCache);
+                   offerCheckedBy.name(), isPincodeChanged, flagForUwToSkipCache);
             log.info("Global Limit response from platform v1 flow for merchantId : {} {}", merchantId, globalLimitResponse);
             return globalLimitResponse;
         }
@@ -2461,6 +2466,7 @@ public class APIGatewayService {
         logger.info("age from kycDocs : {} for merchant: {}",age, merchantId);
         return age;
     }
+
 
     public Date parseKycDob(String dob){
         Date dateOfBirth = null;
@@ -3349,14 +3355,7 @@ public class APIGatewayService {
             logger.info("get insurance eligibility for loan with amount {} and tenure {} for merchantId :{}", insuranceEligibilityRequest.getAmount(), insuranceEligibilityRequest.getTenure(), insuranceEligibilityRequest.getCustomerId());
             Map<String, Object> request = configResolver.getConfig(objectMapper.writeValueAsString(insuranceEligibilityRequest), new TypeReference<Map<String, Object>>() {});
 
-            MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
-            request.forEach((key, value) -> queryParams.add(key, String.valueOf(value)));
-
-            String url = UriComponentsBuilder
-                    .fromHttpUrl(insuranceServiceBaseurl + LendingConstants.INSURANCE_ELIGIBILITY_API)
-                    .queryParams(queryParams)
-                    .build()
-                    .toUriString();
+            String url =insuranceServiceBaseurl + LendingConstants.INSURANCE_ELIGIBILITY_API;
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -3366,7 +3365,7 @@ public class APIGatewayService {
             HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(request, headers);
 
             logger.info("request entity for insurance eligibility API:{} and url:{}", requestEntity, url);
-            ResponseEntity<InsuranceEligibilityResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.GET, requestEntity, InsuranceEligibilityResponseDTO.class);
+            ResponseEntity<InsuranceEligibilityResponseDTO> responseEntity = restTemplate.exchange(url, HttpMethod.POST, requestEntity, InsuranceEligibilityResponseDTO.class);
             logger.info("response entity for insurance eligibility API:{} and url:{}", responseEntity, url);
             if (!ObjectUtils.isEmpty(responseEntity) && responseEntity.getStatusCode().is2xxSuccessful() && !ObjectUtils.isEmpty(responseEntity.getBody())) {
                 InsuranceEligibilityResponseDTO insuranceEligibilityResponse = responseEntity.getBody();

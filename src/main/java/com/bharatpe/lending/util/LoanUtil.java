@@ -17,8 +17,10 @@ import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.query.dao.ForeClosureConfigDao;
 import com.bharatpe.lending.common.query.dao.PenaltyFeeConfigDaoSlave;
 import com.bharatpe.lending.common.query.entity.ForeClosureConfig;
+import com.bharatpe.lending.common.query.entity.LendingApplicationLenderDetailsSlave;
 import com.bharatpe.lending.common.query.entity.LendingApplicationSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
+import com.bharatpe.lending.common.query.entity.LoanPaymentOrderSlave;
 import com.bharatpe.lending.common.query.entity.PenaltyFeeConfigSlave;
 import com.bharatpe.lending.common.service.MongoLogPublisher;
 import com.bharatpe.lending.common.service.PennyDropService;
@@ -40,6 +42,7 @@ import com.bharatpe.lending.enums.ApplicationStatus;
 import com.bharatpe.lending.enums.EnachMode;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
+import com.bharatpe.lending.enums.ReferenceRelation;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
@@ -50,17 +53,16 @@ import com.bharatpe.lending.loanV2.service.ExcessNachService;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.loanV3.dto.piramal.NbfcResponseDto;
-import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
-import com.bharatpe.lending.loanV3.interfaces.ILenderAssociationService;
 import com.bharatpe.lending.loanV3.revamp.dto.EnachModeDTO;
 import com.bharatpe.lending.loanV3.revamp.enums.LendingViewStates;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
-import com.bharatpe.lending.loanV3.services.associations.AbflForeclosureFetchService;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
+import com.bharatpe.lending.service.PaymentBankService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -90,8 +92,11 @@ import java.math.RoundingMode;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -243,6 +248,9 @@ public class LoanUtil {
 	LoanDpdDao loanDpdDao;
 
 	@Autowired
+	private PaymentBankService paymentBankService;
+
+	@Autowired
 	AutoPayUPIDao autoPayUPIDao;
 
 	@Autowired
@@ -284,6 +292,9 @@ public class LoanUtil {
 	@Value("${aggregation.flow.experimentId:}")
 	String isAggregationFlowApplicableExperimentId;
 
+	@Value("${payment.bank.change.flow.applicable:false}")
+	boolean isPaymentBankChangeFlowApplicable;
+
 	public List<String> allowedRiskGroupsNachWaiver = Arrays.asList("R1", "R2", "R3", "R4");
 
 	List<Long> derogMerchants = new ArrayList();
@@ -313,12 +324,6 @@ public class LoanUtil {
 	LendingDisbursalModeConfigDao lendingDisbursalModeConfigDao;
 
 	@Autowired
-	LenderAssociationStageFactory lenderAssociationStageFactory;
-
-	@Autowired
-	AbflForeclosureFetchService abflForeclosureFetchService;
-
-	@Autowired
 	LmsStageHistoryDao lmsStageHistoryDao;
 
 	@Autowired
@@ -334,6 +339,12 @@ public class LoanUtil {
 	Integer eligibleLoanCreationSkipRollout;
 	@Value("${round.down.eligible.lenders:TRILLIONLOANS}")
 	private List<String> roundDownEligibleLenders;
+
+	@Value("${topup.disabled.startTime:22:00}")
+	private String topupDisabledStartTimeString;
+
+	@Value("${topup.disabled.endTime:10:00}")
+	private String topupDisabledEndTimeString;
 
 	@Autowired
 	PenalChargesDao penalChargesDao;
@@ -416,9 +427,36 @@ public class LoanUtil {
 	@Autowired
 	PenaltyFeeConfigDaoSlave penaltyFeeConfigDaoSlave;
 
+	@Autowired
+	LenderForeclosureCachingService lenderForeclosureCachingService;
+
+	@Value("${pricing.experiment.enable:false}")
+	boolean pricingExpEnabled;
+
+	@Autowired
+	PricingExperimentDao pricingExperimentDao;
+
+	@Autowired
+	@Qualifier("accountInfoTaskExecutor")
+	private Executor accountInfoExecutor;
+
+	private Map<String, Double> nachBounceAmountConfig;
+
 	@PostConstruct
 	public void init(){
 		skipNachDisabledLenders = skipNachDisabledLenders.stream().map(String::trim).collect(Collectors.toSet());
+		setNachBounceAmountConfig();
+	}
+
+	private void setNachBounceAmountConfig() {
+		nachBounceAmountConfig = new HashMap<>();
+		nachBounceAmountConfig.put("PIRAMAL", 500.0);
+		nachBounceAmountConfig.put("TRILLIONLOANS", 500.0);
+		nachBounceAmountConfig.put("LIQUILOANS_NBFC", 500.0);
+		nachBounceAmountConfig.put("PAYU", 500.0);
+		nachBounceAmountConfig.put("OXYZO", 500.0);
+		nachBounceAmountConfig.put("LIQUILOANS_P2P_OF", 650.0);
+		nachBounceAmountConfig.put("LIQUILOANS_P2P", 650.0);
 	}
 
 	public List<Long> loadDerogEffectedMerchants() {
@@ -501,6 +539,16 @@ public class LoanUtil {
 		selectedLoan.put("installment_details", new ArrayList<>());
 		selectedLoan.put("lender", application.getLender());
 		return selectedLoan;
+	}
+
+	public boolean isTimeBasedTopupDisabled(String lender) {
+		if(!PIRAMAL.name().equals(lender)){
+			return false;
+		}
+		LocalTime now = LocalTime.now();
+		LocalTime topupDisabledStartTime = LocalTime.parse(topupDisabledStartTimeString);
+		LocalTime topupDisabledEndTime = LocalTime.parse(topupDisabledEndTimeString);
+		return now.isAfter(topupDisabledStartTime) || now.isBefore(topupDisabledEndTime);
 	}
 
 	public static SelectedLoanDTO prepareSelectedLoanDTO(LendingApplication application, LendingCategories lendingCategories) {
@@ -1169,8 +1217,7 @@ public class LoanUtil {
 	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
-			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
+			if (lendingRiskVariables != null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
@@ -1372,6 +1419,24 @@ public class LoanUtil {
 		}
 		return null;
 	}
+	public CompletableFuture<BankAccountDetails> getAccountDetailsAsync(Long merchantId) {
+		try {
+			return CompletableFuture.supplyAsync(() -> getAccountDetails(merchantId), accountInfoExecutor);
+		}catch (Exception exception){
+			logger.error("Error while fetching bank account details asynchronously for merchantId: {}, message: {}, stack_trace: {}",
+					merchantId, exception, Arrays.toString(exception.getStackTrace()));
+		}
+		return CompletableFuture.completedFuture(null);
+	}
+
+	public BankAccountDetails fetchAccountDetailsFromFuture(Long merchantId, CompletableFuture<BankAccountDetails> bankAccountDetailsCompletableFuture) {
+		try {
+			 return bankAccountDetailsCompletableFuture.get();
+		}catch (Exception exception){
+			logger.error("Got exception while fetching bank account details for merchantId: {}", merchantId, exception);
+		}
+		return null;
+	}
 
 	public BankAccountDetails getAccountDetails(Long merchantId) {
 		logger.info("Getting bank account details for merchant:{}", merchantId);
@@ -1396,6 +1461,34 @@ public class LoanUtil {
 		return null;
 	}
 
+	public Double getNachBounceAmountConfig(LendingApplicationLenderDetailsSlave lendingApplicationLenderDetailsSlave) {
+		return Optional.ofNullable(lendingApplicationLenderDetailsSlave)
+				.map(LendingApplicationLenderDetailsSlave::getLender)
+				.map(lender -> nachBounceAmountConfig.getOrDefault(lender, 0.0))
+				.orElse(0.0);
+	}
+
+	public List<LendingMerchantLoansResponseDTO.PenaltyConfig> getPenaltyConfig(List<PenaltyFeeConfigSlave> penaltyFeeConfigSlaves) {
+		if(CollectionUtils.isEmpty(penaltyFeeConfigSlaves)){
+			return null;
+		}
+		return penaltyFeeConfigSlaves.stream()
+				.map(penaltyFeeConfigSlave ->
+						new LendingMerchantLoansResponseDTO.PenaltyConfig(penaltyFeeConfigSlave.getMinAmount(),
+								penaltyFeeConfigSlave.getMaxAmount(), penaltyFeeConfigSlave.getPenalty()))
+				.collect(Collectors.toList());
+	}
+
+	public List<LendingMerchantLoansResponseDTO.RepaymentDetails> getRepaymentDetails(List<LoanPaymentOrderSlave> loanPaymentOrderList) {
+		if(CollectionUtils.isEmpty(loanPaymentOrderList)){
+			return new ArrayList<>();
+		}
+		return loanPaymentOrderList.stream()
+				.map(loanPaymentOrder -> new LendingMerchantLoansResponseDTO.RepaymentDetails(loanPaymentOrder.getStatus(),
+						LoanUtil.settlementMode.getOrDefault(loanPaymentOrder.getSource(), "UPI"),
+						loanPaymentOrder.getAmount(), loanPaymentOrder.getCreatedAt(), loanPaymentOrder.getOrderId() ))
+				.collect(Collectors.toList());
+	}
 	public boolean isBankAccLinked(Long merchantId) {
 		final Optional<BankDetailsDto> bankDetailsDtoOptional = merchantService.fetchMerchantBankDetails(merchantId);
 		BankDetailsDto merchantBankDetail = null;
@@ -1660,12 +1753,12 @@ public class LoanUtil {
 
 	public double getForeClosureAmountForLender(LendingPaymentSchedule lendingPaymentSchedule) {
 		Double netForeclosureAtLender = 0d;
-		ILenderAssociationService iLenderAssociationService = lenderAssociationStageFactory.getStageAssociatedLenderService(LenderAssociationStages.FORECLOSURE_FETCH.name())
-				.getLenderAssociationService(lendingPaymentSchedule.getNbfc());
-		if (!ObjectUtils.isEmpty(iLenderAssociationService)) {
-			LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = (LenderForeclosureDetailsDTO) iLenderAssociationService.invoke(lendingPaymentSchedule.getApplicationId(), null);
-			netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
+		if (LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
+			netForeclosureAtLender = (double) getForeclosureAmount(lendingPaymentSchedule);
+			return netForeclosureAtLender;
 		}
+		LenderForeclosureDetailsDTO lenderForeclosureDetailsDTO = lenderForeclosureCachingService.getLenderForeclosureAmount(lendingPaymentSchedule.getNbfc(), lendingPaymentSchedule.getApplicationId(), lendingPaymentSchedule.getMerchantId());
+		netForeclosureAtLender = (lenderForeclosureDetailsDTO == null || lenderForeclosureDetailsDTO.getForeclosureAmount() == null) ? 0 : lenderForeclosureDetailsDTO.getForeclosureAmount();
 		return netForeclosureAtLender;
 	}
 
@@ -1952,10 +2045,22 @@ public class LoanUtil {
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
 		}
+
 		if ("SMALL_TICKET".equals(lendingApplication.getLoanType())) {
 			setIsNachSkip(lendingApplication);
 			return Boolean.TRUE;
 		}
+		BankAccountDetails accountDetails = getAccountDetails(lendingApplication.getMerchantId());
+		if (accountDetails == null) {
+			logger.error("Account details are null for merchant {}", lendingApplication.getMerchantId());
+		}
+		if(isPaymentBankChangeFlowApplicable && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())) {
+			if (paymentBankService.changePaymentAccount(lendingApplication, accountDetails) || paymentBankService.isPaymentBank(lendingApplication.getMerchantId(),accountDetails)) {
+				logger.info("Merchant {} using Payments Bank with loan amount threshold", lendingApplication.getMerchantId());
+				return Boolean.FALSE;
+			}
+		}
+
 		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
 		if (ObjectUtils.isEmpty(approvedNachDetails)) {
@@ -2751,6 +2856,7 @@ public class LoanUtil {
 	public boolean isApplicableForAggregationFlow(Long merchantId, Long applicationId){
 		try{
 			ExperimentConfigResponseDTO experimentConfigResponseDTO = launchLabsHandler.experimentConfig(Long.valueOf(isAggregationFlowApplicableExperimentId), merchantId);
+			logger.info("experimentConfigResponseDTO for merchantId {} : {}", merchantId, experimentConfigResponseDTO);
 			if(Objects.nonNull(experimentConfigResponseDTO) && lenderAggregationScreens.contains(experimentConfigResponseDTO.getVariationId())){
 				logger.info("lender aggregation flow applicable for merchantId {}", merchantId);
 				if(!ObjectUtils.isEmpty(applicationId)){
@@ -2807,29 +2913,42 @@ public class LoanUtil {
 		String pincodeColor = lendingRiskVariables.getPincodeColor().name();
 		String rejectedLenders = lendingRiskVariables.getRejectedLenders();
 		LendingLenderPricingDao.MaxValuesDto maxValuesDto= null;
-		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
-
-		if (StringUtils.isEmpty(rejectedLenders)) {
-			//fetch only active max pricing here.
-			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
-		} else {
-			Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
-			maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
-
-		}
-		if(ObjectUtils.isEmpty(maxValuesDto)
-		|| ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
-				|| ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
-				|| ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
-				|| ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())){
-			logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
-			return null;
-		}
 		MaxPricingValuesDTO maxPricingValuesDTO = new MaxPricingValuesDTO();
-		maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
-		maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
-		maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
-		maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
+
+		logger.info("query params -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
+		PricingExperiment pricingExperiment = null;
+		if(pricingExpEnabled) {
+			pricingExperiment =pricingExperimentDao.findBySegmentAndRiskGroupAndTenureInMonthsAndMerchantIdAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, (int) (lendingRiskVariables.getMerchantId()%10), pincodeColor, "ACTIVE");
+		}
+		if(!ObjectUtils.isEmpty(pricingExperiment)) {
+            logger.info("experiment available for {}: {}", lendingRiskVariables.getMerchantId(), pricingExperiment);
+            maxPricingValuesDTO.setMaxProcessingFeeRate(pricingExperiment.getProcessingFeeRate());
+            maxPricingValuesDTO.setMaxApr(pricingExperiment.getApr());
+            maxPricingValuesDTO.setMaxIrr(pricingExperiment.getIrr());
+            maxPricingValuesDTO.setMaxInterestRate(pricingExperiment.getInterestRate());
+        }
+        else {
+            if (StringUtils.isEmpty(rejectedLenders)) {
+                //fetch only active max pricing here.
+                maxValuesDto = lendingLenderPricingDao.findMaxInterestRateBySegmentAndRiskGroupAndTenureAndPincodeColorAndStatus(riskSegment, riskGroup, tenure, pincodeColor, "ACTIVE");
+            } else {
+                Set<String> rejectedLendersList = StringUtils.commaDelimitedListToSet(lendingRiskVariables.getRejectedLenders());
+                maxValuesDto = lendingLenderPricingDao.findMaxInterestRateByRiskVariables(riskSegment, riskGroup, tenure, pincodeColor, rejectedLendersList, "ACTIVE");
+
+            }
+            if (ObjectUtils.isEmpty(maxValuesDto)
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxApr())
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxIrr())
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxProcessingFeeRate())
+                    || ObjectUtils.isEmpty(maxValuesDto.getMaxInterestRate())) {
+                logger.info("max pricing values not found for -> {} {} {} {} {}", riskGroup, riskSegment, tenure, pincodeColor, rejectedLenders);
+                return null;
+            }
+            maxPricingValuesDTO.setMaxProcessingFeeRate(maxValuesDto.getMaxProcessingFeeRate());
+            maxPricingValuesDTO.setMaxApr(maxValuesDto.getMaxApr());
+            maxPricingValuesDTO.setMaxIrr(maxValuesDto.getMaxIrr());
+            maxPricingValuesDTO.setMaxInterestRate(maxValuesDto.getMaxInterestRate());
+        }
 		logger.info("fetched max pricing values -> {}", maxPricingValuesDTO);
 		return maxPricingValuesDTO;
 	}
@@ -3120,6 +3239,20 @@ public class LoanUtil {
 			logger.error("Error while saving lending audit trail to BQ for applicationId: {}, error: {}",
 					lendingAuditTrailDTO.getApplicationId(), e.getMessage(), e);
 		}
+	}
+
+
+	public int getMerchantReferenceComparator(LendingMerchantReferences reference1, LendingMerchantReferences reference2) {
+		ReferenceRelation relation1 = LendingConstants.REFERENCE_INFERRED_RELATION_MAPPING.getOrDefault(
+				reference1.getInferredRelation(), ReferenceRelation.FRIEND_OTHER);
+		ReferenceRelation relation2 = LendingConstants.REFERENCE_INFERRED_RELATION_MAPPING.getOrDefault(
+				reference2.getInferredRelation(), ReferenceRelation.FRIEND_OTHER);
+
+		if (relation1.equals(relation2)) {
+			return reference2.getUpdatedAt().compareTo(reference1.getUpdatedAt());
+		}
+
+		return relation1.compareTo(relation2);
 	}
 }
 

@@ -196,7 +196,7 @@ public class LendingEdiScheduleService {
             if (lendingPaymentSchedule != null) {
                 cal.setTime(lendingPaymentSchedule.getStartDate());
             }
-            else if(lendingApplication.getLender().equalsIgnoreCase(Lender.OXYZO.name())){
+            else if(Lender.OXYZO.name().equalsIgnoreCase(lendingApplication.getLender())){
                 if(Objects.nonNull(scheduleStartDate)){
                     Date paymentDate = new Date(scheduleStartDate);
                     cal.setTime(paymentDate);

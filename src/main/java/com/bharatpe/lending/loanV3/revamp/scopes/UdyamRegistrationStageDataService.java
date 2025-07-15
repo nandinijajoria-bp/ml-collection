@@ -54,6 +54,7 @@ public class UdyamRegistrationStageDataService implements IStageDataService<Udya
                 log.info("Lender details not found of {} for application {}", lendingApplication.getLender(), lendingApplication.getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
+            loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.UDYAM_REGISTRATION_PAGE);
             udyamRegistrationStateDTO.setMerchantId(lendingApplication.getMerchantId());
             udyamRegistrationStateDTO.setApplicationId(lendingApplication.getId());
             udyamRegistrationStateDTO.setLender(lendingApplication.getLender());
@@ -72,7 +73,6 @@ public class UdyamRegistrationStageDataService implements IStageDataService<Udya
                 }
                 udyamRegistrationStateDTO.setUdyamRegistrationLink(udyamURL);
             }
-            loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.UDYAM_REGISTRATION_PAGE);
         } catch (Exception e) {
             log.error("Exception in fetch scope data of udyam registration stage for merchant:{}, {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(),LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());

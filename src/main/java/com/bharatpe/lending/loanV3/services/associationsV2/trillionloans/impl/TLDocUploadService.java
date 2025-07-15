@@ -12,6 +12,7 @@ import com.bharatpe.lending.entity.LendingKfs;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.S3BucketHandler;
+import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
@@ -67,6 +68,9 @@ public class TLDocUploadService {
     @Value("${aws.s3.bucket:loan-document}")
     private String bucket;
 
+    @Autowired
+    TrillionLoansConfig trillionLoansConfig;
+
     @Transactional
     public boolean invokeDocUpload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String docType) {
         DocType docName = null;
@@ -102,7 +106,7 @@ public class TLDocUploadService {
                 commonService.manageApplicationStateAndModifyLender(lenderAssociationDetailsDto, getStatusforDocumentUpload(docName, "FAILED", isTopup));
                 return false;
             }
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.valueOf(docType));
+            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.valueOf(docType), trillionLoansConfig.getDocUploadTimeoutThreshold());
             log.info("docUpload response of TrillionLoans from nbfc for docTYpe: {} {} with applicationId: {}", nbfcResponseDto, docName, lenderAssociationDetailsDto.getApplicationId());
             if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess()) {
                 lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(getStatusforDocumentUpload(docName, "SUCCESS", isTopup).name());

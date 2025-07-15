@@ -13,5 +13,6 @@ public class LoanDocument {
     private String name;
     private String url;
     private String data;
+    private String additionalData;
 
 }
