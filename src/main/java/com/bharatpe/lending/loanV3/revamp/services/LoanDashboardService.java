@@ -30,6 +30,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingGstDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dao.MileStoneDao;
+import com.bharatpe.lending.dto.DSMileStoneResponse;
 import com.bharatpe.lending.dto.GlobalLimitResponse;
 import com.bharatpe.lending.entity.MileStoneEntity;
 import com.bharatpe.lending.enums.*;
@@ -624,7 +625,7 @@ public class LoanDashboardService {
             // send emiLoanApplication in response
             return handleEmiLoanDashboard(merchantDetails, emiDashboardData.getResult());
         }
-        checkEligibility(loanDashboardResponse,new LoanDetailsRequest(), merchantDetails);
+        checkEligibility(loanDashboardResponse, merchantDetails);
 
         if(!ObjectUtils.isEmpty(entity)
                 && !ObjectUtils.isEmpty(mileStoneHelperService.fetchTarget(entity))
