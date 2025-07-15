@@ -812,7 +812,7 @@ public class MileStoneProgramService {
                  !ObjectUtils.isEmpty(entity)
             && "IN_PROGRESS".equalsIgnoreCase(entity.getSessionStatus())) {
             DSMileStoneResponse mileStoneResponse = mileStoneHelperService.fetchTarget(entity);
-            if(RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
+            if(!ObjectUtils.isEmpty(mileStoneResponse) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())){
                 rteProgramDetailsDto.setTargetLoanAmount(commonUtil.parseLoanAmount(mileStoneResponse.getLoan_amount()));
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(entity.getMerchantId());
                 Map<String, String> cleverTapEvtData = getCleverTapEventData(entity, lendingRiskVariables, mileStoneResponse, rteProgramDetailsDto);
