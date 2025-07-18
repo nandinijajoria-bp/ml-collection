@@ -8,6 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @Setter
 @Getter
+@ToString
 public class LendingStateDTO<T> {
     T data;
 

@@ -21,6 +21,7 @@ import com.bharatpe.lending.common.util.DateTimeUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.CleverTapEvents;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.handlers.BharatPeOtpHandler;
 import com.bharatpe.lending.lendingplatform.lending.util.LendingUtil;
 import com.bharatpe.lending.lendingplatform.nbfc.enums.Lender;
@@ -150,9 +151,15 @@ public class VerifyOTPServiceV2 {
 
 		lendingUtil.createAuditEvent(
 				lendingApplication, merchant, "draft", "pending_verification", "APP_STATUS");
-		loanDetailsV3Service.saveApplicationViewState(
-				null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
-		log.info("saving next page as : {} for application: {}", LendingViewStates.ENACH_PAGE, lendingApplication.getId());
+
+		if(loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+			loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.UPI_AUTOPAY_PAGE);
+			log.info("Saving Lending Application Details for application: {} with view state: {}", lendingApplication.getId(), LendingViewStates.UPI_AUTOPAY_PAGE);
+		} else {
+			loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+			log.info("Saving Lending Application Details for application: {} with view state: {}", lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+		}
+
 		lendingUtil.redisNotification(lendingApplication, merchant);
 		lendingUtil.sendNotification(lendingApplication, merchant);
 		lendingUtil.updateKycStatus(lendingApplication);

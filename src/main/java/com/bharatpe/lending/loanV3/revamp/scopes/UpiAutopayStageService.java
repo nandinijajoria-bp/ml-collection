@@ -145,7 +145,6 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(mandateUPIStatusResponse.data.getStatus(), mandateUPIStatusResponse.data.getStatus().name()));
             } else if(AutoPayStatusEnum.FAILED.equals(existingAutoPayUPI.getStatus())){
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(existingAutoPayUPI.getStatus(), existingAutoPayUPI.getStatus().name()));
-                updateErrorDetails(upiAutopayStateDTO, existingAutoPayUPI);
             } else {
                 upiAutopayStateDTO.setMandateStatus(PaymentConstants.UPI_AUTOPAY_MANDATE_STATUS_MAP.getOrDefault(existingAutoPayUPI.getStatus(), existingAutoPayUPI.getStatus().name()));
             }
@@ -158,6 +157,12 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
             upiAutopayStateDTO.setErrorReason(null);
             upiAutopayStateDTO.setCreatedAt(null);
             upiAutopayStateDTO.setRetryCount(0);
+        }
+
+        if(PaymentConstants.FAILED.equals(upiAutopayStateDTO.getMandateStatus())){
+            log.info("UPI Autopay mandate status is FAILED for application: {}, setting Error details for application", lendingApplication.getId());
+            updateErrorDetails(upiAutopayStateDTO, existingAutoPayUPI);
+            log.info("Error details updated for UPI Autopay State DTO: {}", upiAutopayStateDTO);
         }
 
         log.info("Autopay UPI Mandate status for application: {}: {}", lendingApplication.getId(), upiAutopayStateDTO.getMandateStatus());
