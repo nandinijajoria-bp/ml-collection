@@ -18,6 +18,7 @@ public class PaymentConstants {
         put(AutoPayStatusEnum.PENDING, INPROGRESS);
         put(AutoPayStatusEnum.ACTIVE, SUCCESS);
         put(AutoPayStatusEnum.FAILED, FAILED);
+        put(AutoPayStatusEnum.FAILURE, FAILED);
     }};
 
     public static HashMap<String, String> UPI_AUTOPAY_ERROR_CODE_TO_DISPLAY_MESSAGE_MAP = new HashMap<String, String>() {{
@@ -42,5 +43,6 @@ public class PaymentConstants {
         put("MR_0008", true);
         put("MR_0009", true);
         put("TAT_EXCEEDED", true);
+        put("API_ERROR", true);
     }};
 }

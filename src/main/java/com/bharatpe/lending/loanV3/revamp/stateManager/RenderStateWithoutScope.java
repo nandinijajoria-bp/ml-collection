@@ -32,9 +32,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -54,6 +52,9 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
     EligibilityV3Service eligibilityV3Service;
     @Autowired
     private LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
+    @Autowired
+    AutoPayUPIDao autoPayUPIDao;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -130,6 +131,11 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
                 return loanDetailsV3Response;
             }
 
+            if(isUpiAutopayPending(scopeDataArgs, loanDetailsV3Response)){
+                log.info("Upi Autopay Pending {}", scopeDataArgs);
+                return loanDetailsV3Response;
+            }
+
             if (nachNotExist(scopeDataArgs,loanDetailsV3Response)) {
                 log.info("nach doesn't exist {}", scopeDataArgs);
                 return loanDetailsV3Response;
@@ -174,6 +180,35 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
         log.info("returning default state for {}", scopeDataArgs.getMerchant().getId());
         loanDetailsV3Response.setNextPage(LendingViewStates.PAN_PIN_PAGE.name());
         return loanDetailsV3Response;
+    }
+
+    private boolean isUpiAutopayPending(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {
+        log.info("checking for upi autopay pending for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        LendingStateDTO<UpiAutopayStateDTO> lendingStateDTO = registerUpiAutopayWorkflow(scopeDataArgs);
+        log.info("upi autopay state for merchant_id: {} is {}", scopeDataArgs.getMerchant().getId(), lendingStateDTO);
+        return populateResponseDTO(loanDetailsV3Response, lendingStateDTO);
+    }
+
+    private LendingStateDTO<UpiAutopayStateDTO> registerUpiAutopayWorkflow(ScopeDataArgs scopeDataArgs) {
+        log.info("registering upi autopay workflow for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        LendingStateDTO<UpiAutopayStateDTO> lendingStateDTO = null;
+        LendingApplication openApplication = scopeDataArgs.getOpenApplication();
+
+        if ("pending_verification".equalsIgnoreCase(openApplication.getStatus()) &&
+                !LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType()) &&
+                loanUtil.isEligibleForUpiAutopayDedicatedScreen(openApplication)){
+            log.info("upi autopay is eligible for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+            AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(openApplication.getId(), openApplication.getLender(), Collections.singletonList("ACTIVE"));
+            if(ObjectUtils.isEmpty(autoPayUPI)){
+                log.info("upi autopay not registered for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+                lendingStateDTO = new LendingStateDTO<>();
+                lendingStateDTO.setScopeState(LendingViewStates.UPI_AUTOPAY_PAGE);
+                return lendingStateDTO;
+            }
+            log.info("upi autopay already registered for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        }
+        log.info("upi autopay not eligible for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        return lendingStateDTO;
     }
 
     private boolean isShopPicture(ScopeDataArgs scopeDataArgs, LoanDetailsV3Response loanDetailsV3Response) {

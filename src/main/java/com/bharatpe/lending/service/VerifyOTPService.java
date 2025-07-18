@@ -699,8 +699,13 @@ public class VerifyOTPService {
             logger.info("saving next page as : {}", vkycService.getLenderVkycPageOrDefault(LendingViewStates.APPLICATION_STATUS_PAGE, lendingApplication.getMerchantId(), lendingApplication.getLender()));
         }
         else{
-            loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
-            logger.info("saving next page as : {}", LendingViewStates.ENACH_PAGE);
+            if(loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && !LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.UPI_AUTOPAY_PAGE);
+                logger.info("Saving Lending Application Details for application: {} with view state: {}", lendingApplication.getId(), LendingViewStates.UPI_AUTOPAY_PAGE);
+            } else {
+                loanDetailsV3Service.saveApplicationViewState(null, lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+                logger.info("Saving Lending Application Details for application: {} with view state: {}", lendingApplication.getId(), LendingViewStates.ENACH_PAGE);
+            }
         }
 
         if (easyLoanUtil.isDummyMerchant(merchantBasicDetailsDto.getId()) || merchantBasicDetailsDto.getId() == 10407700L) {

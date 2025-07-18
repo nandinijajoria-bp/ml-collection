@@ -409,6 +409,15 @@ public class LoanUtil {
 	@Value("${auto.pay.upi.internal.merchant:-}")
 	private List<String> autoPauUpiInternalMerchant;
 
+	@Value("${enable.autopayupi.registration:false}")
+	private Boolean enableAutopayUPIRegistration;
+
+	@Value("${merchant.plugin.rollout.percent:0}")
+	Integer merchantPluginRolloutPercent;
+
+	@Value("${upiautopay.dedicated.screen.rollout.percent:0}")
+	Integer upiAutoPayDedicatedScreenRolloutPercent;
+
 	@Value("${deprecated.merchant.references:true}")
     private boolean hasDeprecatedMerchantReferences;
 	@Autowired
@@ -3253,6 +3262,12 @@ public class LoanUtil {
 		}
 
 		return relation1.compareTo(relation2);
+	}
+
+	public boolean isEligibleForUpiAutopayDedicatedScreen(LendingApplication lendingApplication){
+		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
+		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent);
 	}
 }
 
