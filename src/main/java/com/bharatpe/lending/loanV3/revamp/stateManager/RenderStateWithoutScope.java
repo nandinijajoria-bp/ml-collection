@@ -207,6 +207,22 @@ public class RenderStateWithoutScope implements IRenderStateWithoutScope {
             }
             log.info("upi autopay already registered for merchant_id: {}", scopeDataArgs.getMerchant().getId());
         }
+
+        // For Topup, we check if the application is in draft state and if it is eligible for UPI Autopay
+        if ("draft".equalsIgnoreCase(openApplication.getStatus()) &&
+                LoanType.TOPUP.name().equalsIgnoreCase(openApplication.getLoanType()) &&
+                loanUtil.isEligibleForUpiAutopayTopupDedicatedScreen(openApplication)){
+            log.info("upi autopay is eligible for topup of merchant_id: {}", scopeDataArgs.getMerchant().getId());
+            AutoPayUPI autoPayUPI = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(openApplication.getId(), openApplication.getLender(), Collections.singletonList("ACTIVE"));
+            if(ObjectUtils.isEmpty(autoPayUPI)){
+                log.info("upi autopay not registered for topup for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+                lendingStateDTO = new LendingStateDTO<>();
+                lendingStateDTO.setScopeState(LendingViewStates.UPI_AUTOPAY_PAGE);
+                return lendingStateDTO;
+            }
+            log.info("upi autopay already registered for topup for merchant_id: {}", scopeDataArgs.getMerchant().getId());
+        }
+
         log.info("upi autopay not eligible for merchant_id: {}", scopeDataArgs.getMerchant().getId());
         return lendingStateDTO;
     }

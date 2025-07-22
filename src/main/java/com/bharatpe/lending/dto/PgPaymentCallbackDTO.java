@@ -24,6 +24,8 @@ public class PgPaymentCallbackDTO {
     private Mandate mandate;
     private String errorCode;
     private String errorDescription;
+    private String internalErrorCode;
+    private String internalErrorMessage;
 
 
     @Data
@@ -60,6 +62,24 @@ public class PgPaymentCallbackDTO {
         private String accountType;
         private String pgOrderId;
         private String terminalOrderId;
+        private String internalErrorCode;
+        private String internalErrorMessage;
+
+        public String getInternalErrorCode() {
+            return internalErrorCode;
+        }
+
+        public void setInternalErrorCode(String internalErrorCode) {
+            this.internalErrorCode = internalErrorCode;
+        }
+
+        public String getInternalErrorMessage() {
+            return internalErrorMessage;
+        }
+
+        public void setInternalErrorMessage(String internalErrorMessage) {
+            this.internalErrorMessage = internalErrorMessage;
+        }
 
         public String getPgOrderId() {
             return pgOrderId;
@@ -244,5 +264,21 @@ public class PgPaymentCallbackDTO {
 
     public void setPayments(List<Payments> payments) {
         this.payments = payments;
+    }
+
+    public String getInternalErrorCode() {
+        return internalErrorCode;
+    }
+
+    public void setInternalErrorCode(String internalErrorCode) {
+        this.internalErrorCode = internalErrorCode;
+    }
+
+    public String getInternalErrorMessage() {
+        return internalErrorMessage;
+    }
+
+    public void setInternalErrorMessage(String internalErrorMessage) {
+        this.internalErrorMessage = internalErrorMessage;
     }
 }

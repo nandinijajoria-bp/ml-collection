@@ -261,6 +261,9 @@ public class LendingApplicationServiceV2 {
     @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
     Integer upiAutoPayDedicatedScreenRolloutPercent;
 
+    @Value("${upiautopay.topup.dedicated.screen.rollout.percent:0}")
+    Integer upiAutoPayTopupDedicatedScreenRolloutPercent;
+
     @Autowired
     LenderAssignService lenderAssignService;
 
@@ -1450,10 +1453,17 @@ public class LendingApplicationServiceV2 {
 
             // UPI-Autopay Status
             if(enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
-
-                ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
-                applicationDTO.add(upiAutopayDTO);
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)) {
+                if(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent)){
+                    log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
+                    ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
+                    applicationDTO.add(upiAutopayDTO);
+                }
+                else if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
+                    log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
+                    ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
+                    applicationDTO.add(upiAutopayDTO);
+                }
             }
 
             // E-Nach Status

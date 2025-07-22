@@ -65,9 +65,6 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
     @Value("${merchant.plugin.rollout.percent:0}")
     Integer merchantPluginRolloutPercent;
 
-    @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
-    Integer upiAutoPayDedicatedScreenRolloutPercent;
-
     @Autowired
     VKycService vkycService;
 
@@ -123,17 +120,18 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
             if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && !easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
+                && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && !loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
 
                 log.info("setting autopay for application id {}", lendingApplication.getId());
                 kfsStageResponseV3.setUpiAutoPayEligible(true);
+                kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(false);
 
                 AutoPayUPI autoPayUPIExistingEntityMerchantId = autoPayUPIDao.findTop1ByMerchantIdAndStatusOrderByIdDesc(lendingApplication.getMerchantId(),"ACTIVE");
 //                if(!"REGULAR".equalsIgnoreCase( lendingApplication.getLoanType())){
                 boolean autoPayEligible= nonRegularMandateRegistrationChecks(lendingApplication,autoPayUPIExistingEntityMerchantId);
                 kfsStageResponseV3.setUpiAutoPayEligible(autoPayEligible);
 
-                if("REGULAR".equalsIgnoreCase( lendingApplication.getLoanType()) && !autoPayEligible && autoPayUPIExistingEntityMerchantId != null){
+                if(Arrays.asList("REGULAR", "TOPUP").contains( lendingApplication.getLoanType()) && !autoPayEligible && autoPayUPIExistingEntityMerchantId != null){
                     autoPayUPIExistingEntityMerchantId.setApplicationId(lendingApplication.getId());
                     autoPayUPIDao.save(autoPayUPIExistingEntityMerchantId);
                 }
@@ -166,7 +164,7 @@ public class KFSStageService implements IStageDataService<KFSStateDTO> {
                 else kfsStageResponseV3.setAgreementDone(false);
 
             } else if (enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && loanUtil.isUpiDedicatedScreenEligible(lendingApplication)) {
                 log.info("setting dedicated upi autopay for application id {} true", lendingApplication.getId());
                 kfsStageResponseV3.setDedicatedUpiAutoPayScreenEligible(true);
                 kfsStageResponseV3.setUpiAutoPayEligible(false);

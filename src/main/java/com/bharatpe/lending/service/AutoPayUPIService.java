@@ -17,6 +17,7 @@ import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.dto.*;
 import com.bharatpe.lending.enums.Lender;
+import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exceptions.InvalidRequestException;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -80,6 +81,9 @@ public class AutoPayUPIService {
 
     @Value("${upiautopay.dedicated.screen.rollout.percent:0}")
     Integer upiAutoPayDedicatedScreenRolloutPercent;
+
+    @Value("${upiautopay.topup.dedicated.screen.rollout.percent:0}")
+    Integer upiAutoPayTopupDedicatedScreenRolloutPercent;
 
     @Autowired
     EasyLoanUtil easyLoanUtil;
@@ -164,6 +168,13 @@ public class AutoPayUPIService {
                     if(request.getMandate() != null) {
                         autoPayUPI.setErrorMessage(request.getMandate().getErrorDescription());
                         autoPayUPI.setErrorCode(request.getMandate().getErrorCode());
+
+                        if(request.getPayments() != null && !request.getPayments().isEmpty() && request.getPayments().get(0).getInternalErrorCode() != null){
+                            autoPayUPI.setErrorCode(request.getPayments().get(0).getInternalErrorCode());
+                        }
+                        if(request.getPayments() != null && !request.getPayments().isEmpty() && request.getPayments().get(0).getInternalErrorMessage() != null){
+                            autoPayUPI.setErrorMessage(request.getPayments().get(0).getInternalErrorMessage());
+                        }
                     }
                 } else {
                     autoPayUPI.setStatus(AutoPayStatusEnum.valueOf(request.getMandate().getStatus()));
@@ -240,6 +251,18 @@ public class AutoPayUPIService {
                 autoPayUPIDao.save(mandateApplication);
             }
 
+        }
+
+        if("ACTIVE".equalsIgnoreCase(mandateApplication.getStatus().name())){
+            log.info("Updating Lending Application Upi Auto Status for application id: {}", mandateApplication.getApplicationId());
+            Optional<LendingApplication> optionalLendingApplication = lendingApplicationDao.findById(mandateApplication.getApplicationId());
+
+            if (optionalLendingApplication.isPresent()) {
+                log.info("Updating auto pay upi status for application id: {}", mandateApplication.getApplicationId());
+                LendingApplication lendingApplication = optionalLendingApplication.get();
+                lendingApplication.setUpiAutopayStatus("APPROVED");
+                lendingApplicationDao.save(lendingApplication);
+            }
         }
 
         MandateUPIStatusResponse.Data data = new MandateUPIStatusResponse.Data(mandateApplication.getOrderId()
@@ -428,7 +451,10 @@ public class AutoPayUPIService {
                 registerPgRequest.setMandateEndDate(epochMandateStartDate + 157680000000L);
 
                 String upiAutopayRedirectUrl = "&wroute=key-factor-statement";
-                if(easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), upiAutoPayDedicatedScreenRolloutPercent)){
+                if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), upiAutoPayDedicatedScreenRolloutPercent)){
+                    upiAutopayRedirectUrl = "&wroute=upi-autopay";
+                }
+                if(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(merchantBasicDetails.getId(), upiAutoPayTopupDedicatedScreenRolloutPercent)){
                     upiAutopayRedirectUrl = "&wroute=upi-autopay";
                 }
                 registerPgRequest.setRedirectURIDeeplink(redirectionDeeplinkAutopayUpi + upiAutopayRedirectUrl + "&openfrom=pg&orderId=" + autoPayUPI.getOrderId() + "&applicationId=" + lendingApplication.getId());

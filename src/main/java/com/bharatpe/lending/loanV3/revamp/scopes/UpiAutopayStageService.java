@@ -18,7 +18,6 @@ import com.bharatpe.lending.loanV3.revamp.services.LendingApplicationServiceV3;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 
-import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.service.AutoPayUPIService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +80,7 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
 
         // If the mandate status is SUCCESS and the loan application is already enach done, set the view state to APPLICATION_STATUS_PAGE
         if(!ObjectUtils.isEmpty(lendingStateDTO) && !ObjectUtils.isEmpty(lendingStateDTO.getData())
+                && !LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())
                 &&  (Objects.nonNull(lendingStateDTO.getData().getLoanApplication())
                 &&  Objects.nonNull(lendingStateDTO.getData().getLoanApplication().getEnachDone())
                 &&  lendingStateDTO.getData().getLoanApplication().getEnachDone())) {
@@ -125,9 +125,13 @@ public class UpiAutopayStageService implements IStageDataService<UpiAutopayState
         boolean autoPayEligible= nonRegularMandateRegistrationChecks(lendingApplication, existingAutoPayUpiWithMerchantId);
         log.info("AutoPay eligibility for Merchant ID {}: {}", lendingApplication.getMerchantId(), autoPayEligible);
 
-        if(REGULAR.equalsIgnoreCase(lendingApplication.getLoanType()) && !autoPayEligible && existingAutoPayUpiWithMerchantId != null){
+        if(Arrays.asList(REGULAR, "TOPUP").contains(lendingApplication.getLoanType()) && !autoPayEligible && existingAutoPayUpiWithMerchantId != null){
             existingAutoPayUpiWithMerchantId.setApplicationId(lendingApplication.getId());
             autoPayUPIDao.save(existingAutoPayUpiWithMerchantId);
+            log.info("AutoPay UPI updated with new application ID: {}", lendingApplication.getId());
+            lendingApplication.setUpiAutopayStatus("APPROVED");
+            lendingApplicationDao.save(lendingApplication);
+            log.info("Lending application updated with UPI Autopay status: APPROVED for topup application ID: {}", lendingApplication.getId());
         }
         if(REGULAR.equalsIgnoreCase(lendingApplication.getLoanType()) && existingAutoPayUpiWithMerchantId != null && autoPayEligible){
             // revoke previous mandate
