@@ -10,6 +10,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.ConfigResolver;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
@@ -21,6 +22,7 @@ import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.loanV3.factory.LenderAssociationStageFactory;
 import com.bharatpe.lending.loanV3.factory.LenderGatewayFactory;
 import com.bharatpe.lending.loanV3.services.INbfcLenderGateway;
+import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.utils.ConverterUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
@@ -79,7 +81,13 @@ public class BreRequestKafka {
     MerchantService merchantService;
 
     @Autowired
+    CommonService commonService;
+
+    @Autowired
     private EdiUtil ediUtil;
+
+    @Autowired
+    private EasyLoanUtil easyLoanUtil;
 
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
@@ -89,6 +97,9 @@ public class BreRequestKafka {
 
     @Value("${non.abfl.repeat.max.loan.amount:500000}")
     Double nonAbflRepeatMaxLoanAmount;
+
+    @Value("${abfl.topup.downgrade.flow.rollout:0}")
+    Integer abflTopupDowngradeFlowRollout;
 
     @KafkaListener(
             topics="${abfl.bre.topic:invoke_bre}",
@@ -218,18 +229,36 @@ public class BreRequestKafka {
             existingLendingApplicationLenderDetails.setNbfcApprovedLoanOfferAmt(data.getLoanAmount());
             existingLendingApplicationLenderDetails.setRoi(Double.valueOf(data.getRoi()));
             existingLendingApplicationLenderDetails.setTenure(Integer.valueOf(data.getTenure()));
-            if(!offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
+            if(offerModifiedEligibleLenders.contains(lendingApplication.get().getLender())
                     && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() < lendingApplication.get().getLoanAmount()) {
-                existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.LENDER_BRE_OFFER_DOWNGRADE.name());
-                existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
-                if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                if(!LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.get().getLoanType())) {
+                    existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.LENDER_BRE_OFFER_DOWNGRADE.name());
+                    existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+                    log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
+                    nbfcUtils.modifyLender(lendingApplication.get(), existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
+                    return;
+                }
+                if(easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(),abflTopupDowngradeFlowRollout)){
+                    log.info("Enabling offer modified flow for topup loan for applicationId {}", lendingApplication.get().getId());
+                    LendingApplication newApplication = commonService.createDuplicateApplication(lendingApplication.get(),existingLendingApplicationLenderDetails);
+                    boolean downgradeChecksFailed = commonService.additionalLenderDowngradeChecksFailed(newApplication, lendingApplication.get().getLender());
+
+                    if(downgradeChecksFailed){
+                        log.info("rejecting Topup application as additional APR IRR checks failed for applicationId {}", lendingApplication.get().getId());
+                        existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.ValidationStatus.APR_IRR_CHECK_FAILED.name());
+                        existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
+                        lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
+                        return;
+                    }
+                }
+                else{
+                    existingLendingApplicationLenderDetails.setLeadStatus(LenderAssociationStatus.LENDER_BRE_OFFER_DOWNGRADE.name());
+                    existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_FAILED.name());
                     lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
                     log.info("rejecting Topup application as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
                     return;
                 }
-                log.info("modifying lender as nbfc approved amount is less than actual loan amount for applicationId {}", lendingApplication.get().getId());
-                nbfcUtils.modifyLender(lendingApplication.get(),existingLendingApplicationLenderDetails, LenderAssociationStatus.BRE_FAILED);
-                return;
+
             }
             existingLendingApplicationLenderDetails.setBreStatus(LenderAssociationStatus.BRE_COMPLETED.name());
             LenderAssociationStages nextStage = LenderAssociationStageFactory.getNextStage(Lender.valueOf(breCallbackResponseDto.getLender()),LenderAssociationStages.BRE);
@@ -369,4 +398,5 @@ public class BreRequestKafka {
         log.info("pan Name {} for application id {}", cKycResponseDto.getPanName(), lendingApplication.getId());
         return cKycResponseDto.getPanName();
     }
+
 }
