@@ -270,6 +270,7 @@ public class MerchantLoansService {
     private LendingApplicationServiceV2 lendingApplicationServiceV2;
 
     @Autowired
+    @Lazy
     private MerchantLoanServiceHelper merchantLoanServiceHelper;
 
     @Value("${piramal.max.irr:36.0}")
