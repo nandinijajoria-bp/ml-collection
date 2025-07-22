@@ -418,6 +418,9 @@ public class LoanUtil {
 	@Value("${upiautopay.dedicated.screen.rollout.percent:0}")
 	Integer upiAutoPayDedicatedScreenRolloutPercent;
 
+	@Value("${upiautopay.topup.dedicated.screen.rollout.percent:0}")
+	Integer upiAutoPayTopupDedicatedScreenRolloutPercent;
+
 	@Value("${deprecated.merchant.references:true}")
     private boolean hasDeprecatedMerchantReferences;
 	@Autowired
@@ -2686,7 +2689,9 @@ public class LoanUtil {
 		ForeClosureDetailDTO foreClosureDetailDTO = new ForeClosureDetailDTO();
 		logger.info("going to hit foreclosure config db with lender {} and tenure {}",activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
 		List<ForeClosureConfig> foreClosureConfigList = foreClosureDao.findByLenderAndTenure(activeLoan.getNbfc(),activeLoan.getLoanApplication().getTenureInMonths());
-        double duration = calculateDurationInMonths(activeLoan.getStartDate());
+        logger.info("fore closure config: {} for loan: {}", foreClosureConfigList, activeLoan.getId());
+
+		double duration = calculateDurationInMonths(activeLoan.getStartDate());
 		double foreclosureAmount = data.getPrincipalDueAmount();
 		double principleOutstanding = (activeLoan.getLoanAmount() - activeLoan.getPaidPrinciple() - activeLoan.getDuePrinciple());
 
@@ -3267,7 +3272,29 @@ public class LoanUtil {
 	public boolean isEligibleForUpiAutopayDedicatedScreen(LendingApplication lendingApplication){
 		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
 		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
-				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent);
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && isUpiDedicatedScreenEligible(lendingApplication);
+	}
+
+	public boolean isEligibleForUpiAutopayTopupDedicatedScreen(LendingApplication lendingApplication){
+		logger.info("Checking if UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
+		return enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
+	}
+
+	public LendingViewStates getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(LendingApplication lendingApplication){
+		logger.info("Deciding next lending view state for UPI Autopay dedicated screen for topup for applicationId: {}", lendingApplication.getId());
+		if(enableAutopayUPIRegistration && isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !checkIfUpiAutoPayNotRequired(lendingApplication)
+				&& easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent)) {
+			return LendingViewStates.UPI_AUTOPAY_PAGE;
+		}
+		return LendingViewStates.ENACH_PAGE;
+	}
+
+	public boolean isUpiDedicatedScreenEligible(LendingApplication lendingApplication){
+		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+			return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
+		}
+		return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent);
 	}
 }
 

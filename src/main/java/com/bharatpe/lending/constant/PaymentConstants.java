@@ -31,6 +31,8 @@ public class PaymentConstants {
         put("MR_0007", "AutoPay failed due to authorization issue. Please retry");
         put("MR_0008", "AutoPay failed as your UPI collect request has expired. Please retry");
         put("MR_0009", "AutoPay failed");
+        put("TAT_EXCEEDED", "AutoPay failed");
+        put("API_ERROR", "AutoPay failed");
     }};
     public static HashMap<String, Boolean> UPI_AUTOPAY_ERROR_CODE_TO_RETRY_ELIGIBLE_MAP = new HashMap<String, Boolean>() {{
         put("MR_0001", true);

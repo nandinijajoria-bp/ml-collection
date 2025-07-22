@@ -19,6 +19,7 @@ import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
@@ -47,18 +48,19 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
     @Override
     public LendingStateDTO<ReferenceStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
         LendingStateDTO<ReferenceStateDTO> lendingStateDTO = fetchScopedData(scopeDataArgs);
-        lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         if(LoanType.TOPUP.name().equalsIgnoreCase(lendingStateDTO.getData().getLoanType())) {
-            //TODO: Next Page will change according to configs
-
-            lendingStateDTO.setLendingViewStates(LendingViewStates.ENACH_PAGE);
+            //next page for topup is set in fetchScopeData call
+            return lendingStateDTO;
         }
+
+        lendingStateDTO.setLendingViewStates(LendingViewStates.AGREEMENT_PAGE);
         return lendingStateDTO;
     }
 
     @Override
     public LendingStateDTO<ReferenceStateDTO> fetchScopedData(ScopeDataArgs scopeDataArgs) {
         ReferenceStateDTO referenceStateDTO = new ReferenceStateDTO();
+        LendingViewStates nextLendingViewState = LendingViewStates.REFERENCE_PAGE;
         try {
             referenceStateDTO.setMerchantId(scopeDataArgs.getMerchant().getId());
             referenceStateDTO.setDummyMerchant(easyLoanUtil.isDummyMerchant(scopeDataArgs.getMerchant().getId()));
@@ -92,10 +94,15 @@ public class ReferencesStageDataService implements IStageDataService<ReferenceSt
             }
 
             loanDetailsV3Service.saveApplicationViewState(null, scopeDataArgs.getApplicationId(), LendingViewStates.REFERENCE_PAGE);
+
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
+                nextLendingViewState = loanUtil.getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
+            }
+
         } catch (Exception e) {
             log.error("error in getting reference stage data for {} : {}, {}", scopeDataArgs.getMerchant().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
             throw new LoanDetailsException(LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorCode(),LoanDetailExceptionEnum.SOMETHING_WENT_WRONG.getErrorMessage());
         }
-        return new LendingStateDTO<>(referenceStateDTO , LendingViewStates.REFERENCE_PAGE, LendingViewStates.REFERENCE_PAGE);
+        return new LendingStateDTO<>(referenceStateDTO , nextLendingViewState, LendingViewStates.REFERENCE_PAGE);
     }
 }

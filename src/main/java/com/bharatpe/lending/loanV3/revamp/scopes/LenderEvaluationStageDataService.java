@@ -17,6 +17,7 @@ import com.bharatpe.lending.loanV3.revamp.enums.LoanDetailExceptionEnum;
 import com.bharatpe.lending.loanV3.revamp.exception.LoanDetailsException;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDetailsV3Service;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
+import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -46,6 +47,10 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
 
     @Value("${reference.page.disabled.for.topup:true}")
     Boolean referencePageDisabledForTopup;
+
+    @Autowired
+    LoanUtil loanUtil;
+
 
     @Override
     public LendingStateDTO<LenderEvaluationStateDTO> processCurrentStage(ScopeDataArgs scopeDataArgs) {
@@ -112,12 +117,11 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
-                        //TODO: Next Page will change according to configs
-                        nextPage = referencePageDisabledForTopup ? LendingViewStates.ENACH_PAGE : LendingViewStates.REFERENCE_PAGE;
+
+                        nextPage = referencePageDisabledForTopup ?  loanUtil.getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication) : LendingViewStates.REFERENCE_PAGE;
                         if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
                             log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
-                            //TODO: Next Page will change according to configs
-                            nextPage = LendingViewStates.ENACH_PAGE;
+                            nextPage = loanUtil.getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
                         }
                     }
                 }
