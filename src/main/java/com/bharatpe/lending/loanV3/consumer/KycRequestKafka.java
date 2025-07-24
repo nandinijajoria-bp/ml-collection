@@ -113,6 +113,9 @@ public class KycRequestKafka {
     @Value("${eKyc.redirection.url:-}")
     String abflEkycRedirectionUrl;
 
+    @Value("${abfl.topup.downgrade.flow.rollout:0}")
+    private Integer abflTopupDowngradeFlowRollout;
+
     @Value("${udyam.fetch.rollout:0}")
     private Integer udyamFetchRollout;
 
@@ -246,8 +249,12 @@ public class KycRequestKafka {
             existingLendingApplicationLenderDetails.setCkycType(data.getKycType());
             lendingApplicationLenderDetailsDao.save(existingLendingApplicationLenderDetails);
 
-            boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.get().getLoanType()) ?
-                    lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender()) : lenderDocGenerateEnabledLenders.contains(lendingApplication.get().getLender());
+            boolean isDownGradedCase = easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), abflTopupDowngradeFlowRollout )
+                    && existingLendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()<lendingApplication.get().getLoanAmount();
+
+            boolean generateLenderDoc = "TOPUP".equalsIgnoreCase(lendingApplication.get().getLoanType())
+                    ? lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender()) && !isDownGradedCase
+                    : lenderDocGenerateEnabledLenders.contains(lendingApplication.get().getLender());
             if (generateLenderDoc) {
                 final LendingApplication finalLendingApplication = lendingApplication.get();
                 new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
@@ -368,7 +375,9 @@ public class KycRequestKafka {
                         lendingApplicationLenderDetails.setStage(nextStage.name());
                         lendingApplicationLenderDetails.setKycCompletionTimestamp(new Date());
                         lendingApplicationLenderDetailsDao.save(lendingApplicationLenderDetails);
-                        if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender())) {
+                        boolean isDownGradedCase = easyLoanUtil.percentScaleUp(lendingApplication.get().getMerchantId(), abflTopupDowngradeFlowRollout)
+                                && lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt()<lendingApplication.get().getLoanAmount();
+                        if (lenderDocGenerateTopUpEnabledLenders.contains(lendingApplication.get().getLender()) && !isDownGradedCase) {
                             final LendingApplication finalLendingApplication = lendingApplication.get();
                             new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
                         }
