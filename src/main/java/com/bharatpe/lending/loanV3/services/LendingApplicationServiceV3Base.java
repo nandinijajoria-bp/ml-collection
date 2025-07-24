@@ -8,6 +8,7 @@ import com.bharatpe.lending.common.dao.*;
 import com.bharatpe.lending.common.entity.*;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.service.SherlocLoanStatusChangeService;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.ModifiedOfferResponseDto;
 import com.bharatpe.lending.entity.LendingOfferModificationSnapshot;
@@ -22,6 +23,8 @@ import com.bharatpe.lending.loanV3.config.TrillionLoansConfig;
 import com.bharatpe.lending.loanV3.consumer.KycRequestKafka;
 import com.bharatpe.lending.loanV3.dto.*;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
+import com.bharatpe.lending.loanV3.enums.DocType;
+import com.bharatpe.lending.loanV3.services.associationsV2.AbflDocGenerateService;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.loanV3.utils.NbfcUtils;
 import com.bharatpe.lending.util.EdiUtil;
@@ -85,6 +88,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Autowired
     private LendingEligibleLoanDao eligibleLoanDao;
 
+    @Autowired
+    private EasyLoanUtil easyLoanUtil;
+
     @Lazy
     @Autowired
     KycUtils kycUtils;
@@ -110,6 +116,9 @@ public abstract class LendingApplicationServiceV3Base {
     @Lazy
     TrillionLoansConfig trillionLoansConfig;
 
+    @Value("${abfl.topup.downgrade.flow.rollout:0}")
+    private Integer abflTopupDowngradeFlowRollout;
+
     @Autowired
     private LoanCreationService loanCreationService;
     @Autowired
@@ -119,6 +128,10 @@ public abstract class LendingApplicationServiceV3Base {
 
     @Value("${offer.modified.eligible.lender:}")
     String offerModifiedEligibleLenders;
+
+
+    @Autowired
+    AbflDocGenerateService abflDocGenerateService;
 
     @Autowired
     private EdiUtil ediUtil;
@@ -727,6 +740,12 @@ public abstract class LendingApplicationServiceV3Base {
 
             lendingApplicationDao.save(lendingApplication);
 
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), abflTopupDowngradeFlowRollout) ) {
+                log.info("Generating lender document for applicationId in modify offer api: {}", lendingApplication.getId());
+                final LendingApplication finalLendingApplication = lendingApplication;
+                new Thread(() -> abflDocGenerateService.invokeDocGenerate(finalLendingApplication, DocType.LOAN_AGREEMENT, true, false)).start();
+            }
 
             LendingAuditTrial lendingAuditTrial = new LendingAuditTrial();
             lendingAuditTrial.setLoanId(Objects.nonNull(lendingApplication.getExternalLoanId())?lendingApplication.getExternalLoanId():"");
