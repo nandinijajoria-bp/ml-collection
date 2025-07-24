@@ -38,6 +38,7 @@ import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.dto.BureauResponseDTO;
 import com.bharatpe.lending.loanV2.dto.Eligibility;
+import com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant;
 import com.bharatpe.lending.loanV3.revamp.constants.RTEConstants;
 import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
@@ -645,6 +646,9 @@ public class MileStoneProgramService {
         if (!entity.getMilestoneOffer()) {
             boolean flag = mileStoneHelperService.updateEntity(request, entity, merchant);
             if (flag) {
+                String loanDashboardCacheKey = LoanDetailsConstant.LENDING_DASHBOARD_DETAILS_V3_KEY_PREFIX + merchant.getId();
+                log.info("deleting cached key of loan dashboard api for merchant: {}",merchant.getId());
+                lendingCache.delete(loanDashboardCacheKey);
                 return new ApiResponse<>(true, "200", "entity  updated in db");
             }
         }
