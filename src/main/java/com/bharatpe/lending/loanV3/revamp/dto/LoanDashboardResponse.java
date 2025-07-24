@@ -55,6 +55,7 @@ public class LoanDashboardResponse {
     private InsuranceEligibilityResponseDTO.ResponseData insuranceEligibility;
     private boolean showRTEPage;
     private boolean sliderEnrolled;
+    private boolean rteEnrolled;
 
 }
 

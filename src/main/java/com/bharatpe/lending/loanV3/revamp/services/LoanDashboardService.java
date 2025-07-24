@@ -399,6 +399,12 @@ public class LoanDashboardService {
         if (isEligibleForRTE(dsMileStoneResponse, RTEProgramType.SLIDER.name(), RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus()))) {
             log.info("merchant is enrolled in slider program: {}", merchantDetails.getId());
             response.setSliderEnrolled(true);
+            return;
+        }
+
+        if (RTESessionStatus.IN_PROGRESS.name().equalsIgnoreCase(entity.getSessionStatus())) {
+            log.info("rte session in progress: {}", merchantDetails.getId());
+            response.setRteEnrolled(true);
         }
     }
 

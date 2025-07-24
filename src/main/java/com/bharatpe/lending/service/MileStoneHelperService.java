@@ -810,6 +810,7 @@ public class MileStoneHelperService {
         if (Boolean.TRUE.equals(request.getIsOfferAchieved())) {
             entity.setMilestoneOffer(true);
             entity.setSessionStatus("CLOSED");
+            entity.setComment("Due to Loan Eligibility, closing program");
             DSMileStoneResponse mileStoneResponse = fetchTarget(entity);
 
             if (!ObjectUtils.isEmpty(mileStoneResponse) && RTEProgramType.SLIDER.name().equals(mileStoneResponse.getProgram_type())) {
