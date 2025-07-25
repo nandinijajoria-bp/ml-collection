@@ -70,7 +70,9 @@ public class WorkflowUtil {
         for (Workflow workflow : workflows) {
             try {
                 log.info("Invoking workflow for applicationId {} - {}", applicationId, workflow.getWorkflowName());
-                workflow.invoke(String.valueOf(applicationId));
+                if (!workflow.invoke(String.valueOf(applicationId))) {
+                    break;
+                }
             } catch (Exception e) {
                 log.error("Error in invoking workflow for applicationId {} - {} - {}", applicationId, workflow.getWorkflowName(),
                         e.getStackTrace());
