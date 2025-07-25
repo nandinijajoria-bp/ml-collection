@@ -37,7 +37,7 @@ public class KYCDocumentWorkflow implements Workflow {
     private final WorkflowUtil workflowUtil;
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         lald.setLeadStatus(KYC_DOCUMENT.name());
@@ -48,9 +48,10 @@ public class KYCDocumentWorkflow implements Workflow {
             log.warn("KYC document upload request is empty");
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
-            return;
+            return false;
         }
         invokeKYCDocumentUpload(applicationId, lendingApplication, lald, kycDocumentUploadRequest);
+        return true;
     }
 
     @Override

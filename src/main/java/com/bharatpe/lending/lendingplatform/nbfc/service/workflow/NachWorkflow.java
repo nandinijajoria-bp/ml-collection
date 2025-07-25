@@ -43,7 +43,7 @@ public class NachWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
         lald.setLeadStatus(NACH.name());
@@ -54,9 +54,10 @@ public class NachWorkflow implements Workflow {
             log.warn("Nach request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         invokeNachRegistration(applicationId, lendingApplication, lald, nachRegistrationRequest);
+        return true;
     }
 
     @Override

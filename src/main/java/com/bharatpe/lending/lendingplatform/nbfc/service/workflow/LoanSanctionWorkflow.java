@@ -36,7 +36,7 @@ public class LoanSanctionWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
         lald.setLeadStatus(LOAN_SANCTION.name());
@@ -47,9 +47,10 @@ public class LoanSanctionWorkflow implements Workflow {
             log.warn("Loan sanction request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, SANCTION_FAILED);
-            return;
+            return false;
         }
         invokeLoanSanction(applicationId, lendingApplication, lald, loanSanctionRequest);
+        return true;
     }
 
     @Override

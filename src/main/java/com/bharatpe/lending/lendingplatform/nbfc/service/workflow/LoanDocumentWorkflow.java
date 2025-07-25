@@ -42,7 +42,7 @@ public class LoanDocumentWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         lald.setLeadStatus(LOAN_DOCUMENT.name());
@@ -53,9 +53,10 @@ public class LoanDocumentWorkflow implements Workflow {
             log.warn("Loan document upload request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         invokeDocumentUpload(applicationId, lendingApplication, lald, loanDocumentUploadRequest);
+        return true;
     }
 
     @Override

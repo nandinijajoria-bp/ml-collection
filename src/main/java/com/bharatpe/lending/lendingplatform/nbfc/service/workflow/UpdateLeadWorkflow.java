@@ -37,7 +37,7 @@ public class UpdateLeadWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
         lald.setLeadStatus(UPDATE_LEAD.name());
@@ -48,9 +48,10 @@ public class UpdateLeadWorkflow implements Workflow {
             log.warn("Update lead request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, UPDATE_LEAD_FAILED);
-            return;
+            return false;
         }
         invokeUpdateLead(applicationId, lendingApplication, lald, updateLeadRequest);
+        return true;
     }
 
     @Override

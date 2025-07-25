@@ -40,7 +40,7 @@ public class BreWorkflow implements Workflow {
     private final LendingApplicationDetailsService lendingApplicationDetailsService;
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         LendingApplicationDetails lendingApplicationDetails = workflowUtil.getLendingApplicationDetails(applicationId);
@@ -54,9 +54,10 @@ public class BreWorkflow implements Workflow {
             log.warn("BRE request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
-            return;
+            return false;
         }
         invokeBRE(applicationId, lendingApplication, lald, breRequest);
+        return true;
     }
 
     @Override

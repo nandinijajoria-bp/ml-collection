@@ -56,24 +56,25 @@ public class CreateLeadWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = createLald(lendingApplication);
         if (ObjectUtils.isEmpty(lald)) {
             log.warn("Lending application lender details not created for application id: {}", applicationId);
-            return;
+            return false;
         }
         LenderBaseRequest<CreateLeadRequest> createLeadRequest = getCreateLeadRequest(lendingApplication);
         if(ObjectUtils.isEmpty(createLeadRequest)) {
             log.warn("Create lead request is empty for applicationId={}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
-            return;
+            return false;
         }
         WorkflowRegistry workflowRegistry = workflowRegistryFactory
                 .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
         updateLad(applicationId, workflowRegistry);
         invokeCreateLead(applicationId, lendingApplication, lald, createLeadRequest);
+        return true;
     }
 
     private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {

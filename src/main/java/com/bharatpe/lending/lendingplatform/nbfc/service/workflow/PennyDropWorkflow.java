@@ -36,7 +36,7 @@ public class PennyDropWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         lald.setLeadStatus(PENNY_DROP.name());
@@ -47,9 +47,10 @@ public class PennyDropWorkflow implements Workflow {
             log.warn("Penny Drop request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         invokePennyDropRegistration(applicationId, lendingApplication, lald, pennyDropRegistrationRequest);
+        return true;
     }
 
     @Override

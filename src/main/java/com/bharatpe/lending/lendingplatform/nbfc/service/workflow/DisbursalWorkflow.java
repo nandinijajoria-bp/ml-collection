@@ -47,7 +47,7 @@ public class DisbursalWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         //checking is disbursal already initiated
@@ -55,7 +55,7 @@ public class DisbursalWorkflow implements Workflow {
             || (lald.getLeadStatus().equalsIgnoreCase(LOAN_DISBURSAL.name()) &&
                 lald.getLeadSubStatus().equals(LeadSubStatus.PENDING))) {
             log.warn("Disbursal already initiated for applicationId: {}", lendingApplication.getId());
-            return;
+            return false;
         }
         lald.setLeadStatus(LOAN_DISBURSAL.name());
         lald.setLeadSubStatus(LeadSubStatus.PENDING);
@@ -65,9 +65,10 @@ public class DisbursalWorkflow implements Workflow {
             log.warn("Loan disbursal request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         invokeLoanDisbursal(applicationId, lendingApplication, lald, loanDisbursalRequest);
+        return true;
     }
 
     @Override
