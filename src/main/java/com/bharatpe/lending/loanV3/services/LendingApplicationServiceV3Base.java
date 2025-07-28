@@ -676,7 +676,6 @@ public abstract class LendingApplicationServiceV3Base {
             }
 
             LendingApplicationLenderDetails lendingApplicationLenderDetails = lendingApplicationLenderDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender());
-
             if (ObjectUtils.isEmpty(lendingApplicationLenderDetails)){
                 return new ApiResponse<>(false, createResponse("false", "Something went wrong"), "Something went wrong");
 
@@ -720,23 +719,42 @@ public abstract class LendingApplicationServiceV3Base {
 //            double processingFeeRate = lendingApplication.getProcessingFee()/initialDisbursalAmountWithoutProcessingFee;
 //            double processingFee = Math.ceil(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() * processingFeeRate);
             BigDecimal processingFee;
+            BigDecimal processingFeeRate;
+            BigDecimal finalDisbursalAmount;
             if(lendingApplication.getDisbursalAmount() != null && lendingApplication.getProcessingFee() != null && lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() != null){
                 BigDecimal disbursalAmount = BigDecimal.valueOf(lendingApplication.getDisbursalAmount());
                 BigDecimal processingFeeAmount = BigDecimal.valueOf(lendingApplication.getProcessingFee());
                 BigDecimal initialDisbursalAmountWithoutProcessingFee = disbursalAmount.add(processingFeeAmount);
-                BigDecimal processingFeeRate = processingFeeAmount.divide(initialDisbursalAmountWithoutProcessingFee, 10, RoundingMode.HALF_UP);
+                processingFeeRate = processingFeeAmount.divide(initialDisbursalAmountWithoutProcessingFee, 10, RoundingMode.HALF_UP);
                 BigDecimal nbfcApprovedLoanOfferAmt = BigDecimal.valueOf(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
                 processingFee= nbfcApprovedLoanOfferAmt.multiply(processingFeeRate).setScale(0, RoundingMode.CEILING);
+                finalDisbursalAmount = nbfcApprovedLoanOfferAmt.subtract(processingFee);
             }else{
                 throw new NullPointerException("Either processing fee or disbursal amount or nbfc approved amount cannot be null");
             }
 
-
+            double previousAmount=0;
+            if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Lender.ABFL.name().equalsIgnoreCase(lendingApplication.getLender())
+                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), abflTopupDowngradeFlowRollout) ){
+                LendingPaymentSchedule activeLoan = lendingPaymentScheduleDao.findByMerchantIdAndStatus(lendingApplication.getMerchantId(),  Collections.singletonList("ACTIVE"));
+                previousAmount = loanUtil.getForeClosureAmountForLender(activeLoan);
+                log.info("Previous amount for ABFL topup applicationId {} is {}", lendingApplication.getId(), previousAmount);
+                if(previousAmount <= 0){
+                    throw new RuntimeException(String.format("Error getting %s foreclosure details", lendingApplication.getLender()));
+                }
+                BigDecimal nbfcApprovedLoanOfferAmt = BigDecimal.valueOf(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
+                BigDecimal previousAmountValue = BigDecimal.valueOf(previousAmount);
+                BigDecimal disbursalAmount = nbfcApprovedLoanOfferAmt.subtract(previousAmountValue);
+                processingFee = disbursalAmount.multiply(processingFeeRate).setScale(0,RoundingMode.CEILING);
+                finalDisbursalAmount = disbursalAmount.subtract(processingFee);
+            }
             lendingApplication.setProcessingFee(processingFee.doubleValue());
             lendingApplication.setLoanAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt());
             lendingApplication.setRepayment(ediAmount * payableDays);
-            lendingApplication.setDisbursalAmount(lendingApplicationLenderDetails.getNbfcApprovedLoanOfferAmt() - processingFee.doubleValue());
+            lendingApplication.setDisbursalAmount(finalDisbursalAmount.doubleValue());
             lendingApplication.setEdi(ediAmount);
+            log.info("Modified offer for applicationId: {}, loanAmount: {}, ediAmount: {}, processingFee: {}, repayment: {}, disbursalAmount: {}",
+                    lendingApplication.getId(), lendingApplication.getLoanAmount(), lendingApplication.getEdi(), lendingApplication.getProcessingFee(), lendingApplication.getRepayment(), lendingApplication.getDisbursalAmount());
 
             lendingApplicationDao.save(lendingApplication);
 
