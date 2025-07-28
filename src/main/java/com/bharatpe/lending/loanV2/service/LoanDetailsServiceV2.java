@@ -345,6 +345,7 @@ public class LoanDetailsServiceV2 {
     @Lazy
     MerchantLoansService merchantLoansService;
 
+    @Lazy
     @Autowired
     MileStoneProgramService mileStoneProgramService;
 
