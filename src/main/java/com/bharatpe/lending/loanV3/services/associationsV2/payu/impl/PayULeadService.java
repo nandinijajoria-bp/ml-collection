@@ -453,6 +453,7 @@ public class PayULeadService {
                 .bureauConsent(true)
                 .generalConsent(true)
                 .kycConsent(true)
+                .udhyamConsent(true)
                 .build();
     }
 

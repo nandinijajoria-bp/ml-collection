@@ -920,7 +920,7 @@ public class VerifyOTPService {
             if ("LDC".equals(previousLoan.getLoanApplication().getLender())) {
                 nbfcService.pushCloseLoanEventToKafka(previousLoan.getApplicationId());
             }
-            if(!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingApplication.getLender())) {
+            if(!LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(previousLoan.getNbfc())) {
                 putCollectionExcessAmountInRefund(previousLoan);
             }
         }
