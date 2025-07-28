@@ -4,6 +4,7 @@ import com.bharatpe.lending.dto.KycDoc;
 import com.bharatpe.lending.enums.KycDocStatus;
 import com.bharatpe.lending.enums.KycDocType;
 import com.bharatpe.lending.enums.KycStatus;
+import com.bharatpe.lending.enums.Lender;
 import com.bharatpe.lending.loanV2.dto.KycStatusDTO;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -18,24 +19,52 @@ public final class KycUtils {
 
     private static final List<KycDocType> kycMandatoryDocs = Arrays.asList(KycDocType.PAN_NO, KycDocType.SELFIE, KycDocType.POA);
 
-    public static KycStatusDTO getKycStatusDTO(List<KycDoc> kycDocs){
+    public static KycStatusDTO getKycStatusDTO(List<KycDoc> kycDocs, String lender){
         if(CollectionUtils.isEmpty(kycDocs)){
             return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
         }
-        if (kycDocs.size() < kycMandatoryDocs.size()){
-            return KycStatusDTO.builder().kycStatus(KycStatus.DRAFT).build();
+        if (CollectionUtils.isEmpty(kycDocs)) {
+            return KycStatusDTO.builder().kycStatus(KycStatus.NEW).build();
         }
+
+        boolean isPanApproved = false;
+        boolean isSelfieApprovedOrDraft = false;
+        boolean isSelfieApproved = false;
+        boolean isPoaApproved = false;
+
         for (KycDoc kycDoc : kycDocs) {
-            if (KycDocStatus.REJECTED.equals(kycDoc.getStatus())) {
-                return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.REJECTED).remarks(kycDoc.getRemarks()).build();
+            if (kycDoc == null || kycDoc.getStatus() == null) {
+                continue;
+            }
+
+            if (KycDocType.PAN_NO.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                isPanApproved = true;
+            }
+
+            if (KycDocType.SELFIE.equals(kycDoc.getDocType())) {
+                if (KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    isSelfieApproved = true;
+                }
+                if (KycDocStatus.DRAFT.equals(kycDoc.getStatus()) || KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                    isSelfieApprovedOrDraft = true;
+                }
+            }
+
+            if (KycDocType.POA.equals(kycDoc.getDocType()) && KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
+                isPoaApproved = true;
             }
         }
-        for (KycDoc kycDoc : kycDocs) {
-            if (kycDoc.getStatus() != null && !KycDocStatus.APPROVED.equals(kycDoc.getStatus())) {
-                return KycStatusDTO.builder().kycDocType(kycDoc.getDocType()).kycStatus(KycStatus.valueOf(kycDoc.getStatus().name())).build();
+
+        if (Lender.LIQUILOANS_P2P.name().equalsIgnoreCase(lender)) {
+            if (isPanApproved && isSelfieApproved && isPoaApproved) {
+                return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+            }
+        } else {
+            if (isPanApproved && isSelfieApprovedOrDraft) {
+                return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
             }
         }
-        return KycStatusDTO.builder().kycStatus(KycStatus.APPROVED).build();
+        return KycStatusDTO.builder().kycStatus(KycStatus.REJECTED).build();
     }
 
     public static int getAgeFromKycDoc(List<KycDoc> kycDocs){

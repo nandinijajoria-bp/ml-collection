@@ -1284,8 +1284,8 @@ public class MerchantLoansService {
 //                    logger.info("Nach not success for merchant:{}", lendingPaymentSchedule.getMerchantId());
 //                    return eligiblity;
 //                }
-                List<KycDoc> kycDocs = kycHandler.getKycDoc(lendingApplication.getMerchantId());
-                KycStatusDTO kycStatus = KycUtils.getKycStatusDTO(kycDocs);
+                List<KycDoc> kycDocs = kycHandler.getKycDocForTopup(lendingApplication.getMerchantId());
+                KycStatusDTO kycStatus = KycUtils.getKycStatusDTO(kycDocs, lendingApplication.getLender());
                 if (!KycStatus.APPROVED.equals(kycStatus.getKycStatus())) {
                     addRejectionReason(eligiblity, "Kyc not approved");
                     logger.info("Kyc not approved for merchant:{}", lendingPaymentSchedule.getMerchantId());
