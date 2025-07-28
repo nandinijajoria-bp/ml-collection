@@ -403,7 +403,7 @@ public class AssociationServiceUtil {
             case "SMFG":
                 return smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "UGRO":
-                return ugroDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+                return ugroDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "OXYZO":
                 return oxyzoDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(),docType);
             default:

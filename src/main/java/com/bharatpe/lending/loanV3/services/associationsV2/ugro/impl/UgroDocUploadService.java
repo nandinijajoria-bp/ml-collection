@@ -6,17 +6,20 @@ import com.bharatpe.lending.common.enums.LenderAssociationStages;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
 import com.bharatpe.lending.dao.LendingKfsDao;
 import com.bharatpe.lending.entity.LendingKfs;
+import com.bharatpe.lending.loanV3.config.UgroConfig;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.dto.NBFCRequestDTO;
 import com.bharatpe.lending.loanV3.dto.NBFCResponseDTO;
 import com.bharatpe.lending.loanV3.dto.piramal.LenderAssociationDetailsRequestDto;
 import com.bharatpe.lending.loanV3.dto.request.ugro.UgroDocumentUploadRequest;
+import com.bharatpe.lending.loanV3.dto.response.ugro.UgroDocUploadResponse;
 import com.bharatpe.lending.loanV3.enums.DocType;
 import com.bharatpe.lending.loanV3.services.associations.piramal.CommonService;
 import com.bharatpe.lending.loanV3.services.associationsV2.ugro.validations.UgroPayloadValidation;
 import com.bharatpe.lending.loanV3.services.gateway.ILenderAPIGateway;
 import com.bharatpe.lending.loanV3.utils.DocUploadUtils;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.DocumentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +52,12 @@ public class UgroDocUploadService {
 
     @Autowired
     UgroPayloadValidation payloadValidation;
+
+    @Autowired
+    UgroConfig ugroConfig;
+
+    @Autowired
+    ObjectMapper objectMapper;
 
     @Transactional
     public boolean invokeDocUpload(LenderAssociationDetailsRequestDto lenderAssociationDetailsDto, String docType) {
@@ -199,20 +208,28 @@ public class UgroDocUploadService {
         return docUploadUtils.getS3PresignedUrlFromKey(key);
     }
 
-    public boolean invokeAdditionalDocUpload(LendingApplication lendingApplication, LendingApplicationLenderDetails lendingApplicationLenderDetails, String docType) {
+    public boolean invokeAdditionalDocUpload(LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, LendingApplicationLenderDetails lendingApplicationLenderDetails, String docType) {
         try {
-            NBFCRequestDTO<?> documentUploadRequest = getAdditionalDocPayload(lendingApplication, lendingApplicationLenderDetails, DocType.valueOf(docType));
+            NBFCRequestDTO<?> documentUploadRequest = getAdditionalDocPayload(lenderAssociationDetailsRequest.getLendingApplication(), lendingApplicationLenderDetails, DocType.valueOf(docType));
             if (ObjectUtils.isEmpty(documentUploadRequest) || ObjectUtils.isEmpty(documentUploadRequest.getPayload())) {
-                log.info("UGRO: error in doc upload payload for applicationId: {}", lendingApplication.getId());
+                log.info("UGRO: error in doc upload payload for applicationId: {}", lenderAssociationDetailsRequest.getLendingApplication().getId());
                 return false;
             }
 
-            NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.DOC_UPLOAD);
+            NBFCResponseDTO<UgroDocUploadResponse> nbfcResponseDto = lenderAPIGateway.invokeStage(documentUploadRequest, LenderAssociationStages.DOC_UPLOAD);
+            log.info("UGRO: Doc upload custom response: {}" + nbfcResponseDto);
+            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
+                UgroDocUploadResponse docUploadResponse = objectMapper.convertValue(nbfcResponseDto.getData(), UgroDocUploadResponse.class);
+                if(!ObjectUtils.isEmpty(docUploadResponse) && !ObjectUtils.isEmpty(docUploadResponse.getMsg()) && ugroConfig.getLeadExpiryResponse().equalsIgnoreCase(docUploadResponse.getMsg())){
+                    commonService.manageApplicationStateAndRejectApplication(lenderAssociationDetailsRequest);
+                    return false;
+                }
+            }
             if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && !ObjectUtils.isEmpty(nbfcResponseDto.getData())) {
                 return true;
             }
         } catch (Exception e) {
-            log.error("UGRO: exception occurred while invoking doc upload for {} {} {} {}", docType, lendingApplication.getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
+            log.error("UGRO: exception occurred while invoking doc upload for {} {} {} {}", docType, lenderAssociationDetailsRequest.getLendingApplication().getId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
         return false;
     }

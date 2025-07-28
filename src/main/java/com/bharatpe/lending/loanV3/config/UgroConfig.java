@@ -29,6 +29,7 @@ public class UgroConfig {
     private String closedResponse = "CLOSED";
     private String rejectedResponse = "REJECTED";
     private String disbursalType = "EventDisbursement";
+    private String leadExpiryResponse = "No active lead found";
 
     private String foreclosureTopic = "ugro-foreclose-loan";
 
