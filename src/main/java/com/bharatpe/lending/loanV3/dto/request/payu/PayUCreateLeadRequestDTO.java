@@ -62,6 +62,9 @@ public class PayUCreateLeadRequestDTO {
 
         @JsonProperty("kyc_consent")
         private boolean kycConsent;
+
+        @JsonProperty("udhyam_consent")
+        private boolean udhyamConsent;
     }
 
 }
