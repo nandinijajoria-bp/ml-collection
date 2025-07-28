@@ -287,6 +287,9 @@ public class AssociationServiceUtil {
     @Autowired
     PayUUpdateLeadService payUUpdateLeadService;
 
+    @Autowired
+    TLRetryService tlRetryService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -786,6 +789,15 @@ public class AssociationServiceUtil {
                 return payUUpdateLeadService.invokeBankAccountUpdation(lenderAssociationDetailsDto);
             default:
                 return false;
+        }
+    }
+
+    public Boolean handleRetryCallback(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, NBFCResponseDTO response) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlRetryService.processCallback(lenderAssociationDetailsRequest, response);
+            default:
+            return false;
         }
     }
 }

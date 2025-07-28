@@ -142,6 +142,10 @@ public class TLBreService {
                 scheduleBreExecution(breRequest, lenderAssociationDetailsRequestDto);
                 return false;
             }
+            if(LenderAssociationStatus.BRE_RETRY.name().equalsIgnoreCase(lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().getBreStatus())) {
+                log.info("bre request of trillionLoans pushed to retry for {}", lenderAssociationDetailsRequestDto.getApplicationId());
+                return false;
+            }
         } catch (Exception e) {
             log.error("error while invoking Bre of TrillionLoans for  {} {} {}", lenderAssociationDetailsRequestDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
@@ -321,10 +325,17 @@ public class TLBreService {
         try {
             NBFCResponseDTO nbfcResponseDto = lenderAPIGateway.invokeStage(breRequest, LenderAssociationStages.BRE, trillionLoansConfig.getBreTimeoutThreshold());
             log.info("BRE response from NBFC: {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsRequestDto.getApplicationId());
-            if (!ObjectUtils.isEmpty(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
-                TLBreResponseDto breResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLBreResponseDto.class);
-                if ("INITIATED".equalsIgnoreCase(breResponseDTO.getStatus())) {
-                    return true;
+            if (!ObjectUtils.isEmpty(nbfcResponseDto)) {
+                if(nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
+                    TLBreResponseDto breResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLBreResponseDto.class);
+                    if ("INITIATED".equalsIgnoreCase(breResponseDTO.getStatus())) {
+                        return true;
+                    }
+                }
+                if(nbfcResponseDto.getRetry() && (ObjectUtils.isEmpty(lenderAssociationDetailsRequestDto.getTopupParentLender()) || !LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lenderAssociationDetailsRequestDto.getTopupParentLender()))) {
+                    lenderAssociationDetailsRequestDto.getLendingApplicationLenderDetails().setBreStatus(LenderAssociationStatus.BRE_RETRY.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsRequestDto);
+                    return false;
                 }
             }
         } catch (Exception e) {

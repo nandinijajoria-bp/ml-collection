@@ -97,24 +97,32 @@ public class TLCreateClientService {
             }
             NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(createClientRequest, LenderAssociationStages.CREATE_CLIENT, trillionLoansConfig.getCreateClientTimeoutThreshold());
             log.info("create client response of TrillionLoans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsDto.getApplicationId());
-            if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
-                log.info("create client request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
-                TLCreateClientResponseDto createClientResponse = objectMapper.convertValue(nbfcResponseDto.getData(), TLCreateClientResponseDto.class);
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setCccId(createClientResponse.getClientId().toString());
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
-                commonService.manageApplicationState(lenderAssociationDetailsDto);
+            if (Objects.nonNull(nbfcResponseDto)) {
+                if(nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
+                    log.info("create client request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
+                    TLCreateClientResponseDto createClientResponse = objectMapper.convertValue(nbfcResponseDto.getData(), TLCreateClientResponseDto.class);
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setCccId(createClientResponse.getClientId().toString());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_SUCCESS.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsDto);
 
-                if (enableTlUpdateClient && eligibleForUpdateClient(createClientResponse.getClientId(), lendingApplication.getId())) {
-                    log.info("invoking update client request of TrillionLoans for {}", lenderAssociationDetailsDto.getApplicationId());
-                    NBFCResponseDTO<?> updateClientNbfcResponseDTO = updateClientDetailsForExceptionCases(lendingApplication, lenderAssociationDetailsDto.getCKycResponseDto(), createClientResponse.getClientId());
-                    if (Objects.nonNull(updateClientNbfcResponseDTO) && updateClientNbfcResponseDTO.getSuccess() && Objects.nonNull(updateClientNbfcResponseDTO.getData())) {
-                        log.info("UpdateClient request of TrillionLoans is success for {}", lenderAssociationDetailsDto.getApplicationId());
-                    } else {
-                        updateClientException = true;
-                        throw new Exception("update client response is null");
+                    if (enableTlUpdateClient && eligibleForUpdateClient(createClientResponse.getClientId(), lendingApplication.getId())) {
+                        log.info("invoking update client request of TrillionLoans for {}", lenderAssociationDetailsDto.getApplicationId());
+                        NBFCResponseDTO<?> updateClientNbfcResponseDTO = updateClientDetailsForExceptionCases(lendingApplication, lenderAssociationDetailsDto.getCKycResponseDto(), createClientResponse.getClientId());
+                        if (Objects.nonNull(updateClientNbfcResponseDTO) && updateClientNbfcResponseDTO.getSuccess() && Objects.nonNull(updateClientNbfcResponseDTO.getData())) {
+                            log.info("UpdateClient request of TrillionLoans is success for {}", lenderAssociationDetailsDto.getApplicationId());
+                        } else {
+                            updateClientException = true;
+                            throw new Exception("update client response is null");
+                        }
                     }
+                    return true;
                 }
-                return true;
+                if(nbfcResponseDto.getRetry()) {
+                    log.info("createClient request of trillionLoans pushed to retry for {}", lenderAssociationDetailsDto.getApplicationId());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_CLIENT_RETRY.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsDto);
+                    return false;
+                }
             }
         } catch (Exception e) {
             log.info("exception occurred while processing create client of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));
