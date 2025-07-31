@@ -215,7 +215,7 @@ public class LoanEligibleService {
             } catch (BureauCallMaskedApiException e) {
                 throw Exceptions.propagate(e);
             }
-        }).subscribeOn(Schedulers.boundedElastic());
+        }).subscribeOn(Schedulers.elastic());
     }
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, Integer ediModel) throws BureauCallMaskedApiException {
