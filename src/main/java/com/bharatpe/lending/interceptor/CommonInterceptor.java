@@ -162,7 +162,7 @@ public class CommonInterceptor implements HandlerInterceptor {
             String requestBody = interceptorRequestWrapper.getBody();
             if(!StringUtils.isEmpty(requestBody)) {
                 ObjectMapper mapper = new ObjectMapper();
-                paramMap = mapper.readValue(requestBody, new TypeReference<Map<String, Object>>(){});
+                paramMap = mapper.readValue(requestBody, new TypeReference<Map<String, String>>(){});
             }
         }
         if(paramMap != null && !paramMap.isEmpty())
