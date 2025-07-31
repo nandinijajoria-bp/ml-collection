@@ -1214,21 +1214,7 @@ public class MerchantLoansService {
                     }
                 }
 
-                List<GlobalLimitResponse.OfferDetail> offerDetails = globalLimitResponse.getData().getOfferDetails();
-
-                Set<Double> processedAmounts = new HashSet<>();
-                List<LendingEligibleLoan> loansByEligibleAmount = new ArrayList<>();
-
-                for (GlobalLimitResponse.OfferDetail offerDetail : offerDetails) {
-                    Double loanAmount = offerDetail.getLoanAmount();
-                    if (!processedAmounts.contains(loanAmount)) {
-                        processedAmounts.add(loanAmount);
-                        loansByEligibleAmount.addAll(
-                                loanDetailsServiceV2.recomputeEligibleLoanV2(globalLimitResponse, loanAmount, lendingPaymentSchedule.getMerchantId())
-                        );
-                        log.info("Processed loanAmount: {}, loansByEligibleAmount size: {}", loanAmount, loansByEligibleAmount.size());
-                    }
-                }
+                eligibleLoanList = loanDetailsServiceV2.recomputeEligibleLoanV2(globalLimitResponse, eligibleAmount, lendingPaymentSchedule.getMerchantId());
             }
 
             double prevLoanUnpaidAmount = getPreviousLoanAmount(lendingPaymentSchedule);
