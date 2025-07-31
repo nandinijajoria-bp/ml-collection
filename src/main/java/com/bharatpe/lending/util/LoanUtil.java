@@ -1229,7 +1229,8 @@ public class LoanUtil {
 	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			if (lendingRiskVariables != null) {
+			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
