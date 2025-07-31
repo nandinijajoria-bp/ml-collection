@@ -41,7 +41,7 @@ public class SaveSignedLoanDocsConsumer {
         log.info("saving loan docs : {}", data);
         Long applicationId = null;
         try {
-            Map<String, String> signedLoanDocsMap = objectMapper.readValue(data, new TypeReference<Map<String, Object>>() {});
+            Map<String, String> signedLoanDocsMap = objectMapper.readValue(data, new TypeReference<Map<String, String>>() {});
             if (Objects.isNull(signedLoanDocsMap.get("application_id")) ||
                     Objects.isNull(signedLoanDocsMap.get("signed_kfs")) ||
                     Objects.isNull(signedLoanDocsMap.get("signed_sanction_letter"))) {
