@@ -75,6 +75,9 @@ import org.springframework.util.ObjectUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
+import reactor.core.Exceptions;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -204,6 +207,16 @@ public class LoanEligibleService {
 
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
+
+    public Mono<EligibleLendingOffersResponseDTO> getEligibilityDetailsReactive(Long merchantId, Double queryAmount, Integer ediModel) {
+        return Mono.fromCallable(() -> {
+            try {
+                return getEligibilityDetails(merchantId, queryAmount, ediModel);
+            } catch (BureauCallMaskedApiException e) {
+                throw Exceptions.propagate(e);
+            }
+        }).subscribeOn(Schedulers.boundf());
+    }
 
     public EligibleLendingOffersResponseDTO getEligibilityDetails(Long merchantId, Double queryAmount, Integer ediModel) throws BureauCallMaskedApiException {
 

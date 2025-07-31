@@ -21,9 +21,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
@@ -238,6 +240,31 @@ public class LoanDetailsController {
 		logger.info("EligibleLendingOffers response: {}", resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}
+
+	@RequestMapping(value = "/eligible_offers/v2", method = RequestMethod.GET,
+			consumes = MediaType.APPLICATION_JSON_VALUE,
+			produces = MediaType.APPLICATION_JSON_VALUE)
+	public Mono<ResponseEntity<EligibleLendingOffersResponseDTO>> getEligibleOfferDetailsV2(
+			@RequestAttribute BasicDetailsDto merchant,
+			@RequestParam(name = "query_amount", required = true) Double queryAmount,
+			@RequestParam(name = "edi_model", required = false) Integer ediModel) {
+
+		final Integer finalEdiModel = (ediModel == null) ? lendingEdiModel : ediModel;
+
+		logger.info("EligibleLendingOffers request with merchant_id: {}, query_amount: {}, ediModel : {}",
+				merchant.getId(), queryAmount, finalEdiModel);
+
+		return loanEligibleService.getEligibilityDetailsReactive(merchant.getId(), queryAmount, finalEdiModel)
+				.doOnNext(resp -> logger.info("EligibleLendingOffers response: {}", resp))
+				.map(ResponseEntity::ok)
+				.onErrorResume(BureauCallMaskedApiException.class, ex -> {
+					logger.error("Bureau call error for merchant: {}", merchant.getId(), ex);
+					return Mono.just(ResponseEntity
+							.status(HttpStatus.SERVICE_UNAVAILABLE)
+							.body(new EligibleLendingOffersResponseDTO(false, ex.getMessage())));
+				});
+	}
+
 
 	@RequestMapping(value = "/eligible_loan", method = RequestMethod.POST, consumes = "application/json", produces = "application/json")
 	public ResponseEntity<ResponseDTO> updateEligibleLoanAmount(@RequestAttribute BasicDetailsDto merchant, @RequestBody(required = false) EligibleLoanUpdateRequestDTO requestDTO) {

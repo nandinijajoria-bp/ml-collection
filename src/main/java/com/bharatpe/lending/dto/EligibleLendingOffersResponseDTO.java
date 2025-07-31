@@ -37,6 +37,11 @@ public class EligibleLendingOffersResponseDTO {
         this.eligibleOfferDetails = new EligibleOfferDetails(amount, tenures);
     }
 
+    public EligibleLendingOffersResponseDTO(boolean b, String message) {
+        this.success = b;
+        this.message = message;
+    }
+
     public class TenureDetails {
 
         private String category;
