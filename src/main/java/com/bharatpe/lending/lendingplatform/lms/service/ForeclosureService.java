@@ -122,7 +122,7 @@ public class ForeclosureService {
 
     public int getForeclosureAmount(LendingPaymentSchedule activeLoan) {
         try {
-            LendingApplication lendingApplication = loanDetailsService.getLendingApplicationDetails(activeLoan.getMerchantId());
+            LendingApplication lendingApplication = loanDetailsService.getLendingApplicationByApplicationId(activeLoan.getApplicationId());
             Map<String, String> requestParams = new HashMap<>();
             requestParams.put("bpLoanId", lendingApplication.getExternalLoanId());
             ApiResponse<ForeclosureDetailsResponse> foreclosureResponse = lendingPlatformHttpClient.sendGetRequestWithParams(GET_FORECLOSURE_AMOUNT,
