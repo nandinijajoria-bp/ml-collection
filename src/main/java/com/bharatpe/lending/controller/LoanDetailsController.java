@@ -288,7 +288,7 @@ public class LoanDetailsController {
 			@RequestAttribute(required = false) BasicDetailsDto merchant,
 			@RequestHeader(value = "token", required = false) String token,
 			@RequestParam(required = false) Long merchantId,
-			@RequestHeader(value = "clientIdentifier", required = false) String clientIdentifier
+			@RequestParam(required = false) String clientIdentifier
 	) {
 		if (Objects.nonNull(merchant)){
 			merchantId = merchant.getId();
