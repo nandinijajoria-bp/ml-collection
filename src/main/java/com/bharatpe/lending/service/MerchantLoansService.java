@@ -1224,7 +1224,7 @@ public class MerchantLoansService {
 
             // Process each eligible loan
             for (LendingEligibleLoan eligibleLoan : eligibleLoanList) {
-                log.info("eligible loan for topUp: {}", eligibleLoan);
+                log.info("Processing eligible loan: {}", eligibleLoan);
 
                 LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(
                         lendingPaymentSchedule.getMerchantId());
