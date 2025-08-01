@@ -1727,6 +1727,7 @@ public class APIGatewayService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("hash", hash);
         headers.set("clientName", CLIENT);
+        headers.set("clientIdentifier", offerCheckedBy.name().trim());
         headers.set("X-API-KEY", xApiKeyUnderwritingService);
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         logger.info("Get Scenaptic Limit request: {} for merchant : {}, Url :{}", request, merchantId, url);
