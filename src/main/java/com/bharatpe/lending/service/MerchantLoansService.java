@@ -713,7 +713,7 @@ public class MerchantLoansService {
         return responseDTO;
     }
 
-    public TopupEligibilityResponseData getTopupEligibility(String token, Long merchantId) {
+    public TopupEligibilityResponseData getTopupEligibility(String token, Long merchantId, String clientIdentifier) {
         TopupEligibilityResponseData response = new TopupEligibilityResponseData();
         LendingPaymentScheduleSlave lendingPaymentSchedule = lendingPaymentScheduleDaoSlave.findByMerchantIdAndStatus(merchantId, Arrays.asList("ACTIVE", "DECEASED"));
         if (lendingPaymentSchedule == null) {
@@ -721,7 +721,7 @@ public class MerchantLoansService {
             response.setMessage("No active loan found for the merchant");
             return response;
         }
-        List<LoanEligibilityDTO> loans = topupLoanV2(lendingPaymentSchedule, false);
+        List<LoanEligibilityDTO> loans = topupLoanV2(lendingPaymentSchedule, false, clientIdentifier);
         setTopupDetails(merchantId, loans, response, lendingPaymentSchedule);
         // TODO merge 1LMS topup eligibility, once topup is started for 1LMS
         return response;
@@ -1088,7 +1088,7 @@ public class MerchantLoansService {
         return !LoanType.TOPUP.name().equals(lendingApplication.getLoanType());
     }
 
-    public List<LoanEligibilityDTO> topupLoanV2(LendingPaymentScheduleSlave lendingPaymentSchedule, boolean createTopupAppCheck) {
+    public List<LoanEligibilityDTO> topupLoanV2(LendingPaymentScheduleSlave lendingPaymentSchedule, boolean createTopupAppCheck, String clientIdentifier) {
         log.info("calculating topup loan eligibility for merchantId: {}", lendingPaymentSchedule.getMerchantId());
 
         LendingApplication lendingApplication =
@@ -1106,7 +1106,7 @@ public class MerchantLoansService {
             if (!excludeTopUpBaseChecks(lendingPaymentSchedule.getMerchantId())) {
 
                 if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(lendingPaymentSchedule.getNbfc())) {
-                    return ExistingTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
+                    return ExistingTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, clientIdentifier);
                 }
 
                 double paidRatio = 0d;
@@ -1117,7 +1117,7 @@ public class MerchantLoansService {
                 if (lendingApplication.getTenureInMonths() < 12) {
                     if (paidRatio > 0.5D && paidRatio <= 0.95D) {
                         log.info("topup tenure {} months of merchantId: {}", lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
-                        return ExistingTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
+                        return ExistingTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, clientIdentifier);
                     } else {
                         addRejectionReason(eligiblity, "Paid ratio requirement not met for tenure < 12 months");
                         log.info("Paid ratio {} not in range (0.5-0.95) for tenure {} months, merchantId: {}",
@@ -1129,7 +1129,7 @@ public class MerchantLoansService {
                 if (lendingApplication.getTenureInMonths() >= 12) {
                     if (TRILLIONLOANS.name().equalsIgnoreCase(lendingApplication.getLender()) || (paidRatio > 0.75D && paidRatio <= 0.95D)) {
                         log.info("topup tenure {} months of merchantId: {}", lendingApplication.getTenureInMonths(), lendingPaymentSchedule.getMerchantId());
-                        return AdditionalTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck);
+                        return AdditionalTopupRuleEngineV2(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, clientIdentifier);
                     } else {
                         addRejectionReason(eligiblity, "Paid ratio requirement not met for tenure >= 12 months");
                         log.info("Paid ratio {} not in range (0.75-0.95) and lender is not TRILLIONLOANS for tenure {} months, merchantId: {}",
@@ -1147,23 +1147,22 @@ public class MerchantLoansService {
         return eligiblity;
     }
 
-    private List<LoanEligibilityDTO> AdditionalTopupRuleEngineV2(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck) {
-        return processTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, true);
+    private List<LoanEligibilityDTO> AdditionalTopupRuleEngineV2(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck, String clientIdentifier) {
+        return processTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, true, clientIdentifier);
 
     }
 
 
-    private List<LoanEligibilityDTO> ExistingTopupRuleEngineV2(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck) {
-        return processTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, false);
+    private List<LoanEligibilityDTO> ExistingTopupRuleEngineV2(LendingPaymentScheduleSlave lendingPaymentSchedule, LendingApplication lendingApplication, boolean createTopupAppCheck, String clientIdentifier) {
+        return processTopupRuleEngine(lendingPaymentSchedule, lendingApplication, createTopupAppCheck, false, clientIdentifier);
     }
 
     private List<LoanEligibilityDTO> processTopupRuleEngine(LendingPaymentScheduleSlave lendingPaymentSchedule,
                                                             LendingApplication lendingApplication,
                                                             boolean createTopupAppCheck,
-                                                            boolean isAdditionalTopup) {
+                                                            boolean isAdditionalTopup, String clientIdentifier) {
         List<LoanEligibilityDTO> eligibility = new ArrayList<>();
         try {
-            Long experianId = null;
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
 
             List<LendingEligibleLoan> eligibleLoanList = null;
@@ -1180,7 +1179,7 @@ public class MerchantLoansService {
             if (CollectionUtils.isEmpty(eligibleLoanList)) {
                 Double eligibleAmount = 0D;
                 GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimitV2(
-                        lendingPaymentSchedule.getMerchantId(), EligibilityRequestSource.EASY_LOANS);
+                        lendingPaymentSchedule.getMerchantId(), EligibilityRequestSource.TOPUP_SCHEDULER.name().equalsIgnoreCase(clientIdentifier) ? EligibilityRequestSource.TOPUP_SCHEDULER : EligibilityRequestSource.EASY_LOANS);
 
                 if (Objects.isNull(globalLimitResponse) || Objects.isNull(globalLimitResponse.getData())) {
                     log.info("Global Limit not found");
