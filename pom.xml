@@ -34,10 +34,24 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
+        <!-- Project Reactor - specify version that includes TopicProcessor -->
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
-            <version>3.4.0</version>
+            <version>3.3.22.RELEASE</version> <!-- This version still has TopicProcessor -->
+        </dependency>
+
+        <!-- For RxJava integration -->
+        <dependency>
+            <groupId>io.reactivex.rxjava2</groupId>
+            <artifactId>rxjava</artifactId>
+            <version>2.2.21</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.projectreactor.addons</groupId>
+            <artifactId>reactor-adapter</artifactId>
+            <version>3.3.3.RELEASE</version> <!-- Compatible with reactor-core 3.3.x -->
         </dependency>
 
         <dependency>
