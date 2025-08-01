@@ -5,7 +5,6 @@ public enum EligibilityRequestSource {
     FOS,
     RTE,
     SUPPORT,
-    LMS_BULK,
-    TOPUP_SCHEDULER
+    LMS_BULK
 
 }
