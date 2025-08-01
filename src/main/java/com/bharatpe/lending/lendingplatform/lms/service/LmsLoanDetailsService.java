@@ -20,6 +20,7 @@ import com.bharatpe.lending.lendingplatform.lms.client.LendingPlatformHttpClient
 import com.bharatpe.lending.lendingplatform.lms.constant.Constants;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.ApiResponse;
 import com.bharatpe.lending.lendingplatform.lms.dto.response.LoanDetailsResponse;
+import com.bharatpe.lending.lendingplatform.nbfc.exception.LendingApplicationNotFoundException;
 import com.bharatpe.lending.loanV3.dto.CKycResponseDto;
 import com.bharatpe.lending.loanV3.utils.KycUtils;
 import com.bharatpe.lending.util.LoanUtil;
@@ -31,6 +32,7 @@ import org.springframework.util.ObjectUtils;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.bharatpe.lending.lendingplatform.lms.constant.Constants.ApiEndPointConstants.GET_LOAN_SUMMARY;
 
@@ -129,6 +131,14 @@ public class LmsLoanDetailsService {
 
     public LendingApplication getLendingApplicationDetails(Long merchantId){
         return lendingApplicationDao.findTop1ByMerchantIdOrderByIdDesc(merchantId);
+    }
+
+    public LendingApplication getLendingApplicationByApplicationId(Long applicationId) {
+        Optional<LendingApplication> lendingApplicationOptional = lendingApplicationDao.findById(applicationId);
+        if (!lendingApplicationOptional.isPresent()) {
+            throw new LendingApplicationNotFoundException("Lending application not found for application id: " + applicationId);
+        }
+        return lendingApplicationOptional.get();
     }
 
     public List<LendingShopDocuments> getShopFrontImage(Long merchantId, Long applicationId) {
