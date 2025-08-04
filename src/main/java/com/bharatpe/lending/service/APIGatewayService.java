@@ -1715,7 +1715,7 @@ public class APIGatewayService {
         }
 
         // Set 40-second timeout
-        int timeout = 40000;
+        int timeout = 35000;
 
         // Create custom RestTemplate with timeout configuration
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
