@@ -1257,7 +1257,7 @@ public class MerchantLoansService {
 
                 eligibility.add(loanEligibilityDTO);
                 log.info("eligible loan for topUp: {}", eligibleLoan);
-                eligibleLoanDao.save(eligibleLoan);
+                //eligibleLoanDao.save(eligibleLoan);
             }
 
             // Update pilot identifier only for additional topup
@@ -1272,7 +1272,7 @@ public class MerchantLoansService {
                     pilotIdentifier = TOPUP_PILOT_IDENTIFIER;
                 }
                 lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
-                lendingRiskVariablesDao.save(lendingRiskVariables);
+                //lendingRiskVariablesDao.save(lendingRiskVariables);
             }
 
         } catch (Exception e) {

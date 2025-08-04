@@ -1983,6 +1983,8 @@ public class LoanUtil {
 				.processingFeeRate(tenureDetail.getProcessingFee())
 				.build();
 		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		eligibleLoanDao.saveAll(eligibleLoanList);
+		eligibleLoanDao.flush();
 		return sevenDayEligibleLoanOffer;
 	}
 
