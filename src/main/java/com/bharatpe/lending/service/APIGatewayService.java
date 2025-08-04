@@ -74,10 +74,12 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
@@ -120,6 +122,10 @@ public class APIGatewayService {
 
     @Value("${pg.percent:10}")
     Integer pgPercent;
+
+    @Autowired
+    @Qualifier("restTemplateHigh")
+    private RestTemplate restTemplateHigh;
 
     @Getter
     @Value("${upi.percent}")
@@ -1666,12 +1672,13 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimitV2(Long merchantId, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimitV2(merchantId, null, null, clubV2, null, null, null, null, false, null, null, true,null, null, false,offerCheckedBy);
+        return getGlobalLimitV2(merchantId, null, null, clubV2, null, null, null, null, false, null, null,null, null, false,offerCheckedBy);
     }
+
 
     public GlobalLimitResponse getGlobalLimitV2(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                                 String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
-                                                Boolean skipMaskedMobileException, String sessionId, String offerType, boolean useCache, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException  {
+                                                Boolean skipMaskedMobileException, String sessionId, String offerType, LoanDetailsResponse loanDetailsResponse, EligibilityStateDTO eligibilityStateDTO, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException  {
         logger.info("Get global limit for merchant:{}", merchantId);
         boolean isPincodeChanged = false;
         if(!ObjectUtils.isEmpty(eligibilityStateDTO)){
@@ -1679,12 +1686,10 @@ public class APIGatewayService {
         }
         boolean finalIsPincodeChanged = isPincodeChanged;
 
-        return getScenapticTopUpOffer(merchantId, source, appVersion, clubV2, useCache, finalIsPincodeChanged, sessionId, flagForUwToSkipCache,offerCheckedBy);
+        return getScenapticTopUpOffer(merchantId, source, appVersion, clubV2, finalIsPincodeChanged, sessionId, flagForUwToSkipCache,offerCheckedBy);
 
     }
-
-
-    public GlobalLimitResponse getScenapticTopUpOffer(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean useCache, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
+    public GlobalLimitResponse getScenapticTopUpOffer(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
         logger.info("Get scienaptic TopUp offer for merchant:{}", merchantId);
 
         Map<String, Object> requestParams = new HashMap<String, Object>() {{
@@ -1731,7 +1736,7 @@ public class APIGatewayService {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         logger.info("Get Scenaptic Limit request: {} for merchant : {}, Url :{}", request, merchantId, url);
         try {
-            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            ResponseEntity<String> responseEntity = restTemplateHigh.exchange(url, HttpMethod.POST, request, String.class);
 
             logger.info("Get Scenaptic Limit string response: {} for merchant : {}", responseEntity.getBody(), merchantId);
 
@@ -1746,9 +1751,6 @@ public class APIGatewayService {
             GlobalLimitResponse globalLimitResponse = objectMapper.treeToValue(actualObj, GlobalLimitResponse.class);
             logger.info("Get Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
             if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && globalLimitResponse.isSuccess()) {
-                if(useCache && easyLoanUtil.percentScaleUp(merchantId, lendingScenapticCachingPercent)) {
-                    globalAPICacheService.cacheGlobalLimitResponse(merchantId, mapperUtil.getJsonString(request), mapperUtil.getJsonString(responseEntity.getBody()));
-                }
                 logger.info("Global limit response for merchantId: {} {}", merchantId, globalLimitResponse);
                 return globalLimitResponse;
             }
