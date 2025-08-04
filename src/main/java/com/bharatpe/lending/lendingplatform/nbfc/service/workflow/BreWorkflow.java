@@ -56,8 +56,7 @@ public class BreWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
             return false;
         }
-        invokeBRE(applicationId, lendingApplication, lald, breRequest);
-        return true;
+        return invokeBRE(applicationId, lendingApplication, lald, breRequest);
     }
 
     @Override
@@ -65,22 +64,23 @@ public class BreWorkflow implements Workflow {
         return BRE_WORKFLOW;
     }
 
-    private void invokeBRE(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald, LenderBaseRequest<BRERequest> breRequest) {
+    private boolean invokeBRE(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald, LenderBaseRequest<BRERequest> breRequest) {
         LenderApiResponse<BREResponse> response = lendingPlatformClient.initiateBRE(breRequest);
-        processBREResponse(applicationId, lendingApplication, lald, response);
+        return processBREResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processBREResponse(String applicationID, LendingApplication lendingApplication,
+    private boolean processBREResponse(String applicationID, LendingApplication lendingApplication,
                                     LendingApplicationLenderDetails lald, LenderApiResponse<BREResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isBREResponseDataSuccess(response)){
             log.info("BRE response failure for application id {}", applicationID);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, RISK_FAILED);
-            return;
+            return false;
         }
         log.info("BRE response success for application id {}", applicationID);
         lald.setLeadSubStatus(LeadSubStatus.CALLBACK_PENDING);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
     private boolean isBREResponseDataSuccess(LenderApiResponse<BREResponse> response) {
         return INITIATED.equalsIgnoreCase(response.getData().getStatus());

@@ -50,8 +50,7 @@ public class UpdateLeadWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, UPDATE_LEAD_FAILED);
             return false;
         }
-        invokeUpdateLead(applicationId, lendingApplication, lald, updateLeadRequest);
-        return true;
+        return invokeUpdateLead(applicationId, lendingApplication, lald, updateLeadRequest);
     }
 
     @Override
@@ -59,23 +58,24 @@ public class UpdateLeadWorkflow implements Workflow {
         return UPDATE_LEAD_WORKFLOW;
     }
 
-    private void invokeUpdateLead(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeUpdateLead(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                   LenderBaseRequest<UpdateLeadRequest> updateLeadRequest) {
         LenderApiResponse<UpdateLeadResponse> response = lendingPlatformClient.initiateUpdateLead(updateLeadRequest);
-        processUpdateLeadResponse(applicationId, lendingApplication, lald, response);
+        return processUpdateLeadResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processUpdateLeadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processUpdateLeadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                            LenderApiResponse<UpdateLeadResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isUpdateLeadResponseDataSuccess(response)) {
             log.info("Update lead response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, UPDATE_LEAD_FAILED);
-            return;
+            return false;
         }
         log.info("Update lead response success for application id {}", applicationId);
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 
     private boolean isUpdateLeadResponseDataSuccess(LenderApiResponse<UpdateLeadResponse> response) {

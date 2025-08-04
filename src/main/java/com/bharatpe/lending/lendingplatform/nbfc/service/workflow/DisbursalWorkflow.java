@@ -67,22 +67,21 @@ public class DisbursalWorkflow implements Workflow {
             lendingApplicationLenderDetailsService.save(lald);
             return false;
         }
-        invokeLoanDisbursal(applicationId, lendingApplication, lald, loanDisbursalRequest);
-        return true;
+        return invokeLoanDisbursal(applicationId, lendingApplication, lald, loanDisbursalRequest);
     }
 
     @Override
     public String getWorkflowName() {
         return DISBURSAL_WORKFLOW;
     }
-    private void invokeLoanDisbursal(String applicationId, LendingApplication lendingApplication,
+    private boolean invokeLoanDisbursal(String applicationId, LendingApplication lendingApplication,
                                      LendingApplicationLenderDetails lald,
                                      LenderBaseRequest<LoanDisbursalRequest> loanDisbursalRequest) {
         LenderApiResponse<LoanDisbursalResponse> response = lendingPlatformClient.initiateLoanDisbursal(loanDisbursalRequest);
-        processLoanDisbursalResponse(applicationId, lendingApplication, lald, response);
+        return processLoanDisbursalResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processLoanDisbursalResponse(String applicationID, LendingApplication lendingApplication,
+    private boolean processLoanDisbursalResponse(String applicationID, LendingApplication lendingApplication,
                                               LendingApplicationLenderDetails lald,
                                               LenderApiResponse<LoanDisbursalResponse> response) {
         Lender lender = Lender.valueOf(lendingApplication.getLender());
@@ -92,7 +91,7 @@ public class DisbursalWorkflow implements Workflow {
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lald.setDrawDownStatus(LenderAssociationStatus.DRAWDOWN_FAILED.name());
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
 
         log.info("Loan disbursal response success for application id {}", applicationID);
@@ -103,6 +102,7 @@ public class DisbursalWorkflow implements Workflow {
         updateLald(lald, workflowRegistry);
         updateLendingApplication(lendingApplication);
         updateLad(applicationID, workflowRegistry);
+        return true;
     }
 
     private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {

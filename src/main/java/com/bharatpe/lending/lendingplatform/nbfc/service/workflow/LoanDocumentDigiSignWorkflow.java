@@ -50,8 +50,7 @@ public class LoanDocumentDigiSignWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, DIGI_SIGN_FAILED);
             return false;
         }
-        invokeLoanDocumentDigiSign(applicationId, lendingApplication, lald, loanDocumentDigiSignRequest);
-        return true;
+        return invokeLoanDocumentDigiSign(applicationId, lendingApplication, lald, loanDocumentDigiSignRequest);
     }
 
     @Override
@@ -59,23 +58,24 @@ public class LoanDocumentDigiSignWorkflow implements Workflow {
         return LOAN_DOCUMENT_DIGI_SIGN_WORKFLOW;
     }
 
-    private void invokeLoanDocumentDigiSign(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeLoanDocumentDigiSign(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                             LenderBaseRequest<LoanDocumentDigiSignRequest> loanDocumentDigiSignRequest) {
         LenderApiResponse<LoanDocumentDigiSignResponse> response = lendingPlatformClient.initiateDigiSign(loanDocumentDigiSignRequest);
-        processLoanDocumentDigiSignResponse(applicationId, lendingApplication, lald, response);
+        return processLoanDocumentDigiSignResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processLoanDocumentDigiSignResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processLoanDocumentDigiSignResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                                      LenderApiResponse<LoanDocumentDigiSignResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isDigiSignResponseDataSuccess(response)) {
             log.info("Digi sign response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, DIGI_SIGN_FAILED);
-            return;
+            return false;
         }
         log.info("Digi sign response success for application id {}", applicationId);
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 
     private boolean isDigiSignResponseDataSuccess(LenderApiResponse<LoanDocumentDigiSignResponse> response) {

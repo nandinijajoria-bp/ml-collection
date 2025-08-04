@@ -50,8 +50,7 @@ public class KYCDocumentWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
             return false;
         }
-        invokeKYCDocumentUpload(applicationId, lendingApplication, lald, kycDocumentUploadRequest);
-        return true;
+        return invokeKYCDocumentUpload(applicationId, lendingApplication, lald, kycDocumentUploadRequest);
     }
 
     @Override
@@ -59,25 +58,26 @@ public class KYCDocumentWorkflow implements Workflow {
         return KYC_DOCUMENT_WORKFLOW;
     }
 
-    private void invokeKYCDocumentUpload(String applicationId, LendingApplication lendingApplication,
+    private boolean invokeKYCDocumentUpload(String applicationId, LendingApplication lendingApplication,
                                          LendingApplicationLenderDetails lald,
                                          LenderBaseRequest<KYCDocumentUploadRequest> kycDocumentUploadRequest) {
         LenderApiResponse<KYCDocumentUploadResponse> response = lendingPlatformClient.initiateKYCDocumentUpload(kycDocumentUploadRequest);
-        processKYCDocumentUploadResponse(applicationId, lendingApplication, lald, response);
+        return processKYCDocumentUploadResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processKYCDocumentUploadResponse(String applicationId, LendingApplication lendingApplication,
+    private boolean processKYCDocumentUploadResponse(String applicationId, LendingApplication lendingApplication,
                                                   LendingApplicationLenderDetails lald,
                                                   LenderApiResponse<KYCDocumentUploadResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isKYCDocUploadResponseDataSuccess(response)) {
             log.info("KYC doc upload response failure for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
-            return;
+            return false;
         }
         log.info("KYC doc upload response success for application id {}", applicationId);
         lald.setLeadSubStatus(LeadSubStatus.CALLBACK_PENDING);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 
     private boolean isKYCDocUploadResponseDataSuccess(LenderApiResponse<KYCDocumentUploadResponse> response) {

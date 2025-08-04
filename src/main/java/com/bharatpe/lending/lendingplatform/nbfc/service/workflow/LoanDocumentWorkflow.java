@@ -55,8 +55,7 @@ public class LoanDocumentWorkflow implements Workflow {
             lendingApplicationLenderDetailsService.save(lald);
             return false;
         }
-        invokeDocumentUpload(applicationId, lendingApplication, lald, loanDocumentUploadRequest);
-        return true;
+        return invokeDocumentUpload(applicationId, lendingApplication, lald, loanDocumentUploadRequest);
     }
 
     @Override
@@ -64,19 +63,19 @@ public class LoanDocumentWorkflow implements Workflow {
         return LOAN_DOCUMENT_WORKFLOW;
     }
 
-    private void invokeDocumentUpload(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeDocumentUpload(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                       LenderBaseRequest<LoanDocumentUploadRequest> request) {
         LenderApiResponse<LoanDocumentUploadResponse> response = lendingPlatformClient.initateLoanDocUpload(request);
-        processLoanDocumentUploadResponse(applicationId, lendingApplication, lald, response);
+        return processLoanDocumentUploadResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processLoanDocumentUploadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processLoanDocumentUploadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                                    LenderApiResponse<LoanDocumentUploadResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isDocUploadResponseDataSuccess(response)) {
             log.info("Doc upload response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         log.info("Doc upload response success for application id {}", applicationId);
 
@@ -84,6 +83,7 @@ public class LoanDocumentWorkflow implements Workflow {
                 .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
         updateLad(applicationId, workflowRegistry);
         updateLald(lald, workflowRegistry);
+        return true;
     }
 
     private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {

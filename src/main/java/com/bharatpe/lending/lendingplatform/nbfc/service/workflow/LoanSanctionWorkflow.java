@@ -49,8 +49,7 @@ public class LoanSanctionWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, SANCTION_FAILED);
             return false;
         }
-        invokeLoanSanction(applicationId, lendingApplication, lald, loanSanctionRequest);
-        return true;
+        return invokeLoanSanction(applicationId, lendingApplication, lald, loanSanctionRequest);
     }
 
     @Override
@@ -58,23 +57,24 @@ public class LoanSanctionWorkflow implements Workflow {
         return LOAN_SANCTION_WORKFLOW;
     }
 
-    private void invokeLoanSanction(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeLoanSanction(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                     LenderBaseRequest<LoanSanctionRequest> loanSanctionRequest) {
         LenderApiResponse<Boolean> response = lendingPlatformClient.initiateLoanSanction(loanSanctionRequest);
-        processLoanSanctionResponse(applicationId, lendingApplication, lald, response);
+        return processLoanSanctionResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processLoanSanctionResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processLoanSanctionResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                              LenderApiResponse<Boolean> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isLoanSanctionResponseDataSuccess(response)) {
             log.info("Loan sanction response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, SANCTION_FAILED);
-            return;
+            return false;
         }
         log.info("Loan sanction response success for application id {}", applicationId);
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 
     private boolean isLoanSanctionResponseDataSuccess(LenderApiResponse<Boolean> response) {

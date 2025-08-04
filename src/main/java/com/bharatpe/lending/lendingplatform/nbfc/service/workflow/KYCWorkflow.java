@@ -50,8 +50,7 @@ public class KYCWorkflow implements Workflow {
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
             return false;
         }
-        invokeKYC(applicationId, lendingApplication, lald, kycRequest);
-        return true;
+        return invokeKYC(applicationId, lendingApplication, lald, kycRequest);
     }
 
     @Override
@@ -59,24 +58,25 @@ public class KYCWorkflow implements Workflow {
         return KYC_WORKFLOW;
     }
 
-    private void invokeKYC(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeKYC(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                            LenderBaseRequest<KYCRequest> kycRequest) {
         LenderApiResponse<KYCResponse> response = lendingPlatformClient.initiateKYC(kycRequest);
-        processKYCResponse(applicationId, lendingApplication, lald, response);
+        return processKYCResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processKYCResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processKYCResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                     LenderApiResponse<KYCResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isKYCSResponseDataSuccess(response)) {
             log.info("Kyc response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             nbfcUtils.modifyLender(lendingApplication, lald, KYC_FAILED);
-            return;
+            return false;
         }
         log.info("KYC response success for application id {}", applicationId);
         lald.setLeadStatus(response.getData().getKycType().name());
         lald.setLeadSubStatus(LeadSubStatus.CALLBACK_PENDING);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 
     private boolean isKYCSResponseDataSuccess(LenderApiResponse<KYCResponse> response) {
