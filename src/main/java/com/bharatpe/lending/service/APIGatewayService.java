@@ -1731,7 +1731,7 @@ public class APIGatewayService {
 
         HttpEntity<Void> httpEntity = new HttpEntity<>(headers);
 
-        String url = underwritingServiceBaseUrl + "/v1/global/limit" + queryParams.toString();
+        String url = underwritingServiceBaseUrl + "/api/v1/underwriting/eligibility" + queryParams;
         logger.info("Calling Scenaptic with URL:{} for merchant:{}", url, merchantId);
 
         try {
