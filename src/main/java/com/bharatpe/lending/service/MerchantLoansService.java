@@ -1427,8 +1427,8 @@ public class MerchantLoansService {
 
             BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
             eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-            loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(),
-                    processingFee, eligibleLoan.getAmount(), topupLender);
+//            loanUtil.setEligibleLoan(eligibleLoan, pricingExperiment.getInterestRate(),
+//                    processingFee, eligibleLoan.getAmount(), topupLender);
 
             return processingFee;
         }
@@ -1450,8 +1450,8 @@ public class MerchantLoansService {
 
             BigDecimal pfRate = processingFeeRateBD.divide(new BigDecimal(100), 4, RoundingMode.DOWN);
             eligibleLoan.setProcessingFeeRate(pfRate.doubleValue());
-            loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(),
-                    processingFee, eligibleLoan.getAmount(), topupLender);
+//            loanUtil.setEligibleLoan(eligibleLoan, lenderPricing.getInterestRate(),
+//                    processingFee, eligibleLoan.getAmount(), topupLender);
 
             return processingFee;
         }
