@@ -123,6 +123,10 @@ public class APIGatewayService {
     @Value("${pg.percent:10}")
     Integer pgPercent;
 
+    @Autowired
+    @Qualifier("restTemplateHigh")
+    private RestTemplate restTemplateHigh;
+
     @Getter
     @Value("${upi.percent}")
     Integer upiPercent;
@@ -1685,79 +1689,95 @@ public class APIGatewayService {
         return getScenapticTopUpOffer(merchantId, source, appVersion, clubV2, finalIsPincodeChanged, sessionId, flagForUwToSkipCache,offerCheckedBy);
 
     }
-
     public GlobalLimitResponse getScenapticTopUpOffer(Long merchantId, String source, Integer appVersion, Boolean clubV2, boolean isPincodeChanged, String sessionId, Boolean flagForUwToSkipCache, EligibilityRequestSource offerCheckedBy) {
         logger.info("Get scienaptic TopUp offer for merchant:{}", merchantId);
 
+        Map<String, Object> requestParams = new HashMap<String, Object>() {{
+            put("merchantId", merchantId);
+            put("source", source);
+            put("appVersion", appVersion);
+            put("clubV2", clubV2);
+            put("isPincodeChanged", isPincodeChanged);
+            put("skipCache", flagForUwToSkipCache);
+            put("clientIdentifier",offerCheckedBy.name());
+        }};
         StringBuilder queryParams = new StringBuilder("?merchantId=").append(merchantId);
-
-        // Build query parameters efficiently
-        if (StringUtils.hasText(source)) {
+        Map<String, Object> body = new HashMap<>();
+        if (!ObjectUtils.isEmpty(source)) {
             queryParams.append("&source=").append(source);
         }
-        if (appVersion != null) {
+        if (!ObjectUtils.isEmpty(appVersion)) {
             queryParams.append("&appVersion=").append(appVersion);
         }
-        if (clubV2 != null) {
+        if (!ObjectUtils.isEmpty(clubV2)) {
             queryParams.append("&clubV2=").append(clubV2);
         }
-        if (isPincodeChanged) {
+        if (!ObjectUtils.isEmpty(isPincodeChanged)) {
             queryParams.append("&isPincodeChanged=").append(isPincodeChanged);
         }
-        if (StringUtils.hasText(sessionId)) {
-            queryParams.append("&sessionId=").append(sessionId);
+        if (!ObjectUtils.isEmpty(sessionId)) {
+            body.put("sessionId", sessionId);
         }
-        if (flagForUwToSkipCache != null) {
+        if(!ObjectUtils.isEmpty(flagForUwToSkipCache)) {
             queryParams.append("&skipCache=").append(flagForUwToSkipCache);
         }
-        if (offerCheckedBy != null) {
+        if(!ObjectUtils.isEmpty(offerCheckedBy)) {
             queryParams.append("&clientIdentifier=").append(offerCheckedBy.name());
         }
 
-        // Set 40-second timeout
-        int timeout = 35000;
-
-        // Create custom RestTemplate with timeout configuration
-        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(timeout);
-        factory.setReadTimeout(timeout);
-
-        RestTemplate timeoutRestTemplate = new RestTemplate(factory);
-        timeoutRestTemplate.setMessageConverters(restTemplate.getMessageConverters());
-
+        String url =  underwritingServiceBaseUrl + "/api/v1/underwriting/eligibility" + queryParams;
+        String payload = lendingHmacCalculator.getObjectPayload(requestParams);
+        String hash = lendingHmacCalculator.calculateHmac(payload, getInternalSecret());
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("x-api-key", xApiKeyUnderwritingService);
-
-        HttpEntity<Void> httpEntity = new HttpEntity<>(headers);
-
-        String url = underwritingServiceBaseUrl + "/api/v1/underwriting/eligibility" + queryParams;
-        logger.info("Calling Scenaptic with URL:{} for merchant:{}", url, merchantId);
-
+        headers.set("hash", hash);
+        headers.set("clientName", CLIENT);
+        headers.set("X-API-KEY", xApiKeyUnderwritingService);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        logger.info("Get Scenaptic Limit request: {} for merchant : {}, Url :{}", request, merchantId, url);
         try {
-            ResponseEntity<GlobalLimitResponse> response = timeoutRestTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    httpEntity,
-                    GlobalLimitResponse.class
-            );
+            ResponseEntity<String> responseEntity = restTemplateHigh.exchange(url, HttpMethod.POST, request, String.class);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                logger.info("Response received from scenaptic for merchant:{}", merchantId);
-                return response.getBody();
-            } else {
-                logger.error("Failed response from scenaptic for merchant:{}, status:{}",
-                        merchantId, response.getStatusCode());
+            logger.info("Get Scenaptic Limit string response: {} for merchant : {}", responseEntity.getBody(), merchantId);
+
+            // due to date format mismatch using a customer objectMapper
+            ObjectMapper objectMapper = new ObjectMapper();
+            DateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            objectMapper.setDateFormat(df);
+
+            String responseString = responseEntity.getBody();
+            JsonNode actualObj = objectMapper.readTree(responseString);
+
+            GlobalLimitResponse globalLimitResponse = objectMapper.treeToValue(actualObj, GlobalLimitResponse.class);
+            logger.info("Get Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
+            if (responseEntity.getStatusCode().is2xxSuccessful() && responseEntity.getBody() != null && globalLimitResponse.isSuccess()) {
+                logger.info("Global limit response for merchantId: {} {}", merchantId, globalLimitResponse);
+                return globalLimitResponse;
             }
-        } catch (ResourceAccessException e) {
-            logger.error("Timeout occurred calling Scenaptic API for merchant:{}", merchantId, e);
+            logger.error("Error Scenaptic Limit response:{} for merchant:{}", globalLimitResponse, merchantId);
+        } catch (ResourceAccessException ex) {
+            logger.info("Scenaptic Limit Api timed out for merchantId:{} {} {}", merchantId, ex.getMessage(), Arrays.asList(ex.getStackTrace()));
+        } catch (HttpServerErrorException | HttpClientErrorException exception) {
+            logger.info("exception in fetching reponse for bureau :{} {}", exception.getMessage(), exception.getResponseBodyAsString());
+            try {
+                XmlMapper xmlMapper = new XmlMapper();
+                if (exception.getResponseBodyAsString().contains(LoanDetailsConstant.UNDERWRITING_MASKED_MOBILE_EXCEPTION)){
+                    MaskedGlobalLimitResponse maskedGlobalLimitResponse = xmlMapper.readValue(exception.getResponseBodyAsString(), MaskedGlobalLimitResponse.class);
+                    logger.info("masked mobile scenapticResponseDTO {}",maskedGlobalLimitResponse.toString());
+                    return GlobalLimitResponse.form(maskedGlobalLimitResponse);
+                }else{
+                    ScenapticResponseDTO scenapticResponseDTO =  xmlMapper.readValue(exception.getResponseBodyAsString(), ScenapticResponseDTO.class);
+                    logger.info("scenapticResponseDTO {}",scenapticResponseDTO.toString());
+                    return GlobalLimitResponse.form(scenapticResponseDTO);
+                }
+            } catch (IOException | IllegalArgumentException e) {
+                logger.error("Exception in parsing responseBody string : {} {} ", e.getMessage(), e);
+            }
         } catch (Exception e) {
-            logger.error("Error calling Scenaptic API for merchant:{}", merchantId, e);
+            logger.error("Error occurred while getting Scenaptic limit for merchant:{} {} {}", merchantId, e.getMessage(), Arrays.asList(e.getStackTrace()));
         }
-
         return null;
     }
-
 
 
     public GlobalLimitResponse getGlobalLimit(Long merchantId, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
