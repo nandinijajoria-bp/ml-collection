@@ -1168,14 +1168,14 @@ public class MerchantLoansService {
             Boolean sevenDayFlag = LenderOffDays.valueOf(lendingApplication.getLender()).getEdiModel().equals(EdiModel.SEVEN_DAY_MODEL);
 
             List<LendingEligibleLoan> eligibleLoanList = null;
-            if (!createTopupAppCheck) {
+           /* if (!createTopupAppCheck) {
                 eligibleLoanList = eligibleLoanDao.findLatestByMerchantIdAndLoanTypeAndPayableDays(
                         lendingPaymentSchedule.getMerchantId(), "TOPUP", sevenDayFlag);
                 if(!CollectionUtils.isEmpty(eligibleLoanList)){
                     log.info("eligibleLoanList fetched from DB : {}", eligibleLoanList);
                     return eligibilityFromEligibleLoans(eligibleLoanList, lendingPaymentSchedule);
                 }
-            }
+            }*/
 
             // Process when no eligible loans found
             if (CollectionUtils.isEmpty(eligibleLoanList)) {
@@ -1272,7 +1272,7 @@ public class MerchantLoansService {
                     pilotIdentifier = TOPUP_PILOT_IDENTIFIER;
                 }
                 lendingRiskVariables.setPilotIdentifier(pilotIdentifier);
-                //lendingRiskVariablesDao.save(lendingRiskVariables);
+                lendingRiskVariablesDao.save(lendingRiskVariables);
             }
 
         } catch (Exception e) {
