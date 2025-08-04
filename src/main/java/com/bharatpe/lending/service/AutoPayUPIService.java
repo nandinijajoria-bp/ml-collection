@@ -34,6 +34,7 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.bharatpe.lending.common.Constants.AutoPayCheckoutEnum.*;
+import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.FAILED;
 import static com.bharatpe.lending.common.Constants.AutoPayStatusEnum.REVOKED;
 
 
@@ -244,7 +245,7 @@ public class AutoPayUPIService {
                 handleMandatePgCallback(response.getData());
             } else if ("FAILURE".equalsIgnoreCase(response.getData().getPaymentStatus()) ||
                     "FAILURE".equalsIgnoreCase(response.getData().getMandate().getStatus())) {
-                mandateApplication.setStatus(AutoPayStatusEnum.valueOf(response.getData().getMandate().getStatus()));
+                mandateApplication.setStatus(AutoPayStatusEnum.valueOf("FAILED"));
                 mandateApplication.setErrorMessage(response.getData().getMandate().getErrorDescription() == null ? response.getData().getErrorDescription() : response.getData().getMandate().getErrorDescription() );
                 mandateApplication.setErrorCode(response.getData().getMandate().getErrorCode() == null ? response.getData().getErrorCode() : response.getData().getMandate().getErrorCode());
                 log.info("Pg txn Status FAILED/CANCELLED for orderId:{}", mandateApplication.getOrderId());
@@ -407,7 +408,7 @@ public class AutoPayUPIService {
 
             List<String> statusList = new ArrayList<>();
             statusList.add(AutoPayStatusEnum.PENDING.name());
-            statusList.add(AutoPayStatusEnum.SUCCESS.name());
+            statusList.add(AutoPayStatusEnum.ACTIVE.name());
             AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender(), statusList);
             if (autoPayUPIExistingEntity != null) {
                 log.info("For this application Id, mandate is already in progress {} ", lendingApplication.getId());
@@ -421,7 +422,7 @@ public class AutoPayUPIService {
                 autoPayUPI.setLender(lendingApplication.getLender());
                 autoPayUPI.setStatus(AutoPayStatusEnum.INIT);
                 autoPayUPI.setApplicationId(lendingApplication.getId());
-                autoPayUPI.setGateway(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : "CASHFREE");
+                autoPayUPI.setGateway(DR_CASHFREE.name().equalsIgnoreCase(checkoutType) ? DR_CASHFREE.name() : "JS_CASHFREE");
                 autoPayUPI.setFrequency(DEFAULT_FREQUENCY_FOR_NEW_APPLICATIONS);
                 autoPayUPI.setIsAutoPayUpiDeduction(DeductionStatusEnum.AUTO_PAY_UPI.name());
                 autoPayUPI = autoPayUPIDao.save(autoPayUPI);
@@ -509,7 +510,7 @@ public class AutoPayUPIService {
 
         List<String> statusList = new ArrayList<>();
         statusList.add(AutoPayStatusEnum.PENDING.name());
-        statusList.add(AutoPayStatusEnum.SUCCESS.name());
+        statusList.add(AutoPayStatusEnum.ACTIVE.name());
         AutoPayUPI autoPayUPIExistingEntity = autoPayUPIDao.findTop1ByApplicationIdAndStatusOrderByIdDesc(lendingApplication.getId(), lendingApplication.getLender(), statusList);
         if (autoPayUPIExistingEntity != null) {
             log.info("For this application Id, mandate is already in progress {} ", lendingApplication.getId());
