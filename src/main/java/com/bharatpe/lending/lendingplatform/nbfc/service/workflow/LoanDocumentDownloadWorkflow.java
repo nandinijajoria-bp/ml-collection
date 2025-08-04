@@ -33,7 +33,7 @@ public class LoanDocumentDownloadWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         lald.setLeadStatus(LOAN_DOCUMENT_DOWNLOAD.name());
@@ -44,9 +44,9 @@ public class LoanDocumentDownloadWorkflow implements Workflow {
             log.warn("Loan document download request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
-        invokeDocumentDownload(applicationId, lendingApplication, lald, loanDocumentDownloadRequest);
+        return invokeDocumentDownload(applicationId, lendingApplication, lald, loanDocumentDownloadRequest);
     }
 
     @Override
@@ -54,10 +54,10 @@ public class LoanDocumentDownloadWorkflow implements Workflow {
         return LOAN_DOCUMENT_DOWNLOAD_WORKFLOW;
     }
 
-    private void invokeDocumentDownload(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeDocumentDownload(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                         LenderBaseRequest<LoanDocumentDownloadRequest> request) {
         LenderApiResponse<LoanDocumentDownloadResponse> response = lendingPlatformClient.initateLoanDocDownload(request);
-        processLoanDocumentDownloadResponse(applicationId, lendingApplication, lald, response);
+        return processLoanDocumentDownloadResponse(applicationId, lendingApplication, lald, response);
     }
 
     private LenderBaseRequest<LoanDocumentDownloadRequest> getLoanDocumentDownloadRequest(LendingApplication lendingApplication) {
@@ -78,17 +78,18 @@ public class LoanDocumentDownloadWorkflow implements Workflow {
                 .build();
     }
 
-    public void processLoanDocumentDownloadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    public boolean processLoanDocumentDownloadResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                                     LenderApiResponse<LoanDocumentDownloadResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || response.getData() == null) {
             log.info("Doc download response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         log.info("Doc download response success for application id {}", applicationId);
         docUploadUtils.saveESignedDocs(lendingApplication.getId(), response.getData().getSignedKFSUrl(), response.getData().getSignedSanctionUrl());
         lald.setLeadSubStatus(LeadSubStatus.SUCCESS);
         lendingApplicationLenderDetailsService.save(lald);
+        return true;
     }
 }
