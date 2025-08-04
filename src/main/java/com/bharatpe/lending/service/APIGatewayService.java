@@ -1668,8 +1668,9 @@ public class APIGatewayService {
 
     public GlobalLimitResponse getGlobalLimitV2(Long merchantId, EligibilityRequestSource offerCheckedBy) throws BureauCallMaskedApiException {
         Boolean clubV2 = checkClubV2(merchantId);
-        return getGlobalLimitV2(merchantId, null, null, clubV2, null, null, null, null, null, null, true,null, null, false,offerCheckedBy);
+        return getGlobalLimitV2(merchantId, null, null, clubV2, null, null, null, null, false, null, null,null, null, false,offerCheckedBy);
     }
+
 
     public GlobalLimitResponse getGlobalLimitV2(Long merchantId, String source, Integer appVersion, Boolean clubV2,
                                                 String mappedMobile, String stageOneHitId, String stageTwoHitId, Boolean skipBureau,
