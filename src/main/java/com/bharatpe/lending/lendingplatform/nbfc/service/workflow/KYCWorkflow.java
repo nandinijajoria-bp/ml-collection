@@ -80,7 +80,7 @@ public class KYCWorkflow implements Workflow {
     }
 
     private boolean isKYCSResponseDataSuccess(LenderApiResponse<KYCResponse> response) {
-        return !ObjectUtils.isEmpty(response.getData());
+        return !ObjectUtils.isEmpty(response.getData()) && !"400".equalsIgnoreCase(response.getData().getStatusCode());
     }
 
     private LenderBaseRequest<KYCRequest> getKYCRequest(LendingApplication lendingApplication) {
