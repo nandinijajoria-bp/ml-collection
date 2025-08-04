@@ -43,7 +43,7 @@ public class NachWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, TRILLIONLOANS.name());
         lald.setLeadStatus(NACH.name());
@@ -54,9 +54,9 @@ public class NachWorkflow implements Workflow {
             log.warn("Nach request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
-        invokeNachRegistration(applicationId, lendingApplication, lald, nachRegistrationRequest);
+        return invokeNachRegistration(applicationId, lendingApplication, lald, nachRegistrationRequest);
     }
 
     @Override
@@ -64,25 +64,26 @@ public class NachWorkflow implements Workflow {
         return NACH_WORKFLOW;
     }
 
-    private void invokeNachRegistration(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokeNachRegistration(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                         LenderBaseRequest<NachRegistrationRequest> nachRegistrationRequest) {
         LenderApiResponse<NachRegistrationResponse> response = lendingPlatformClient.initiateNach(nachRegistrationRequest);
-        processNachRegistrationResponse(applicationId, lendingApplication, lald, response);
+        return processNachRegistrationResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processNachRegistrationResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processNachRegistrationResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                                  LenderApiResponse<NachRegistrationResponse> response) {
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isNachResponseDataSuccess(response)) {
             log.info("Nach registration response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
         log.info("Nach registration response success for application id {}", applicationId);
         WorkflowRegistry workflowRegistry = workflowRegistryFactory
                 .getWorkflowRegistry(Lender.valueOf(lendingApplication.getLender()));
         updateLad(applicationId, workflowRegistry);
         updateLald(lald, workflowRegistry);
+        return true;
     }
 
     private void updateLad(String applicationId, WorkflowRegistry workflowRegistry) {

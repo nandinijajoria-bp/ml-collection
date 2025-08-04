@@ -36,7 +36,7 @@ public class PennyDropWorkflow implements Workflow {
 
 
     @Override
-    public void invoke(String applicationId) {
+    public boolean invoke(String applicationId) {
         LendingApplication lendingApplication = workflowUtil.getLendingApplication(applicationId);
         LendingApplicationLenderDetails lald = workflowUtil.getLendingApplicationLenderDetails(applicationId, lendingApplication.getLender());
         lald.setLeadStatus(PENNY_DROP.name());
@@ -47,9 +47,9 @@ public class PennyDropWorkflow implements Workflow {
             log.warn("Penny Drop request is empty for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.REQUEST_CREATION_FAILED);
             lendingApplicationLenderDetailsService.save(lald);
-            return;
+            return false;
         }
-        invokePennyDropRegistration(applicationId, lendingApplication, lald, pennyDropRegistrationRequest);
+        return invokePennyDropRegistration(applicationId, lendingApplication, lald, pennyDropRegistrationRequest);
     }
 
     @Override
@@ -57,23 +57,24 @@ public class PennyDropWorkflow implements Workflow {
         return PENNY_DROP_WORKFLOW;
     }
 
-    private void invokePennyDropRegistration(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean invokePennyDropRegistration(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                              LenderBaseRequest<PennyDropRegistrationRequest> pennyDropRequest) {
         LenderApiResponse<PennyDropRegistrationResponse> response = lendingPlatformClient.initiatePennyDrop(pennyDropRequest);
-        processPennyDropRegistrationResponse(applicationId, lendingApplication, lald, response);
+        return processPennyDropRegistrationResponse(applicationId, lendingApplication, lald, response);
     }
 
-    private void processPennyDropRegistrationResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
+    private boolean processPennyDropRegistrationResponse(String applicationId, LendingApplication lendingApplication, LendingApplicationLenderDetails lald,
                                                       LenderApiResponse<PennyDropRegistrationResponse> response) {;
         if (ObjectUtils.isEmpty(response) || !response.isSuccess() || !isPennyDropResponseDataSuccess(response)) {
             log.info("PennyDrop registration response failed for application id {}", applicationId);
             lald.setLeadSubStatus(LeadSubStatus.FAILED);
             lendingApplicationLenderDetailsService.save(lald);
             nbfcUtils.modifyLender(lendingApplication, lald, PENNY_DROP_FAILED);
-            return;
+            return false;
         }
         log.info("PennyDrop registration response success for application id {}", applicationId);
         updateLald(lald);
+        return true;
     }
 
     private void updateLald(LendingApplicationLenderDetails lald) {
