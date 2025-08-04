@@ -136,6 +136,33 @@ public class KycHandler {
         return null;
     }
 
+    public List<KycDoc> getKycDocForTopup(Long merchantId) {
+        log.info("Getting Kyc docs for merchant:{}", merchantId);
+        try {
+            String docs = "PAN_NO,SELFIE,POA";
+            Map<String, Object> requestParams = new HashMap<String, Object>(){{
+                put("merchantId", merchantId);
+                put("docs", docs);
+                put("imgRequire", true);
+                put("acceptDraft", true);
+                put("acceptRejected", false);
+            }};
+            HttpHeaders headers = getApiHeaders(requestParams);
+            HttpEntity<Map<String, String>> request  = new HttpEntity<>(headers);
+            final String url = env.getProperty("kyc.service.base.url") + LendingConstants.KYC_DOC_URL + "?merchantId=" + merchantId + "&docs=" + docs
+                    + "&imgRequire=true&acceptDraft=true&acceptRejected=false";
+            log.info("Get Kyc docs API url : {} and request : {} for merchant:{}", url, request, merchantId);
+            ResponseEntity<KycDocResponse> responseEntity = restTemplate.exchange(url, HttpMethod.GET, request, KycDocResponse.class);
+            log.info("Get KYC docs response : {} for merchant:{}", responseEntity.getBody(), merchantId);
+            if (Objects.nonNull(responseEntity.getBody()) && responseEntity.getBody().isStatus() && responseEntity.getBody().getData() != null) {
+                return responseEntity.getBody().getData().getDocs();
+            }
+        } catch (Exception ex) {
+            log.error("Exception in getKycDoc for merchant:{}, {}, {}", merchantId, ex, Arrays.asList(ex.getStackTrace()));
+        }
+        return null;
+    }
+
     public List<KycDoc> getKycDoc(Long merchantId, Boolean acceptRejected, Boolean acceptDraft, String docs) {
         log.info("Getting Kyc docs for merchant:{}", merchantId);
         try {

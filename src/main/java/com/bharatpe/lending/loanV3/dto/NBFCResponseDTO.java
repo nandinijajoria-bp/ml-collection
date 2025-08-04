@@ -20,4 +20,6 @@ public class NBFCResponseDTO<T> {
     String lender;
     T data;
     String error;
+    Boolean retry;
+    String type;
 }

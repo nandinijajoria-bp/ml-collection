@@ -13,7 +13,6 @@ import com.bharatpe.lending.common.service.ILenderAssignService;
 import com.bharatpe.lending.common.service.merchant.dto.*;
 import com.bharatpe.lending.common.service.merchant.service.*;
 import com.bharatpe.lending.common.util.EasyLoanUtil;
-import com.bharatpe.lending.constant.LendingConstants;
 import com.bharatpe.lending.dao.*;
 import com.bharatpe.lending.dto.LoanApplicationDetailsDto;
 import com.bharatpe.lending.dto.PanVerifyKYCResponseDto;
@@ -250,6 +249,9 @@ public class LenderAssignService implements ILenderAssignService {
 
     @Autowired
     private EdiUtil ediUtil;
+
+    @Autowired
+    private PayUConfig payUConfig;
 
     @Override
     public LendingEnum.LENDER assignLender(EdiModel ediModel) {
@@ -527,6 +529,18 @@ public class LenderAssignService implements ILenderAssignService {
         if (SMFG.name().equalsIgnoreCase(lender) && lendingApplication.getEdi() > 0.7 * riskVariables.getSummaryTpv()) {
             log.info("skipping {} due to EDI amount greater than 0.7 * summary Tpv for {}", lender, lendingApplication.getId());
             String remarks = "skipping " + lender + " for " + lendingApplication.getId() + " due to EDI amount greater than 0.7 * summary Tpv " + 0.7 * riskVariables.getSummaryTpv();
+            createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+            return false;
+        }
+        if(PAYU.name().equalsIgnoreCase(lender) && lendingApplication.getTenureInMonths() == 15 && riskVariables.getVintage() < payUConfig.getMinVintageForMoreThan15MonthsLoans()) {
+            log.info("skipping {} due to vintage {} less than {} for {} months loan tenure for application {}", lender, riskVariables.getVintage(), payUConfig.getMinVintageForMoreThan15MonthsLoans(), lendingApplication.getTenureInMonths(), lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to vintage " + riskVariables.getVintage() + " less than " + payUConfig.getMinVintageForMoreThan15MonthsLoans() + " for " +  lendingApplication.getTenureInMonths() + " months loan tenure for application "  + lendingApplication.getId();
+            createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
+            return false;
+        }
+        if(PAYU.name().equalsIgnoreCase(lender) && riskVariables.getVintage() <= 180 && lendingApplication.getTenureInMonths() > payUConfig.getMaxLoanTenureFor180DaysVintage()) {
+            log.info("skipping {} due to tenure {} greater than {} for vintage less than equal to 180 for application {}", lender, lendingApplication.getTenureInMonths(), payUConfig.getMaxLoanTenureFor180DaysVintage(), lendingApplication.getId());
+            String remarks = "skipping " + lender + " due to tenure " + lendingApplication.getTenureInMonths() + " greater than " + payUConfig.getMaxLoanTenureFor180DaysVintage() + " for vintage less than equal to 180 for application "  + lendingApplication.getId();
             createAndSaveLendingAuditTrial(lendingApplication.getId(), lendingApplication.getMerchantId(), lender, "LENDER_REMOVED", remarks);
             return false;
         }
@@ -2131,6 +2145,16 @@ public class LenderAssignService implements ILenderAssignService {
                 }
                 if (edi > riskVariables.getSummaryTpv()) {
                     response = "skipping payu for application id : " + applicationId + " due to merchant loan edi amount: " + edi + " is greater than summary_tpv " + summaryTpv;
+                    success = false;
+                    break;
+                }
+                if(application.getTenureInMonths() >= 15 && riskVariables.getVintage() < payUConfig.getMinVintageForMoreThan15MonthsLoans()) {
+                    response = "skipping " + lender + " due to vintage " + riskVariables.getVintage() + " less than " + payUConfig.getMinVintageForMoreThan15MonthsLoans() + " for " + application.getTenureInMonths() + " months loan tenure for application "  + applicationId;
+                    success = false;
+                    break;
+                }
+                if(riskVariables.getVintage() <= 180 && application.getTenureInMonths() > payUConfig.getMaxLoanTenureFor180DaysVintage()) {
+                    response = "skipping " + lender + " due to tenure " + application.getTenureInMonths() + " greater than " + payUConfig.getMaxLoanTenureFor180DaysVintage() + " for vintage less than equal to 180 for application "  + applicationId;
                     success = false;
                     break;
                 }

@@ -28,7 +28,6 @@ import org.springframework.util.ObjectUtils;
 import javax.transaction.Transactional;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Objects;
 
 @Slf4j
@@ -88,16 +87,21 @@ public class TLCreateLeadService {
             }
             NBFCResponseDTO<?> nbfcResponseDto = lenderAPIGateway.invokeStage(createLeadRequest, LenderAssociationStages.CREATE_LEAD, trillionLoansConfig.getCreateLeadTimeoutThreshold());
             log.info("create lead response of TrillionLoans from nbfc {} with applicationId: {}", nbfcResponseDto, lenderAssociationDetailsDto.getApplicationId());
-            if (Objects.nonNull(nbfcResponseDto) && nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
-                log.info("createLead request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
-                TLCreateLeadResponseDto createLeadResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateLeadResponseDto.class);
-                lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadId(createLeadResponseDTO.getResourceId().toString());
-                if (isEligibleForLenderKyc)
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.SELFIE_PENDING_FOR_LENDER_KYC.name());
-                else
-                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.LEAD_CREATION_SUCCESS.name());
-                commonService.manageApplicationState(lenderAssociationDetailsDto);
-                return true;
+            if (Objects.nonNull(nbfcResponseDto)) {
+                if(nbfcResponseDto.getSuccess() && Objects.nonNull(nbfcResponseDto.getData())) {
+                    log.info("createLead request of TrillionLoans success for {}", lenderAssociationDetailsDto.getApplicationId());
+                    TLCreateLeadResponseDto createLeadResponseDTO = objectMapper.readValue(objectMapper.writeValueAsString(nbfcResponseDto.getData()), TLCreateLeadResponseDto.class);
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setLeadId(createLeadResponseDTO.getResourceId().toString());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(isEligibleForLenderKyc ? LenderAssociationStatus.SELFIE_PENDING_FOR_LENDER_KYC.name() : LenderAssociationStatus.LEAD_CREATION_SUCCESS.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsDto);
+                    return true;
+                }
+                if(nbfcResponseDto.getRetry()) {
+                    log.info("createLead request of trillionLoans pushed to retry for {}", lenderAssociationDetailsDto.getApplicationId());
+                    lenderAssociationDetailsDto.getLendingApplicationLenderDetails().setKycStatus(LenderAssociationStatus.CREATE_LEAD_RETRY.name());
+                    commonService.manageApplicationState(lenderAssociationDetailsDto);
+                    return false;
+                }
             }
         } catch (Exception e) {
             log.info("exception occurred while processing create lead of TrillionLoans for {} {} {}", lenderAssociationDetailsDto.getApplicationId(), e.getMessage(), Arrays.asList(e.getStackTrace()));

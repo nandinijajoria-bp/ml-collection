@@ -287,6 +287,9 @@ public class AssociationServiceUtil {
     @Autowired
     PayUUpdateLeadService payUUpdateLeadService;
 
+    @Autowired
+    TLRetryService tlRetryService;
+
     public Boolean invokeCreateLeadService(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest) {
         switch (lender) {
             case "USFB":
@@ -403,7 +406,7 @@ public class AssociationServiceUtil {
             case "SMFG":
                 return smfgDocUploadService.invokeDocUpload(lenderAssociationDetailsRequest, docType);
             case "UGRO":
-                return ugroDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
+                return ugroDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest, lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(), docType);
             case "OXYZO":
                 return oxyzoDocUploadService.invokeAdditionalDocUpload(lenderAssociationDetailsRequest.getLendingApplication(), lenderAssociationDetailsRequest.getLendingApplicationLenderDetails(),docType);
             default:
@@ -786,6 +789,15 @@ public class AssociationServiceUtil {
                 return payUUpdateLeadService.invokeBankAccountUpdation(lenderAssociationDetailsDto);
             default:
                 return false;
+        }
+    }
+
+    public Boolean handleRetryCallback(String lender, LenderAssociationDetailsRequestDto lenderAssociationDetailsRequest, NBFCResponseDTO response) {
+        switch (lender) {
+            case "TRILLIONLOANS":
+                return tlRetryService.processCallback(lenderAssociationDetailsRequest, response);
+            default:
+            return false;
         }
     }
 }
