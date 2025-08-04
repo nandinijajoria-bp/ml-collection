@@ -10,20 +10,36 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.beans.factory.annotation.Value;
+
 @Configuration
 public class RestTemplateConfig {
 
+    @Value("${resttemplate.high.timeout:40000}")
+    private int timeout;
+
+    @Value("${resttemplate.high.connect-timeout:20000}")
+    private int connectTimeout;
+
+    @Value("${resttemplate.high.max-total:500}")
+    private int maxTotal;
+
+    @Value("${resttemplate.high.max-per-route:500}")
+    private int maxPerRoute;
+
+    @Value("${resttemplate.high.validate-after-inactivity:5000}")
+    private int validateAfterInactivity;
+
     @Bean(name = "restTemplateHigh")
     public RestTemplate restTemplateHigh() {
-        int timeout = 40000;
         HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-        factory.setConnectTimeout(timeout);
+        factory.setConnectTimeout(connectTimeout);
         factory.setReadTimeout(timeout);
 
         PoolingHttpClientConnectionManager connectionManager = new PoolingHttpClientConnectionManager();
-        connectionManager.setMaxTotal(500);
-        connectionManager.setDefaultMaxPerRoute(100);
-        connectionManager.setValidateAfterInactivity(2000);
+        connectionManager.setMaxTotal(maxTotal);
+        connectionManager.setDefaultMaxPerRoute(maxPerRoute);
+        connectionManager.setValidateAfterInactivity(validateAfterInactivity);
 
         CloseableHttpClient httpClient = HttpClientBuilder.create()
                 .setConnectionManager(connectionManager)
