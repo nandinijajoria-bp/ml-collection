@@ -938,7 +938,7 @@ public class LoanDetailsServiceV2 {
                 log.info("Tenure: {}, finalLimit: {}, loanAmount: {}, customAmount: {}", offerDetail.getTenure(), finalLimit, offerDetail.getLoanAmount(), customAmount);
 
                 if (finalLimit <= offerDetail.getMaxLoanAmount() && finalLimit <= (offerDetail.getLoanAmount())) {
-                    eligibleLoan = loanUtil.calculateLoanBreakup(offerDetail, merchantId, loanType, finalLimit, null, version, false);
+                    eligibleLoan = loanUtil.calculateLoanBreakupV2(offerDetail, merchantId, loanType, finalLimit, null, version);
                     eligibleLoans.add(eligibleLoan);
                 }
             }

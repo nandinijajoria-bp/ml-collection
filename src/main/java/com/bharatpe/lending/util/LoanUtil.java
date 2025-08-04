@@ -1940,6 +1940,52 @@ public class LoanUtil {
 		return sevenDayEligibleLoanOffer;
 	}
 
+	public LendingEligibleLoan calculateLoanBreakupV2(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version
+	) {
+
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
+
+		BigDecimal processingFee;
+		BigDecimal amountBD = new BigDecimal(amount);
+		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
+		if(tenureDetail.getProcessingFee() != null){
+			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+		}
+		else{
+			throw new NullPointerException("processing fee cannot be null in tenure details");
+		}
+
+
+		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.initialRoi(tenureDetail.getInitialRoi())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee(processingFee.intValue())
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
+				.build();
+		eligibleLoanList.add(sevenDayEligibleLoanOffer);
+		return sevenDayEligibleLoanOffer;
+	}
+
 	public boolean isInternalMerchant(Long merchantId) {
 		return BooleanUtils.toBoolean(lendingCache.contains(INTERNAL_MERCHANTS, merchantId));
 	}
