@@ -1,5 +1,7 @@
 package com.bharatpe.lending.service;
 
+import com.bharatpe.cache.DTO.AddCacheDto;
+import com.bharatpe.cache.service.LendingCache;
 import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.dao.ExperianDetailsDao;
 import com.bharatpe.common.dao.LendingPancardDao;
@@ -24,6 +26,7 @@ import com.bharatpe.lending.common.dto.MerchantResponseDTO;
 import com.bharatpe.lending.common.entity.LendingEligibleLoan;
 import com.bharatpe.lending.common.entity.EligibleLoanAudit;
 import com.bharatpe.lending.common.entity.LendingRiskVariables;
+import com.bharatpe.lending.common.enums.EdiModel;
 import com.bharatpe.lending.common.query.dao.LendingLedgerSlaveDao;
 import com.bharatpe.lending.common.query.entity.LendingLedgerSlave;
 import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
@@ -46,6 +49,7 @@ import com.bharatpe.lending.enums.LoanType;
 import com.bharatpe.lending.exception.BureauCallMaskedApiException;
 import com.bharatpe.lending.handlers.KycHandler;
 import com.bharatpe.lending.handlers.MerchantSummaryExceptionHandler;
+import com.bharatpe.lending.loanV2.dto.ApiResponse;
 import com.bharatpe.lending.loanV2.service.LendingApplicationServiceV2;
 import com.bharatpe.lending.loanV2.service.LoanDetailsServiceV2;
 import com.bharatpe.lending.util.LoanCalculationUtil;
@@ -114,11 +118,8 @@ public class LoanEligibleService {
     @Autowired
     LendingLedgerSlaveDao lendingLedgerSlaveDao;
 
-//    @Autowired
-//    EmailHandler emailHandler;
-
     @Autowired
-    LendingCategoryDao lendingCategoryDao;
+    LendingCache lendingCache;
 
     @Autowired
     LendingEligibleLoanDao eligibleLoanDao;
@@ -271,6 +272,167 @@ public class LoanEligibleService {
         logger.info("Eligibility Details response for merchant: {} is: {}", merchantId, responseDTO);
         return responseDTO;
     }
+
+    public ApiResponse<EligibleOffersResponseDTO> getEligibilityDetailsV2(Long merchantId, Double queryAmount, Integer ediModel) throws BureauCallMaskedApiException {
+
+        if (merchantId == null || queryAmount == null) {
+            return new ApiResponse<>(false, "Invalid request parameters", null);
+        }
+
+        String cacheKey = generateEligibilityCacheKey(merchantId, queryAmount, ediModel);
+
+        EligibleOffersResponseDTO cachedResponse = (EligibleOffersResponseDTO) lendingCache.get(cacheKey);
+        if (cachedResponse != null) {
+            logger.info("Cache hit for eligibility details: merchantId={}, amount={}", merchantId, queryAmount);
+            return new ApiResponse<>(true, "Eligibility details fetched from cache", String.valueOf(cachedResponse));
+        }
+        else {
+
+            logger.info("Cache miss for eligibility details: merchantId={}, amount={}", merchantId, queryAmount);
+
+            EligibleOffersResponseDTO responseDTO = new EligibleOffersResponseDTO();
+
+
+            GlobalLimitResponse globalLimitResponse = apiGatewayService.getGlobalLimit(merchantId, EligibilityRequestSource.EASY_LOANS);
+
+            // Quick reject if invalid response or loan amount
+            if (globalLimitResponse == null || globalLimitResponse.getData() == null) {
+                return new ApiResponse<>(false, "Unable to fetch eligibility data", String.valueOf(responseDTO));
+            }
+
+            // Validate loan amount and offer details
+            GlobalLimitResponse.Data data = globalLimitResponse.getData();
+            boolean isSmallTicket = data.getLoanType() != null &&
+                    data.getLoanType().equalsIgnoreCase(LoanType.SMALL_TICKET.name());
+            boolean hasOfferDetails = !ObjectUtils.isEmpty(data.getOfferDetails());
+
+            if ((queryAmount < 10000 && !isSmallTicket) || !hasOfferDetails) {
+                return new ApiResponse<>(false, "Invalid Loan Amount", String.valueOf(responseDTO));
+            }
+
+            Double effectiveQueryAmount = queryAmount;
+            Double globalLimit = data.getGlobalLimit();
+
+            if (globalLimit != null && queryAmount > globalLimit) {
+                logger.info("Adjusting query amount: {} to global limit: {}", queryAmount, globalLimit);
+                effectiveQueryAmount = globalLimit;
+            }
+
+            // Recompute eligible loan with the effective amount
+            loanDetailsServiceV2.recomputeEligibleLoan(globalLimitResponse, effectiveQueryAmount, merchantId, false);
+
+            // Fetch from database with date window (single DB query)
+            Date dateWindow = dateTimeUtil.getDatePlusMinutes(dateTimeUtil.getCurrentDate(), -1);
+            List<LendingEligibleLoan> eligibleLoans = eligibleLoanDao.findByMerchantIdAndAmountAndCreatedAtIsGreaterThanEqualAndLoanTypeNotIn(
+                    merchantId, effectiveQueryAmount, dateWindow, topupLoans,
+                    Sort.by(Sort.Direction.DESC, "id"));
+
+            // Fetch risk variables once
+            LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(merchantId);
+            boolean isLenderPricingApplicable = Boolean.TRUE.equals(loanUtil.isLenderPricingApplicableMerchant(merchantId));
+
+            // Process eligible loans efficiently
+            List<OfferDetails.TenureWithLender> tenures = new ArrayList<>(eligibleLoans.size());
+            for (LendingEligibleLoan loan : eligibleLoans) {
+                // Only compute pricing values if needed
+                MaxPricingValuesDTO pricingValues = null;
+                if (isLenderPricingApplicable) {
+                    pricingValues = loanUtil.getMaxPricingValues(lendingRiskVariables, loan.getTenureInMonths());
+                }
+
+                // Apply EDI model filter
+                int ediCount = loan.getEdiCount();
+                boolean isEligibleForEdiModel = (ediModel == 6 && ediCount % 30 != 0) ||
+                        (ediModel == 7 && ediCount % 30 == 0);
+
+                if (isEligibleForEdiModel) {
+                    tenures.add(convertLoanToTenureWithLender(loan, pricingValues));
+                }
+            }
+
+            lenderAssignService.assignLender(lendingApplication, eligibleLoan.getEdiCount() % 30 == 0 ?
+                    EdiModel.SEVEN_DAY_MODEL : EdiModel.SIX_DAY_MODEL, merchantBasicDetails, isApplicableForAggregationFlow);
+
+            // Prepare response based on processed results
+            if (!tenures.isEmpty()) {
+                // Create a single offer with all tenures
+                OfferDetails offer = new OfferDetails(effectiveQueryAmount, tenures);
+                responseDTO.setOffers(Collections.singletonList(offer));
+                responseDTO.setMessage("Available tenures for given amount");
+                responseDTO.setSuccess(true);
+
+                // Cache successful response for 10 minutes
+                cacheEligibilityResponse(cacheKey, responseDTO, merchantId);
+            } else {
+                responseDTO.setSuccess(false);
+                responseDTO.setMessage("No eligible offers found");
+            }
+        }
+
+        logger.info("Eligibility details V2 processed for merchant: {}, found {} offers",
+                merchantId, tenures.size());
+
+        return new ApiResponse<>(responseDTO.isSuccess(), responseDTO.getMessage(), responseDTO);
+    }
+
+    private String generateEligibilityCacheKey(Long merchantId, Double amount, Integer ediModel) {
+        return String.format("eligibility:v2:%d:%.2f:%d",
+                merchantId,
+                amount,
+                ediModel != null ? ediModel : 0);
+    }
+
+    private void cacheEligibilityResponse(String cacheKey, EligibleOffersResponseDTO response, Long merchantId) {
+        try {
+            AddCacheDto cacheDto = new AddCacheDto();
+            cacheDto.setKey(cacheKey);
+            cacheDto.setValue(response);
+            cacheDto.setTtl(600); // 10 minutes TTL
+            cacheDto.setVersion(String.valueOf(System.currentTimeMillis())); // Version tracking for invalidation
+            lendingCache.add(cacheDto);
+            logger.debug("Cached eligibility response with key: {}", cacheKey);
+        } catch (Exception e) {
+            logger.warn("Failed to cache eligibility response: {}", e.getMessage());
+        }
+    }
+
+    private OfferDetails.TenureWithLender convertLoanToTenureWithLender(LendingEligibleLoan loan, MaxPricingValuesDTO pricingValues) {
+        // Create the tenure with lender without unnecessary object creation
+        OfferDetails.TenureWithLender tenure = new OfferDetails.TenureWithLender();
+        tenure.setCategory(loan.getCategory());
+        tenure.setTenure(loan.getPayableConverter());
+        tenure.setTenureInMonths(loan.getTenureInMonths());
+        tenure.setEdiCount(loan.getEdiCount());
+
+        // Create lender data efficiently
+        LenderData lenderData = new LenderData();
+        lenderData.setEligibleLoanId(loan.getId());
+        lenderData.setLenderName("BharatPe");
+
+        // Apply pricing values if available
+        if (pricingValues != null) {
+            lenderData.setProcessingFee(pricingValues.getProcessingFee());
+            lenderData.setApr(pricingValues.getApr());
+            lenderData.setIrr(pricingValues.getIrr());
+        } else {
+            // Default values if pricing not available
+            lenderData.setProcessingFee(2.0);
+            lenderData.setApr(loan.getInterestRate() * 12);
+            lenderData.setIrr(loan.getInterestRate() * 12 * 0.85);
+        }
+
+        // Set remaining values
+        lenderData.setRepaymentAmount(loan.getRepaymentAmount().intValue());
+        lenderData.setInterestRate(loan.getInterestRate());
+        lenderData.setIsRejected(false);
+        lenderData.setApprovalRate("95%");
+
+        // Add lender to tenure using singleton list to avoid creating ArrayList
+        tenure.setLender(Collections.singletonList(lenderData));
+
+        return tenure;
+    }
+
 
     private EligibleLendingOffersResponseDTO.TenureDetails convertLoanToTenureDetails(
             LendingEligibleLoan eligibleLoan, EligibleLendingOffersResponseDTO responseDTO, MaxPricingValuesDTO maxPricingValuesDTO) {
