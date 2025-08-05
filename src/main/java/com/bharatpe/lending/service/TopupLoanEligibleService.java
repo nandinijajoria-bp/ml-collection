@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
@@ -84,6 +85,8 @@ public class TopupLoanEligibleService {
     List<Long> exemptMerchant = Arrays.asList(3692069L);
     @Autowired
     MerchantService merchantService;
+    @Value("${loan.amount.v2.eligible.merchant:}")
+    private List<Long> loanAmountV2EligibleMerchant;
 
     public void generateTopupLoan(Long merchantId) {
         try {
@@ -211,7 +214,8 @@ public class TopupLoanEligibleService {
                 break;
         }
 
-        prevLoanAmount = Math.min(prevLoanAmount, LendingConstants.MAX_LOAN_AMOUNT_DOUBLE);
+        double maxLoanAmount = loanAmountV2EligibleMerchant.contains(merchant.getId()) ? LendingConstants.MAX_LOAN_AMOUNT_DOUBLE_V2 : LendingConstants.MAX_LOAN_AMOUNT_DOUBLE;
+        prevLoanAmount = Math.min(prevLoanAmount, maxLoanAmount);
         if (paidRatio < repaidRatio || paidRatio > 0.98D) {
             logger.info("Insufficient paid ratio for merchant ID {}", merchant.getId());
             return new ArrayList<>();
