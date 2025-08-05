@@ -1229,7 +1229,8 @@ public class LoanUtil {
 	public void createRiskVariablesSnapshot(LendingApplication lendingApplication) {
 		try {
 			LendingRiskVariables lendingRiskVariables = lendingRiskVariablesDao.findByMerchantId(lendingApplication.getMerchantId());
-			if (lendingRiskVariables != null) {
+			LendingRiskVariablesSnapshot existingLendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+			if (lendingRiskVariables != null && existingLendingRiskVariablesSnapshot == null) {
 				LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = new LendingRiskVariablesSnapshot();
 				lendingRiskVariablesSnapshot.setApplicationId(lendingApplication.getId());
 				lendingRiskVariablesSnapshot.setMerchantId(lendingRiskVariables.getMerchantId());
@@ -1934,6 +1935,54 @@ public class LoanUtil {
 			logger.info("skipping eligible_loan entry creation for {}", merchantId);
 			return sevenDayEligibleLoanOffer;
 		}
+		eligibleLoanDao.saveAll(eligibleLoanList);
+		eligibleLoanDao.flush();
+		return sevenDayEligibleLoanOffer;
+	}
+
+	public LendingEligibleLoan calculateLoanBreakupV2(
+			GlobalLimitResponse.OfferDetail tenureDetail, Long merchantId, String loanType, Double amount, String offerType,
+			Double version
+	) {
+
+		Integer sevenDayEdiAmount = (int) Math.ceil(((amount + (amount * (tenureDetail.getInterestRate() / 100) * tenureDetail.getTenure()))) / (30 * tenureDetail.getTenure()));
+		Integer sevenDayRepayment = Math.round((30 * tenureDetail.getTenure() * sevenDayEdiAmount));
+		List<LendingEligibleLoan> eligibleLoanList = new ArrayList<>();
+
+		BigDecimal processingFee;
+		BigDecimal amountBD = new BigDecimal(amount);
+		BigDecimal processingFeeRateBD = BigDecimal.valueOf(tenureDetail.getProcessingFee());
+		if(tenureDetail.getProcessingFee() != null){
+			processingFee = amountBD.multiply(processingFeeRateBD).setScale(0, RoundingMode.CEILING);
+		}
+		else{
+			throw new NullPointerException("processing fee cannot be null in tenure details");
+		}
+
+
+		LendingEligibleLoan sevenDayEligibleLoanOffer = LendingEligibleLoan.builder()
+				.loanType(loanType)
+				.offerType(offerType)
+				.amount(amount)
+				.repayment(sevenDayRepayment)
+				.rateOfInterest(tenureDetail.getInterestRate())
+				.initialRoi(tenureDetail.getInitialRoi())
+				.edi(sevenDayEdiAmount)
+				.tenure(tenureDetail.getTenure() + " Months")
+				.tenureInMonths(tenureDetail.getTenure())
+				.merchantId(merchantId)
+				.status("ACTIVE")
+				.offerType(offerType)
+				.ediFreeDays(0)
+				.ioEdi(0)
+				.ioEdiDays(0)
+				.ediCount(tenureDetail.getTenure() * 30)
+				.processingFee(processingFee.intValue())
+				.version(version)
+				.clubV2Amount(tenureDetail.getClubV2Amount())
+				.processingFeeRate(tenureDetail.getProcessingFee())
+				.build();
+		eligibleLoanList.add(sevenDayEligibleLoanOffer);
 		eligibleLoanDao.saveAll(eligibleLoanList);
 		eligibleLoanDao.flush();
 		return sevenDayEligibleLoanOffer;
@@ -2991,6 +3040,27 @@ public class LoanUtil {
 	}
 
 	public void setEligibleLoan(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
+		eligibleLoan.setRateOfInterest(interestRate);
+		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
+		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());
+		if(!StringUtils.isEmpty(lender) && roundDownEligibleLenders.contains(lender)){
+			logger.info("rounding-down edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.floor(ediAmount);
+		}else{
+			logger.info("rounding-up edi amount while eligible_loan preparation for lender: {}", lender);
+			ediAmount = Math.ceil(ediAmount);
+		}
+		Double repayment = ediAmount * eligibleLoan.getEdiCount();
+		eligibleLoan.setProcessingFee(processingFee.intValue());
+		eligibleLoan.setRepayment(repayment.intValue());
+		eligibleLoan.setEdi((int) ediAmount);
+		eligibleLoan.setIrr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount, eligibleLoan.getMerchantId(), null));
+		eligibleLoan.setApr(lendingApplicationServiceV2.getApr(eligibleLoan.getEdiCount(), Double.valueOf(eligibleLoan.getEdi()), loanAmount - processingFee.intValue(), eligibleLoan.getMerchantId(), null));
+		logger.info("eligibleLoan values -> {}, {}, {}, {}, {}, {}", eligibleLoan.getApr(), eligibleLoan.getIrr(), eligibleLoan.getProcessingFee(), eligibleLoan.getRateOfInterest(), eligibleLoan.getRepayment(), eligibleLoan.getEdi());
+		eligibleLoanDao.save(eligibleLoan);
+	}
+
+	public void setEligibleLoanV2(LendingEligibleLoan eligibleLoan, Double interestRate, BigDecimal processingFee, Double loanAmount, String lender){
 		eligibleLoan.setRateOfInterest(interestRate);
 		Double interestAmt = (eligibleLoan.getAmount() * (eligibleLoan.getRateOfInterest() * eligibleLoan.getTenureInMonths()) / 100) ;
 		double ediAmount = ((eligibleLoan.getAmount() + interestAmt) / eligibleLoan.getEdiCount());

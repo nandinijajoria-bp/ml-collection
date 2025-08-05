@@ -967,6 +967,14 @@ public class PaymentService {
                         logger.info("lendingPullPayment status is success for id {} and loanId {}",lendingPullPayment.getId(),lendingPullPayment.getLoanId());
                         return "OK";
                     }
+
+                    boolean pullPaymentInProcess = checkIfPullPaymentInProcess(lendingPullPayment);
+
+                    if (pullPaymentInProcess) {
+                        logger.info("lendingPullPayment processing is in progress for id {} and loanId {}", lendingPullPayment.getId(), lendingPullPayment.getLoanId());
+                        return "OK";
+                    }
+
                     Optional<LendingPaymentSchedule> optionalLendingPaymentSchedule = lendingPaymentScheduleDao.findById(lendingPullPayment.getLoanId());
                     if(!optionalLendingPaymentSchedule.isPresent()){
                         logger.error("LPS not found in mandate settlement transaction for request {}",request);
@@ -1006,7 +1014,8 @@ public class PaymentService {
                                 return OK;
                             }
                             lendingPullPayment.setErrorDescription(request.getErrorDescription());
-                            lendingPullPayment.setStatus(request.getPaymentStatus());
+                            lendingPullPayment.setStatus("PENDING".equalsIgnoreCase(request.getPaymentStatus()) ? request.getPaymentStatus() : "FAILED");
+                            updateErrorCodeErrorDescription(request,lendingPullPayment);
                             lendingPullPaymentDao.save(lendingPullPayment);
                             if(!"PENDING".equalsIgnoreCase(request.getPaymentStatus()) && autoPayUpiDpdPenaltyEnabled) confluentKafkaTemplate.send("autopayupi-real-time-dpd", lendingPullPayment.getId());
                             List<LendingPullPayment> lendingPullPaymentList =   lendingPullPaymentDao.findPaymentsForConsecutiveCheck(lendingPullPayment.getLoanId(),lendingPullPayment.getId(),previouMandateFailed -1);
@@ -1122,6 +1131,32 @@ public class PaymentService {
             }
         }
         return "OK";
+    }
+
+    private void updateErrorCodeErrorDescription(PgPaymentCallbackDTO request, LendingPullPayment lendingPullPayment) {
+        if(request != null && !"PENDING".equalsIgnoreCase(request.getPaymentStatus())  && request.getInternalErrorCode() != null) {
+            lendingPullPayment.setErrorCode(request.getInternalErrorCode());
+        }
+        if(request != null && !"PENDING".equalsIgnoreCase(request.getPaymentStatus())  && request.getInternalErrorMessage() != null) {
+            lendingPullPayment.setErrorDescription(request.getInternalErrorMessage());
+        }
+    }
+
+    private boolean checkIfPullPaymentInProcess(LendingPullPayment lendingPullPayment) {
+        try {
+            // true : means payment is in process for the given pull payment
+            // false : means no payment is in process for the given pull payment
+            Long loanId = lendingPullPayment.getLoanId();
+            String lockKey = AUTO_PAY_SETTLEMENT + loanId;
+            if (lendingCache.isKeyExist(lockKey)) {
+                logger.info("lendingPullPayment processing is in progress for id {} and loanId {}", lendingPullPayment.getId(), lendingPullPayment.getLoanId());
+                return true;
+            }
+            return false;
+        }catch (Exception e){
+            logger.error("Exception in checkIfPullPaymentInProcess {} {}", e.getMessage(),Arrays.asList(e.getStackTrace()));
+            return true;
+        }
     }
 
     private void sendSMS(LendingPaymentSchedule loan, Double amount, boolean isLoanClosed) {

@@ -325,13 +325,14 @@ public class LoanDetailsController {
 	public ResponseEntity<TopupEligibilityResponseData> getTopupEligibility(
 			@RequestAttribute(required = false) BasicDetailsDto merchant,
 			@RequestHeader(value = "token", required = false) String token,
-			@RequestParam(required = false) Long merchantId
+			@RequestParam(required = false) Long merchantId,
+			@RequestParam(required = false) String clientIdentifier
 	) {
 		if (Objects.nonNull(merchant)){
 			merchantId = merchant.getId();
 		}
 		logger.info("request received for topup eligibility: {}", merchantId);
-		TopupEligibilityResponseData resp = merchantLoansService.getTopupEligibility(token, merchantId);
+		TopupEligibilityResponseData resp = merchantLoansService.getTopupEligibility(token, merchantId, clientIdentifier);
 		logger.info("response for topup eligibility for merchant_id: {} is: {}",merchantId, resp);
 		return new ResponseEntity<>(resp, HttpStatus.OK);
 	}

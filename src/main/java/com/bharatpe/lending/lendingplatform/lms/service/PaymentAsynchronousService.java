@@ -38,7 +38,7 @@ public class PaymentAsynchronousService {
     public void postPaymentDetails(
             LendingPaymentSchedule activeLoan, Double amount, String source, String terminalOrderId, Long orderId, boolean foreClosure) {
         try {
-            LendingApplication lendingApplication = loanDetailsService.getLendingApplicationDetails(activeLoan.getMerchantId());
+            LendingApplication lendingApplication = loanDetailsService.getLendingApplicationByApplicationId(activeLoan.getApplicationId());
             BankDetailsDto merchantBankDetail = loanDetailsService.getMerchantBankDetails(activeLoan.getMerchantId()); //Fetching bank details form Merchant service
             LendingApplicationLenderDetails lald = loanDetailsService.getLenderDetails(lendingApplication.getId(), lendingApplication.getLender());
 
