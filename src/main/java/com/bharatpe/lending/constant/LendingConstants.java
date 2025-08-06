@@ -14,9 +14,7 @@ import static com.bharatpe.lending.enums.ReferenceRelation.*;
 
 public interface LendingConstants {
 	Integer MAX_LOAN_AMOUNT_INTEGER = 1000000;
-	Integer MAX_LOAN_AMOUNT_INTEGER_V2 = 1500000;
 	Double MAX_LOAN_AMOUNT_DOUBLE = 1000000d;
-	Double MAX_LOAN_AMOUNT_DOUBLE_V2 = 1500000d;
 	String GUPSHUP_OTP_API_USERID = "2000182191";
 	String GUPSHUP_SMS_SERVICE_URL = "https://enterprise.smsgupshup.com/GatewayAPI/rest";
 	
