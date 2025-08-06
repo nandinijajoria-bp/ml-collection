@@ -35,5 +35,8 @@ public class NachMandateEligibilityConfig extends BaseEntity {
     @Column(name = "status")
     private Boolean status;
 
+    @Column(name = "loan_segment")
+    private String loanSegment;
+
 }
 

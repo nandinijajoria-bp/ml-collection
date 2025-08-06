@@ -2986,7 +2986,14 @@ public class LoanUtil {
 		if ( lendingApplication.getLender() == null || lendingApplication.getId() == null)  {
 			return true;
 		}
-		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		if (lendingRiskVariablesSnapshot == null) {
+			logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+		}
+
+		String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
         logger.info("nachMandateEligibilityConfig {}",nachMandateEligibilityConfig);
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayRequired());
 	}
@@ -3158,7 +3165,15 @@ public class LoanUtil {
 		if (!checkIfUPIAutoPayIsActive(lendingApplication.getMerchantId(), lendingApplication.getLender(), lendingApplication.getId())) {
 			return false;
 		}
-		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+
+		LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+		if (lendingRiskVariablesSnapshot == null) {
+			logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+		}
+
+		String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+
+		NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
 
 		return (ObjectUtils.isEmpty(nachMandateEligibilityConfig) || !nachMandateEligibilityConfig.getUpiAutopayNachRequired());
 	}
@@ -3425,18 +3440,28 @@ public class LoanUtil {
 	}
 
 	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount) {
+		return getMandatesRequiredForApplication(lender, loanAmount, null);
+	}
+
+	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount, String loanSegment) {
 		logger.info("checking for mandates required for lender : {}, loanAmount : {}", lender, loanAmount);
 		if ( StringUtils.isEmpty(lender) || loanAmount <= 0)  {
 			return NACH;
 		}
 		try {
-			List<NachMandateEligibilityConfig> nachMandateEligibilityConfigList =
-					nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigByLender(lender);
+			List<NachMandateEligibilityConfig> nachMandateEligibilityConfigList = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigByLender(lender);
 
 			for(NachMandateEligibilityConfig mandateEligibilityConfig: nachMandateEligibilityConfigList) {
-				if (loanAmount >= mandateEligibilityConfig.getMinTotalPayableAmount() &&
-						loanAmount <= mandateEligibilityConfig.getMaxTotalPayableAmount()) {
-					logger.info("nachMandateEligibilityConfig {}", mandateEligibilityConfig);
+				boolean amountInRange = checkIfAmountInRange(mandateEligibilityConfig, loanAmount);
+				boolean loanSegmentValid = checkIfLoanSegmentValid(mandateEligibilityConfig, loanSegment);
+
+				logger.info("amountInRange: {} loanSegmentValid: {}, lender: {}, loanAmount: {}, loanSegment: {}, mandateEligibilityConfig: {}",
+						amountInRange, loanSegmentValid, lender, loanAmount, loanSegment, mandateEligibilityConfig);
+
+				// If both amount is in range and loan segment is valid, we have a match
+				if (amountInRange && loanSegmentValid) {
+					logger.info("Valid mandateEligibilityConfig found: {} for lender: {}, loanAmount: {}, loanSegment: {}",
+							mandateEligibilityConfig, lender, loanAmount, loanSegment);
 					if (mandateEligibilityConfig.getUpiAutopayRequired() && mandateEligibilityConfig.getNachRequired()) {
 						return NACH_UPIAUTOPAY;
 					} else if (mandateEligibilityConfig.getUpiAutopayRequired()) {
@@ -3453,6 +3478,49 @@ public class LoanUtil {
 		return NACH;
 	}
 
+	private boolean checkIfLoanSegmentValid(NachMandateEligibilityConfig mandateEligibilityConfig, String loanSegment) {
+		try {
+			if (mandateEligibilityConfig == null)  return false; // If mandateEligibilityConfig is null, return false
+
+			String segments = mandateEligibilityConfig.getLoanSegment();
+			if (StringUtils.isEmpty(segments)) {
+				logger.warn("No segments defined for mandateEligibilityConfig: {}", mandateEligibilityConfig);
+				return true; // If no segments defined means valid for all segments, return true
+			}
+			logger.info("Checking if loanSegment: {} is valid for segments: {}", loanSegment, segments);
+			if (StringUtils.isEmpty(loanSegment)) {
+				logger.warn("Loan segment is empty, returning false for mandateEligibilityConfig: {}", mandateEligibilityConfig);
+				return false; // If loanSegment is empty, but eligibility has segments, return false
+			}
+			//possibilities - FRESH TOPUP REPEAT
+			return segments.trim().toLowerCase().contains(loanSegment.trim().toLowerCase());
+		} catch (Exception e) {
+			logger.error("Error while checking if loan segment is valid for mandateEligibilityConfig: {}, loanSegment: {}, msg: {}, Stack: {}",
+					mandateEligibilityConfig, loanSegment, e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+		return false;
+	}
+
+	private boolean checkIfAmountInRange(NachMandateEligibilityConfig mandateEligibilityConfig, double loanAmount) {
+		try {
+			if (mandateEligibilityConfig != null) {
+				Double minAmount = mandateEligibilityConfig.getMinTotalPayableAmount();
+				Double maxAmount = mandateEligibilityConfig.getMaxTotalPayableAmount();
+				if (minAmount == null || maxAmount == null) {
+					logger.warn("Min or Max amount is null for mandateEligibilityConfig: {}", mandateEligibilityConfig);
+				}
+				if (minAmount == null) minAmount = 0.0; // Default to 0 if min is not set
+				if (maxAmount == null) maxAmount = 0.0; // Default to 0 if is not set
+				logger.info("Checking if loanAmount: {} is in range: {} - {}", loanAmount, minAmount, maxAmount);
+				return loanAmount >= minAmount && loanAmount <= maxAmount;
+			}
+		} catch (Exception e) {
+			logger.error("Error while checking if amount is in range for mandateEligibilityConfig: {}, loanAmount: {}, msg: {}, Stack: {}",
+					mandateEligibilityConfig, loanAmount, e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+		return false; // If mandateEligibilityConfig is null, return false
+	}
+
 	public void updateMandateColumnsInLAD(LendingApplicationDetails lendingApplicationDetails, String lender, Double loanAmount) {
 		try {
 			logger.info("Updating mandate columns in LendingApplicationDetails");
@@ -3466,7 +3534,12 @@ public class LoanUtil {
 				return;
 			}
 
-			MandatesInJourney mandatesInJourney = getMandatesRequiredForApplication(lender, loanAmount);
+			LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplicationDetails.getApplicationId());
+			if (lendingRiskVariablesSnapshot == null) {
+				logger.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplicationDetails.getApplicationId());
+			}
+			String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+			MandatesInJourney mandatesInJourney = getMandatesRequiredForApplication(lender, loanAmount, loanSegment);
 
 			if (NACH_UPIAUTOPAY.equals(mandatesInJourney)) {
 				lendingApplicationDetails.setAutoPayUpiEligible(true);
