@@ -6,9 +6,11 @@ import com.bharatpe.common.objects.CommonAPIRequest;
 import com.bharatpe.common.objects.Meta;
 import com.bharatpe.lending.common.bpnewmaster.dao.DocumentsIdProofDaoMaster;
 import com.bharatpe.lending.common.bpnewmaster.entity.DocumentsIdProofMaster;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
 import com.bharatpe.lending.common.dao.LendingShopDocumentsDao;
 import com.bharatpe.lending.common.dto.MerchantNachDetailsResponseDTO;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.entity.LendingShopDocuments;
 import com.bharatpe.lending.common.enums.FunnelEnums;
@@ -18,6 +20,7 @@ import com.bharatpe.lending.common.service.merchant.dto.BankDetailsDto;
 import com.bharatpe.lending.common.service.merchant.dto.BasicDetailsDto;
 import com.bharatpe.lending.common.service.merchant.service.MerchantService;
 import com.bharatpe.lending.common.util.DateTimeUtil;
+import com.bharatpe.lending.common.util.EasyLoanUtil;
 import com.bharatpe.lending.dao.LendingApplicationDao;
 import com.bharatpe.lending.dao.LendingPaymentScheduleDao;
 import com.bharatpe.lending.enums.CleverTapEvents;
@@ -42,6 +45,7 @@ import com.bharatpe.lending.service.CleverTapEventService;
 import com.bharatpe.lending.util.LoanUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.ObjectUtils;
@@ -107,6 +111,12 @@ public class VerifyOTPServiceV2 {
 	@Autowired
 	private LendingUtil lendingUtil;
 
+	@Autowired
+	private EasyLoanUtil easyLoanUtil;
+
+	@Autowired
+	private LendingApplicationDetailsDao lendingApplicationDetailsDao;
+
 
 	public Map<String, Object> verifyOTP(BasicDetailsDto merchant, CommonAPIRequest commonAPIRequest) {
 
@@ -133,17 +143,33 @@ public class VerifyOTPServiceV2 {
 				|| documentNotAvailable(lendingApplication)) {
 			return returnFailedResponse();
 		}
-		boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender());
-		MerchantNachDetailsResponseDTO enachSuccess = getSuccessEnach(lendingApplication, isNachSkippable);
+		MerchantNachDetailsResponseDTO enachSuccess = null;
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
 
-		updateApplication(lendingApplication, merchant, meta, enachSuccess, isNachSkippable);
+		boolean isNachSkippable = loanUtil.isEligibleForNachSkip(lendingApplication, lendingApplication.getLender());
+		if(loanUtil.isMandateSwitchEnabled(lendingApplication) && isNachSkippable && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()){
+			log.info("Nach is not eligible for application: {} and merchant: {}, setting Nach Details so that flow will not break", lendingApplication.getId(), merchant.getId());
+			loanUtil.updateNachDetailsIfNachIneligible(lendingApplication);
+			updateAgreementAndLocation(lendingApplication, meta);
+		}
+		else {
+			enachSuccess = getSuccessEnach(lendingApplication, isNachSkippable);
+
+			updateApplication(lendingApplication, merchant, meta, enachSuccess, isNachSkippable);
+		}
 		sendClevertapEvents(lendingApplication, merchant);
 
 		if (!generateDocuments(lendingApplication, merchant)) {
 			return returnFailedResponse();
 		}
 		if ("APPROVED".equalsIgnoreCase(lendingApplication.getNachStatus())) {
-			invokeDocUploadAndNachWorflow(lendingApplication);
+			// Mandate Switch is enabled, so we will not invoke Doc Upload and Nach Workflow
+			if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && loanUtil.isMandateSwitchEnabled(lendingApplication) && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible() && lendingApplicationDetails.isAutoPayUpiEligible()) {
+				log.info("Nach is not eligible for application: {} and merchant: {}, skipping Invoke Doc Upload and Nach Workflow", lendingApplication.getId(), merchant.getId());
+			}
+			else{
+				invokeDocUploadAndNachWorflow(lendingApplication);
+			}
 		}
 
 		lendingApplication.setStatus("pending_verification");
@@ -178,7 +204,7 @@ public class VerifyOTPServiceV2 {
 	}
 
 
-	private void invokeDocUploadAndNachWorflow(LendingApplication lendingApplication) {
+	public void invokeDocUploadAndNachWorflow(LendingApplication lendingApplication) {
 		log.info("NACH Approved for application: {}", lendingApplication.getId());
 
 		LendingApplicationLenderDetails lald =

@@ -38,11 +38,7 @@ import com.bharatpe.lending.dto.*;
 
 import com.bharatpe.lending.entity.LmsStageHistory;
 import com.bharatpe.lending.entity.NachMandateEligibilityConfig;
-import com.bharatpe.lending.enums.ApplicationStatus;
-import com.bharatpe.lending.enums.EnachMode;
-import com.bharatpe.lending.enums.Lender;
-import com.bharatpe.lending.enums.LoanType;
-import com.bharatpe.lending.enums.ReferenceRelation;
+import com.bharatpe.lending.enums.*;
 import com.bharatpe.lending.handlers.DsHandler;
 import com.bharatpe.lending.handlers.LaunchLabsHandler;
 import com.bharatpe.lending.handlers.MerchantScoreException;
@@ -59,6 +55,7 @@ import com.bharatpe.lending.loanV3.revamp.services.LoanDashboardService;
 import com.bharatpe.lending.loanV3.revamp.util.DateUtils;
 import com.bharatpe.lending.loanV3.revamp.util.LoanUtilV3;
 import com.bharatpe.lending.loanV3.services.LenderForeclosureCachingService;
+import com.bharatpe.lending.loanV3.services.VKycService;
 import com.bharatpe.lending.loanV3.services.gateway.NbfcLenderGateway;
 import com.bharatpe.lending.service.APIGatewayService;
 import com.bharatpe.lending.service.NachBounceChargesService;
@@ -105,6 +102,7 @@ import java.util.stream.Collectors;
 import static com.bharatpe.lending.common.enums.PerpetualDpdAdjusted.Y;
 import static com.bharatpe.lending.constant.LendingConstants.PENNYDROP_LOCK_PREFIX;
 import static com.bharatpe.lending.enums.Lender.*;
+import static com.bharatpe.lending.enums.MandatesInJourney.*;
 import static com.bharatpe.lending.loanV3.enums.piramal.PaymentTypePiramal.LPC_WO_GST;
 import static com.bharatpe.lending.loanV3.revamp.constants.LoanDetailsConstant.*;
 
@@ -445,8 +443,14 @@ public class LoanUtil {
 	@Value("${pricing.experiment.enable:false}")
 	boolean pricingExpEnabled;
 
+	@Value("${mandate.switch.rollout.percent:10}")
+	Integer mandateSwitchRolloutPercent;
+
 	@Autowired
 	PricingExperimentDao pricingExperimentDao;
+
+	@Autowired
+	VKycService vKycService;
 
 	@Autowired
 	@Qualifier("accountInfoTaskExecutor")
@@ -2102,6 +2106,7 @@ public class LoanUtil {
 			logger.info("skip nach flow is not applicable for BT application {}", lendingApplication.getId());
 			return false;
 		}
+
 		String finalLender = enachServiceLenderMapper(lender);
 		if(checkIfNachSkipDisabled(finalLender, lendingApplication.getMerchantId())){
 			return false;
@@ -2125,6 +2130,12 @@ public class LoanUtil {
 		MerchantNachDetailsResponseDTO approvedNachDetails = enachHandler.findByMerchantIdAndLender(lendingApplication.getMerchantId(), finalLender);
 
 		if (ObjectUtils.isEmpty(approvedNachDetails)) {
+			if(skipNachForNachIneligible(lendingApplication, lender)){
+				logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+				logger.info("Nach is not eligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+				setIsNachSkip(lendingApplication);
+				return Boolean.TRUE;
+			}
 			return Boolean.FALSE;
 		}
 
@@ -2142,6 +2153,24 @@ public class LoanUtil {
 			return Boolean.TRUE;
 		}
 
+		if(skipNachForNachIneligible(lendingApplication, lender)){
+			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+			logger.info("Nach is not eligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+			setIsNachSkip(lendingApplication);
+			return Boolean.TRUE;
+		}
+
+		return Boolean.FALSE;
+	}
+
+	private boolean skipNachForNachIneligible(LendingApplication lendingApplication, String lender) {
+		logger.info("Checking if Nach is ineligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if(isMandateSwitchEnabled(lendingApplication) && !ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()){
+			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+			logger.info("Nach is not eligible for applicationId: {} and lender: {}", lendingApplication.getId(), lender);
+			return Boolean.TRUE;
+		}
 		return Boolean.FALSE;
 	}
 
@@ -3360,11 +3389,137 @@ public class LoanUtil {
 		return LendingViewStates.ENACH_PAGE;
 	}
 
+	public LendingViewStates getNextLendingViewStateForTopup(LendingApplicationDetails lendingApplicationDetails, LendingApplication lendingApplication) {
+		logger.info("Deciding next lending view state for topup for applicationId: {} with lendingApplication Details: {}", lendingApplication.getId(), lendingApplicationDetails);
+		if(isMandateSwitchEnabled(lendingApplication)) {
+			logger.info("Mandate switch rollout is enabled for applicationId: {}", lendingApplication.getId());
+
+			updateMandateColumnsInLAD(lendingApplicationDetails, lendingApplication.getLender(), lendingApplication.getLoanAmount());
+			logger.info("Updated LendingApplicationDetails for applicationId: {}: {}", lendingApplication.getId(), lendingApplicationDetails);
+
+			LendingViewStates nextLendingViewStateForTopup;
+			if (lendingApplicationDetails.isAutoPayUpiEligible()) {
+				logger.info("Autopay UPI is eligible for applicationId: {}", lendingApplication.getId());
+				if(isEligibleForUpiAutopayTopupDedicatedScreen(lendingApplication)){
+					logger.info("UPI Autopay dedicated screen is applicable for applicationId: {}", lendingApplication.getId());
+					nextLendingViewStateForTopup = LendingViewStates.UPI_AUTOPAY_PAGE;
+				}
+				else if (lendingApplicationDetails.isNachEligible()) {
+					logger.info("UPI Autopay dedicated screen is not applicable, but NACH is eligible for applicationId: {}", lendingApplication.getId());
+                    nextLendingViewStateForTopup = LendingViewStates.ENACH_PAGE;
+                } else {
+					logger.info("Neither UPI Autopay dedicated screen nor NACH is eligible for applicationId: {}", lendingApplication.getId());
+                    nextLendingViewStateForTopup = LendingViewStates.AGREEMENT_PAGE;
+                }
+			} else if (lendingApplicationDetails.isNachEligible()) {
+				logger.info("NACH is eligible for applicationId: {}", lendingApplication.getId());
+				nextLendingViewStateForTopup = LendingViewStates.ENACH_PAGE;
+			} else {
+				logger.info("Neither UPI Autopay nor NACH is eligible for applicationId: {}", lendingApplication.getId());
+				nextLendingViewStateForTopup = LendingViewStates.AGREEMENT_PAGE;
+			}
+			logger.info("Next lending view state for topup for applicationId: {} is {}", lendingApplication.getId(), nextLendingViewStateForTopup);
+			return nextLendingViewStateForTopup;
+		}
+		else	return getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
+	}
+
+	public MandatesInJourney getMandatesRequiredForApplication(String lender, double loanAmount) {
+		logger.info("checking for mandates required for lender : {}, loanAmount : {}", lender, loanAmount);
+		if ( StringUtils.isEmpty(lender) || loanAmount <= 0)  {
+			return NACH;
+		}
+		try {
+			List<NachMandateEligibilityConfig> nachMandateEligibilityConfigList =
+					nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigByLender(lender);
+
+			for(NachMandateEligibilityConfig mandateEligibilityConfig: nachMandateEligibilityConfigList) {
+				if (loanAmount >= mandateEligibilityConfig.getMinTotalPayableAmount() &&
+						loanAmount <= mandateEligibilityConfig.getMaxTotalPayableAmount()) {
+					logger.info("nachMandateEligibilityConfig {}", mandateEligibilityConfig);
+					if (mandateEligibilityConfig.getUpiAutopayRequired() && mandateEligibilityConfig.getNachRequired()) {
+						return NACH_UPIAUTOPAY;
+					} else if (mandateEligibilityConfig.getUpiAutopayRequired()) {
+						return UPIAUTOPAY;
+					}
+					break;
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Error while fetching nach mandate eligibility config for lender: {}, loanAmount: {}, msg: {}, Stack: {}",
+					lender, loanAmount, e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+
+		return NACH;
+	}
+
+	public void updateMandateColumnsInLAD(LendingApplicationDetails lendingApplicationDetails, String lender, Double loanAmount) {
+		try {
+			logger.info("Updating mandate columns in LendingApplicationDetails");
+			if ( StringUtils.isEmpty(lender) || Objects.isNull(loanAmount) || loanAmount <= 0
+					|| Objects.isNull(lendingApplicationDetails)) {
+				return;
+			}
+
+			if (Objects.nonNull(lendingApplicationDetails.getMandateFlagsToggledOn())) {
+				logger.info("Mandate flags already toggled on for applicationId: {}, skipping update", lendingApplicationDetails.getApplicationId());
+				return;
+			}
+
+			MandatesInJourney mandatesInJourney = getMandatesRequiredForApplication(lender, loanAmount);
+
+			if (NACH_UPIAUTOPAY.equals(mandatesInJourney)) {
+				lendingApplicationDetails.setAutoPayUpiEligible(true);
+				lendingApplicationDetails.setNachEligible(true);
+			} else if (UPIAUTOPAY.equals(mandatesInJourney)) {
+				lendingApplicationDetails.setAutoPayUpiEligible(true);
+				lendingApplicationDetails.setNachEligible(false);
+			} else if (NACH.equals(mandatesInJourney)) {
+				lendingApplicationDetails.setAutoPayUpiEligible(false);
+				lendingApplicationDetails.setNachEligible(true);
+			}
+
+			lendingApplicationDetails.setMandateFlagsToggledOn(new Date());
+			logger.info("Mandate flags toggled on for applicationId: {}, setting autoPayUpiEligible: {}, nachEligible: {}",
+					lendingApplicationDetails.getApplicationId(), lendingApplicationDetails.isAutoPayUpiEligible(), lendingApplicationDetails.isNachEligible());
+			lendingApplicationDetailsDao.save(lendingApplicationDetails);
+			logger.info("Successfully updated mandate columns in LendingApplicationDetails: {}", lendingApplicationDetails);
+		} catch (Exception e) {
+			logger.error("Error while updating mandate columns in LendingApplicationDetails: {}, Stack: {}",
+					e.getMessage(), Arrays.asList(e.getStackTrace()), e);
+		}
+	}
+
+	public void updateNachDetailsIfNachIneligible(LendingApplication lendingApplication) {
+		if(StringUtils.isEmpty(lendingApplication.getNachType())) {
+			logger.info("Nach Type is empty, means UPI Autopay is not done, setting Nach Type to ENACH even though Nach is not eligible for applicationId: {}", lendingApplication.getId());
+			lendingApplication.setNachType("ENACH");
+		}
+		lendingApplication.setNachLender(enachServiceLenderMapper(lendingApplication.getLender()));
+		lendingApplication.setNachReferenceNumber(null);
+		lendingApplication.setNachStatus("APPROVED");
+
+		lendingApplicationDao.save(lendingApplication);
+	}
+
+	public boolean isLendingApplicationIneligibleForNach(LendingApplication lendingApplication){
+		LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+		if(!ObjectUtils.isEmpty(lendingApplicationDetails) && !lendingApplicationDetails.isNachEligible()) {
+			logger.info("Lending Application is ineligible for Nach, applicationId: {}", lendingApplication.getId());
+			return true;
+		}
+		return false;
+	}
+
 	public boolean isUpiDedicatedScreenEligible(LendingApplication lendingApplication){
 		if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType())){
 			return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent);
 		}
 		return easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent);
+	}
+
+	public boolean isMandateSwitchEnabled(LendingApplication lendingApplication){
+		return isEligibleForUpiAutopayDedicatedScreen(lendingApplication) && easyLoanUtil.percentScaleUp(lendingApplication.getId(), mandateSwitchRolloutPercent);
 	}
 }
 

@@ -1352,6 +1352,11 @@ public class LendingApplicationServiceV2 {
             if (lendingApplication == null) {
                 return new ApiResponse<>(false, "application not found");
             }
+
+            log.info("Checking if Nach is ineligible for application: {}", lendingApplication.getId());
+            boolean isNachIneligible = loanUtil.isMandateSwitchEnabled(lendingApplication) ? loanUtil.isLendingApplicationIneligibleForNach(lendingApplication) : false;
+            log.info("Nach ineligibility status for application {}: {}", lendingApplication.getId(), isNachIneligible);
+
             boolean isSmallTicketLoan = LoanType.SMALL_TICKET.name().equalsIgnoreCase(lendingApplication.getLoanType());
             if (ApplicationStatus.DRAFT.name().equalsIgnoreCase(lendingApplication.getStatus()) || ApplicationStatus.DELETED.name().equalsIgnoreCase(lendingApplication.getStatus())) {
                 return new ApiResponse<>(false, "Application not in pending state");
@@ -1466,6 +1471,9 @@ public class LendingApplicationServiceV2 {
             if (successEnach != null) {
                 enachMandatory = false;
             }
+            else if(isNachIneligible){
+                enachMandatory = false;
+            }
 //        else if (lendingApplication.getAgreementAt() != null && "REGULAR".equals(lendingApplication.getLoanType()) && lendingApplication.getLoanAmount() > 50000 && LoanUtil.getDateDiffInDays(lendingApplication.getAgreementAt(), new Date()) > 3) {
 //            enachMandatory = false;
 //        }
@@ -1497,22 +1505,16 @@ public class LendingApplicationServiceV2 {
             applicationDTO.add(kycDTO);
 
             // UPI-Autopay Status
-            if(enableAutopayUPIRegistration && loanUtil.isApplicationEligibleForAutoPayUpi(lendingApplication.getLender(), lendingApplication.getMerchantId(), lendingApplication.getLoanAmount()) && !loanUtil.checkIfUpiAutoPayNotRequired(lendingApplication)
-                    && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), merchantPluginRolloutPercent)) {
-                if(LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayTopupDedicatedScreenRolloutPercent)){
-                    log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
-                    ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
-                    applicationDTO.add(upiAutopayDTO);
-                }
-                else if(!LoanType.TOPUP.name().equals(lendingApplication.getLoanType()) && easyLoanUtil.percentScaleUp(lendingApplication.getMerchantId(), upiAutoPayDedicatedScreenRolloutPercent)) {
-                    log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
-                    ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
-                    applicationDTO.add(upiAutopayDTO);
-                }
+            if(isEligibleToShowUpiAutopayStatus(lendingApplication)){
+                log.info("Fetching UPI Autopay Details for application: {}", lendingApplication.getId());
+                ApplicationDTO upiAutopayDTO = fetchUpiAutopayDetails(lendingApplication);
+                applicationDTO.add(upiAutopayDTO);
             }
 
             // E-Nach Status
-            applicationDTO.add(applicationDTO2);
+            if(!isNachIneligible){
+                applicationDTO.add(applicationDTO2);
+            }
 
             if (vkycService.isVkycEnabled(lendingApplication.getMerchantId(), lendingApplication.getLender())) {
                 LendingApplicationVkycDetails vkycDetails = lendingApplicationVkycDetailsDao.findByApplicationIdAndLender(lendingApplication.getId(), lendingApplication.getLender()).orElse(null);
@@ -1747,6 +1749,22 @@ public class LendingApplicationServiceV2 {
             log.error("Exception in applicationStatus v2 for application:{}", applicationId, e);
         }
         return new ApiResponse<>(false, "Something went wrong");
+    }
+
+    private boolean isEligibleToShowUpiAutopayStatus(LendingApplication lendingApplication) {
+        LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+        if(ObjectUtils.isEmpty(lendingApplicationDetails)){
+            log.error("LendingApplicationDetails not found for application: {}", lendingApplication.getId());
+            return false;
+        }
+        log.info("Checking if UPI Autopay status should be shown for application: {} and lending application details: {}", lendingApplication.getId(), lendingApplicationDetails);
+        if(loanUtil.isMandateSwitchEnabled(lendingApplication) && lendingApplicationDetails.isAutoPayUpiEligible() && loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication)){
+            return true;
+        }
+        else if(!loanUtil.isMandateSwitchEnabled(lendingApplication) && loanUtil.isEligibleForUpiAutopayDedicatedScreen(lendingApplication)){
+            return true;
+        }
+        return false;
     }
 
     private ApplicationDTO fetchUpiAutopayDetails(LendingApplication lendingApplication) {

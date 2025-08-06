@@ -18,4 +18,6 @@ public class KFSStateDTO {
     private String lender;
     private Long merchantId;
     private boolean dedicatedUpiAutoPayScreenEligible;
+    private boolean isUpiAutopayMandateEligible;
+    private boolean isEnachEligible;
 }
