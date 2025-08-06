@@ -6,7 +6,9 @@ import com.bharatpe.common.dao.ExperianDao;
 import com.bharatpe.common.entities.Experian;
 import com.bharatpe.common.entities.LendingApplication;
 import com.bharatpe.lending.common.Handler.EnachHandler;
+import com.bharatpe.lending.common.dao.LendingRiskVariablesSnapshotDao;
 import com.bharatpe.lending.common.dto.BharatPeEnachResponseDTO;
+import com.bharatpe.lending.common.entity.LendingRiskVariablesSnapshot;
 import com.bharatpe.lending.common.enums.FunnelEnums;
 import com.bharatpe.lending.common.query.dao.LendingPaymentScheduleDaoSlave;
 import com.bharatpe.lending.common.query.entity.LendingPaymentScheduleSlave;
@@ -117,6 +119,8 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
     @Value("${payment.bank.change.flow.applicable:false}")
     private boolean isPaymentBankChangeFlowApplicable;
 
+    @Autowired
+    LendingRiskVariablesSnapshotDao lendingRiskVariablesSnapshotDao;
 
     @Autowired
     VKycService vkycService;
@@ -379,7 +383,14 @@ public class EnachStageService implements IStageDataService<EnachStateDTO>{
                     });
         }
 
-        NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount());
+        LendingRiskVariablesSnapshot lendingRiskVariablesSnapshot = lendingRiskVariablesSnapshotDao.findByApplicationId(lendingApplication.getId());
+        if (lendingRiskVariablesSnapshot == null) {
+            log.info("No LendingRiskVariablesSnapshot found for applicationId: {}", lendingApplication.getId());
+        }
+
+        String loanSegment = (lendingRiskVariablesSnapshot != null) ? lendingRiskVariablesSnapshot.getLoanSegment() : null;
+
+        NachMandateEligibilityConfig nachMandateEligibilityConfig = nachMandateEligibilityConfigDao.findNachMandateEligibilityConfigLenderAndLoanSegmentAndLoanAmountWise(lendingApplication.getLender(), lendingApplication.getLoanAmount(), loanSegment);
 
         // UPI NACH for Loan Amount <= 50000
         if (ObjectUtils.isEmpty(nachMandateEligibilityConfig)
