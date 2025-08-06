@@ -1,7 +1,9 @@
 package com.bharatpe.lending.loanV3.revamp.scopes;
 
 import com.bharatpe.common.entities.LendingApplication;
+import com.bharatpe.lending.common.dao.LendingApplicationDetailsDao;
 import com.bharatpe.lending.common.dao.LendingApplicationLenderDetailsDao;
+import com.bharatpe.lending.common.entity.LendingApplicationDetails;
 import com.bharatpe.lending.common.entity.LendingApplicationLenderDetails;
 import com.bharatpe.lending.common.enums.*;
 import com.bharatpe.lending.common.enums.LenderAssociationStatus;
@@ -35,6 +37,9 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
 
     @Autowired
     LendingApplicationDao lendingApplicationDao;
+
+    @Autowired
+    LendingApplicationDetailsDao lendingApplicationDetailsDao;
 
     @Autowired
     LendingApplicationLenderDetailsDao lendingApplicationLenderDetailsDao;
@@ -91,6 +96,13 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                 log.info("Application not found for {}", scopeDataArgs.getMerchant().getId());
                 throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_NOT_FOUND.getErrorMessage());
             }
+
+            LendingApplicationDetails lendingApplicationDetails = lendingApplicationDetailsDao.findLendingApplicationDetailsByApplicationId(lendingApplication.getId());
+            if(ObjectUtils.isEmpty(lendingApplicationDetails)) {
+                log.info("Lending Application Details not found for {}", lendingApplication.getId());
+                throw new LoanDetailsException(LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorCode(),LoanDetailExceptionEnum.APPLICATION_DETAILS_NOT_FOUND.getErrorMessage());
+            }
+
             LendingViewStates nextPage = LendingViewStates.LENDER_EVALUATION_PAGE;
             if(LoanType.TOPUP.name().equalsIgnoreCase(lendingApplication.getLoanType()) && Arrays.asList(Lender.ABFL.name(), Lender.TRILLIONLOANS.name(), Lender.PIRAMAL.name()).contains(lendingApplication.getLender())) {
                 lenderEvaluationStateDTO.setTopup(true);
@@ -117,11 +129,13 @@ public class LenderEvaluationStageDataService implements IStageDataService<Lende
                     } else if (LenderAssociationStatus.KYC_RETRY.name().equalsIgnoreCase(lendingApplicationLenderDetails.getKycStatus())) {
                         nextPage = LendingViewStates.KYC_PAGE;
                     } else if (LenderAssociationStages.ASSC_COMPLETED.name().equalsIgnoreCase(lendingApplicationLenderDetails.getStage())) {
+                        LendingViewStates nextLendingViewStateForTopup = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);
+                        log.info("Next lending view state for topup application {} is {}", lendingApplication.getId(), nextLendingViewStateForTopup);
 
-                        nextPage = referencePageDisabledForTopup ?  loanUtil.getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication) : LendingViewStates.REFERENCE_PAGE;
+                        nextPage = referencePageDisabledForTopup ?  nextLendingViewStateForTopup : LendingViewStates.REFERENCE_PAGE;
                         if(nextPage.equals(LendingViewStates.REFERENCE_PAGE) && loanUtilV3.isReferenceNotRequired(scopeDataArgs.getApplicationId())) {
                             log.info("Skipping reference page as reference not required for topup application {}", lendingApplication.getId());
-                            nextPage = loanUtil.getNextLendingViewStateForUpiAutopayTopupDedicatedScreen(lendingApplication);
+                            nextPage = loanUtil.getNextLendingViewStateForTopup(lendingApplicationDetails, lendingApplication);
                         }
                     }
                 }

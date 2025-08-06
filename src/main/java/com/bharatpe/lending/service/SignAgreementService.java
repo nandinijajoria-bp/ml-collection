@@ -921,6 +921,9 @@ public class SignAgreementService {
 			if(LoanUtilV3.LIQUILOANS_BT_LENDERS.contains(prevApplication.getLender())) {
 				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender()));
 			}
+			else if(loanUtil.isMandateSwitchEnabled(finalNewApplication) && loanUtil.isLendingApplicationIneligibleForNach(finalNewApplication)){
+				lendingApplicationDetails.setIsNachSkip(loanUtil.isEligibleForNachSkip(newApplication, newApplication.getLender()));
+			}
 
 			lendingApplicationDetailsDao.save(lendingApplicationDetails);
 

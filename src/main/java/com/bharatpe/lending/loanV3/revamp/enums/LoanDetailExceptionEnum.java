@@ -36,7 +36,9 @@ public enum LoanDetailExceptionEnum {
 
     LENDER_DETAILS_NOT_FOUND("LEN00011", "lender details not found"),
 
-    INVALID_LENDER_STAGE_FOR_VKYC("LEN00012", "Invalid lender stage for VKYC");
+    INVALID_LENDER_STAGE_FOR_VKYC("LEN00012", "Invalid lender stage for VKYC"),
+
+    APPLICATION_DETAILS_NOT_FOUND("LEN00013", "Application Details not found");
 
 
 

@@ -29,4 +29,6 @@ public class UpiAutopayStateDTO {
     private String displayMessage;
     private Boolean retrySuggested;
     private Integer pollingTime;
+    private boolean isUpiAutopayMandateEligible;
+    private boolean isEnachEligible;
 }
