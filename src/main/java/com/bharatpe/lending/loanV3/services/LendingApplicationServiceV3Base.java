@@ -853,11 +853,6 @@ public abstract class LendingApplicationServiceV3Base {
                                 log.info("Lending lender pricing not available, using eligible loan values");
                                 pfRate = eligibleLoan.get().getProcessingFeeRate();
                             } else {
-                                if(lendingApplication.getMerchantId()==773296 && lendingLenderPricing.getTenureInMonths()==15){
-                                    log.info("hardcorded interest rate and processing fee");
-                                    lendingLenderPricing.setProcessingFeeRate(0D);
-                                    lendingLenderPricing.setInterestRate(1D);
-                                }
                                 pfRate = lendingLenderPricing.getProcessingFeeRate();
                             }
                         }

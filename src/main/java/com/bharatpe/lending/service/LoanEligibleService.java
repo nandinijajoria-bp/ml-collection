@@ -202,10 +202,6 @@ public class LoanEligibleService {
     @Autowired
     LendingRiskVariablesDao lendingRiskVariablesDao;
 
-    @Value("${loan.amount.v2.eligible.merchant:}")
-    private List<Long> loanAmountV2EligibleMerchant;
-
-
     static List<String> topupLoans = Arrays.asList(LoanType.TOPUP.name(), LoanType.HALF_TOPUP.name(),
             LoanType.IO_TOPUP.name());
 
@@ -1080,8 +1076,8 @@ public class LoanEligibleService {
             if ("NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = 100000;
             } else if (!(previousLoan == null && !cpvCity)) {
-                Integer maxLoanAmount = loanAmountV2EligibleMerchant.contains(merchantId) ? LendingConstants.MAX_LOAN_AMOUNT_INTEGER_V2 : LendingConstants.MAX_LOAN_AMOUNT_INTEGER;
-                maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : maxLoanAmount;
+
+                maxAmount = bureauScore > 0 && bureauScore < 700 && !yellowPincode ? 300000 : LendingConstants.MAX_LOAN_AMOUNT_INTEGER;
             }
             if (previousLoan != null && prevLoanAmount > previousLoan.getLoanAmount() && prevLoanAmount > 2.5 * previousLoan.getLoanAmount() && !yellowPincode && !"NTB".equalsIgnoreCase(loanType)) {
                 maxAmount = Double.valueOf(2.5 * previousLoan.getLoanAmount()).intValue();

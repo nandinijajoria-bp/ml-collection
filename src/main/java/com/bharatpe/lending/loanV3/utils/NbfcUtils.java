@@ -373,11 +373,6 @@ public class NbfcUtils {
                     lendingRiskVariablesSnapshot.getPincodeColor().name(),
                     lendingApplication.getCreatedAt()
             );
-            if(lendingApplication.getMerchantId()==773296 && lenderPricingList.getTenureInMonths()==15){
-                log.info("hardcorded interest rate and processing fee");
-                lenderPricingList.setProcessingFeeRate(0D);
-                lenderPricingList.setInterestRate(1D);
-            }
             riskVariables.setLenderPricingMap(Collections.singletonMap(lendingApplication.getLender(), lenderPricingList));
         }
 

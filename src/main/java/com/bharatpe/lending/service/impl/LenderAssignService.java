@@ -1070,11 +1070,6 @@ public class LenderAssignService implements ILenderAssignService {
                             lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(),
                             application.get().getTenureInMonths(), fallbackLender.getLender(), lendingRiskVariables.getPincodeColor().name(), application.get().getCreatedAt());
                     if (Objects.nonNull(lenderPricing)) {
-                        if(lendingRiskVariables.getMerchantId()==773296 && lenderPricing.getTenureInMonths()==15){
-                            log.info("hardcorded interest rate and processing fee");
-                            lenderPricing.setProcessingFeeRate(0D);
-                            lenderPricing.setInterestRate(1D);
-                        }
                         Map<String, LendingLenderPricing> lenderPricingMap = new HashMap<>();
                         lenderPricingMap.put(lenderPricing.getLender(), lenderPricing);
                         riskVariables.setLenderPricingMap(lenderPricingMap);
@@ -1570,11 +1565,6 @@ public class LenderAssignService implements ILenderAssignService {
                     }
                     lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), lender,
                             lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
-                    if(lendingApplication.getMerchantId()==773296 && lendingLenderPricing.getTenureInMonths()==15){
-                        log.info("hardcorded interest rate and processing fee");
-                        lendingLenderPricing.setProcessingFeeRate(0D);
-                        lendingLenderPricing.setInterestRate(1D);
-                    }
                 }
                 if (Objects.nonNull(prevAssignedLenders) && prevAssignedLenders.contains(lender)) {
                     continue;
@@ -1883,11 +1873,6 @@ public class LenderAssignService implements ILenderAssignService {
             LendingLenderPricing lendingLenderPricing = lendingLenderPricingDao.findBySegmentAndRiskGroupAndTenureInMonthsAndLenderAndPincodeColor(
                     lendingRiskVariables.getRiskSegment(), lendingRiskVariables.getRiskGroup(), lendingApplication.getTenureInMonths(), newLender, lendingRiskVariables.getPincodeColor().name(), lendingApplication.getCreatedAt());
             if(!ObjectUtils.isEmpty(lendingLenderPricing)){
-                if(lendingApplication.getMerchantId()==773296 && lendingLenderPricing.getTenureInMonths()==15){
-                    log.info("hardcorded interest rate and processing fee");
-                    lendingLenderPricing.setProcessingFeeRate(0D);
-                    lendingLenderPricing.setInterestRate(1D);
-                }
                 Long payableDays = (long) OfferUtils.getEdiDays(lendingApplication.getTenureInMonths(), LenderOffDays.valueOf(newLender).getEdiModel());
                 Double interestAmt = (lendingApplication.getLoanAmount() * (lendingLenderPricing.getInterestRate() * lendingApplication.getTenureInMonths()) / 100) ;
                 double ediAmount = ((lendingApplication.getLoanAmount() + interestAmt) / payableDays);
